@@ -25,9 +25,9 @@ public sealed class ApiFinanceTests(PostgresFixture fx)
         return doc.RootElement.GetProperty("id").GetGuid();
     }
 
-    private static async Task<decimal> BalanceAsync(HttpClient c, Guid cariId)
+    private static async Task<decimal> BalanceAsync(HttpClient c, Guid customerId)
     {
-        var body = await c.GetFromJsonAsync<JsonElement>($"/api/v1/finance/customers/{cariId}/balance");
+        var body = await c.GetFromJsonAsync<JsonElement>($"/api/v1/finance/customers/{customerId}/balance");
         return body.GetProperty("bakiye").GetDecimal();
     }
 
@@ -39,18 +39,18 @@ public sealed class ApiFinanceTests(PostgresFixture fx)
         using var api = new ApiFactory(fx.AppConnectionString);
         var c = await api.LoginClientAsync(code, "umit", "p");
 
-        var cari = await CreateIdAsync(c, "/api/v1/customers", new { tip = "Bireysel", ad = "Fin", soyad = "Test" });
-        Assert.Equal(0m, await BalanceAsync(c, cari));
+        var account = await CreateIdAsync(c, "/api/v1/customers", new { tip = "Bireysel", ad = "Fin", soyad = "Test" });
+        Assert.Equal(0m, await BalanceAsync(c, account));
 
         // Tahsilat 1000 (Borç Kasa / Alacak Cari) → cari bakiye −1000.
         var cashId = await CreateIdAsync(c, "/api/v1/finance/cash/collect",
-            new { cariId = cari, tutar = 1000m, doviz = "TRY", kur = 1m, hesap = "Kasa" });
-        Assert.Equal(-1000m, await BalanceAsync(c, cari));
+            new { cariId = account, tutar = 1000m, doviz = "TRY", kur = 1m, hesap = "Kasa" });
+        Assert.Equal(-1000m, await BalanceAsync(c, account));
 
         // Ters kayıt → bakiye 0.
         var rev = await c.PostAsync($"/api/v1/finance/cash/{cashId}/reverse", null);
         Assert.Equal(HttpStatusCode.Created, rev.StatusCode);
-        Assert.Equal(0m, await BalanceAsync(c, cari));
+        Assert.Equal(0m, await BalanceAsync(c, account));
     }
 
     [Fact]
@@ -75,14 +75,14 @@ public sealed class ApiFinanceTests(PostgresFixture fx)
         using var api = new ApiFactory(fx.AppConnectionString);
 
         var ca = await api.LoginClientAsync(codeA, "umit", "p");
-        var cari = await CreateIdAsync(ca, "/api/v1/customers", new { tip = "Bireysel", ad = "A" });
+        var account = await CreateIdAsync(ca, "/api/v1/customers", new { tip = "Bireysel", ad = "A" });
         await CreateIdAsync(ca, "/api/v1/finance/cash/collect",
-            new { cariId = cari, tutar = 500m, doviz = "TRY", kur = 1m, hesap = "Kasa" });
+            new { cariId = account, tutar = 500m, doviz = "TRY", kur = 1m, hesap = "Kasa" });
 
         // Tenant B: A'nın nakit listesi görünmez; A'nın carisinin bakiyesi B'ye 0.
         var cb = await api.LoginClientAsync(codeB, "umit", "p");
         var bCash = await cb.GetFromJsonAsync<List<JsonElement>>("/api/v1/finance/cash");
         Assert.Empty(bCash!);
-        Assert.Equal(0m, await BalanceAsync(cb, cari));
+        Assert.Equal(0m, await BalanceAsync(cb, account));
     }
 }

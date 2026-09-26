@@ -24,28 +24,28 @@ namespace RentACar.IntegrationTests;
 [Collection("postgres")]
 public sealed class TalepDongusuTests(PostgresFixture fx)
 {
-    private static readonly DateTimeOffset Bas =
+    private static readonly DateTimeOffset Start =
         new DateTimeOffset(DateTime.UtcNow.Date, TimeSpan.Zero).AddDays(5).AddHours(9);
 
     private static PublicBookingRequestService Svc(IServiceScope s)
         => s.ServiceProvider.GetRequiredService<PublicBookingRequestService>();
 
     /// <summary>Anonim talep oluşturur (public yol — guard'sız) ve id'sini döner.</summary>
-    private static async Task<Guid> TalepAsync(IServiceScope s, string ad = "Ahmet Yılmaz",
+    private static async Task<Guid> RequestAsync(IServiceScope s, string name = "Ahmet Yılmaz",
         string tel = "0532 111 22 33")
     {
         var svc = Svc(s);
         await svc.CreateAsync(new PublicBookingRequestInput
         {
-            AdSoyad = ad, Telefon = tel, BasTar = Bas, BitTar = Bas.AddDays(3),
+            AdSoyad = name, Telefon = tel, BasTar = Start, BitTar = Start.AddDays(3),
         });
-        var (satirlar, _) = await svc.ListRequestsAsync(new TalepFiltre(Ara: tel));
-        return satirlar.First(x => x.Talep.AdSoyad == ad).Talep.Id;
+        var (rows, _) = await svc.ListRequestsAsync(new TalepFiltre(Ara: tel));
+        return rows.First(x => x.Talep.AdSoyad == name).Talep.Id;
     }
 
-    private static async Task<Guid> AracAsync(IServiceScope s, string plaka)
+    private static async Task<Guid> VehicleAsync(IServiceScope s, string plate)
         => await s.ServiceProvider.GetRequiredService<VehicleService>()
-            .CreateAsync(new VehicleInput { Plaka = plaka, Durum = VehicleStatus.Musait });
+            .CreateAsync(new VehicleInput { Plaka = plate, Durum = VehicleStatus.Musait });
 
     // ---- DURUM KURALLARI (saf) ----
 
@@ -87,16 +87,16 @@ public sealed class TalepDongusuTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var s = host.ScopeFor(Guid.NewGuid());
         var svc = Svc(s);
-        var id = await TalepAsync(s);
+        var id = await RequestAsync(s);
 
         await svc.AssignStatusAsync(id, PublicBookingRequestDurum.Iletisimde);
-        Assert.Equal(PublicBookingRequestDurum.Iletisimde, await DurumAsync(svc, id));
+        Assert.Equal(PublicBookingRequestDurum.Iletisimde, await StatusAsync(svc, id));
 
         await svc.AssignStatusAsync(id, PublicBookingRequestDurum.TeklifVerildi);
-        Assert.Equal(PublicBookingRequestDurum.TeklifVerildi, await DurumAsync(svc, id));
+        Assert.Equal(PublicBookingRequestDurum.TeklifVerildi, await StatusAsync(svc, id));
 
         await svc.AssignStatusAsync(id, PublicBookingRequestDurum.Kayip);
-        Assert.Equal(PublicBookingRequestDurum.Kayip, await DurumAsync(svc, id));
+        Assert.Equal(PublicBookingRequestDurum.Kayip, await StatusAsync(svc, id));
     }
 
     /// <summary>
@@ -109,15 +109,15 @@ public sealed class TalepDongusuTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var s = host.ScopeFor(Guid.NewGuid());
         var svc = Svc(s);
-        var id = await TalepAsync(s);
-        var arac = await AracAsync(s, "34 TD 01");
+        var id = await RequestAsync(s);
+        var vehicle = await VehicleAsync(s, "34 TD 01");
 
         await svc.AssignStatusAsync(id, PublicBookingRequestDurum.Iletisimde);
         await svc.AssignStatusAsync(id, PublicBookingRequestDurum.TeklifVerildi);
 
-        var rez = await svc.ConvertAsync(id, arac);   // eski yüklemde "zaten işlenmiş" derdi
-        Assert.NotEqual(Guid.Empty, rez);
-        Assert.Equal(PublicBookingRequestDurum.Donustu, await DurumAsync(svc, id));
+        var res = await svc.ConvertAsync(id, vehicle);   // eski yüklemde "zaten işlenmiş" derdi
+        Assert.NotEqual(Guid.Empty, res);
+        Assert.Equal(PublicBookingRequestDurum.Donustu, await StatusAsync(svc, id));
     }
 
     [Fact]
@@ -126,11 +126,11 @@ public sealed class TalepDongusuTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var s = host.ScopeFor(Guid.NewGuid());
         var svc = Svc(s);
-        var id = await TalepAsync(s);
+        var id = await RequestAsync(s);
 
         await svc.AssignStatusAsync(id, PublicBookingRequestDurum.Iletisimde);
         await svc.RejectAsync(id);                     // aynı claim yolu
-        Assert.Equal(PublicBookingRequestDurum.Reddedildi, await DurumAsync(svc, id));
+        Assert.Equal(PublicBookingRequestDurum.Reddedildi, await StatusAsync(svc, id));
     }
 
     [Fact]
@@ -139,19 +139,19 @@ public sealed class TalepDongusuTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var s = host.ScopeFor(Guid.NewGuid());
         var svc = Svc(s);
-        var arac = await AracAsync(s, "34 TD 02");
+        var vehicle = await VehicleAsync(s, "34 TD 02");
 
         // (a) Dönüşmüş talep: ortada gerçek rezervasyon var → kayıp/iletişimde işaretlenemez.
-        var donusen = await TalepAsync(s, "Dönüşen Müşteri", "0532 222 33 44");
-        await svc.ConvertAsync(donusen, arac);
+        var converted = await RequestAsync(s, "Dönüşen Müşteri", "0532 222 33 44");
+        await svc.ConvertAsync(converted, vehicle);
         var ex = await Assert.ThrowsAsync<ValidationException>(
-            () => svc.AssignStatusAsync(donusen, PublicBookingRequestDurum.Kayip));
+            () => svc.AssignStatusAsync(converted, PublicBookingRequestDurum.Kayip));
         // Mesaj terminal durumu söyler VE rezervasyona dönüştüğünü ekler (tek kontrol, iki bilgi).
         Assert.Contains("Dönüştü", ex.Message);
         Assert.Contains("Rezervasyona dönüşmüş", ex.Message);
 
         // (b) Reddedilmiş talep de kapalı.
-        var red = await TalepAsync(s, "Reddedilen", "0532 333 44 55");
+        var red = await RequestAsync(s, "Reddedilen", "0532 333 44 55");
         await svc.RejectAsync(red);
         await Assert.ThrowsAsync<ValidationException>(
             () => svc.AssignStatusAsync(red, PublicBookingRequestDurum.Iletisimde));
@@ -164,13 +164,13 @@ public sealed class TalepDongusuTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var s = host.ScopeFor(Guid.NewGuid());
         var svc = Svc(s);
-        var id = await TalepAsync(s);
+        var id = await RequestAsync(s);
 
         // Elle "Dönüştü" yazmak, rezervasyonu olmayan bir "dönüştü" satırı üretirdi.
         var ex = await Assert.ThrowsAsync<ValidationException>(
             () => svc.AssignStatusAsync(id, PublicBookingRequestDurum.Donustu));
         Assert.Contains("Dönüştür", ex.Message);
-        Assert.Equal(PublicBookingRequestDurum.Yeni, await DurumAsync(svc, id));
+        Assert.Equal(PublicBookingRequestDurum.Yeni, await StatusAsync(svc, id));
     }
 
     // ---- NOTLAR ----
@@ -181,23 +181,23 @@ public sealed class TalepDongusuTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var s = host.ScopeFor(Guid.NewGuid(), userName: "umit");
         var svc = Svc(s);
-        var id = await TalepAsync(s);
+        var id = await RequestAsync(s);
 
         await svc.AddNoteAsync(id, "Aradım, ulaşamadım.");
         await svc.AddNoteAsync(id, "Akşam tekrar arayacağım.");
 
-        var notlar = await svc.NotesAsync(id);
-        Assert.Equal(2, notlar.Count);
-        Assert.Equal("Akşam tekrar arayacağım.", notlar[0].Metin);   // en yeni önce
-        Assert.Equal("umit", notlar[0].Kullanici);
+        var notes = await svc.NotesAsync(id);
+        Assert.Equal(2, notes.Count);
+        Assert.Equal("Akşam tekrar arayacağım.", notes[0].Metin);   // en yeni önce
+        Assert.Equal("umit", notes[0].Kullanici);
 
         // Silme yüzeyi YOK — takip geçmişi kanıt (servis metodu sunmuyor).
         Assert.DoesNotContain("NotSil", typeof(PublicBookingRequestService)
             .GetMethods().Select(m => m.Name));
 
         // Liste satırı not sayısını taşır (N+1'siz).
-        var (satirlar, _) = await svc.ListRequestsAsync(new TalepFiltre());
-        Assert.Equal(2, satirlar.Single(x => x.Talep.Id == id).NotSayisi);
+        var (rows, _) = await svc.ListRequestsAsync(new TalepFiltre());
+        Assert.Equal(2, rows.Single(x => x.Talep.Id == id).NotSayisi);
     }
 
     [Fact]
@@ -206,7 +206,7 @@ public sealed class TalepDongusuTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var s = host.ScopeFor(Guid.NewGuid());
         var svc = Svc(s);
-        var id = await TalepAsync(s);
+        var id = await RequestAsync(s);
 
         await Assert.ThrowsAsync<ValidationException>(() => svc.AddNoteAsync(id, "   "));
         await Assert.ThrowsAsync<ValidationException>(
@@ -222,25 +222,25 @@ public sealed class TalepDongusuTests(PostgresFixture fx)
     {
         using var host = new TestHost(fx.AppConnectionString);
         var tenantId = Guid.NewGuid();
-        var kullaniciId = Guid.NewGuid();
+        var userId = Guid.NewGuid();
         Guid id;
-        using (var s = host.ScopeFor(tenantId, userId: kullaniciId, userName: "umit"))
+        using (var s = host.ScopeFor(tenantId, userId: userId, userName: "umit"))
         {
             var svc = Svc(s);
-            id = await TalepAsync(s);
+            id = await RequestAsync(s);
             await svc.ClaimAsync(id, claim: true);
 
-            var (satirlar, _) = await svc.ListRequestsAsync(new TalepFiltre());
-            var t = satirlar.Single(x => x.Talep.Id == id).Talep;
+            var (rows, _) = await svc.ListRequestsAsync(new TalepFiltre());
+            var t = rows.Single(x => x.Talep.Id == id).Talep;
             Assert.Equal("umit", t.AtananAd);           // ad DENORMALİZE (Users'a join yok)
-            Assert.Equal(kullaniciId, t.AtananKullaniciId);
+            Assert.Equal(userId, t.AtananKullaniciId);
         }
-        using (var s = host.ScopeFor(tenantId, userId: kullaniciId, userName: "umit"))
+        using (var s = host.ScopeFor(tenantId, userId: userId, userName: "umit"))
         {
             var svc = Svc(s);
             await svc.ClaimAsync(id, claim: false);
-            var (satirlar, _) = await svc.ListRequestsAsync(new TalepFiltre());
-            Assert.Null(satirlar.Single(x => x.Talep.Id == id).Talep.AtananAd);
+            var (rows, _) = await svc.ListRequestsAsync(new TalepFiltre());
+            Assert.Null(rows.Single(x => x.Talep.Id == id).Talep.AtananAd);
         }
     }
 
@@ -252,16 +252,16 @@ public sealed class TalepDongusuTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var s = host.ScopeFor(Guid.NewGuid());
         var svc = Svc(s);
-        var a = await TalepAsync(s, "Ahmet Yılmaz", "0532 111 11 11");
-        await TalepAsync(s, "Mehmet Demir", "0533 222 22 22");
+        var a = await RequestAsync(s, "Ahmet Yılmaz", "0532 111 11 11");
+        await RequestAsync(s, "Mehmet Demir", "0533 222 22 22");
         await svc.AssignStatusAsync(a, PublicBookingRequestDurum.Iletisimde);
 
-        var (yeni, yeniToplam) = await svc.ListRequestsAsync(new TalepFiltre(PublicBookingRequestDurum.Yeni));
-        Assert.Equal(1, yeniToplam);
-        Assert.Equal("Mehmet Demir", yeni[0].Talep.AdSoyad);
+        var (newItem, newTotal) = await svc.ListRequestsAsync(new TalepFiltre(PublicBookingRequestDurum.Yeni));
+        Assert.Equal(1, newTotal);
+        Assert.Equal("Mehmet Demir", newItem[0].Talep.AdSoyad);
 
-        var (iletisim, _) = await svc.ListRequestsAsync(new TalepFiltre(PublicBookingRequestDurum.Iletisimde));
-        Assert.Equal("Ahmet Yılmaz", Assert.Single(iletisim).Talep.AdSoyad);
+        var (contact, _) = await svc.ListRequestsAsync(new TalepFiltre(PublicBookingRequestDurum.Iletisimde));
+        Assert.Equal("Ahmet Yılmaz", Assert.Single(contact).Talep.AdSoyad);
 
         // Ada göre arama Türkçe-duyarsız (ILIKE) ve telefona göre de çalışıyor.
         Assert.Single((await svc.ListRequestsAsync(new TalepFiltre(Ara: "ahmet"))).Satirlar);
@@ -275,14 +275,14 @@ public sealed class TalepDongusuTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var s = host.ScopeFor(Guid.NewGuid());
         var svc = Svc(s);
-        for (var i = 1; i <= 7; i++) await TalepAsync(s, $"Müşteri {i}", $"0532 000 00 {i:00}");
+        for (var i = 1; i <= 7; i++) await RequestAsync(s, $"Müşteri {i}", $"0532 000 00 {i:00}");
 
-        var (ilk, toplam) = await svc.ListRequestsAsync(new TalepFiltre(Sayfa: 1, Boyut: 3));
-        Assert.Equal(7, toplam);
-        Assert.Equal(3, ilk.Count);
+        var (first, total) = await svc.ListRequestsAsync(new TalepFiltre(Sayfa: 1, Boyut: 3));
+        Assert.Equal(7, total);
+        Assert.Equal(3, first.Count);
 
-        var (ucuncu, _) = await svc.ListRequestsAsync(new TalepFiltre(Sayfa: 3, Boyut: 3));
-        Assert.Single(ucuncu);
+        var (third, _) = await svc.ListRequestsAsync(new TalepFiltre(Sayfa: 3, Boyut: 3));
+        Assert.Single(third);
 
         // Boyut kelepçesi: 0/negatif istek tüm tabloyu çekmeye dönüşmemeli.
         Assert.Single((await svc.ListRequestsAsync(new TalepFiltre(Boyut: 0))).Satirlar);
@@ -298,11 +298,11 @@ public sealed class TalepDongusuTests(PostgresFixture fx)
 
         Assert.Equal(new TalepOzet(0, null), await svc.SummaryAsync());   // boşta sıfır
 
-        var a = await TalepAsync(s, "Bir", "0532 111 11 11");
-        await TalepAsync(s, "İki", "0532 222 22 22");
-        var ozet = await svc.SummaryAsync();
-        Assert.Equal(2, ozet.Yeni);
-        Assert.Equal(0, ozet.EnEskiGun);        // bugün oluştu
+        var a = await RequestAsync(s, "Bir", "0532 111 11 11");
+        await RequestAsync(s, "İki", "0532 222 22 22");
+        var summary = await svc.SummaryAsync();
+        Assert.Equal(2, summary.Yeni);
+        Assert.Equal(0, summary.EnEskiGun);        // bugün oluştu
 
         // İşlenen talep sayaçtan düşer (kuyruk "cevaplanmamış"ı gösteriyor).
         await svc.AssignStatusAsync(a, PublicBookingRequestDurum.Iletisimde);
@@ -315,12 +315,12 @@ public sealed class TalepDongusuTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var s = host.ScopeFor(Guid.NewGuid());
         var svc = Svc(s);
-        var id = await TalepAsync(s);
+        var id = await RequestAsync(s);
         await svc.RejectAsync(id);
 
         // Kapanmış lead'in "12 gündür bekliyor" yazması yanıltıcı olurdu.
-        var (satirlar, _) = await svc.ListRequestsAsync(new TalepFiltre());
-        Assert.Equal(0, satirlar.Single(x => x.Talep.Id == id).BekleyenGun);
+        var (rows, _) = await svc.ListRequestsAsync(new TalepFiltre());
+        Assert.Equal(0, rows.Single(x => x.Talep.Id == id).BekleyenGun);
     }
 
     // ---- YETKİ + İZOLASYON ----
@@ -331,7 +331,7 @@ public sealed class TalepDongusuTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         var tenantId = Guid.NewGuid();
         Guid id;
-        using (var s = host.ScopeFor(tenantId)) id = await TalepAsync(s);
+        using (var s = host.ScopeFor(tenantId)) id = await RequestAsync(s);
 
         using var m = host.ScopeFor(tenantId, role: UserRole.Muhasebe);
         var svc = Svc(m);
@@ -353,7 +353,7 @@ public sealed class TalepDongusuTests(PostgresFixture fx)
         Guid id;
         using (var s = host.ScopeFor(t1))
         {
-            id = await TalepAsync(s, "T1 Müşterisi", "0532 111 11 11");
+            id = await RequestAsync(s, "T1 Müşterisi", "0532 111 11 11");
             await Svc(s).AddNoteAsync(id, "T1 notu");
         }
 
@@ -367,10 +367,10 @@ public sealed class TalepDongusuTests(PostgresFixture fx)
             () => svc.AssignStatusAsync(id, PublicBookingRequestDurum.Iletisimde));
     }
 
-    private static async Task<PublicBookingRequestDurum> DurumAsync(
+    private static async Task<PublicBookingRequestDurum> StatusAsync(
         PublicBookingRequestService svc, Guid id)
     {
-        var (satirlar, _) = await svc.ListRequestsAsync(new TalepFiltre(Boyut: 200));
-        return satirlar.Single(x => x.Talep.Id == id).Talep.Durum;
+        var (rows, _) = await svc.ListRequestsAsync(new TalepFiltre(Boyut: 200));
+        return rows.Single(x => x.Talep.Id == id).Talep.Durum;
     }
 }

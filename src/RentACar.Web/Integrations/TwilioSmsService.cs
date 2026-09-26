@@ -22,19 +22,19 @@ namespace RentACar.Web.Integrations;
 /// başlıkla gönderilen mesaj Twilio'ya kabul edilse de teslim edilmez. Kayıt yoksa numara ile gönderin.</para>
 ///
 /// <para>Hata/timeout(10sn) → <c>false</c> (çağıran job ÇÖKMESİN). 201 Created teslim demek DEĞİLDİR —
-/// <see cref="TwilioWhatsAppService.SonDurumAsync"/> ile aynı gerekçe; ilk durum loglanır, kesin
-/// doğrulama <see cref="SonDurumAsync"/> ile yapılır.</para>
+/// <see cref="TwilioWhatsAppService.LastStatusAsync"/> ile aynı gerekçe; ilk durum loglanır, kesin
+/// doğrulama <see cref="LastStatusAsync"/> ile yapılır.</para>
 /// </summary>
 public sealed class TwilioSmsService(
     IHttpClientFactory httpFactory, IConfiguration config, ILogger<TwilioSmsService> log) : ISmsService
 {
     public async Task<bool> SendAsync(
-        string phone, string message, string? gonderen = null, CancellationToken ct = default)
-        => (await GonderAsync(phone, message, gonderen, ct)).Ok;
+        string phone, string message, string? sender = null, CancellationToken ct = default)
+        => (await GonderAsync(phone, message, sender, ct)).Ok;
 
     /// <summary>Gönderim + oluşan mesajın SID'i (teşhis yolu için — bkz. WhatsApp göndericisindeki gerekçe).</summary>
     public async Task<(bool Ok, string? Sid)> GonderAsync(
-        string phone, string message, string? gonderen = null, CancellationToken ct = default)
+        string phone, string message, string? sender = null, CancellationToken ct = default)
     {
         var sid = config["Twilio:AccountSid"];
         var token = config["Twilio:AuthToken"];
@@ -52,7 +52,7 @@ public sealed class TwilioSmsService(
             return (false, null);
         }
 
-        var from = !string.IsNullOrWhiteSpace(gonderen) ? gonderen.Trim() : smsFrom;
+        var from = !string.IsNullOrWhiteSpace(sender) ? sender.Trim() : smsFrom;
         if (string.IsNullOrWhiteSpace(from) && string.IsNullOrWhiteSpace(msgServiceSid))
         {
             log.LogWarning("Twilio SMS gönderen kaynağı yok (Twilio:SmsFrom / MessagingServiceSid / tenant başlığı) → gönderilmedi.");
@@ -84,25 +84,25 @@ public sealed class TwilioSmsService(
                 return (false, null);
             }
 
-            string? olusanSid = null;
+            string? createdSid = null;
             try
             {
                 using var doc = JsonDocument.Parse(await resp.Content.ReadAsStringAsync(ct));
-                var kok = doc.RootElement;
-                olusanSid = kok.TryGetProperty("sid", out var s2) ? s2.GetString() : null;
-                var durum = kok.TryGetProperty("status", out var d2) ? d2.GetString() : null;
-                var hata = kok.TryGetProperty("error_code", out var e2) && e2.ValueKind != JsonValueKind.Null
+                var root = doc.RootElement;
+                createdSid = root.TryGetProperty("sid", out var s2) ? s2.GetString() : null;
+                var status = root.TryGetProperty("status", out var d2) ? d2.GetString() : null;
+                var error = root.TryGetProperty("error_code", out var e2) && e2.ValueKind != JsonValueKind.Null
                     ? e2.ToString() : null;
-                if (durum is "failed" or "undelivered" || hata is not null)
+                if (status is "failed" or "undelivered" || error is not null)
                 {
                     log.LogWarning("Twilio SMS oluşturuldu ama BAŞARISIZ (sid={Sid} durum={Durum} hata={Hata}).",
-                        olusanSid, durum, hata);
-                    return (false, olusanSid);
+                        createdSid, status, error);
+                    return (false, createdSid);
                 }
-                log.LogInformation("Twilio SMS kuyruğa alındı (sid={Sid} durum={Durum}).", olusanSid, durum);
+                log.LogInformation("Twilio SMS kuyruğa alındı (sid={Sid} durum={Durum}).", createdSid, status);
             }
             catch (JsonException) { /* gövde okunamadı — kabul yanıtını geçerli say */ }
-            return (true, olusanSid);
+            return (true, createdSid);
         }
         catch (Exception ex)
         {
@@ -112,18 +112,18 @@ public sealed class TwilioSmsService(
     }
 
     /// <summary>Mesajın gerçek teslim durumunu SID ile okur (teşhis — Ayarlar test butonu).</summary>
-    public async Task<(string? Durum, string? HataKodu)> SonDurumAsync(string mesajSid, CancellationToken ct = default)
+    public async Task<(string? Durum, string? HataKodu)> LastStatusAsync(string messageSid, CancellationToken ct = default)
     {
         var sid = config["Twilio:AccountSid"];
         var token = config["Twilio:AuthToken"];
         if (string.IsNullOrWhiteSpace(sid) || string.IsNullOrWhiteSpace(token)
-            || string.IsNullOrWhiteSpace(mesajSid)) return (null, null);
+            || string.IsNullOrWhiteSpace(messageSid)) return (null, null);
         try
         {
             var http = httpFactory.CreateClient();
             http.Timeout = TimeSpan.FromSeconds(10);
             using var req = new HttpRequestMessage(HttpMethod.Get,
-                $"https://api.twilio.com/2010-04-01/Accounts/{sid}/Messages/{mesajSid}.json");
+                $"https://api.twilio.com/2010-04-01/Accounts/{sid}/Messages/{messageSid}.json");
             req.Headers.Authorization = new AuthenticationHeaderValue(
                 "Basic", Convert.ToBase64String(Encoding.ASCII.GetBytes($"{sid}:{token}")));
             var resp = await http.SendAsync(req, ct);
@@ -134,10 +134,10 @@ public sealed class TwilioSmsService(
             }
             using var doc = JsonDocument.Parse(await resp.Content.ReadAsStringAsync(ct));
             var m = doc.RootElement;
-            var durum = m.TryGetProperty("status", out var d) ? d.GetString() : null;
-            var hata = m.TryGetProperty("error_code", out var e) && e.ValueKind != JsonValueKind.Null
+            var status = m.TryGetProperty("status", out var d) ? d.GetString() : null;
+            var error = m.TryGetProperty("error_code", out var e) && e.ValueKind != JsonValueKind.Null
                 ? e.ToString() : null;
-            return (durum, hata);
+            return (status, error);
         }
         catch (Exception ex)
         {
@@ -148,7 +148,7 @@ public sealed class TwilioSmsService(
 
     /// <summary>Twilio SMS hata kodunu operatörün anlayacağı cümleye çevirir.</summary>
     /// <remarks>Saf ve public — doğrudan test edilebilsin diye (repo deseni).</remarks>
-    public static string HataAciklama(string? kod) => kod switch
+    public static string ErrorDescription(string? code) => code switch
     {
         "21211" or "21212" => "Numara biçimi geçersiz (E.164 olmalı, ör. +905321112233).",
         "21408" => "Bu ülkeye SMS gönderim izni kapalı. Twilio konsolunda Geographic Permissions "
@@ -161,6 +161,6 @@ public sealed class TwilioSmsService(
         "30008" => "Teslim edilemedi (operatör sebebi bildirmedi).",
         "20003" => "Twilio kimliği geçersiz (Account SID / Auth Token).",
         null => "",
-        _ => $"Twilio hata kodu {kod}.",
+        _ => $"Twilio hata kodu {code}.",
     };
 }

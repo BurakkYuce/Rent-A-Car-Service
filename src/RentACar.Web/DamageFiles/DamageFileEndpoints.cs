@@ -28,7 +28,7 @@ public static class DamageFileEndpoints
             try
             {
                 await svc.CreateAsync(input);
-                return Sonuc.Tamam("/hasar", "Kayıt eklendi.");
+                return Result.Ok("/hasar", "Kayıt eklendi.");
             }
             catch (ValidationException ex)
             {
@@ -44,12 +44,12 @@ public static class DamageFileEndpoints
         return app;
     }
 
-    private static async Task<IResult> Act(Func<Task<bool>> action, string mesaj)
+    private static async Task<IResult> Act(Func<Task<bool>> action, string message)
     {
         try
         {
             await action();
-            return Sonuc.Tamam("/hasar", mesaj);
+            return Result.Ok("/hasar", message);
         }
         catch (ValidationException ex)
         {

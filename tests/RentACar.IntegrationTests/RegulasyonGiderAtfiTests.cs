@@ -17,7 +17,7 @@ namespace RentACar.IntegrationTests;
 [Collection("postgres")]
 public sealed class RegulasyonGiderAtfiTests(PostgresFixture fx)
 {
-    private static async Task<Guid?> GiderRef(IServiceProvider sp, string sourceType)
+    private static async Task<Guid?> ExpenseRef(IServiceProvider sp, string sourceType)
     {
         await using var db = await sp.GetRequiredService<IDbContextFactory<AppDbContext>>().CreateDbContextAsync();
         var e = await db.AccountLedgerEntries.AsNoTracking()
@@ -36,7 +36,7 @@ public sealed class RegulasyonGiderAtfiTests(PostgresFixture fx)
         var reg = sp.GetRequiredService<RegulationService>();
         var mtv = await reg.AddMtvAsync(v, "2026/1", 2000m, new DateTimeOffset(2026, 1, 31, 0, 0, 0, TimeSpan.Zero));
         await reg.PayMtvAsync(mtv, LedgerAccountType.Kasa);
-        Assert.Equal(v, await GiderRef(sp, "MtvOdeme"));   // araca atıf (null değil)
+        Assert.Equal(v, await ExpenseRef(sp, "MtvOdeme"));   // araca atıf (null değil)
     }
 
     [Fact]
@@ -50,7 +50,7 @@ public sealed class RegulasyonGiderAtfiTests(PostgresFixture fx)
         var insp = await reg.AddInspectionAsync(v, new DateTimeOffset(2026, 1, 10, 0, 0, 0, TimeSpan.Zero),
             new DateTimeOffset(2028, 1, 10, 0, 0, 0, TimeSpan.Zero), 500m);
         await reg.PayInspectionAsync(insp, LedgerAccountType.Kasa, penalty: 100m);
-        Assert.Equal(v, await GiderRef(sp, "MuayeneOdeme"));
+        Assert.Equal(v, await ExpenseRef(sp, "MuayeneOdeme"));
     }
 
     [Fact]
@@ -64,6 +64,6 @@ public sealed class RegulasyonGiderAtfiTests(PostgresFixture fx)
         var pol = await reg.AddInsuranceAsync(v, InsuranceType.Kasko, new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero),
             new DateTimeOffset(2027, 1, 1, 0, 0, 0, TimeSpan.Zero), 1200m, "POL-1", "Sig", null);
         await reg.PayInsuranceAsync(pol, LedgerAccountType.Kasa);
-        Assert.Equal(v, await GiderRef(sp, "SigortaOdeme"));
+        Assert.Equal(v, await ExpenseRef(sp, "SigortaOdeme"));
     }
 }

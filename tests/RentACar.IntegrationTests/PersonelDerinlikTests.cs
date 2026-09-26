@@ -19,9 +19,9 @@ namespace RentACar.IntegrationTests;
 [Collection("postgres")]
 public sealed class PersonelDerinlikTests(PostgresFixture fx)
 {
-    private static PersonelInput Dolu(string kod) => new()
+    private static PersonelInput Filled(string code) => new()
     {
-        Kod = kod, Ad = "Ali", Soyad = "Yılmaz", TcKimlik = "11111111110", Maas = 50000m,
+        Kod = code, Ad = "Ali", Soyad = "Yılmaz", TcKimlik = "11111111110", Maas = 50000m,
         Sube = "Merkez", SurucuBelgeNo = "SB-1",
         GorevTanimi = " Operasyon ", Adres = " Bağdat Cad. 1 ", EvTelefonu = " 02161112233 ",
         IsTelefonu = " 02161112244 ", CepTel = " 05551112233 ", MailAdresi = " ali@ornek.com ",
@@ -41,7 +41,7 @@ public sealed class PersonelDerinlikTests(PostgresFixture fx)
         using var s = host.ScopeFor(Guid.NewGuid());
         var svc = s.ServiceProvider.GetRequiredService<PersonnelService>();
 
-        var id = await svc.CreateAsync(Dolu("p1"));
+        var id = await svc.CreateAsync(Filled("p1"));
         var d = await svc.GetDetailAsync(id);
         var h = d!.Ham!;
 
@@ -81,10 +81,10 @@ public sealed class PersonelDerinlikTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var s = host.ScopeFor(Guid.NewGuid());
         var svc = s.ServiceProvider.GetRequiredService<PersonnelService>();
-        var id = await svc.CreateAsync(Dolu("P2"));
+        var id = await svc.CreateAsync(Filled("P2"));
 
         // PII BOŞ bırakılıyor (mevcut korunmalı), derinlik alanları değişiyor.
-        var g = Dolu("P2");
+        var g = Filled("P2");
         g.TcKimlik = null; g.Maas = null;
         g.GorevTanimi = "Yönetici"; g.RacTabletNo = "TB-999"; g.KanGrubu = "A Rh-";
         Assert.True(await svc.UpdateAsync(id, g));
@@ -173,13 +173,13 @@ public sealed class PersonelDerinlikTests(PostgresFixture fx)
     {
         using var host = new TestHost(fx.AppConnectionString);
         using (var s1 = host.ScopeFor(Guid.NewGuid()))
-            await s1.ServiceProvider.GetRequiredService<PersonnelService>().CreateAsync(Dolu("GIZLI"));
+            await s1.ServiceProvider.GetRequiredService<PersonnelService>().CreateAsync(Filled("GIZLI"));
 
         using var s2 = host.ScopeFor(Guid.NewGuid());
         var svc = s2.ServiceProvider.GetRequiredService<PersonnelService>();
         Assert.Empty(await svc.SearchAsync());
         Assert.Empty(await svc.SearchAsync(new PersonelFilter { Ara = "Ali" }));
         // Aynı sicil başka tenant'ta serbest.
-        Assert.NotEqual(Guid.Empty, await svc.CreateAsync(Dolu("GIZLI")));
+        Assert.NotEqual(Guid.Empty, await svc.CreateAsync(Filled("GIZLI")));
     }
 }

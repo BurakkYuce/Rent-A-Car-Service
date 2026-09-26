@@ -34,79 +34,79 @@ public sealed class UiSecimMenuTests(WebFixture fx)
         public required Dictionary<Kim, string> Kullanicilar { get; init; }
     }
 
-    private static string Rastgele(string onek) => onek + Guid.NewGuid().ToString("N")[..10];
+    private static string RandomText(string prefix) => prefix + Guid.NewGuid().ToString("N")[..10];
 
     /// <summary>Firma + her rolden kullanıcı (rastgele ad/şifre) + kullanıcı-bazlı istisnalar. Owner bağlantısı (platform tabloları).</summary>
-    private async Task<Ortam> OrtamKurAsync(bool pilot = true, bool webSitesi = false)
+    private async Task<Ortam> SetUpEnvironmentAsync(bool pilot = true, bool website = false)
     {
-        var ortam = new Ortam
+        var environment = new Ortam
         {
             TenantId = Guid.NewGuid(),
-            Kod = Rastgele("f16"),
-            Sifre = WebFixture.RastgeleParola(),
-            Kullanicilar = Enum.GetValues<Kim>().ToDictionary(k => k, _ => Rastgele("u")),
+            Kod = RandomText("f16"),
+            Sifre = WebFixture.RandomPassword(),
+            Kullanicilar = Enum.GetValues<Kim>().ToDictionary(k => k, _ => RandomText("u")),
         };
 
         var opts = new DbContextOptionsBuilder<AppDbContext>().UseNpgsql(fx.Pg.OwnerConnectionString).Options;
         await using (var db = new AppDbContext(opts, NullTenantContext.Instance, NullCurrentUser.Instance))
         {
-            db.Tenants.Add(new Tenant { Id = ortam.TenantId, Code = ortam.Kod, Name = ortam.Kod, IsActive = true, WebSitesiModulu = webSitesi });
+            db.Tenants.Add(new Tenant { Id = environment.TenantId, Code = environment.Kod, Name = environment.Kod, IsActive = true, WebSitesiModulu = website });
             var hasher = fx.Web.Services.GetRequiredService<IPasswordHasher<User>>(); // girişin doğruladığı hasher
-            foreach (var (kim, ad) in ortam.Kullanicilar)
+            foreach (var (kim, name) in environment.Kullanicilar)
             {
-                var (rol, sube) = kim switch
+                var (rol, branch) = kim switch
                 {
                     Kim.Admin or Kim.AdminYasakli => (UserRole.Admin, (string?)null),
                     Kim.OperatorA or Kim.OperatorYasakli or Kim.OperatorEkRapor => (UserRole.Operator, "SubeA"),
                     Kim.OperatorB => (UserRole.Operator, "SubeB"),
                     _ => (UserRole.Muhasebe, null),
                 };
-                var u = new User { TenantId = ortam.TenantId, UserName = ad, DisplayName = ad, Rol = rol, AtanmisSube = sube, IsActive = true };
-                u.PasswordHash = hasher.HashPassword(u, ortam.Sifre);
+                var u = new User { TenantId = environment.TenantId, UserName = name, DisplayName = name, Rol = rol, AtanmisSube = branch, IsActive = true };
+                u.PasswordHash = hasher.HashPassword(u, environment.Sifre);
                 db.Users.Add(u);
                 if (kim == Kim.OperatorYasakli)
-                    db.KullaniciIzinIstisnalari.Add(new KullaniciIzinIstisna { TenantId = ortam.TenantId, UserId = u.Id, Izin = "OperationsWrite", Ver = false });
+                    db.KullaniciIzinIstisnalari.Add(new KullaniciIzinIstisna { TenantId = environment.TenantId, UserId = u.Id, Izin = "OperationsWrite", Ver = false });
                 if (kim == Kim.OperatorEkRapor)
-                    db.KullaniciIzinIstisnalari.Add(new KullaniciIzinIstisna { TenantId = ortam.TenantId, UserId = u.Id, Izin = "ViewReports", Ver = true });
+                    db.KullaniciIzinIstisnalari.Add(new KullaniciIzinIstisna { TenantId = environment.TenantId, UserId = u.Id, Izin = "ViewReports", Ver = true });
                 if (kim == Kim.AdminYasakli)
-                    db.KullaniciIzinIstisnalari.Add(new KullaniciIzinIstisna { TenantId = ortam.TenantId, UserId = u.Id, Izin = "ManageUsers", Ver = false });
+                    db.KullaniciIzinIstisnalari.Add(new KullaniciIzinIstisna { TenantId = environment.TenantId, UserId = u.Id, Izin = "ManageUsers", Ver = false });
             }
             await db.SaveChangesAsync();
         }
-        await fx.PilotYapAsync(ortam.TenantId, pilot);
-        return ortam;
+        await fx.MakePilotAsync(environment.TenantId, pilot);
+        return environment;
     }
 
     /// <summary>Kiracı verisi GERÇEK uygulama rolüyle (RLS'li racar_app) yazılır.</summary>
-    private async Task VeriYazAsync(Guid tenantId, Action<AppDbContext> yaz)
+    private async Task WriteDataAsync(Guid tenantId, Action<AppDbContext> write)
     {
         using var host = new TestHost(fx.Pg.AppConnectionString);
         using var scope = host.ScopeFor(tenantId);
         var f = scope.ServiceProvider.GetRequiredService<IDbContextFactory<AppDbContext>>();
         await using var db = await f.CreateDbContextAsync();
-        yaz(db);
+        write(db);
         await db.SaveChangesAsync();
     }
 
-    private static string? CerezDegeri(HttpResponseMessage r, string ad)
+    private static string? CookieValue(HttpResponseMessage r, string name)
     {
-        if (!r.Headers.TryGetValues("Set-Cookie", out var degerler)) return null;
-        foreach (var d in degerler)
-            if (d.StartsWith(ad + "=", StringComparison.Ordinal))
-                return Uri.UnescapeDataString(d[(ad.Length + 1)..].Split(';')[0]);
+        if (!r.Headers.TryGetValues("Set-Cookie", out var values)) return null;
+        foreach (var d in values)
+            if (d.StartsWith(name + "=", StringComparison.Ordinal))
+                return Uri.UnescapeDataString(d[(name.Length + 1)..].Split(';')[0]);
         return null;
     }
 
-    private async Task<HttpClient> GirisAsync(Ortam o, Kim kim)
+    private async Task<HttpClient> LoginAsync(Ortam o, Kim kim)
     {
-        var c = fx.Web.Istemci();
+        var c = fx.Web.Client();
         var x = await c.GetAsync(V1 + "/oturum/xsrf");
-        var belirtec = CerezDegeri(x, "XSRF-TOKEN")!;
+        var token = CookieValue(x, "XSRF-TOKEN")!;
         var req = new HttpRequestMessage(HttpMethod.Post, V1 + "/oturum/giris")
         {
             Content = JsonContent.Create(new { firma = o.Kod, kullanici = o.Kullanicilar[kim], sifre = o.Sifre }),
         };
-        req.Headers.Add("X-XSRF-TOKEN", belirtec);
+        req.Headers.Add("X-XSRF-TOKEN", token);
         var r = await c.SendAsync(req);
         Assert.True(r.StatusCode == HttpStatusCode.OK, $"giriş başarısız ({kim}): {await r.Content.ReadAsStringAsync()}");
         return c;
@@ -114,26 +114,26 @@ public sealed class UiSecimMenuTests(WebFixture fx)
 
     private static async Task<JsonElement> Json(HttpResponseMessage r)
     {
-        var metin = await r.Content.ReadAsStringAsync();
-        Assert.True(r.StatusCode == HttpStatusCode.OK, $"{(int)r.StatusCode}: {metin}");
-        return JsonDocument.Parse(metin).RootElement.Clone();
+        var text = await r.Content.ReadAsStringAsync();
+        Assert.True(r.StatusCode == HttpStatusCode.OK, $"{(int)r.StatusCode}: {text}");
+        return JsonDocument.Parse(text).RootElement.Clone();
     }
 
-    private static async Task ProblemBekle(HttpResponseMessage r, HttpStatusCode durum, string kod)
+    private static async Task ExpectProblem(HttpResponseMessage r, HttpStatusCode status, string code)
     {
-        var metin = await r.Content.ReadAsStringAsync();
-        Assert.True(durum == r.StatusCode, $"Beklenen {(int)durum}, gelen {(int)r.StatusCode}: {metin}");
+        var text = await r.Content.ReadAsStringAsync();
+        Assert.True(status == r.StatusCode, $"Beklenen {(int)status}, gelen {(int)r.StatusCode}: {text}");
         Assert.Equal("application/problem+json", r.Content.Headers.ContentType?.MediaType);
-        Assert.Equal(kod, JsonDocument.Parse(metin).RootElement.GetProperty("kod").GetString());
+        Assert.Equal(code, JsonDocument.Parse(text).RootElement.GetProperty("kod").GetString());
     }
 
-    private static List<string> Etiketler(JsonElement dizi) => dizi.EnumerateArray().Select(e => e.GetProperty("etiket").GetString()!).ToList();
+    private static List<string> Tags(JsonElement array) => array.EnumerateArray().Select(e => e.GetProperty("etiket").GetString()!).ToList();
 
-    private static void AlanKumesi(JsonElement dizi, params string[] beklenen)
+    private static void FieldSet(JsonElement array, params string[] expected)
     {
-        Assert.True(dizi.GetArrayLength() > 0, "Boş liste — alan kümesi sınanamadı.");
-        foreach (var e in dizi.EnumerateArray())
-            Assert.Equal(beklenen.OrderBy(x => x, StringComparer.Ordinal),
+        Assert.True(array.GetArrayLength() > 0, "Boş liste — alan kümesi sınanamadı.");
+        foreach (var e in array.EnumerateArray())
+            Assert.Equal(expected.OrderBy(x => x, StringComparer.Ordinal),
                 e.EnumerateObject().Select(p => p.Name).OrderBy(x => x, StringComparer.Ordinal));
     }
 
@@ -142,37 +142,37 @@ public sealed class UiSecimMenuTests(WebFixture fx)
     [Fact]
     public async Task Musteri_turkce_katlamali_arama_ve_pii_yok()
     {
-        var o = await OrtamKurAsync();
-        await VeriYazAsync(o.TenantId, db =>
+        var o = await SetUpEnvironmentAsync();
+        await WriteDataAsync(o.TenantId, db =>
         {
             db.Customers.Add(new Customer { Tip = CustomerType.Kurumsal, Unvan = "IŞIK Lojistik", CepTel = "05321112233", Email = "gizli-f16@ornek.test", Adres = "Gizli Sokak 7" });
             db.Customers.Add(new Customer { Tip = CustomerType.Bireysel, Ad = "Ayşe", Soyad = "Işık", CepTel = "05329998877" });
             db.Customers.Add(new Customer { Tip = CustomerType.Bireysel, Ad = "Ali", Soyad = "Veli" });
         });
-        var c = await GirisAsync(o, Kim.Admin);
+        var c = await LoginAsync(o, Kim.Admin);
 
         foreach (var q in new[] { "ışık", "IŞIK", "isik", "Işık" })
         {
-            var sonuc = await Json(await c.GetAsync($"{V1}/secim/musteri?q={Uri.EscapeDataString(q)}"));
-            Assert.Equal(new[] { "Ayşe Işık", "IŞIK Lojistik" }, Etiketler(sonuc).Order(StringComparer.Ordinal).ToArray());
+            var result = await Json(await c.GetAsync($"{V1}/secim/musteri?q={Uri.EscapeDataString(q)}"));
+            Assert.Equal(new[] { "Ayşe Işık", "IŞIK Lojistik" }, Tags(result).Order(StringComparer.Ordinal).ToArray());
         }
 
-        var ham = await c.GetAsync($"{V1}/secim/musteri");
-        var metin = await ham.Content.ReadAsStringAsync();
-        var tum = JsonDocument.Parse(metin).RootElement;
-        Assert.Equal(3, tum.GetArrayLength());
-        AlanKumesi(tum, "id", "etiket", "tip");
-        Assert.DoesNotContain("0532", metin);
-        Assert.DoesNotContain("gizli-f16", metin);
-        Assert.DoesNotContain("Gizli Sokak", metin);
-        Assert.True(ham.Headers.CacheControl?.NoStore == true);
+        var raw = await c.GetAsync($"{V1}/secim/musteri");
+        var text = await raw.Content.ReadAsStringAsync();
+        var all = JsonDocument.Parse(text).RootElement;
+        Assert.Equal(3, all.GetArrayLength());
+        FieldSet(all, "id", "etiket", "tip");
+        Assert.DoesNotContain("0532", text);
+        Assert.DoesNotContain("gizli-f16", text);
+        Assert.DoesNotContain("Gizli Sokak", text);
+        Assert.True(raw.Headers.CacheControl?.NoStore == true);
     }
 
     [Fact]
     public async Task Limit_en_cok_20_varsayilan_20()
     {
-        var o = await OrtamKurAsync();
-        await VeriYazAsync(o.TenantId, db =>
+        var o = await SetUpEnvironmentAsync();
+        await WriteDataAsync(o.TenantId, db =>
         {
             for (var i = 1; i <= 25; i++)
             {
@@ -180,15 +180,15 @@ public sealed class UiSecimMenuTests(WebFixture fx)
                 db.Vehicles.Add(new Vehicle { Plaka = $"34 LMT {i:00}", Sube = "SubeA", Durum = VehicleStatus.Musait });
             }
         });
-        var c = await GirisAsync(o, Kim.Admin);
+        var c = await LoginAsync(o, Kim.Admin);
 
-        foreach (var uc in new[] { "musteri", "arac" })
+        foreach (var endpoint in new[] { "musteri", "arac" })
         {
-            Assert.Equal(20, (await Json(await c.GetAsync($"{V1}/secim/{uc}?limit=500"))).GetArrayLength());
-            Assert.Equal(20, (await Json(await c.GetAsync($"{V1}/secim/{uc}"))).GetArrayLength());
-            Assert.Equal(20, (await Json(await c.GetAsync($"{V1}/secim/{uc}?limit=0"))).GetArrayLength());
-            Assert.Equal(20, (await Json(await c.GetAsync($"{V1}/secim/{uc}?limit=-3"))).GetArrayLength());
-            Assert.Equal(5, (await Json(await c.GetAsync($"{V1}/secim/{uc}?limit=5"))).GetArrayLength());
+            Assert.Equal(20, (await Json(await c.GetAsync($"{V1}/secim/{endpoint}?limit=500"))).GetArrayLength());
+            Assert.Equal(20, (await Json(await c.GetAsync($"{V1}/secim/{endpoint}"))).GetArrayLength());
+            Assert.Equal(20, (await Json(await c.GetAsync($"{V1}/secim/{endpoint}?limit=0"))).GetArrayLength());
+            Assert.Equal(20, (await Json(await c.GetAsync($"{V1}/secim/{endpoint}?limit=-3"))).GetArrayLength());
+            Assert.Equal(5, (await Json(await c.GetAsync($"{V1}/secim/{endpoint}?limit=5"))).GetArrayLength());
         }
         // q ile daraltma: "sinir0" → Sınır01..Sınır09 (9 kayıt); "lmt 2" → 20..25 (6 kayıt).
         Assert.Equal(9, (await Json(await c.GetAsync($"{V1}/secim/musteri?q=sinir0"))).GetArrayLength());
@@ -200,25 +200,25 @@ public sealed class UiSecimMenuTests(WebFixture fx)
     [Fact]
     public async Task Izinsiz_rol_403_yetki_yok_kullanici_yasagi_da_uygulanir()
     {
-        var o = await OrtamKurAsync();
-        var muh = await GirisAsync(o, Kim.Muhasebe);
-        foreach (var uc in new[] { "arac", "lokasyon", "personel", "sube", "ek-hizmet", "sigorta-urunu",
+        var o = await SetUpEnvironmentAsync();
+        var acct = await LoginAsync(o, Kim.Muhasebe);
+        foreach (var endpoint in new[] { "arac", "lokasyon", "personel", "sube", "ek-hizmet", "sigorta-urunu",
                      "rezervasyon-kaynagi", "ozel-kod", "belge-sablonu", "arac-grubu" })
-            await ProblemBekle(await muh.GetAsync($"{V1}/secim/{uc}"), HttpStatusCode.Forbidden, "yetki_yok");
+            await ExpectProblem(await acct.GetAsync($"{V1}/secim/{endpoint}"), HttpStatusCode.Forbidden, "yetki_yok");
         // F4.4: müşteri ve kur Muhasebe'ye (FinanceWrite) de açık — kira formunun sabit finans paneli.
-        Assert.Equal(HttpStatusCode.OK, (await muh.GetAsync($"{V1}/secim/musteri")).StatusCode);
-        Assert.Equal(HttpStatusCode.OK, (await muh.GetAsync($"{V1}/secim/kur")).StatusCode);
+        Assert.Equal(HttpStatusCode.OK, (await acct.GetAsync($"{V1}/secim/musteri")).StatusCode);
+        Assert.Equal(HttpStatusCode.OK, (await acct.GetAsync($"{V1}/secim/kur")).StatusCode);
 
         // Operatör ama OperationsWrite kullanıcı-bazlı YASAK (FinanceWrite de yok): iki "herhangi biri" ucu da 403.
-        var yasakli = await GirisAsync(o, Kim.OperatorYasakli);
-        foreach (var uc in new[] { "musteri", "kur", "arac" })
-            await ProblemBekle(await yasakli.GetAsync($"{V1}/secim/{uc}"), HttpStatusCode.Forbidden, "yetki_yok");
+        var banned = await LoginAsync(o, Kim.OperatorYasakli);
+        foreach (var endpoint in new[] { "musteri", "kur", "arac" })
+            await ExpectProblem(await banned.GetAsync($"{V1}/secim/{endpoint}"), HttpStatusCode.Forbidden, "yetki_yok");
 
-        var op = await GirisAsync(o, Kim.OperatorA);
+        var op = await LoginAsync(o, Kim.OperatorA);
         Assert.Equal(HttpStatusCode.OK, (await op.GetAsync($"{V1}/secim/musteri")).StatusCode);
 
-        var anonim = await fx.Web.Istemci().GetAsync($"{V1}/secim/musteri");
-        await ProblemBekle(anonim, HttpStatusCode.Unauthorized, "oturum_yok");
+        var anonymous = await fx.Web.Client().GetAsync($"{V1}/secim/musteri");
+        await ExpectProblem(anonymous, HttpStatusCode.Unauthorized, "oturum_yok");
     }
 
     /// <summary>F4.4 yapısal kilit: seçim uçlarının etkin izin kapısı. Yalnız <c>musteri</c>, <c>kur</c> ve
@@ -227,7 +227,7 @@ public sealed class UiSecimMenuTests(WebFixture fx)
     [Fact]
     public void Secim_uclari_izin_haritasi()
     {
-        var uclar = fx.Web.Services.GetRequiredService<Microsoft.AspNetCore.Routing.EndpointDataSource>().Endpoints
+        var endpoints = fx.Web.Services.GetRequiredService<Microsoft.AspNetCore.Routing.EndpointDataSource>().Endpoints
             .OfType<Microsoft.AspNetCore.Routing.RouteEndpoint>()
             .Where(e => ("/" + (e.RoutePattern.RawText ?? "").TrimStart('/')).StartsWith(V1 + "/secim/", StringComparison.Ordinal))
             .ToDictionary(e => "/" + e.RoutePattern.RawText!.TrimStart('/'));
@@ -238,26 +238,26 @@ public sealed class UiSecimMenuTests(WebFixture fx)
         //   sigorta-policesi → Blazor zeyil formu (/regulasyon/zeyil, OW grubu) poliçe listesi (araç şubesi kapsamlı).
         // + #300 eksik uçlar: gider-kategorisi (OW ∨ FW — gelen e-faturadan gider, Muhasebe) ve satilabilir-arac
         //   (FinanceWrite — araç satışıyla aynı izin).
-        Assert.Equal(19, uclar.Count);
+        Assert.Equal(19, endpoints.Count);
         foreach (var f91 in new[] { "sigorta-sirketi", "tarife-grubu", "sigorta-policesi" })
-            Assert.Contains(V1 + "/secim/" + f91, uclar.Keys);
-        foreach (var (rota, e) in uclar)
+            Assert.Contains(V1 + "/secim/" + f91, endpoints.Keys);
+        foreach (var (route, e) in endpoints)
         {
-            var biri = e.Metadata.GetMetadata<RentACar.Web.Identity.IzinlerdenBiriMetadata>();
+            var one = e.Metadata.GetMetadata<RentACar.Web.Identity.IzinlerdenBiriMetadata>();
             var tek = e.Metadata.GetMetadata<RentACar.Web.Identity.IzinMetadata>();
-            if (rota is V1 + "/secim/musteri" or V1 + "/secim/kur" or V1 + "/secim/gider-kategorisi")
+            if (route is V1 + "/secim/musteri" or V1 + "/secim/kur" or V1 + "/secim/gider-kategorisi")
             {
                 Assert.Null(tek);
-                Assert.Equal(new[] { Permission.OperationsWrite, Permission.FinanceWrite }, biri!.Izinler);
+                Assert.Equal(new[] { Permission.OperationsWrite, Permission.FinanceWrite }, one!.Izinler);
             }
-            else if (rota == V1 + "/secim/satilabilir-arac")
+            else if (route == V1 + "/secim/satilabilir-arac")
             {
-                Assert.Null(biri);
+                Assert.Null(one);
                 Assert.Equal(Permission.FinanceWrite, tek!.Izin);
             }
             else
             {
-                Assert.Null(biri);
+                Assert.Null(one);
                 Assert.Equal(Permission.OperationsWrite, tek!.Izin);
             }
         }
@@ -266,10 +266,10 @@ public sealed class UiSecimMenuTests(WebFixture fx)
     [Fact]
     public async Task Pilot_olmayan_firmada_secim_ve_menu_403_pilot_degil()
     {
-        var o = await OrtamKurAsync(pilot: false);
-        var c = await GirisAsync(o, Kim.Admin);
-        await ProblemBekle(await c.GetAsync($"{V1}/secim/musteri"), HttpStatusCode.Forbidden, "pilot_degil");
-        await ProblemBekle(await c.GetAsync($"{V1}/menu"), HttpStatusCode.Forbidden, "pilot_degil");
+        var o = await SetUpEnvironmentAsync(pilot: false);
+        var c = await LoginAsync(o, Kim.Admin);
+        await ExpectProblem(await c.GetAsync($"{V1}/secim/musteri"), HttpStatusCode.Forbidden, "pilot_degil");
+        await ExpectProblem(await c.GetAsync($"{V1}/menu"), HttpStatusCode.Forbidden, "pilot_degil");
     }
 
     // ------------------------------------------------------------ şube kapsamı + alan kümeleri
@@ -277,9 +277,9 @@ public sealed class UiSecimMenuTests(WebFixture fx)
     [Fact]
     public async Task Sube_kapsami_arac_personel_sube_ve_alan_kumeleri()
     {
-        var o = await OrtamKurAsync();
-        var bugun = new DateTimeOffset(DateTime.UtcNow.Date, TimeSpan.Zero);
-        await VeriYazAsync(o.TenantId, db =>
+        var o = await SetUpEnvironmentAsync();
+        var today = new DateTimeOffset(DateTime.UtcNow.Date, TimeSpan.Zero);
+        await WriteDataAsync(o.TenantId, db =>
         {
             db.Branches.Add(new Branch { Kod = "SA", Ad = "SubeA" });
             db.Branches.Add(new Branch { Kod = "SB", Ad = "SubeB" });
@@ -301,58 +301,58 @@ public sealed class UiSecimMenuTests(WebFixture fx)
         var opts = new DbContextOptionsBuilder<AppDbContext>().UseNpgsql(fx.Pg.OwnerConnectionString).Options;
         await using (var db = new AppDbContext(opts, NullTenantContext.Instance, NullCurrentUser.Instance))
         {
-            if (!await db.KurKayitlari.AnyAsync(k => k.Tarih == bugun && k.Kod == "USD"))
-                db.KurKayitlari.Add(new KurKaydi { Tarih = bugun, Kod = "USD", Ad = "ABD DOLARI", Birim = 1, ForexAlis = 40m, ForexSatis = 41m });
+            if (!await db.KurKayitlari.AnyAsync(k => k.Tarih == today && k.Kod == "USD"))
+                db.KurKayitlari.Add(new KurKaydi { Tarih = today, Kod = "USD", Ad = "ABD DOLARI", Birim = 1, ForexAlis = 40m, ForexSatis = 41m });
             await db.SaveChangesAsync();
         }
 
-        var op = await GirisAsync(o, Kim.OperatorA);
-        var admin = await GirisAsync(o, Kim.Admin);
+        var op = await LoginAsync(o, Kim.OperatorA);
+        var admin = await LoginAsync(o, Kim.Admin);
 
         // Araç: operatör yalnız kendi şubesi; admin hepsi.
-        var opArac = await Json(await op.GetAsync($"{V1}/secim/arac"));
-        Assert.Equal(new[] { "34 SBA 01 — Fiat Egea" }, Etiketler(opArac));
-        AlanKumesi(opArac, "id", "etiket", "plaka", "grup", "durum");
-        Assert.Equal("C", opArac[0].GetProperty("grup").GetString());
+        var opVehicle = await Json(await op.GetAsync($"{V1}/secim/arac"));
+        Assert.Equal(new[] { "34 SBA 01 — Fiat Egea" }, Tags(opVehicle));
+        FieldSet(opVehicle, "id", "etiket", "plaka", "grup", "durum");
+        Assert.Equal("C", opVehicle[0].GetProperty("grup").GetString());
         Assert.Equal(2, (await Json(await admin.GetAsync($"{V1}/secim/arac"))).GetArrayLength());
 
         // Personel ve şube: operatör yalnız kendi şubesi.
-        var opPersonel = await Json(await op.GetAsync($"{V1}/secim/personel"));
-        Assert.Equal(new[] { "Ahmet Asube" }, Etiketler(opPersonel));
-        AlanKumesi(opPersonel, "id", "etiket", "kod");
+        var opStaff = await Json(await op.GetAsync($"{V1}/secim/personel"));
+        Assert.Equal(new[] { "Ahmet Asube" }, Tags(opStaff));
+        FieldSet(opStaff, "id", "etiket", "kod");
         Assert.Equal(2, (await Json(await admin.GetAsync($"{V1}/secim/personel"))).GetArrayLength());
-        Assert.Equal(new[] { "SubeA" }, Etiketler(await Json(await op.GetAsync($"{V1}/secim/sube"))));
+        Assert.Equal(new[] { "SubeA" }, Tags(await Json(await op.GetAsync($"{V1}/secim/sube"))));
         Assert.Equal(2, (await Json(await admin.GetAsync($"{V1}/secim/sube"))).GetArrayLength());
 
         // Lokasyon bilinçli kapsamsız (dönüş ofisi başka şube olabilir) — subeId taşır.
         var lok = await Json(await op.GetAsync($"{V1}/secim/lokasyon"));
         Assert.Equal(2, lok.GetArrayLength());
-        AlanKumesi(lok, "id", "etiket", "kod", "subeId");
-        Assert.Equal(new[] { "Havalimanı A" }, Etiketler(await Json(await op.GetAsync($"{V1}/secim/lokasyon?q=HAVALIMANI"))));
+        FieldSet(lok, "id", "etiket", "kod", "subeId");
+        Assert.Equal(new[] { "Havalimanı A" }, Tags(await Json(await op.GetAsync($"{V1}/secim/lokasyon?q=HAVALIMANI"))));
 
         // Tanımlar: yalnız aktif; genel alan kümesi.
-        var kaynak = await Json(await op.GetAsync($"{V1}/secim/rezervasyon-kaynagi"));
-        Assert.Equal(new[] { "Web Sitesi" }, Etiketler(kaynak));
-        AlanKumesi(kaynak, "id", "etiket", "kod");
-        AlanKumesi(await Json(await op.GetAsync($"{V1}/secim/ek-hizmet?q=bebek")), "id", "etiket", "kod");
-        AlanKumesi(await Json(await op.GetAsync($"{V1}/secim/sigorta-urunu")), "id", "etiket", "kod");
-        AlanKumesi(await Json(await op.GetAsync($"{V1}/secim/ozel-kod")), "id", "etiket", "kod");
-        AlanKumesi(await Json(await op.GetAsync($"{V1}/secim/arac-grubu")), "id", "etiket", "kod");
-        Assert.Equal(new[] { "Standart Sözleşme" }, Etiketler(await Json(await op.GetAsync($"{V1}/secim/belge-sablonu?tur=KiraSozlesmesi"))));
+        var source = await Json(await op.GetAsync($"{V1}/secim/rezervasyon-kaynagi"));
+        Assert.Equal(new[] { "Web Sitesi" }, Tags(source));
+        FieldSet(source, "id", "etiket", "kod");
+        FieldSet(await Json(await op.GetAsync($"{V1}/secim/ek-hizmet?q=bebek")), "id", "etiket", "kod");
+        FieldSet(await Json(await op.GetAsync($"{V1}/secim/sigorta-urunu")), "id", "etiket", "kod");
+        FieldSet(await Json(await op.GetAsync($"{V1}/secim/ozel-kod")), "id", "etiket", "kod");
+        FieldSet(await Json(await op.GetAsync($"{V1}/secim/arac-grubu")), "id", "etiket", "kod");
+        Assert.Equal(new[] { "Standart Sözleşme" }, Tags(await Json(await op.GetAsync($"{V1}/secim/belge-sablonu?tur=KiraSozlesmesi"))));
         Assert.Equal(2, (await Json(await op.GetAsync($"{V1}/secim/belge-sablonu"))).GetArrayLength());
 
-        var kur = await Json(await op.GetAsync($"{V1}/secim/kur?q=usd"));
-        AlanKumesi(kur, "id", "etiket", "birim", "dovizAlis", "dovizSatis", "tarih");
-        Assert.Equal("USD", kur[0].GetProperty("id").GetString());
-        Assert.Equal(41m, kur[0].GetProperty("dovizSatis").GetDecimal());
+        var exchangeRate = await Json(await op.GetAsync($"{V1}/secim/kur?q=usd"));
+        FieldSet(exchangeRate, "id", "etiket", "birim", "dovizAlis", "dovizSatis", "tarih");
+        Assert.Equal("USD", exchangeRate[0].GetProperty("id").GetString());
+        Assert.Equal(41m, exchangeRate[0].GetProperty("dovizSatis").GetDecimal());
 
         // PII sızmaz (telefon, şasi no).
-        foreach (var uc in new[] { "arac", "personel", "lokasyon" })
+        foreach (var endpoint in new[] { "arac", "personel", "lokasyon" })
         {
-            var metin = await (await admin.GetAsync($"{V1}/secim/{uc}")).Content.ReadAsStringAsync();
-            Assert.DoesNotContain("0555", metin);
-            Assert.DoesNotContain("0212", metin);
-            Assert.DoesNotContain("GIZLISASI", metin);
+            var text = await (await admin.GetAsync($"{V1}/secim/{endpoint}")).Content.ReadAsStringAsync();
+            Assert.DoesNotContain("0555", text);
+            Assert.DoesNotContain("0212", text);
+            Assert.DoesNotContain("GIZLISASI", text);
         }
     }
 
@@ -361,86 +361,86 @@ public sealed class UiSecimMenuTests(WebFixture fx)
     private static async Task<(HashSet<string> Rotalar, JsonElement Govde)> MenuAsync(HttpClient c)
     {
         var j = await Json(await c.GetAsync($"{V1}/menu"));
-        var rotalar = j.GetProperty("ogeler").EnumerateArray().Select(e => e.GetProperty("rota").GetString()!).ToHashSet();
-        return (rotalar, j);
+        var routes = j.GetProperty("ogeler").EnumerateArray().Select(e => e.GetProperty("rota").GetString()!).ToHashSet();
+        return (routes, j);
     }
 
     [Fact]
     public async Task Menu_rol_ve_izne_gore_suzulur()
     {
-        var o = await OrtamKurAsync();
+        var o = await SetUpEnvironmentAsync();
 
-        var (admin, adminGovde) = await MenuAsync(await GirisAsync(o, Kim.Admin));
+        var (admin, adminBody) = await MenuAsync(await LoginAsync(o, Kim.Admin));
         // F4.6: Panel, Kiralar, Yeni Kira yeni arayüzün (sahip spa, rota /app/…).
         foreach (var r in new[] { "/app/panel", "/app/kiralar/yeni", "/app/araclar", "/app/araclar/detayli", "/app/cariler", "/app/crm", "/app/hukuk", "/app/kasa", "/app/faturalar", "/app/raporlar/karlilik", "/app/raporlar/personel-calisma", "/app/tarife-aktar", "/app/servisler", "/app/regulasyon", "/app/maliyet-teklifleri", "/app/ayarlar", "/app/vade", "/app/bildirimler", "/app/markalar", "/app/subeler", "/app/blog-yonetim" })
             Assert.Contains(r, admin);
         Assert.DoesNotContain("/app/web-sitesi", admin);   // modül kapalı
         Assert.DoesNotContain("/app/site-icerik", admin);
-        var ogeler = adminGovde.GetProperty("ogeler").EnumerateArray().ToList();
-        AlanKumesi(adminGovde.GetProperty("ogeler"), "rota", "etiket", "grup", "sira", "sahip", "rozetKodu", "hizliBaglanti");
-        Assert.All(ogeler, e => Assert.Equal(
+        var items = adminBody.GetProperty("ogeler").EnumerateArray().ToList();
+        FieldSet(adminBody.GetProperty("ogeler"), "rota", "etiket", "grup", "sira", "sahip", "rozetKodu", "hizliBaglanti");
+        Assert.All(items, e => Assert.Equal(
             e.GetProperty("rota").GetString()!.StartsWith("/app/", StringComparison.Ordinal) ? "spa" : "blazor",
             e.GetProperty("sahip").GetString()));
         // F4.6: 3, F5.4: +8, F6.4: +14 (Araçlar 12 + Tanımlar 2), F7.3: +6 (Cariler & CRM), F10.3: +25 (Raporlar), F9.3: +15 (Servis & Sigorta 3, Fiyat & Tarife 11, Vade Panosu),
         // F8.3: +17 (Finans), F11.3: +39 (Tanımlar 24 + Sistem 9 + grupsuz 4 + Blog/Gelen Talepler 2; Web Sitesi grubu
         // modül kapalı → gizli) = 127
-        Assert.Equal(127, ogeler.Count(e => e.GetProperty("sahip").GetString() == "spa"));
-        Assert.DoesNotContain(ogeler, e => e.GetProperty("rota").GetString() is "/markalar" or "/ayarlar" or "/bildirimler" or "/gelen-talepler" or "/blog-yonetim");
-        Assert.All(ogeler.Where(e => e.GetProperty("grup").GetString() is "Tanımlar" or "Sistem"),
+        Assert.Equal(127, items.Count(e => e.GetProperty("sahip").GetString() == "spa"));
+        Assert.DoesNotContain(items, e => e.GetProperty("rota").GetString() is "/markalar" or "/ayarlar" or "/bildirimler" or "/gelen-talepler" or "/blog-yonetim");
+        Assert.All(items.Where(e => e.GetProperty("grup").GetString() is "Tanımlar" or "Sistem"),
             e => Assert.Equal("spa", e.GetProperty("sahip").GetString()));
-        Assert.DoesNotContain(ogeler, e => e.GetProperty("rota").GetString() is "/cariler" or "/crm" or "/anketler" or "/sikayetler" or "/assistans" or "/hukuk");
-        Assert.DoesNotContain(ogeler, e => e.GetProperty("rota").GetString() is "/kasa" or "/faturalar" or "/kurlar" or "/cezalar" or "/giderler" or "/satislar" or "/donem-kapanis");
-        Assert.Equal(17, ogeler.Count(e => e.GetProperty("grup").GetString() == "Finans" && e.GetProperty("sahip").GetString() == "spa"));
-        Assert.DoesNotContain(ogeler, e => e.GetProperty("rota").GetString()!.StartsWith("/raporlar/", StringComparison.Ordinal));
-        Assert.DoesNotContain(ogeler, e => e.GetProperty("rota").GetString() is "/servisler" or "/servis-tanimlari" or "/regulasyon"
+        Assert.DoesNotContain(items, e => e.GetProperty("rota").GetString() is "/cariler" or "/crm" or "/anketler" or "/sikayetler" or "/assistans" or "/hukuk");
+        Assert.DoesNotContain(items, e => e.GetProperty("rota").GetString() is "/kasa" or "/faturalar" or "/kurlar" or "/cezalar" or "/giderler" or "/satislar" or "/donem-kapanis");
+        Assert.Equal(17, items.Count(e => e.GetProperty("grup").GetString() == "Finans" && e.GetProperty("sahip").GetString() == "spa"));
+        Assert.DoesNotContain(items, e => e.GetProperty("rota").GetString()!.StartsWith("/raporlar/", StringComparison.Ordinal));
+        Assert.DoesNotContain(items, e => e.GetProperty("rota").GetString() is "/servisler" or "/servis-tanimlari" or "/regulasyon"
             or "/vade" or "/tarifeler" or "/tarife-matris" or "/tarife-gruplari" or "/tarife-aktar" or "/sigorta-urunleri"
             or "/kira-kurallari" or "/broker-yasaklari" or "/fiyat-hesapla" or "/maliyet-hesapla" or "/maliyet-teklifleri"
             or "/ek-hizmetler"); // F9.3
-        Assert.Equal(3, ogeler.Count(e => e.GetProperty("hizliBaglanti").GetBoolean()));
-        var siralar = ogeler.Select(e => e.GetProperty("sira").GetInt32()).ToList();
-        Assert.Equal(siralar.Order(), siralar);         // sıralı döner
+        Assert.Equal(3, items.Count(e => e.GetProperty("hizliBaglanti").GetBoolean()));
+        var orders = items.Select(e => e.GetProperty("sira").GetInt32()).ToList();
+        Assert.Equal(orders.Order(), orders);         // sıralı döner
         // Gelen Talepler CRM grubunda modülden bağımsız görünür; Web Sitesi grubundaki kopyası gizli.
-        Assert.Single(ogeler, e => e.GetProperty("rota").GetString() == "/app/gelen-talepler");
-        Assert.True(adminGovde.GetProperty("rozetler").TryGetProperty("okunmamis-bildirim", out _));
-        Assert.False(adminGovde.GetProperty("rozetler").TryGetProperty("yeni-talep", out _)); // modül kapalı → sorulmaz
+        Assert.Single(items, e => e.GetProperty("rota").GetString() == "/app/gelen-talepler");
+        Assert.True(adminBody.GetProperty("rozetler").TryGetProperty("okunmamis-bildirim", out _));
+        Assert.False(adminBody.GetProperty("rozetler").TryGetProperty("yeni-talep", out _)); // modül kapalı → sorulmaz
 
-        var (op, _) = await MenuAsync(await GirisAsync(o, Kim.OperatorA));
+        var (op, _) = await MenuAsync(await LoginAsync(o, Kim.OperatorA));
         foreach (var r in new[] { "/app/panel", "/app/kiralar/yeni", "/app/rezervasyonlar", "/app/musaitlik", "/app/takvim", "/app/araclar", "/app/arac-durum", "/app/baf", "/app/segmentler", "/app/kiralar", "/app/cariler", "/app/sikayetler", "/app/vade", "/app/servisler", "/app/tarifeler", "/app/fiyat-hesapla", "/app/dokumanlar", "/app/markalar", "/app/lokasyonlar", "/app/bildirimler" })
             Assert.Contains(r, op);
         foreach (var r in new[] { "/app/araclar/detayli", "/app/musteri-taksit", "/vehicles", "/app/crm", "/crm", "/maliyet-hesapla", "/app/maliyet-hesapla", "/app/maliyet-teklifleri", "/tarife-aktar", "/app/tarife-aktar", "/vade", "/servisler", "/kasa", "/kurlar", "/app/kasa", "/app/kurlar", "/app/cezalar", "/app/raporlar/gunluk", "/app/raporlar/personel-calisma", "/app/ayarlar", "/app/subeler", "/app/personel", "/app/belge-sablonlari", "/app/ice-aktar" })
             Assert.DoesNotContain(r, op);
 
-        var (muh, _) = await MenuAsync(await GirisAsync(o, Kim.Muhasebe));
+        var (acct, _) = await MenuAsync(await LoginAsync(o, Kim.Muhasebe));
         foreach (var r in new[] { "/app/panel", "/app/kasa", "/app/faturalar", "/app/donem-kapanis", "/app/raporlar/gunluk", "/app/raporlar/kasa-banka", "/app/araclar/detayli", "/app/crm", "/app/maliyet-hesapla", "/app/maliyet-teklifleri", "/app/musteri-taksit", "/app/vade" })
-            Assert.Contains(r, muh);
+            Assert.Contains(r, acct);
         foreach (var r in new[] { "/app/kiralar/yeni", "/app/kiralar", "/app/araclar", "/vehicles", "/raporlar/gunluk", "/app/cariler", "/cariler", "/tarife-aktar", "/app/tarife-aktar", "/app/tarifeler", "/app/servisler", "/app/ayarlar", "/app/markalar", "/markalar", "/kasa", "/faturalar" })
-            Assert.DoesNotContain(r, muh);
-        Assert.Contains("/app/bildirimler", muh);         // F11.3: grupsuz spa öğesi her rolde
+            Assert.DoesNotContain(r, acct);
+        Assert.Contains("/app/bildirimler", acct);         // F11.3: grupsuz spa öğesi her rolde
     }
 
     [Fact]
     public async Task Menu_kullanici_bazli_istisna_ve_modul_bayragini_uygular()
     {
-        var o = await OrtamKurAsync(webSitesi: true);
+        var o = await SetUpEnvironmentAsync(website: true);
 
-        var (ek, _) = await MenuAsync(await GirisAsync(o, Kim.OperatorEkRapor)); // Operatör + ek ViewReports
-        Assert.Contains("/app/raporlar/gunluk", ek);   // F10.3: rapor öğeleri spa
-        Assert.Contains("/app/crm", ek);               // F7.3: CRM Analiz spa
-        Assert.DoesNotContain("/kasa", ek);
-        Assert.DoesNotContain("/app/kasa", ek);        // F8.3: Finans spa, FinanceWrite ister
+        var (extra, _) = await MenuAsync(await LoginAsync(o, Kim.OperatorEkRapor)); // Operatör + ek ViewReports
+        Assert.Contains("/app/raporlar/gunluk", extra);   // F10.3: rapor öğeleri spa
+        Assert.Contains("/app/crm", extra);               // F7.3: CRM Analiz spa
+        Assert.DoesNotContain("/kasa", extra);
+        Assert.DoesNotContain("/app/kasa", extra);        // F8.3: Finans spa, FinanceWrite ister
 
-        var (yasakli, _) = await MenuAsync(await GirisAsync(o, Kim.AdminYasakli)); // Admin − ManageUsers
-        Assert.DoesNotContain("/app/ayarlar", yasakli);
-        Assert.DoesNotContain("/app/kullanicilar", yasakli);
-        Assert.DoesNotContain("/app/tarife-aktar", yasakli);
-        Assert.Contains("/app/kasa", yasakli);         // F8.3: Finans spa
+        var (banned, _) = await MenuAsync(await LoginAsync(o, Kim.AdminYasakli)); // Admin − ManageUsers
+        Assert.DoesNotContain("/app/ayarlar", banned);
+        Assert.DoesNotContain("/app/kullanicilar", banned);
+        Assert.DoesNotContain("/app/tarife-aktar", banned);
+        Assert.Contains("/app/kasa", banned);         // F8.3: Finans spa
 
-        var (admin, govde) = await MenuAsync(await GirisAsync(o, Kim.Admin));
+        var (admin, body) = await MenuAsync(await LoginAsync(o, Kim.Admin));
         Assert.Contains("/app/web-sitesi", admin);        // F11.3: Web Sitesi grubu spa
         Assert.Contains("/app/site-icerik", admin);
-        Assert.Equal(2, govde.GetProperty("ogeler").EnumerateArray().Count(e => e.GetProperty("rota").GetString() == "/app/gelen-talepler"));
+        Assert.Equal(2, body.GetProperty("ogeler").EnumerateArray().Count(e => e.GetProperty("rota").GetString() == "/app/gelen-talepler"));
         // Modül açık: 127 + Web Sitesi grubu 4 = 131 spa öğe.
-        Assert.Equal(131, govde.GetProperty("ogeler").EnumerateArray().Count(e => e.GetProperty("sahip").GetString() == "spa"));
-        Assert.Equal(0, govde.GetProperty("rozetler").GetProperty("yeni-talep").GetInt32());
+        Assert.Equal(131, body.GetProperty("ogeler").EnumerateArray().Count(e => e.GetProperty("sahip").GetString() == "spa"));
+        Assert.Equal(0, body.GetProperty("rozetler").GetProperty("yeni-talep").GetInt32());
     }
 }

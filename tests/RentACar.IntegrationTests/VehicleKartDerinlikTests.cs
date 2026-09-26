@@ -20,25 +20,25 @@ namespace RentACar.IntegrationTests;
 [Collection("postgres")]
 public sealed class VehicleKartDerinlikTests(PostgresFixture fx)
 {
-    private static readonly DateTimeOffset Kapatma = new(2026, 4, 30, 0, 0, 0, TimeSpan.Zero);
-    private static readonly DateTimeOffset Planlanan = new(2027, 1, 15, 0, 0, 0, TimeSpan.Zero);
+    private static readonly DateTimeOffset Settlement = new(2026, 4, 30, 0, 0, 0, TimeSpan.Zero);
+    private static readonly DateTimeOffset Planned = new(2027, 1, 15, 0, 0, 0, TimeSpan.Zero);
 
     /// <summary>ELLE seçilmiş sabitler — 20 alanın tamamı doludur.</summary>
-    private static VehicleInput Dolu(string plaka) => new()
+    private static VehicleInput Filled(string plate) => new()
     {
-        Plaka = plaka,
+        Plaka = plate,
         TsrbMarkaKodu = "TS-M-42", TsrbTipKodu = "TS-T-07", AltGrupAdi = "Eko Alt",
         EntegrasyonKodu = "ENT-9001", TeypKodu = "TEYP-55",
         TakipMarka = "Arvento", TakipNo = "GPS-123456",
         SahipGrup = "Kendi Filo", AracSahibiNo = "SH-0007", AracSahibi2 = "Ortak A.Ş.",
         KrediFirma = "X Bank Finans",
-        KapatmaTarih = Kapatma, CikmasiPlananTarih = Planlanan, AracSatisKm = 148_500,
+        KapatmaTarih = Settlement, CikmasiPlananTarih = Planned, AracSatisKm = 148_500,
         Aciklama = "Kart derinliği testi", Konum = "Merkez otopark B2",
         AlimBedeliKur = 34.2500m, Arac2FiyatKur = 36.1000m, SimdiKur = 41.7500m,
         AylikMaliyetDoviz = 250.00m
     };
 
-    private static void DoluDogrula(RentACar.Domain.Entities.Vehicle v)
+    private static void ValidateFilled(RentACar.Domain.Entities.Vehicle v)
     {
         Assert.Equal("TS-M-42", v.TsrbMarkaKodu);
         Assert.Equal("TS-T-07", v.TsrbTipKodu);
@@ -51,8 +51,8 @@ public sealed class VehicleKartDerinlikTests(PostgresFixture fx)
         Assert.Equal("SH-0007", v.AracSahibiNo);
         Assert.Equal("Ortak A.Ş.", v.AracSahibi2);
         Assert.Equal("X Bank Finans", v.KrediFirma);
-        Assert.Equal(Kapatma, v.KapatmaTarih);
-        Assert.Equal(Planlanan, v.CikmasiPlananTarih);
+        Assert.Equal(Settlement, v.KapatmaTarih);
+        Assert.Equal(Planned, v.CikmasiPlananTarih);
         Assert.Equal(148_500, v.AracSatisKm);
         Assert.Equal("Kart derinliği testi", v.Aciklama);
         Assert.Equal("Merkez otopark B2", v.Konum);
@@ -69,8 +69,8 @@ public sealed class VehicleKartDerinlikTests(PostgresFixture fx)
         using var scope = host.ScopeFor(Guid.NewGuid());
         var svc = scope.ServiceProvider.GetRequiredService<VehicleService>();
 
-        var id = await svc.CreateAsync(Dolu("34 KD 01"));
-        DoluDogrula((await svc.GetAsync(id))!);
+        var id = await svc.CreateAsync(Filled("34 KD 01"));
+        ValidateFilled((await svc.GetAsync(id))!);
     }
 
     [Fact]
@@ -83,19 +83,19 @@ public sealed class VehicleKartDerinlikTests(PostgresFixture fx)
         // BOŞ oluştur → UPDATE ile doldur. Yalnız create'e map edilmiş bir alan burada yakalanır
         // (kopya-kurucu tuzağı: iki yoldan birine yazmayı unutmak alanı sessizce düşürür).
         var id = await svc.CreateAsync(new VehicleInput { Plaka = "34 KD 02" });
-        var bos = (await svc.GetAsync(id))!;
-        Assert.Null(bos.TakipNo);
-        Assert.Null(bos.SimdiKur);
+        var empty = (await svc.GetAsync(id))!;
+        Assert.Null(empty.TakipNo);
+        Assert.Null(empty.SimdiKur);
 
-        Assert.True(await svc.UpdateAsync(id, Dolu("34 KD 02")));
-        DoluDogrula((await svc.GetAsync(id))!);
+        Assert.True(await svc.UpdateAsync(id, Filled("34 KD 02")));
+        ValidateFilled((await svc.GetAsync(id))!);
 
         // Temizleme de bir güncellemedir: boş gönderilen metin alanı null'a döner (Trim deseni).
         Assert.True(await svc.UpdateAsync(id, new VehicleInput { Plaka = "34 KD 02", Konum = "   " }));
-        var son = (await svc.GetAsync(id))!;
-        Assert.Null(son.Konum);
-        Assert.Null(son.TakipNo);
-        Assert.Null(son.AlimBedeliKur);
+        var last = (await svc.GetAsync(id))!;
+        Assert.Null(last.Konum);
+        Assert.Null(last.TakipNo);
+        Assert.Null(last.AlimBedeliKur);
     }
 
     [Fact]
@@ -107,14 +107,14 @@ public sealed class VehicleKartDerinlikTests(PostgresFixture fx)
         var id = await svc.CreateAsync(new VehicleInput { Plaka = "34 KD 03" });
 
         // ELLE: 5 manuel KM girişi, artan sırada. Odometre geriye gidemez.
-        int[] kmler = [1000, 2000, 3000, 4000, 5000];
-        foreach (var km in kmler) await svc.EnterManualKmAsync(id, km);
+        int[] kms = [1000, 2000, 3000, 4000, 5000];
+        foreach (var km in kms) await svc.EnterManualKmAsync(id, km);
 
-        var son3 = await svc.KmLogsAsync(id, 3);
-        Assert.Equal(3, son3.Count);
+        var last3 = await svc.KmLogsAsync(id, 3);
+        Assert.Equal(3, last3.Count);
         // EN YENİ 3: 5000, 4000, 3000 (elle) — sıra en yeniden eskiye.
-        Assert.Equal([5000, 4000, 3000], son3.Select(x => x.Km));
-        Assert.All(son3, k => Assert.Equal(KmLogSource.Manuel, k.Kaynak));
+        Assert.Equal([5000, 4000, 3000], last3.Select(x => x.Km));
+        Assert.All(last3, k => Assert.Equal(KmLogSource.Manuel, k.Kaynak));
 
         // Araç kartındaki Km alanı da son değere gelmiş olmalı.
         Assert.Equal(5000, (await svc.GetAsync(id))!.Km);
@@ -131,15 +131,15 @@ public sealed class VehicleKartDerinlikTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
         var sp = scope.ServiceProvider;
-        var araclar = sp.GetRequiredService<VehicleService>();
-        var giderler = sp.GetRequiredService<RentACar.Application.Expenses.ExpenseService>();
-        var rapor = sp.GetRequiredService<ReportService>();
-        var tarih = DateTimeOffset.UtcNow.AddDays(-2);
+        var vehicles = sp.GetRequiredService<VehicleService>();
+        var expenses = sp.GetRequiredService<RentACar.Application.Expenses.ExpenseService>();
+        var report = sp.GetRequiredService<ReportService>();
+        var date = DateTimeOffset.UtcNow.AddDays(-2);
 
         // İki araç, AYNI alım bedeli ve AYNI gider — tek fark kur alanları.
-        var sade = await araclar.CreateAsync(new VehicleInput
+        var sade = await vehicles.CreateAsync(new VehicleInput
         { Plaka = "34 KD 10", AlimBedeli = 500_000m, AylikMaliyet = 1_000m });
-        var kurlu = await araclar.CreateAsync(new VehicleInput
+        var withExchangeRate = await vehicles.CreateAsync(new VehicleInput
         {
             Plaka = "34 KD 11", AlimBedeli = 500_000m, AylikMaliyet = 1_000m,
             AlimBedeliKur = 99.9999m, Arac2FiyatKur = 88.8888m, SimdiKur = 77.7777m,
@@ -147,31 +147,31 @@ public sealed class VehicleKartDerinlikTests(PostgresFixture fx)
         });
 
         // ELLE: net 2000 + %25 KDV = 2500 brüt gider. KDV gidere girmez → karne gideri 2000.
-        foreach (var v in new[] { sade, kurlu })
-            await giderler.CreateAsync(new RentACar.Application.Expenses.ExpenseInput
+        foreach (var v in new[] { sade, withExchangeRate })
+            await expenses.CreateAsync(new RentACar.Application.Expenses.ExpenseInput
             {
-                Tip = ExpenseType.Arac, NetTutar = 2_000m, KdvOrani = 0.25m, Tarih = tarih,
+                Tip = ExpenseType.Arac, NetTutar = 2_000m, KdvOrani = 0.25m, Tarih = date,
                 KasaBankaHesap = LedgerAccountType.Kasa, VehicleId = v, Aciklama = "Bakım"
             });
 
-        var kSade = await rapor.GetVehicleScorecardAsync(sade);
-        var kKurlu = await rapor.GetVehicleScorecardAsync(kurlu);
+        var kSade = await report.GetVehicleScorecardAsync(sade);
+        var kWithRate = await report.GetVehicleScorecardAsync(withExchangeRate);
 
         Assert.NotNull(kSade);
-        Assert.NotNull(kKurlu);
+        Assert.NotNull(kWithRate);
         Assert.Equal(2_000m, kSade!.ToplamGider);                  // ELLE: yalnız defterdeki NET gider
-        Assert.Equal(kSade.ToplamGelir, kKurlu!.ToplamGelir);
-        Assert.Equal(kSade.ToplamGider, kKurlu.ToplamGider);
-        Assert.Equal(kSade.ToplamNetKar, kKurlu.ToplamNetKar);
+        Assert.Equal(kSade.ToplamGelir, kWithRate!.ToplamGelir);
+        Assert.Equal(kSade.ToplamGider, kWithRate.ToplamGider);
+        Assert.Equal(kSade.ToplamNetKar, kWithRate.ToplamNetKar);
 
         // Karlılık satırı da aynı — iki yol da kurdan habersiz.
-        var karlilik = await rapor.GetProfitabilityAsync();
-        var rSade = karlilik.Satirlar.Single(r => r.Plaka == "34KD10");
-        var rKurlu = karlilik.Satirlar.Single(r => r.Plaka == "34KD11");
-        Assert.Equal(rSade.Gelir, rKurlu.Gelir);
-        Assert.Equal(rSade.Gider, rKurlu.Gider);
-        Assert.Equal(rSade.NetKar, rKurlu.NetKar);
-        Assert.Equal(-2_000m, rKurlu.NetKar);                      // ELLE: 0 gelir − 2000 gider
+        var profitability = await report.GetProfitabilityAsync();
+        var rSade = profitability.Satirlar.Single(r => r.Plaka == "34KD10");
+        var rWithRate = profitability.Satirlar.Single(r => r.Plaka == "34KD11");
+        Assert.Equal(rSade.Gelir, rWithRate.Gelir);
+        Assert.Equal(rSade.Gider, rWithRate.Gider);
+        Assert.Equal(rSade.NetKar, rWithRate.NetKar);
+        Assert.Equal(-2_000m, rWithRate.NetKar);                      // ELLE: 0 gelir − 2000 gider
     }
 
     /// <summary>
@@ -188,16 +188,16 @@ public sealed class VehicleKartDerinlikTests(PostgresFixture fx)
     [InlineData("2026-04-30")]
     [InlineData("2026-01-01")]
     [InlineData("2026-12-31")]
-    public void Form_gunu_LOCAL_prefill_ile_birebir_round_trip_eder(string gun)
+    public void Form_gunu_LOCAL_prefill_ile_birebir_round_trip_eder(string day)
     {
-        var cozulen = RentACar.Web.FormParse.Date(gun);
-        Assert.NotNull(cozulen);
+        var resolved = RentACar.Web.FormParse.Date(day);
+        Assert.NotNull(resolved);
 
         // Ekranın bastığı değer (düzeltme sonrası): LocalDateTime.
-        Assert.Equal(gun, cozulen!.Value.LocalDateTime.ToString("yyyy-MM-dd"));
+        Assert.Equal(day, resolved!.Value.LocalDateTime.ToString("yyyy-MM-dd"));
 
         // Round-trip: basılan değeri tekrar göndermek aynı anı üretmeli (gün kaymaz).
-        Assert.Equal(cozulen, RentACar.Web.FormParse.Date(cozulen.Value.LocalDateTime.ToString("yyyy-MM-dd")));
+        Assert.Equal(resolved, RentACar.Web.FormParse.Date(resolved.Value.LocalDateTime.ToString("yyyy-MM-dd")));
     }
 
     /// <summary>
@@ -210,21 +210,21 @@ public sealed class VehicleKartDerinlikTests(PostgresFixture fx)
     public void Form_ondaligi_INVARIANT_basilmali_yoksa_deger_kaybolur()
     {
         var tr = System.Globalization.CultureInfo.GetCultureInfo("tr-TR");
-        const decimal deger = 1250.5000m;
+        const decimal value = 1250.5000m;
 
         // Hatalı yol: kültüre bağlı basım virgül üretir. Tarayıcı bunu type=number'da geçersiz
         // sayıp alanı boşaltır (pratikte değer NULL'lanır); sunucuya ham gelse bile virgül
         // Invariant'ta BİNLİK AYIRICIDIR → 1250,5000 = 12.505.000 gibi felaket bir okuma çıkar.
         // İki sonuç da yanlış; bu yüzden basım daima Invariant olmalı.
-        var kulturel = deger.ToString(tr);
-        Assert.Contains(",", kulturel);
-        Assert.NotEqual(deger, RentACar.Web.FormParse.Dec(kulturel));
+        var cultural = value.ToString(tr);
+        Assert.Contains(",", cultural);
+        Assert.NotEqual(value, RentACar.Web.FormParse.Dec(cultural));
         Assert.Null(RentACar.Web.FormParse.Dec(""));      // tarayıcının boşalttığı alan → null
 
         // Doğru yol: Invariant basım → aynı değer geri gelir.
-        var invariant = deger.ToString(System.Globalization.CultureInfo.InvariantCulture);
+        var invariant = value.ToString(System.Globalization.CultureInfo.InvariantCulture);
         Assert.DoesNotContain(",", invariant);
-        Assert.Equal(deger, RentACar.Web.FormParse.Dec(invariant));
+        Assert.Equal(value, RentACar.Web.FormParse.Dec(invariant));
     }
 
     [Fact]
@@ -232,7 +232,7 @@ public sealed class VehicleKartDerinlikTests(PostgresFixture fx)
     {
         using var host = new TestHost(fx.AppConnectionString);
         using (var a = host.ScopeFor(Guid.NewGuid()))
-            await a.ServiceProvider.GetRequiredService<VehicleService>().CreateAsync(Dolu("34 KD 20"));
+            await a.ServiceProvider.GetRequiredService<VehicleService>().CreateAsync(Filled("34 KD 20"));
 
         using var b = host.ScopeFor(Guid.NewGuid());
         Assert.Empty(await b.ServiceProvider.GetRequiredService<VehicleService>().ListAsync());

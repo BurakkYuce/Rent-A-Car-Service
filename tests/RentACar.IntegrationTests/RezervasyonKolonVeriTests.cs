@@ -22,7 +22,7 @@ namespace RentACar.IntegrationTests;
 [Collection("postgres")]
 public sealed class RezervasyonKolonVeriTests(PostgresFixture fx)
 {
-    private static readonly DateTimeOffset Bas =
+    private static readonly DateTimeOffset Start =
         new DateTimeOffset(DateTime.UtcNow.Date, TimeSpan.Zero).AddDays(5).AddHours(9);
 
     [Fact]
@@ -36,22 +36,22 @@ public sealed class RezervasyonKolonVeriTests(PostgresFixture fx)
         { Tip = CustomerType.Bireysel, Ad = "Kolon", Soyad = "Test", CepTel = "05551112233" });
         var v = await sp.GetRequiredService<VehicleService>().CreateAsync(new VehicleInput { Plaka = "34 KL 01" });
 
-        var rez = sp.GetRequiredService<ReservationService>();
-        await rez.CreateAsync(new BookingInput
+        var res = sp.GetRequiredService<ReservationService>();
+        await res.CreateAsync(new BookingInput
         {
-            MusteriId = m, VehicleId = v, BasTar = Bas, BitTar = Bas.AddDays(3),
+            MusteriId = m, VehicleId = v, BasTar = Start, BitTar = Start.AddDays(3),
             GunlukUcret = 1000m, Kaynak = "Web", CikisOfisi = "İstanbul Merkez Ofis",
         });
 
-        var kayit = Assert.Single(await rez.ListAsync());
-        Assert.Equal("Web", kayit.Kaynak);
-        Assert.Equal("İstanbul Merkez Ofis", kayit.CikisOfisi);
+        var record = Assert.Single(await res.ListAsync());
+        Assert.Equal("Web", record.Kaynak);
+        Assert.Equal("İstanbul Merkez Ofis", record.CikisOfisi);
         // Teslim kolonu ayrı gösteriliyor → bitiş tarihi de kayıtta olmalı.
-        Assert.Equal(Bas.AddDays(3), kayit.BitTar);
+        Assert.Equal(Start.AddDays(3), record.BitTar);
 
-        var cari = Assert.Single(await sp.GetRequiredService<CustomerService>().ListAsync(),
+        var account = Assert.Single(await sp.GetRequiredService<CustomerService>().ListAsync(),
             c => c.Id == m);
-        Assert.Equal("05551112233", cari.CepTel);
+        Assert.Equal("05551112233", account.CepTel);
     }
 
     [Fact]
@@ -63,24 +63,24 @@ public sealed class RezervasyonKolonVeriTests(PostgresFixture fx)
         var m = await sp.GetRequiredService<CustomerService>().CreateAsync(new CustomerInput
         { Tip = CustomerType.Bireysel, Ad = "Kanal", Soyad = "Test" });
         var veh = sp.GetRequiredService<VehicleService>();
-        var rez = sp.GetRequiredService<ReservationService>();
+        var res = sp.GetRequiredService<ReservationService>();
 
-        foreach (var (plaka, kaynak) in new[] { ("34 KN 01", "Web"), ("34 KN 02", "Acente"), ("34 KN 03", (string?)null) })
+        foreach (var (plate, source) in new[] { ("34 KN 01", "Web"), ("34 KN 02", "Acente"), ("34 KN 03", (string?)null) })
         {
-            var v = await veh.CreateAsync(new VehicleInput { Plaka = plaka });
-            await rez.CreateAsync(new BookingInput
+            var v = await veh.CreateAsync(new VehicleInput { Plaka = plate });
+            await res.CreateAsync(new BookingInput
             {
-                MusteriId = m, VehicleId = v, BasTar = Bas, BitTar = Bas.AddDays(2),
-                GunlukUcret = 500m, Kaynak = kaynak,
+                MusteriId = m, VehicleId = v, BasTar = Start, BitTar = Start.AddDays(2),
+                GunlukUcret = 500m, Kaynak = source,
             });
         }
 
-        var hepsi = await rez.ListAsync();
-        Assert.Equal(3, hepsi.Count);
+        var all = await res.ListAsync();
+        Assert.Equal(3, all.Count);
         // Sayfadaki filtrenin uyguladığı predicate ile AYNI karşılaştırma (OrdinalIgnoreCase).
-        Assert.Single(hepsi, r => string.Equals(r.Kaynak, "Web", StringComparison.OrdinalIgnoreCase));
-        Assert.Single(hepsi, r => string.Equals(r.Kaynak, "Acente", StringComparison.OrdinalIgnoreCase));
-        Assert.Single(hepsi, r => r.Kaynak is null);
+        Assert.Single(all, r => string.Equals(r.Kaynak, "Web", StringComparison.OrdinalIgnoreCase));
+        Assert.Single(all, r => string.Equals(r.Kaynak, "Acente", StringComparison.OrdinalIgnoreCase));
+        Assert.Single(all, r => r.Kaynak is null);
     }
 
     [Fact]
@@ -90,16 +90,16 @@ public sealed class RezervasyonKolonVeriTests(PostgresFixture fx)
         var d = new DirectoryInfo(AppContext.BaseDirectory);
         while (d is not null && !File.Exists(Path.Combine(d.FullName, "RentACar.slnx"))) d = d.Parent;
         Assert.NotNull(d);
-        var sayfa = File.ReadAllText(Path.Combine(d!.FullName,
+        var page = File.ReadAllText(Path.Combine(d!.FullName,
             "src/RentACar.Web/Components/Pages/Bookings/ReservationList.razor"));
 
-        foreach (var beklenen in new[] { "<th>Cep Tel</th>", "<th>Teslim</th>", "<th>Alış Şube</th>", "<th>Kaynak</th>" })
-            Assert.Contains(beklenen, sayfa, StringComparison.Ordinal);
-        Assert.Contains("name=\"kaynak\"", sayfa, StringComparison.Ordinal);
+        foreach (var expected in new[] { "<th>Cep Tel</th>", "<th>Teslim</th>", "<th>Alış Şube</th>", "<th>Kaynak</th>" })
+            Assert.Contains(expected, page, StringComparison.Ordinal);
+        Assert.Contains("name=\"kaynak\"", page, StringComparison.Ordinal);
 
         // Başlık ve gövde hücre sayısı eşit olmalı (colspan dahil) — kolon eklerken en sık hata bu.
-        var basSayisi = Regex.Matches(sayfa.Split("<tbody>")[0], "<th>").Count;
-        Assert.Equal(basSayisi, Regex.Matches(sayfa, @"colspan=""(\d+)""") is { Count: > 0 } m
+        var startCount = Regex.Matches(page.Split("<tbody>")[0], "<th>").Count;
+        Assert.Equal(startCount, Regex.Matches(page, @"colspan=""(\d+)""") is { Count: > 0 } m
             ? int.Parse(m[0].Groups[1].Value) : -1);
     }
 }

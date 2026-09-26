@@ -13,11 +13,11 @@ public static class BookingEndpoints
 {
     public static IEndpointRouteBuilder MapBookingEndpoints(this IEndpointRouteBuilder app)
     {
-        var rez = app.MapGroup("/rezervasyonlar").RequirePermission(Permission.OperationsWrite).AntiforgeryByEnv();
+        var res = app.MapGroup("/rezervasyonlar").RequirePermission(Permission.OperationsWrite).AntiforgeryByEnv();
 
         // gunlukUcret string? + FormParse.Dec: "Otomatik" fiyat türünde alan boş bırakılır — boş string
         // decimal parametrede 400 verirdi (CLAUDE.md §5 tuzağı). Boş → 0 → tarife çözümü.
-        rez.MapPost("/create", async (ReservationService svc, HttpRequest req,
+        res.MapPost("/create", async (ReservationService svc, HttpRequest req,
             [FromForm] Guid musteriId, [FromForm] Guid vehicleId,
             [FromForm] DateTimeOffset basTar, [FromForm] DateTimeOffset bitTar,
             [FromForm] string? gunlukUcret, [FromForm] string? cikisOfisi, [FromForm] string? donusOfisi,
@@ -32,10 +32,10 @@ public static class BookingEndpoints
                     Kaynak = kaynak,
                     KampanyaKodu = FormParse.Str(req.Form, "kampanyaKodu") // FAZ 3.A5
                 };
-                ApplyOdemeDerinlik(input, req.Form);
-                ApplyRezervasyonDerinlik(input, req.Form); // FAZ-48: Ota* + talep bilgisi
+                ApplyPaymentDepth(input, req.Form);
+                ApplyReservationDepth(input, req.Form); // FAZ-48: Ota* + talep bilgisi
                 await svc.CreateAsync(input);
-                return Sonuc.Tamam("/rezervasyonlar", "Rezervasyon oluşturuldu.");
+                return Result.Ok("/rezervasyonlar", "Rezervasyon oluşturuldu.");
             }
             catch (ValidationException ex)
             {
@@ -43,7 +43,7 @@ public static class BookingEndpoints
             }
         });
 
-        rez.MapPost("/update", async (ReservationService svc, HttpRequest req,
+        res.MapPost("/update", async (ReservationService svc, HttpRequest req,
             [FromForm] Guid id, [FromForm] Guid musteriId, [FromForm] Guid vehicleId,
             [FromForm] DateTimeOffset basTar, [FromForm] DateTimeOffset bitTar,
             [FromForm] string? gunlukUcret, [FromForm] string? cikisOfisi, [FromForm] string? donusOfisi,
@@ -58,33 +58,33 @@ public static class BookingEndpoints
                     Kaynak = kaynak,
                     KampanyaKodu = FormParse.Str(req.Form, "kampanyaKodu") // FAZ 3.A5
                 };
-                ApplyOdemeDerinlik(input, req.Form);
-                ApplyRezervasyonDerinlik(input, req.Form); // FAZ-48: Ota* + talep bilgisi
+                ApplyPaymentDepth(input, req.Form);
+                ApplyReservationDepth(input, req.Form); // FAZ-48: Ota* + talep bilgisi
                 await svc.UpdateAsync(id, input);
-                return Sonuc.Tamam("/rezervasyonlar", "Rezervasyon güncellendi.");
+                return Result.Ok("/rezervasyonlar", "Rezervasyon güncellendi.");
             }
             catch (AvailabilityConflictException) { return Results.Redirect($"/rezervasyonlar?hata={Uri.EscapeDataString("Seçilen tarihte araç müsait değil.")}"); }
             catch (ValidationException ex) { return Results.Redirect($"/rezervasyonlar?hata={Uri.EscapeDataString(ex.Message)}"); }
         });
 
-        rez.MapPost("/confirm", async (ReservationService svc, [FromForm] Guid id) =>
+        res.MapPost("/confirm", async (ReservationService svc, [FromForm] Guid id) =>
         {
-            try { await svc.ConfirmAsync(id); return Sonuc.Tamam("/rezervasyonlar", "Rezervasyon onaylandı."); }
+            try { await svc.ConfirmAsync(id); return Result.Ok("/rezervasyonlar", "Rezervasyon onaylandı."); }
             catch (ValidationException ex) { return Results.Redirect($"/rezervasyonlar?hata={Uri.EscapeDataString(ex.Message)}"); }
         });
 
-        rez.MapPost("/cancel", async (ReservationService svc, [FromForm] Guid id) =>
+        res.MapPost("/cancel", async (ReservationService svc, [FromForm] Guid id) =>
         {
-            try { await svc.CancelAsync(id); return Sonuc.Tamam("/rezervasyonlar", "Rezervasyon iptal edildi."); }
+            try { await svc.CancelAsync(id); return Result.Ok("/rezervasyonlar", "Rezervasyon iptal edildi."); }
             catch (ValidationException ex) { return Results.Redirect($"/rezervasyonlar?hata={Uri.EscapeDataString(ex.Message)}"); }
         }).RequirePermission(Permission.OperationsDelete);
 
-        rez.MapPost("/convert", async (ReservationService svc, [FromForm] Guid id) =>
+        res.MapPost("/convert", async (ReservationService svc, [FromForm] Guid id) =>
         {
             try
             {
                 await svc.ConvertToRentalAsync(id);
-                return Sonuc.Tamam("/kiralar", "Rezervasyon kiraya çevrildi.");
+                return Result.Ok("/kiralar", "Rezervasyon kiraya çevrildi.");
             }
             catch (ValidationException ex)
             {
@@ -92,9 +92,9 @@ public static class BookingEndpoints
             }
         });
 
-        var kira = app.MapGroup("/kiralar").RequirePermission(Permission.OperationsWrite).AntiforgeryByEnv(); // adversarial H1
+        var rental = app.MapGroup("/kiralar").RequirePermission(Permission.OperationsWrite).AntiforgeryByEnv(); // adversarial H1
 
-        kira.MapPost("/create", async (RentalService svc, CustomerService customers,
+        rental.MapPost("/create", async (RentalService svc, CustomerService customers,
             RentACar.Application.RentalAddOns.RentalAddOnService addOns,
             RentACar.Application.EkHizmetler.AddOnDefinitionService ekTanimlar, HttpRequest req,
             [FromForm] string? musteriId, [FromForm] Guid vehicleId,
@@ -103,30 +103,30 @@ public static class BookingEndpoints
             [FromForm] string? aciklama, [FromForm] string? ikinciSurucuId) =>
         {
             Guid id;
-            List<(Guid TanimId, decimal Miktar)> ekSecim;
+            List<(Guid TanimId, decimal Miktar)> extraSelection;
             try
             {
                 // Müşteri: mevcut cari seçildi mi (musteriId), yoksa kira ekranından yeni müşteri mi girildi?
                 // Tek akış — önce cari oluştur, sonra kira ona bağlanır (ayrı ekranda cari açma zorunluluğu kalktı).
-                var musteriGuid = FormParse.Id(musteriId) ?? await OlusturYeniCariAsync(customers, req.Form);
+                var customerGuid = FormParse.Id(musteriId) ?? await CreateNewCustomerAsync(customers, req.Form);
 
                 var input = new BookingInput
                 {
-                    MusteriId = musteriGuid, VehicleId = vehicleId, BasTar = basTar, BitTar = bitTar,
+                    MusteriId = customerGuid, VehicleId = vehicleId, BasTar = basTar, BitTar = bitTar,
                     IkinciSurucuId = FormParse.Id(ikinciSurucuId),
                     GunlukUcret = FormParse.Dec(gunlukUcret) ?? 0m, CikisOfisi = cikisOfisi, DonusOfisi = donusOfisi, Aciklama = aciklama
                 };
-                ApplyOdemeDerinlik(input, req.Form);
-                ApplyKiraDetay(input, req.Form);
+                ApplyPaymentDepth(input, req.Form);
+                ApplyRentalDetail(input, req.Form);
 
                 // Ek hizmet seçimleri (mega-form matrisi): tanımlar create ÖNCESİ doğrulanır — kira, geçersiz
                 // seçimle yarım kalmasın. Fiyat DAİMA tanım snapshot'ı (serbest-fiyat override bilinçli YOK —
                 // canlı önizleme /kiralar/hesapla ile bit-eş kalsın; adversarial PR-B notu).
-                ekSecim = ParseEkForm(req.Form);
-                if (ekSecim.Count > 0)
+                extraSelection = ParseExtraForm(req.Form);
+                if (extraSelection.Count > 0)
                 {
-                    var tanimlar = (await ekTanimlar.ListActiveAsync()).Select(t => t.Id).ToHashSet();
-                    if (ekSecim.Any(e => !tanimlar.Contains(e.TanimId)))
+                    var definitions = (await ekTanimlar.ListActiveAsync()).Select(t => t.Id).ToHashSet();
+                    if (extraSelection.Any(e => !definitions.Contains(e.TanimId)))
                         throw new ValidationException("Seçilen ek hizmet tanımı bulunamadı (silinmiş/pasif olabilir).");
                 }
 
@@ -141,28 +141,28 @@ public static class BookingEndpoints
             // kalemler detay ekranından eklenebilir.
             try
             {
-                foreach (var (tanimId, miktar) in ekSecim)
-                    await addOns.AddAsync(id, tanimId, miktar);
+                foreach (var (definitionId, quantity) in extraSelection)
+                    await addOns.AddAsync(id, definitionId, quantity);
             }
             catch (ValidationException ex)
             {
                 return Results.Redirect($"/kiralar/{id}?hata={Uri.EscapeDataString($"Kira açıldı ancak ek hizmet eklenemedi: {ex.Message}")}");
             }
             // Kira açılınca DETAY ekranına git → tahsilat formu (Bakiye>0) hemen görünür (direkt tahsilat).
-            return Sonuc.Tamam($"/kiralar/{id}", "Kira sözleşmesi oluşturuldu.");
+            return Result.Ok($"/kiralar/{id}", "Kira sözleşmesi oluşturuldu.");
         });
 
         // ANINDA YENİ MÜŞTERİ (kira formu "Müşteriyi Kaydet" — JS fetch, sayfa yenilenmez → formdaki diğer
         // alanlar kaybolmaz). Aynı OlusturYeniCariAsync yolu (PII şifreleme + TC checksum/benzersizlik
         // CustomerService'te). JSON döner; hata nazik (ok:false) — inline gösterilir, form durumu korunur.
-        kira.MapPost("/musteri-olustur", async (CustomerService customers, HttpRequest req) =>
+        rental.MapPost("/musteri-olustur", async (CustomerService customers, HttpRequest req) =>
         {
             try
             {
-                var id = await OlusturYeniCariAsync(customers, req.Form);
-                var ad = ((FormParse.Str(req.Form, "yeniUnvan")
+                var id = await CreateNewCustomerAsync(customers, req.Form);
+                var name = ((FormParse.Str(req.Form, "yeniUnvan")
                           ?? $"{FormParse.Str(req.Form, "yeniAd")} {FormParse.Str(req.Form, "yeniSoyad")}").Trim());
-                return Results.Json(new { ok = true, id, ad });
+                return Results.Json(new { ok = true, id, ad = name });
             }
             catch (ValidationException ex)
             {
@@ -174,7 +174,7 @@ public static class BookingEndpoints
         // (PricingService/RentalQuoteEngine) tek hesap kaynağı → önizleme == kayıt. GET → antiforgery'ye
         // takılmaz (middleware yalnız unsafe metodları doğrular); RequirePermission grup mirasıyla korunur.
         // ek formatı: "tanimId:miktar,tanimId:miktar".
-        kira.MapGet("/hesapla", async (RentalCalculationService svc,
+        rental.MapGet("/hesapla", async (RentalCalculationService svc,
             string? vehicleId, DateTimeOffset basTar, DateTimeOffset bitTar,
             string? gunlukUcret, string? fiyatTuru, string? doviz, string? cikisOfisi,
             string? ek, string? rentalId, string? musteriId, string? kampanyaKodu, string? ikinciSurucuId,
@@ -182,7 +182,7 @@ public static class BookingEndpoints
         {
             try
             {
-                var sonuc = await svc.CalculateAsync(new KiraHesapIstek(
+                var result = await svc.CalculateAsync(new KiraHesapIstek(
                     VehicleId: FormParse.Id(vehicleId),
                     BasTar: basTar, BitTar: bitTar,
                     GunlukUcret: FormParse.Dec(gunlukUcret),
@@ -191,9 +191,9 @@ public static class BookingEndpoints
                     MusteriId: FormParse.Id(musteriId), KampanyaKodu: kampanyaKodu,
                     IkinciSurucuId: FormParse.Id(ikinciSurucuId), // FAZ 3.A3a ek sürücü ücreti önizlemesi
                     DonusOfisi: donusOfisi, DropUcreti: FormParse.Dec(dropUcreti), // FAZ 3.A3b drop önizlemesi
-                    EkHizmetler: ParseEkSecim(ek),
+                    EkHizmetler: ParseExtraSelection(ek),
                     RentalId: FormParse.Id(rentalId)));
-                return Results.Json(sonuc);
+                return Results.Json(result);
             }
             catch (ValidationException ex)
             {
@@ -211,7 +211,7 @@ public static class BookingEndpoints
         // yeniliyordu (yalnız musteriId query'yle korunuyordu). Artık müsait araç listesi JSON döner; JS
         // vehicleId select'ini + dl-kf-arac datalist'ini yerinde günceller. No-JS için GET fallback korunur.
         // GET → antiforgery'ye takılmaz; RequirePermission grup mirasıyla korunur (AvailabilityService yetkisiz).
-        kira.MapGet("/musait-arac", async (RentACar.Application.Availability.AvailabilityService availability,
+        rental.MapGet("/musait-arac", async (RentACar.Application.Availability.AvailabilityService availability,
             string? vfrom, string? vto, string? vgrup) =>
         {
             try
@@ -221,16 +221,16 @@ public static class BookingEndpoints
                 if (vf is not { } vff || vt is not { } vtt || vtt <= vff)
                     return Results.Json(new { ok = false, hata = "Geçerli bir müsaitlik aralığı girin (bitiş > başlangıç)." });
 
-                var araclar = await availability.FindAvailableAsync(vff, vtt, string.IsNullOrWhiteSpace(vgrup) ? null : vgrup);
+                var vehicles = await availability.FindAvailableAsync(vff, vtt, string.IsNullOrWhiteSpace(vgrup) ? null : vgrup);
                 return Results.Json(new
                 {
                     ok = true,
-                    sayi = araclar.Count,
-                    araclar = araclar.Select(v => new
+                    sayi = vehicles.Count,
+                    araclar = vehicles.Select(v => new
                     {
                         id = v.Id,
                         // datalist görüntüsü (KiraFormVm.AracGoruntu ile birebir — id-çözümü eşleşmesi bozulmasın)
-                        goruntu = Components.Pages.Bookings.KiraFormPaneller.KiraFormVm.AracGoruntu(v),
+                        goruntu = Components.Pages.Bookings.KiraFormPaneller.RentalFormVm.VehicleDisplay(v),
                         secim = $"{v.Plaka} — {v.Marka} {v.Tip}", // vehicleId select option metni (SekmeArac ile aynı)
                         marka = v.Marka ?? "", tip = v.Tip ?? "", yil = v.ModelYili?.ToString() ?? "",
                         vites = v.Vites?.ToString() ?? "", yakit = v.Yakit.ToString(),
@@ -244,10 +244,10 @@ public static class BookingEndpoints
 
         // Açık kira alan güncelleme (mega-form "Kaydet" — edit modu). Whitelist RentalUpdateInput tipiyle
         // zorlanır (para/tarih alanları tipte YOK). Redirect'te #sekme fragment'i korunur (tab kaybolmaz).
-        kira.MapPost("/update", async (RentalService svc, HttpRequest req, [FromForm] Guid id) =>
+        rental.MapPost("/update", async (RentalService svc, HttpRequest req, [FromForm] Guid id) =>
         {
             var f = req.Form;
-            var sekme = SekmeFragment(FormParse.Str(f, "sekme"));
+            var tab = TabFragment(FormParse.Str(f, "sekme"));
             try
             {
                 var input = new RentalUpdateInput
@@ -314,30 +314,30 @@ public static class BookingEndpoints
                 };
                 var ok = await svc.UpdateOpenAsync(id, input);
                 return ok
-                    ? Sonuc.Tamam($"/kiralar/{id}", "Kira kaydedildi.", sekme)
-                    : Sonuc.Hata("/kiralar", "Kira bulunamadı.");
+                    ? Result.Ok($"/kiralar/{id}", "Kira kaydedildi.", tab)
+                    : Result.Error("/kiralar", "Kira bulunamadı.");
             }
             catch (ValidationException ex)
             {
-                return Results.Redirect($"/kiralar/{id}?hata={Uri.EscapeDataString(ex.Message)}{sekme}");
+                return Results.Redirect($"/kiralar/{id}?hata={Uri.EscapeDataString(ex.Message)}{tab}");
             }
         });
 
-        kira.MapPost("/cancel", async (RentalService svc, [FromForm] Guid id) =>
+        rental.MapPost("/cancel", async (RentalService svc, [FromForm] Guid id) =>
         {
-            try { await svc.CancelAsync(id); return Sonuc.Tamam("/kiralar", "Kira iptal edildi."); }
+            try { await svc.CancelAsync(id); return Result.Ok("/kiralar", "Kira iptal edildi."); }
             catch (ValidationException ex) { return Results.Redirect($"/kiralar?hata={Uri.EscapeDataString(ex.Message)}"); }
         }).RequirePermission(Permission.OperationsDelete);
 
-        kira.MapPost("/teslim", async (RentalService svc,
+        rental.MapPost("/teslim", async (RentalService svc,
             [FromForm] Guid id, [FromForm] int cikisKm, [FromForm] int cikisYakit) =>
         {
             // #sekme fragment'i: mega-formda işlem sonrası aynı sekme açık kalır (kira = Kira Bilgisi/Teslimat)
-            try { await svc.DeliverAsync(id, cikisKm, cikisYakit); return Sonuc.Tamam($"/kiralar/{id}", "Araç teslim edildi.", "#sekme=kira"); }
+            try { await svc.DeliverAsync(id, cikisKm, cikisYakit); return Result.Ok($"/kiralar/{id}", "Araç teslim edildi.", "#sekme=kira"); }
             catch (ValidationException ex) { return Results.Redirect($"/kiralar/{id}?hata={Uri.EscapeDataString(ex.Message)}#sekme=kira"); }
         });
 
-        kira.MapPost("/donus", async (RentalService svc,
+        rental.MapPost("/donus", async (RentalService svc,
             [FromForm] Guid id, [FromForm] int donusKm, [FromForm] int donusYakit, [FromForm] DateTimeOffset gercekDonus,
             [FromForm] string? kmHediye, [FromForm] string? bitisSebebi, [FromForm] string? teslimAlanPersonelId) =>
         {
@@ -345,14 +345,14 @@ public static class BookingEndpoints
             {
                 await svc.ReturnAsync(id, donusKm, donusYakit, gercekDonus,
                     FormParse.Int(kmHediye) ?? 0, bitisSebebi, FormParse.Id(teslimAlanPersonelId)); // servis boş→null normalize eder
-                return Sonuc.Tamam($"/kiralar/{id}", "Araç dönüşü kaydedildi.", "#sekme=donus");
+                return Result.Ok($"/kiralar/{id}", "Araç dönüşü kaydedildi.", "#sekme=donus");
             }
             catch (ValidationException ex) { return Results.Redirect($"/kiralar/{id}?hata={Uri.EscapeDataString(ex.Message)}#sekme=donus"); }
         });
 
         // Dönüş CANLI önizlemesi (mega-form Dönüş sekmesi; JS fetch). Salt-okunur JSON — motor ReturnMath;
         // persist yok. Nazik hata sözleşmesi (ok:false) — hesapla ucuyla aynı desen.
-        kira.MapGet("/donus-hesapla", async (RentalService svc,
+        rental.MapGet("/donus-hesapla", async (RentalService svc,
             Guid id, int donusKm, int donusYakit, DateTimeOffset gercekDonus, string? kmHediye) =>
         {
             try
@@ -365,28 +365,28 @@ public static class BookingEndpoints
             }
         });
 
-        kira.MapPost("/uzat", async (RentalService svc, [FromForm] Guid id, [FromForm] DateTimeOffset yeniBitTar) =>
+        rental.MapPost("/uzat", async (RentalService svc, [FromForm] Guid id, [FromForm] DateTimeOffset yeniBitTar) =>
         {
-            try { await svc.ExtendAsync(id, yeniBitTar); return Sonuc.Tamam($"/kiralar/{id}", "Kira uzatıldı.", "#sekme=donus"); }
+            try { await svc.ExtendAsync(id, yeniBitTar); return Result.Ok($"/kiralar/{id}", "Kira uzatıldı.", "#sekme=donus"); }
             catch (RentACar.Application.Bookings.AvailabilityConflictException) { return Results.Redirect($"/kiralar/{id}?hata={Uri.EscapeDataString("Uzatılan tarihte araç müsait değil.")}#sekme=donus"); }
             catch (ValidationException ex) { return Results.Redirect($"/kiralar/{id}?hata={Uri.EscapeDataString(ex.Message)}#sekme=donus"); }
         });
 
         // FAZ 4.1: MANUEL provizyon yaşam döngüsü — POS'suz kayıt (IPosService çağrılmaz; kart verisi
         // sisteme girmez); deftere yazmaz. Yok→Alindi→(Kapandi|IadeEdildi) guard'ları serviste.
-        kira.MapPost("/provizyon-al", async (RentalService svc, [FromForm] Guid id) =>
+        rental.MapPost("/provizyon-al", async (RentalService svc, [FromForm] Guid id) =>
         {
-            try { await svc.TakePreAuthAsync(id); return Sonuc.Tamam($"/kiralar/{id}", "Provizyon alındı.", "#sekme=ayrintilar"); }
+            try { await svc.TakePreAuthAsync(id); return Result.Ok($"/kiralar/{id}", "Provizyon alındı.", "#sekme=ayrintilar"); }
             catch (ValidationException ex) { return Results.Redirect($"/kiralar/{id}?hata={Uri.EscapeDataString(ex.Message)}#sekme=ayrintilar"); }
         });
 
-        kira.MapPost("/provizyon-kapat", async (RentalService svc,
+        rental.MapPost("/provizyon-kapat", async (RentalService svc,
             [FromForm] Guid id, [FromForm] string? kapamaTutar, [FromForm] string? iade) =>
         {
             try
             {
                 await svc.ClosePreAuthAsync(id, FormParse.Dec(kapamaTutar), iade is "true" or "on");
-                return Sonuc.Tamam($"/kiralar/{id}", "Provizyon güncellendi.", "#sekme=ayrintilar");
+                return Result.Ok($"/kiralar/{id}", "Provizyon güncellendi.", "#sekme=ayrintilar");
             }
             catch (ValidationException ex) { return Results.Redirect($"/kiralar/{id}?hata={Uri.EscapeDataString(ex.Message)}#sekme=ayrintilar"); }
         });
@@ -398,18 +398,18 @@ public static class BookingEndpoints
     /// deftere yansımaz). Boş → null (FormParse.Dec).</summary>
     /// <summary>Kira ekranından inline yeni müşteri oluşturur (mevcut cari seçilmediyse). CustomerService PII'ı
     /// şifreler + TC checksum/benzersizlik doğrular. En az Ad (bireysel) ya da Ünvan (kurumsal) gerekir.</summary>
-    private static async Task<Guid> OlusturYeniCariAsync(CustomerService customers, IFormCollection form)
+    private static async Task<Guid> CreateNewCustomerAsync(CustomerService customers, IFormCollection form)
     {
-        var ad = FormParse.Str(form, "yeniAd");
-        var unvan = FormParse.Str(form, "yeniUnvan");
-        if (string.IsNullOrWhiteSpace(ad) && string.IsNullOrWhiteSpace(unvan))
+        var name = FormParse.Str(form, "yeniAd");
+        var title = FormParse.Str(form, "yeniUnvan");
+        if (string.IsNullOrWhiteSpace(name) && string.IsNullOrWhiteSpace(title))
             throw new ValidationException("Müşteri seçin ya da yeni müşteri bilgilerini girin (en az Ad veya Ünvan).");
         return await customers.CreateAsync(new CustomerInput
         {
-            Tip = string.IsNullOrWhiteSpace(unvan) ? RentACar.Domain.Enums.CustomerType.Bireysel : RentACar.Domain.Enums.CustomerType.Kurumsal,
-            Ad = ad,
+            Tip = string.IsNullOrWhiteSpace(title) ? RentACar.Domain.Enums.CustomerType.Bireysel : RentACar.Domain.Enums.CustomerType.Kurumsal,
+            Ad = name,
             Soyad = FormParse.Str(form, "yeniSoyad"),
-            Unvan = unvan,
+            Unvan = title,
             TcKimlik = FormParse.Str(form, "yeniTc"),
             CepTel = FormParse.Str(form, "yeniGsm"),
             Email = FormParse.Str(form, "yeniMail"),
@@ -425,21 +425,21 @@ public static class BookingEndpoints
     }
 
     /// <summary>Mega-form ek hizmet matrisi: ekSecim checkbox'ları (value=tanimId) + ekMiktar_{id} alanları.</summary>
-    private static List<(Guid TanimId, decimal Miktar)> ParseEkForm(IFormCollection f)
+    private static List<(Guid TanimId, decimal Miktar)> ParseExtraForm(IFormCollection f)
     {
         var list = new List<(Guid, decimal)>();
         foreach (var s in f["ekSecim"])
         {
             if (!Guid.TryParse(s, out var id)) continue;
-            var miktar = FormParse.Dec(f[$"ekMiktar_{id}"].ToString()) ?? 1m;
-            list.Add((id, miktar <= 0 ? 1m : miktar));
+            var quantity = FormParse.Dec(f[$"ekMiktar_{id}"].ToString()) ?? 1m;
+            list.Add((id, quantity <= 0 ? 1m : quantity));
         }
         return list;
     }
 
     /// <summary>Kira formu detay alanlarını (bilgi amaçlı; mega-form) BookingInput'a doldurur. Eski/eksik
     /// formlarda alanlar yoktur → null kalır (geriye uyumlu).</summary>
-    private static void ApplyKiraDetay(BookingInput input, IFormCollection f)
+    private static void ApplyRentalDetail(BookingInput input, IFormCollection f)
     {
         input.Kaynak = FormParse.Str(f, "kaynak"); // parite fix: kira create artık kaynağı da taşır
         input.KampanyaKodu = FormParse.Str(f, "kampanyaKodu"); // FAZ 3.A5 (yalnız Otomatik'te geçerli)
@@ -484,18 +484,18 @@ public static class BookingEndpoints
     }
 
     /// <summary>Canlı hesap "ek" parametresi: "tanimId:miktar,..." — hatalı çift sessiz atlanır (önizleme).</summary>
-    private static IReadOnlyList<KiraHesapEkHizmet> ParseEkSecim(string? ek)
+    private static IReadOnlyList<KiraHesapEkHizmet> ParseExtraSelection(string? extra)
     {
-        if (string.IsNullOrWhiteSpace(ek)) return [];
+        if (string.IsNullOrWhiteSpace(extra)) return [];
         var list = new List<KiraHesapEkHizmet>();
-        foreach (var parca in ek.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+        foreach (var part in extra.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
         {
-            var i = parca.IndexOf(':');
+            var i = part.IndexOf(':');
             if (i <= 0) continue;
-            if (Guid.TryParse(parca[..i], out var id) &&
-                decimal.TryParse(parca[(i + 1)..], System.Globalization.NumberStyles.Number,
-                    System.Globalization.CultureInfo.InvariantCulture, out var miktar))
-                list.Add(new KiraHesapEkHizmet(id, miktar));
+            if (Guid.TryParse(part[..i], out var id) &&
+                decimal.TryParse(part[(i + 1)..], System.Globalization.NumberStyles.Number,
+                    System.Globalization.CultureInfo.InvariantCulture, out var quantity))
+                list.Add(new KiraHesapEkHizmet(id, quantity));
         }
         return list;
     }
@@ -512,10 +512,10 @@ public static class BookingEndpoints
     }
 
     /// <summary>Redirect fragment'i: yalnız [a-z0-9-] geçirir (header-injection/karmaşa koruması).</summary>
-    private static string SekmeFragment(string? sekme)
+    private static string TabFragment(string? tab)
     {
-        if (string.IsNullOrWhiteSpace(sekme)) return string.Empty;
-        var t = sekme.Trim().ToLowerInvariant();
+        if (string.IsNullOrWhiteSpace(tab)) return string.Empty;
+        var t = tab.Trim().ToLowerInvariant();
         return t.Length <= 32 && t.All(ch => ch is >= 'a' and <= 'z' or >= '0' and <= '9' or '-')
             ? $"#sekme={t}"
             : string.Empty;
@@ -526,7 +526,7 @@ public static class BookingEndpoints
     /// SALT VERİ GİRİŞİ: hiçbiri fiyat/defter hesabına girmez (KARARLAR genel politikası). Sayısal
     /// alanlar <c>string?</c> yoluyla okunur — boş string [FromForm] decimal'de 400 verirdi (§5 tuzağı).
     /// </summary>
-    private static void ApplyRezervasyonDerinlik(BookingInput input, IFormCollection f)
+    private static void ApplyReservationDepth(BookingInput input, IFormCollection f)
     {
         input.OtaKiraBedeli = FormParse.Dec(f["otaKiraBedeli"].ToString());
         input.OtaDropBedeli = FormParse.Dec(f["otaDropBedeli"].ToString());
@@ -542,7 +542,7 @@ public static class BookingEndpoints
         input.ProjeAdi = Nz(f["projeAdi"].ToString());
     }
 
-    private static void ApplyOdemeDerinlik(BookingInput input, IFormCollection f)
+    private static void ApplyPaymentDepth(BookingInput input, IFormCollection f)
     {
         input.Provizyon = FormParse.Dec(f["provizyon"].ToString());
         input.Depozito = FormParse.Dec(f["depozito"].ToString());

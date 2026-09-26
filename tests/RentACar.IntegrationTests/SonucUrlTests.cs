@@ -16,22 +16,22 @@ public sealed class SonucUrlTests
 {
     [Fact]
     public void Query_yoksa_soru_isareti_kullanir()
-        => Assert.Equal("/kiralar?bilgi=Kaydedildi.", Sonuc.Url("/kiralar", "bilgi", "Kaydedildi.", null));
+        => Assert.Equal("/kiralar?bilgi=Kaydedildi.", Result.Url("/kiralar", "bilgi", "Kaydedildi.", null));
 
     [Fact]
     public void Query_varsa_ve_ile_ekler()
         => Assert.Equal("/?df=gec&bilgi=Tahsilat%20kaydedildi.",
-                        Sonuc.Url("/?df=gec", "bilgi", "Tahsilat kaydedildi.", null));
+                        Result.Url("/?df=gec", "bilgi", "Tahsilat kaydedildi.", null));
 
     [Fact]
     public void Parca_daima_en_sona_gider()
         => Assert.Equal("/kiralar/5?bilgi=Kira%20kaydedildi.#sekme=donus",
-                        Sonuc.Url("/kiralar/5", "bilgi", "Kira kaydedildi.", "#sekme=donus"));
+                        Result.Url("/kiralar/5", "bilgi", "Kira kaydedildi.", "#sekme=donus"));
 
     [Fact]
     public void Parca_diyezsiz_verilirse_eklenir()
         => Assert.Equal("/kiralar/5?bilgi=Tamam#sekme=kira",
-                        Sonuc.Url("/kiralar/5", "bilgi", "Tamam", "sekme=kira"));
+                        Result.Url("/kiralar/5", "bilgi", "Tamam", "sekme=kira"));
 
     [Fact]
     public void Yolun_icindeki_fragment_query_nin_ARKASINA_tasinir()
@@ -39,7 +39,7 @@ public sealed class SonucUrlTests
         // Elle birleştirmede "/kiralar/5#sekme=donus" + "?bilgi=..." → fragment'in İÇİNE yazılıyordu
         // ve parametre hiç okunmuyordu.
         Assert.Equal("/kiralar/5?bilgi=Tamam#sekme=donus",
-                     Sonuc.Url("/kiralar/5#sekme=donus", "bilgi", "Tamam", null));
+                     Result.Url("/kiralar/5#sekme=donus", "bilgi", "Tamam", null));
     }
 
     [Fact]
@@ -47,7 +47,7 @@ public sealed class SonucUrlTests
     {
         // '&' kaçışlanmazsa mesaj kesilir ve gerisi ayrı bir query parametresi sanılır.
         Assert.Equal("/faturalar?hata=Ara%C3%A7%20m%C3%BCsait%20de%C4%9Fil%20%26%20iptal",
-                     Sonuc.Url("/faturalar", "hata", "Araç müsait değil & iptal", null));
+                     Result.Url("/faturalar", "hata", "Araç müsait değil & iptal", null));
     }
 
     [Fact]
@@ -55,7 +55,7 @@ public sealed class SonucUrlTests
     {
         // KRİTİK: 27 sayfa hâlâ `?ok=1` okuyup kendi yerel mesajını basıyor. Anahtar `ok` olsaydı
         // global şerit + yerel mesaj ÇİFT görünürdü. Farklı anahtar, çakışmayı yapısal olarak keser.
-        var r = Sonuc.Tamam("/cariler", "Cari kaydedildi.");
+        var r = Result.Ok("/cariler", "Cari kaydedildi.");
         var url = Assert.IsAssignableFrom<Microsoft.AspNetCore.Http.HttpResults.RedirectHttpResult>(r).Url;
         Assert.Equal("/cariler?bilgi=Cari%20kaydedildi.", url);
         Assert.DoesNotContain("ok=", url, StringComparison.Ordinal);

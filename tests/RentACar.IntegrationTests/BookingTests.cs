@@ -12,11 +12,11 @@ namespace RentACar.IntegrationTests;
 public sealed class BookingTests(PostgresFixture fx)
 {
     // now-göreli gelecek (rezervasyon geçmişe kapalı — TarihPolitikasi); span 4 gün korunur.
-    private static readonly DateTimeOffset Bas = DateTimeOffset.UtcNow.AddDays(3);
-    private static readonly DateTimeOffset Bit = Bas.AddDays(4);
+    private static readonly DateTimeOffset Start = DateTimeOffset.UtcNow.AddDays(3);
+    private static readonly DateTimeOffset Bit = Start.AddDays(4);
 
-    private static BookingInput Input(Guid vehicle, Guid customer, DateTimeOffset? bas = null, DateTimeOffset? bit = null)
-        => new() { MusteriId = customer, VehicleId = vehicle, BasTar = bas ?? Bas, BitTar = bit ?? Bit, GunlukUcret = 100m };
+    private static BookingInput Input(Guid vehicle, Guid customer, DateTimeOffset? start = null, DateTimeOffset? bit = null)
+        => new() { MusteriId = customer, VehicleId = vehicle, BasTar = start ?? Start, BitTar = bit ?? Bit, GunlukUcret = 100m };
 
     [Fact]
     public async Task Reservation_create_gets_gapless_number_and_status()
@@ -27,13 +27,13 @@ public sealed class BookingTests(PostgresFixture fx)
 
         // Servis müşteri/araç varlığını doğruluyor → gerçek kayıtlar.
         var sp = scope.ServiceProvider;
-        var id1 = await svc.CreateAsync(Input(await TestArac.YeniAsync(sp), await TestCari.YeniAsync(sp)));
-        var id2 = await svc.CreateAsync(Input(await TestArac.YeniAsync(sp), await TestCari.YeniAsync(sp)));
+        var id1 = await svc.CreateAsync(Input(await TestVehicle.NewAsync(sp), await TestCustomer.NewAsync(sp)));
+        var id2 = await svc.CreateAsync(Input(await TestVehicle.NewAsync(sp), await TestCustomer.NewAsync(sp)));
 
         var r1 = await svc.GetAsync(id1);
         var r2 = await svc.GetAsync(id2);
-        BelgeNoOracle.BeklenenlerdenBiri(2, 1, r1!.ReservationNo);
-        BelgeNoOracle.BeklenenlerdenBiri(2, 2, r2!.ReservationNo);
+        DocumentNoOracle.OneOfExpected(2, 1, r1!.ReservationNo);
+        DocumentNoOracle.OneOfExpected(2, 2, r2!.ReservationNo);
         Assert.Equal(ReservationStatus.Rezerv, r1.Durum);
         Assert.Equal(4, r1.Gun);          // 4 gün
         Assert.Equal(400m, r1.Tutar);     // 4 * 100
@@ -47,7 +47,7 @@ public sealed class BookingTests(PostgresFixture fx)
         var svc = scope.ServiceProvider.GetRequiredService<ReservationService>();
 
         var sp = scope.ServiceProvider;
-        var id = await svc.CreateAsync(Input(await TestArac.YeniAsync(sp), await TestCari.YeniAsync(sp)));
+        var id = await svc.CreateAsync(Input(await TestVehicle.NewAsync(sp), await TestCustomer.NewAsync(sp)));
         Assert.True(await svc.ConfirmAsync(id));
         Assert.Equal(ReservationStatus.Onayli, (await svc.GetAsync(id))!.Durum);
 
@@ -65,7 +65,7 @@ public sealed class BookingTests(PostgresFixture fx)
         var rentSvc = scope.ServiceProvider.GetRequiredService<RentalService>();
 
         var resId = await resSvc.CreateAsync(Input(
-            await TestArac.YeniAsync(scope.ServiceProvider), await TestCari.YeniAsync(scope.ServiceProvider)));
+            await TestVehicle.NewAsync(scope.ServiceProvider), await TestCustomer.NewAsync(scope.ServiceProvider)));
         var rentalId = await resSvc.ConvertToRentalAsync(resId);
 
         var res = await resSvc.GetAsync(resId);
@@ -75,7 +75,7 @@ public sealed class BookingTests(PostgresFixture fx)
         var rental = await rentSvc.GetAsync(rentalId);
         Assert.NotNull(rental);
         Assert.Equal(RentalStatus.Kirada, rental!.Durum);
-        BelgeNoOracle.BeklenenlerdenBiri(1, 1, rental.SozlesmeNo);
+        DocumentNoOracle.OneOfExpected(1, 1, rental.SozlesmeNo);
         Assert.Equal(resId, rental.ReservationId);
         Assert.Equal(400m, rental.Bakiye);
     }
@@ -86,15 +86,15 @@ public sealed class BookingTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
         var svc = scope.ServiceProvider.GetRequiredService<RentalService>();
-        var vehicle = await TestArac.YeniAsync(scope.ServiceProvider);
-        var cari = await TestCari.YeniAsync(scope.ServiceProvider);
+        var vehicle = await TestVehicle.NewAsync(scope.ServiceProvider);
+        var account = await TestCustomer.NewAsync(scope.ServiceProvider);
 
-        await svc.CreateDirectAsync(Input(vehicle, cari));
+        await svc.CreateDirectAsync(Input(vehicle, account));
         // Çakışan aralık → reddedilir
         await Assert.ThrowsAsync<AvailabilityConflictException>(
-            () => svc.CreateDirectAsync(Input(vehicle, cari, Bas.AddDays(1), Bit.AddDays(1))));
+            () => svc.CreateDirectAsync(Input(vehicle, account, Start.AddDays(1), Bit.AddDays(1))));
         // Çakışmayan aralık (bitişik, [bit, bit+2)) → kabul
-        var id = await svc.CreateDirectAsync(Input(vehicle, cari, Bit, Bit.AddDays(2)));
+        var id = await svc.CreateDirectAsync(Input(vehicle, account, Bit, Bit.AddDays(2)));
         Assert.NotEqual(Guid.Empty, id);
     }
 
@@ -103,8 +103,8 @@ public sealed class BookingTests(PostgresFixture fx)
     {
         using var host = new TestHost(fx.AppConnectionString);
         var tenant = Guid.NewGuid();
-        var vehicle = await TestArac.YeniAsync(host, tenant);
-        var cari = await TestCari.YeniAsync(host, tenant);
+        var vehicle = await TestVehicle.NewAsync(host, tenant);
+        var account = await TestCustomer.NewAsync(host, tenant);
 
         async Task<bool> Book()
         {
@@ -112,7 +112,7 @@ public sealed class BookingTests(PostgresFixture fx)
             var svc = scope.ServiceProvider.GetRequiredService<RentalService>();
             try
             {
-                await svc.CreateDirectAsync(Input(vehicle, cari));
+                await svc.CreateDirectAsync(Input(vehicle, account));
                 return true;
             }
             catch (AvailabilityConflictException)
@@ -129,7 +129,7 @@ public sealed class BookingTests(PostgresFixture fx)
         var rentSvc = scope.ServiceProvider.GetRequiredService<RentalService>();
         var rentals = await rentSvc.ListAsync();
         var single = Assert.Single(rentals);
-        BelgeNoOracle.BeklenenlerdenBiri(1, 1, single.SozlesmeNo);
+        DocumentNoOracle.OneOfExpected(1, 1, single.SozlesmeNo);
     }
 
     [Fact]
@@ -141,7 +141,7 @@ public sealed class BookingTests(PostgresFixture fx)
 
         using (var s1 = host.ScopeFor(t1))
             await s1.ServiceProvider.GetRequiredService<RentalService>()
-                .CreateDirectAsync(Input(await TestArac.YeniAsync(s1.ServiceProvider), await TestCari.YeniAsync(s1.ServiceProvider)));
+                .CreateDirectAsync(Input(await TestVehicle.NewAsync(s1.ServiceProvider), await TestCustomer.NewAsync(s1.ServiceProvider)));
 
         using var s2 = host.ScopeFor(t2);
         var factory = s2.ServiceProvider.GetRequiredService<IDbContextFactory<AppDbContext>>();
@@ -158,14 +158,14 @@ public sealed class BookingTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid(), Guid.NewGuid(), "auditor");
         var svc = scope.ServiceProvider.GetRequiredService<RentalService>();
-        await svc.CreateDirectAsync(Input(await TestArac.YeniAsync(scope.ServiceProvider), await TestCari.YeniAsync(scope.ServiceProvider)));
+        await svc.CreateDirectAsync(Input(await TestVehicle.NewAsync(scope.ServiceProvider), await TestCustomer.NewAsync(scope.ServiceProvider)));
 
         var factory = scope.ServiceProvider.GetRequiredService<IDbContextFactory<AppDbContext>>();
         await using var db = await factory.CreateDbContextAsync();
         var log = Assert.Single(await db.AuditLogs.Where(a => a.EntityName == "Rentals").ToListAsync());
         Assert.Equal(AuditAction.Create, log.Action);
         Assert.Equal("auditor", log.UserName);
-        Assert.Contains(BelgeNoOracle.Bekle(1, 1), log.NewValues);   // audit log numarayı taşımalı
+        Assert.Contains(DocumentNoOracle.Wait(1, 1), log.NewValues);   // audit log numarayı taşımalı
     }
 
     [Fact]
@@ -175,6 +175,6 @@ public sealed class BookingTests(PostgresFixture fx)
         using var scope = host.ScopeFor(Guid.NewGuid());
         var svc = scope.ServiceProvider.GetRequiredService<RentalService>();
         await Assert.ThrowsAsync<ValidationException>(
-            () => svc.CreateDirectAsync(Input(Guid.NewGuid(), Guid.NewGuid(), Bit, Bas))); // bit < bas
+            () => svc.CreateDirectAsync(Input(Guid.NewGuid(), Guid.NewGuid(), Bit, Start))); // bit < bas
     }
 }

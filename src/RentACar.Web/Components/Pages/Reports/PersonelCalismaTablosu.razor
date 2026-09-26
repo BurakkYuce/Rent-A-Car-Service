@@ -20,12 +20,12 @@
 }
 
 <form method="get" class="filter-bar">
-    <label>Başlangıç<input name="bas" type="date" value="@_bas.ToString("yyyy-MM-dd")" /></label>
+    <label>Başlangıç<input name="bas" type="date" value="@_start.ToString("yyyy-MM-dd")" /></label>
     <label>Bitiş<input name="bit" type="date" value="@_bit.ToString("yyyy-MM-dd")" /></label>
     <label>Personel
         <select name="personelFiltre">
             <option value="">— tümü —</option>
-            @foreach (var p in _personeller)
+            @foreach (var p in _personnel)
             {
                 <option value="@p.Id" selected="@(p.Id.ToString() == PersonelFiltre)">@p.Ad @p.Soyad</option>
             }
@@ -34,17 +34,17 @@
     <label>Şube
         <select name="subeFiltre">
             <option value="">— tümü —</option>
-            @foreach (var s in _subeler) { <option value="@s" selected="@(s == SubeFiltre)">@s</option> }
+            @foreach (var s in _branches) { <option value="@s" selected="@(s == SubeFiltre)">@s</option> }
         </select>
     </label>
     <button type="submit">Göster</button>
 </form>
 
 <p class="muted small">
-    @_bas.ToString("dd.MM.yyyy") - @_bit.ToString("dd.MM.yyyy") · @_matris.Gunler.Count gün ·
-    @_matris.Satirlar.Count personel · @_matris.ToplamVardiya vardiya ·
-    toplam @ShiftFormat.HourText(_matris.ToplamDk)
-    @if (_kirpildi)
+    @_start.ToString("dd.MM.yyyy") - @_bit.ToString("dd.MM.yyyy") · @_matrix.Gunler.Count gün ·
+    @_matrix.Satirlar.Count personel · @_matrix.ToplamVardiya vardiya ·
+    toplam @ShiftFormat.HourText(_matrix.ToplamDk)
+    @if (_truncated)
     {
         <span class="warn"> · aralık @StaffShiftService.MaxDays güne kırpıldı</span>
     }
@@ -55,32 +55,32 @@
     <thead>
         <tr>
             <th>Personel</th>
-            @foreach (var g in _matris.Gunler)
+            @foreach (var g in _matrix.Gunler)
             {
                 <th class="@(g.DayOfWeek is DayOfWeek.Saturday or DayOfWeek.Sunday ? "muted" : null)">
-                    @g.ToString("dd.MM")<br /><span class="small">@GunKisa(g)</span>
+                    @g.ToString("dd.MM")<br /><span class="small">@DayShort(g)</span>
                 </th>
             }
             <th class="num">Toplam</th>
         </tr>
     </thead>
     <tbody>
-        @if (_matris.Satirlar.Count == 0)
+        @if (_matrix.Satirlar.Count == 0)
         {
-            <tr><td colspan="@(_matris.Gunler.Count + 2)" class="muted">Bu aralıkta vardiya kaydı yok.</td></tr>
+            <tr><td colspan="@(_matrix.Gunler.Count + 2)" class="muted">Bu aralıkta vardiya kaydı yok.</td></tr>
         }
-        @foreach (var satir in _matris.Satirlar)
+        @foreach (var row in _matrix.Satirlar)
         {
             <tr>
-                <td>@satir.PersonelAd</td>
-                @foreach (var g in _matris.Gunler)
+                <td>@row.PersonelAd</td>
+                @foreach (var g in _matrix.Gunler)
                 {
                     <td>
-                        @if (satir.Gunler.TryGetValue(g, out var vardiyalar))
+                        @if (row.Gunler.TryGetValue(g, out var shifts))
                         {
-                            @foreach (var v in vardiyalar)
+                            @foreach (var v in shifts)
                             {
-                                <div class="mono small" title="@HucreIpucu(v)">@ShiftFormat.Range(v)</div>
+                                <div class="mono small" title="@CellHint(v)">@ShiftFormat.Range(v)</div>
                             }
                         }
                         else
@@ -89,7 +89,7 @@
                         }
                     </td>
                 }
-                <td class="num">@satir.ToplamSaatMetni</td>
+                <td class="num">@row.ToplamSaatMetni</td>
             </tr>
         }
     </tbody>
@@ -103,7 +103,7 @@
         <input type="hidden" name="id" value="@_edit.Id" />
     }
     @* Görüntülenen pencere hidden olarak taşınır — kaydettikten sonra kullanıcı aynı haftada kalır. *@
-    <input type="hidden" name="bas" value="@_bas.ToString("yyyy-MM-dd")" />
+    <input type="hidden" name="bas" value="@_start.ToString("yyyy-MM-dd")" />
     <input type="hidden" name="bit" value="@_bit.ToString("yyyy-MM-dd")" />
     <input type="hidden" name="personelFiltre" value="@PersonelFiltre" />
     <input type="hidden" name="subeFiltre" value="@SubeFiltre" />
@@ -111,14 +111,14 @@
     <label>Personel
         <select name="personelId" required>
             <option value="">—</option>
-            @foreach (var p in _personeller)
+            @foreach (var p in _personnel)
             {
                 <option value="@p.Id" selected="@(p.Id == _edit?.PersonelId)">@p.Ad @p.Soyad</option>
             }
         </select>
     </label>
     <label>Tarih<input name="tarih" type="date" required
-        value="@((_edit?.Tarih ?? _bas).ToString("yyyy-MM-dd"))" /></label>
+        value="@((_edit?.Tarih ?? _start).ToString("yyyy-MM-dd"))" /></label>
     <label>Başlangıç<input name="baslangicSaat" type="time" required
         value="@(_edit?.BaslangicSaat.ToString("HH\\:mm") ?? "08:00")" /></label>
     <label>Bitiş<input name="bitisSaat" type="time" required
@@ -126,14 +126,14 @@
     <label>Şube
         <select name="sube">
             <option value="">—</option>
-            @foreach (var s in _subeler) { <option value="@s" selected="@(s == _edit?.Sube)">@s</option> }
+            @foreach (var s in _branches) { <option value="@s" selected="@(s == _edit?.Sube)">@s</option> }
         </select>
     </label>
     <label class="u-col-full">Açıklama<input name="aciklama" value="@_edit?.Aciklama" maxlength="512" /></label>
     <button type="submit">@(_edit is null ? "Ekle" : "Kaydet")</button>
     @if (_edit is not null)
     {
-        <a href="@Geri()" class="btn-secondary">İptal</a>
+        <a href="@Back()" class="btn-secondary">İptal</a>
     }
 </form>
 
@@ -142,11 +142,11 @@
 <table class="grid tr-grid">
     <thead><tr><th>Personel</th><th>Tarih</th><th>Saat</th><th class="num">Süre</th><th>Şube</th><th>Kadro Şubesi</th><th>Açıklama</th><th></th></tr></thead>
     <tbody>
-        @if (_liste.Count == 0)
+        @if (_list.Count == 0)
         {
             <tr><td colspan="8" class="muted">Kayıt yok.</td></tr>
         }
-        @foreach (var r in _liste)
+        @foreach (var r in _list)
         {
             <tr>
                 <td>@r.PersonelAd</td>
@@ -158,10 +158,10 @@
                 <td class="muted">@(r.PersonelKadroSube ?? "—")</td>
                 <td>@(r.Vardiya.Aciklama ?? "—")</td>
                 <td>
-                    <a href="@Geri(r.Vardiya.Id)" class="link">Düzenle</a>
+                    <a href="@Back(r.Vardiya.Id)" class="link">Düzenle</a>
                     <form method="post" action="/raporlar/personel-calisma/delete" data-confirm="Vardiya silinsin mi?" class="inline"><AntiforgeryToken />
                         <input type="hidden" name="id" value="@r.Vardiya.Id" />
-                        <input type="hidden" name="bas" value="@_bas.ToString("yyyy-MM-dd")" />
+                        <input type="hidden" name="bas" value="@_start.ToString("yyyy-MM-dd")" />
                         <input type="hidden" name="bit" value="@_bit.ToString("yyyy-MM-dd")" />
                         <input type="hidden" name="personelFiltre" value="@PersonelFiltre" />
                         <input type="hidden" name="subeFiltre" value="@SubeFiltre" />
@@ -182,47 +182,47 @@
     [SupplyParameterFromQuery(Name = "duzenle")] public Guid? Duzenle { get; set; }
     [SupplyParameterFromQuery(Name = "hata")] public string? Hata { get; set; }
 
-    private VardiyaMatris _matris = new([], [], 0, 0);
-    private IReadOnlyList<VardiyaSatir> _liste = [];
-    private IReadOnlyList<PersonelSecim> _personeller = [];
-    private string[] _subeler = [];
+    private VardiyaMatris _matrix = new([], [], 0, 0);
+    private IReadOnlyList<VardiyaSatir> _list = [];
+    private IReadOnlyList<PersonelSecim> _personnel = [];
+    private string[] _branches = [];
     private PersonelVardiya? _edit;
-    private DateOnly _bas, _bit;
-    private bool _kirpildi;
+    private DateOnly _start, _bit;
+    private bool _truncated;
 
-    private static string GunKisa(DateOnly g) => g.DayOfWeek switch
+    private static string DayShort(DateOnly g) => g.DayOfWeek switch
     {
         DayOfWeek.Monday => "Pzt", DayOfWeek.Tuesday => "Sal", DayOfWeek.Wednesday => "Çar",
         DayOfWeek.Thursday => "Per", DayOfWeek.Friday => "Cum", DayOfWeek.Saturday => "Cmt", _ => "Paz"
     };
 
     /// <summary>Matris hücresi ipucu: şube (+ varsa açıklama) — hücre dar olduğu için tam metin burada.</summary>
-    private static string HucreIpucu(PersonelVardiya v)
+    private static string CellHint(PersonelVardiya v)
     {
         var s = v.Sube ?? "şube belirtilmemiş";
         return string.IsNullOrWhiteSpace(v.Aciklama) ? s : $"{s} — {v.Aciklama}";
     }
 
     /// <summary>Aynı pencere/filtreye dönüş bağlantısı (düzenle/iptal).</summary>
-    private string Geri(Guid? duzenle = null)
+    private string Back(Guid? edit = null)
     {
         var q = new List<string>
         {
-            $"bas={_bas:yyyy-MM-dd}", $"bit={_bit:yyyy-MM-dd}"
+            $"bas={_start:yyyy-MM-dd}", $"bit={_bit:yyyy-MM-dd}"
         };
         if (!string.IsNullOrWhiteSpace(PersonelFiltre)) q.Add($"personelFiltre={Uri.EscapeDataString(PersonelFiltre)}");
         if (!string.IsNullOrWhiteSpace(SubeFiltre)) q.Add($"subeFiltre={Uri.EscapeDataString(SubeFiltre)}");
-        if (duzenle is Guid id) q.Add($"duzenle={id}");
+        if (edit is Guid id) q.Add($"duzenle={id}");
         return "/raporlar/personel-calisma?" + string.Join("&", q);
     }
 
     protected override async Task OnInitializedAsync()
     {
         // Personel dropdown'u PII'sız uç (ListAsync ManageUsers ister → Operatör rolünde patlar).
-        _personeller = await Personeller.ListForSelectAsync();
-        _subeler = (await Subeler.ListActiveAsync()).Select(b => b.Ad).OrderBy(a => a).ToArray();
+        _personnel = await Personeller.ListForSelectAsync();
+        _branches = (await Subeler.ListActiveAsync()).Select(b => b.Ad).OrderBy(a => a).ToArray();
 
-        var filtre = new VardiyaFilter
+        var filter = new VardiyaFilter
         {
             Bas = DateOnly.TryParse(Bas, out var b) ? b : null,
             Bit = DateOnly.TryParse(Bit, out var t) ? t : null,
@@ -230,12 +230,12 @@
             Sube = SubeFiltre
         };
         // Sunucu pencereyi düzeltebilir (ters aralık, tavan) — sayfa GERÇEKTEN gösterileni yazar.
-        (_bas, _bit) = StaffShiftService.Window(filtre);
-        _kirpildi = filtre.Bas is { } fb && filtre.Bit is { } fbit
-            && Math.Abs(fbit.DayNumber - fb.DayNumber) + 1 > StaffShiftService.MaxDays;
+        (_start, _bit) = StaffShiftService.Window(filter);
+        _truncated = filter.Bas is { } fb && filter.Bit is { } fEnd
+            && Math.Abs(fEnd.DayNumber - fb.DayNumber) + 1 > StaffShiftService.MaxDays;
 
-        _matris = await Vardiyalar.MatrixAsync(filtre);
-        _liste = await Vardiyalar.ListAsync(filtre);
+        _matrix = await Vardiyalar.MatrixAsync(filter);
+        _list = await Vardiyalar.ListAsync(filter);
 
         if (Duzenle is { } id) _edit = await Vardiyalar.GetAsync(id);
     }

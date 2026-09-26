@@ -41,8 +41,8 @@
 <table class="grid tr-grid">
     <thead><tr><th>Cari</th><th class="num">Depozito Bakiye</th></tr></thead>
     <tbody>
-        @if (_bakiyeler.Count == 0) { <tr><td colspan="2" class="muted">Tutulan depozito yok.</td></tr> }
-        @foreach (var b in _bakiyeler)
+        @if (_balances.Count == 0) { <tr><td colspan="2" class="muted">Tutulan depozito yok.</td></tr> }
+        @foreach (var b in _balances)
         {
             <tr><td>@(_custMap.TryGetValue(b.Key, out var n) ? n : "—")</td><td class="num">@b.Value.ToString("N2")</td></tr>
         }
@@ -56,7 +56,7 @@
 
     private Dictionary<Guid, string> _custMap = new();
     private readonly Guid _token = Guid.NewGuid();
-    private Dictionary<Guid, decimal> _bakiyeler = new();
+    private Dictionary<Guid, decimal> _balances = new();
 
     protected override async Task OnInitializedAsync()
     {
@@ -65,7 +65,7 @@
         foreach (var c in custs)
         {
             var b = await Depozitolar.GetBalanceAsync(c.Id);
-            if (b != 0m) _bakiyeler[c.Id] = b;
+            if (b != 0m) _balances[c.Id] = b;
         }
     }
 }

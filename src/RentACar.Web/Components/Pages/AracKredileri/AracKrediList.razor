@@ -10,7 +10,7 @@
 
 <PageTitle>Araç Kredisi — RentPro</PageTitle>
 
-<div class="page-head"><h1>Araç Kredisi Takip</h1><div class="actions"><a href="@ExportYolu("excel")">Excel</a> · <a href="@ExportYolu("csv")">CSV</a> · <a href="@ExportYolu("pdf")">PDF</a></div></div>
+<div class="page-head"><h1>Araç Kredisi Takip</h1><div class="actions"><a href="@ExportPath("excel")">Excel</a> · <a href="@ExportPath("csv")">CSV</a> · <a href="@ExportPath("pdf")">PDF</a></div></div>
 @* Bu açıklama eskiden "defter postlamaz (salt takip)" diyordu; taksit ödeme artık GERÇEK gider
    postluyor (ExpenseType.Finansman) — formun kendi tooltip'i de öyle diyordu. Metin düzeltildi. *@
 <p class="muted small">Banka kredisi + taksit planı + kalan bakiye. Banka entegrasyonu yok.
@@ -29,7 +29,7 @@
     <label>Cari
         <select name="cariF">
             <option value="">— tümü —</option>
-            @foreach (var c in _cariler)
+            @foreach (var c in _accounts)
             {
                 <option value="@c.Id" selected="@(c.Id.ToString() == CariF)">@c.Ad</option>
             }
@@ -49,17 +49,17 @@
     <label>Başlangıç ≥<input name="bas" type="date" value="@Bas" /></label>
     <label>Başlangıç ≤<input name="bit" type="date" value="@Bit" /></label>
     <button type="submit">Filtrele</button>
-    @if (_filtreVar) { <a class="link" href="/arac-kredi">Temizle</a> }
+    @if (_hasFilter) { <a class="link" href="/arac-kredi">Temizle</a> }
 </form>
 
 @* 5 özet kart — canlı arac_kredi.aspx özet kutularının karşılığı. FİLTRELİ küme üzerinden
    hesaplanır: cariye göre süzünce kartlar o carinin toplamını verir. İptal krediler hariç. *@
 <div class="cards">
-    <div class="card"><div class="card-num">@_pano.ToplamFaiz.ToString("N2")</div><div class="card-label">Toplam Faiz ₺</div></div>
-    <div class="card"><div class="card-num">@(_pano.SonVadeGunu?.LocalDateTime.ToString("dd.MM.yyyy") ?? "—")</div><div class="card-label">Son Vade Günü</div></div>
-    <div class="card"><div class="card-num">@_pano.SonTaksitTutari.ToString("N2")</div><div class="card-label">Son Taksit Tutarı</div></div>
-    <div class="card"><div class="card-num">@_pano.BuAyToplamTaksit.ToString("N2")</div><div class="card-label">Bu Ayki Toplam Taksit</div></div>
-    <div class="card"><div class="card-num">@_pano.ToplamKrediBorcu.ToString("N2")</div><div class="card-label">Toplam Kredi Borcu ₺</div></div>
+    <div class="card"><div class="card-num">@_dashboard.ToplamFaiz.ToString("N2")</div><div class="card-label">Toplam Faiz ₺</div></div>
+    <div class="card"><div class="card-num">@(_dashboard.SonVadeGunu?.LocalDateTime.ToString("dd.MM.yyyy") ?? "—")</div><div class="card-label">Son Vade Günü</div></div>
+    <div class="card"><div class="card-num">@_dashboard.SonTaksitTutari.ToString("N2")</div><div class="card-label">Son Taksit Tutarı</div></div>
+    <div class="card"><div class="card-num">@_dashboard.BuAyToplamTaksit.ToString("N2")</div><div class="card-label">Bu Ayki Toplam Taksit</div></div>
+    <div class="card"><div class="card-num">@_dashboard.ToplamKrediBorcu.ToString("N2")</div><div class="card-label">Toplam Kredi Borcu ₺</div></div>
 </div>
 
 <details>
@@ -74,7 +74,7 @@
             <label>Cari (opsiyonel — yalnız ilişki, cari bakiyesini değiştirmez)
                 <select name="cariId">
                     <option value="">— bağlı cari yok —</option>
-                    @foreach (var c in _cariler)
+                    @foreach (var c in _accounts)
                     {
                         <option value="@c.Id">@c.Ad</option>
                     }
@@ -121,11 +121,11 @@
     <tbody>
         @if (_list.Count == 0)
         {
-            <tr><td colspan="13" class="muted">@(_filtreVar ? "Filtreye uyan kredi yok." : "Kredi yok.")</td></tr>
+            <tr><td colspan="13" class="muted">@(_hasFilter ? "Filtreye uyan kredi yok." : "Kredi yok.")</td></tr>
         }
         @foreach (var k in _list)
         {
-            var o = VehicleLoanService.Calculate(k, _simdi);
+            var o = VehicleLoanService.Calculate(k, _now);
             <tr>
                 <td>
                     @if (k.Durum == LoanStatus.Aktif)
@@ -136,8 +136,8 @@
                 <td>@k.No</td>
                 <td>@(k.DosyaNo ?? "—")</td>
                 <td>@k.BankaAdi</td>
-                <td>@Cari(k.CariId)</td>
-                <td>@Arac(k.VehicleId)</td>
+                <td>@Account(k.CariId)</td>
+                <td>@VehicleLabel(k.VehicleId)</td>
                 <td class="num">@k.KrediTutari.ToString("N2")</td>
                 <td class="num">@o.AylikTaksit.ToString("N2")</td>
                 <td class="num">@k.OdenenTaksit / @k.TaksitSayisi</td>
@@ -181,26 +181,26 @@
     [SupplyParameterFromQuery(Name = "bit")] public string? Bit { get; set; }
 
     private IReadOnlyList<AracKredi> _list = [];
-    private AracKrediPano _pano = new(0m, null, 0m, 0m, 0m);
+    private AracKrediPano _dashboard = new(0m, null, 0m, 0m, 0m);
     private IReadOnlyList<Vehicle> _vehicles = [];
     /// <summary>PII'sız seçim listesi — ListAsync her carinin TC/ehliyet cipher'ını çözerdi
     /// (dropdown için gereksiz; bayat anahtar-halkasında sayfa başına yüzlerce uyarı üretiyordu).</summary>
-    private IReadOnlyList<CariSecim> _cariler = [];
+    private IReadOnlyList<CariSecim> _accounts = [];
     private Dictionary<Guid, string> _vehMap = [];
-    private Dictionary<Guid, string> _cariMap = [];
-    private bool _filtreVar;
+    private Dictionary<Guid, string> _accountMap = [];
+    private bool _hasFilter;
     /// <summary>"Bu ayki taksit" kutusunun referans anı — tabloyla AYNI değer kullanılsın diye
     /// bir kez alınır (render sırasında ay dönerse kart ile satırlar çelişmesin).</summary>
-    private DateTimeOffset _simdi = DateTimeOffset.Now;
+    private DateTimeOffset _now = DateTimeOffset.Now;
 
     /// <summary>Ekrandaki filtre export'a AYNEN taşınır (giderler/fatura-detay deseni) — kullanıcı
     /// gördüğü listeyi indirir, tüm tabloyu değil.</summary>
-    private string ExportYolu(string format)
+    private string ExportPath(string format)
     {
         var q = new List<string> { $"format={format}" };
-        void Ekle(string ad, string? v) { if (!string.IsNullOrWhiteSpace(v)) q.Add($"{ad}={Uri.EscapeDataString(v)}"); }
-        Ekle("cariF", CariF); Ekle("plakaF", PlakaF); Ekle("dosyaF", DosyaF);
-        Ekle("durumF", DurumF); Ekle("bas", Bas); Ekle("bit", Bit);
+        void Add(string name, string? v) { if (!string.IsNullOrWhiteSpace(v)) q.Add($"{name}={Uri.EscapeDataString(v)}"); }
+        Add("cariF", CariF); Add("plakaF", PlakaF); Add("dosyaF", DosyaF);
+        Add("durumF", DurumF); Add("bas", Bas); Add("bit", Bit);
         return "/listeler/export/arac-kredileri?" + string.Join("&", q);
     }
 
@@ -217,7 +217,7 @@
 
     protected override async Task OnInitializedAsync()
     {
-        var filtre = new AracKrediFilter
+        var filter = new AracKrediFilter
         {
             CariId = Guid.TryParse(CariF, out var c) ? c : null,
             Plaka = string.IsNullOrWhiteSpace(PlakaF) ? null : PlakaF,
@@ -229,19 +229,19 @@
             Bit = DateTimeOffset.TryParse(Bit, System.Globalization.CultureInfo.InvariantCulture, out var b2)
                 ? b2.ToUniversalTime().AddDays(1).AddTicks(-1) : null
         };
-        _filtreVar = !filtre.Bos;
-        _list = await Krediler.SearchAsync(filtre);
-        _pano = VehicleLoanService.Dashboard(_list, _simdi);
+        _hasFilter = !filter.Bos;
+        _list = await Krediler.SearchAsync(filter);
+        _dashboard = VehicleLoanService.Dashboard(_list, _now);
 
         _vehicles = await Vehicles.ListAsync();
         _vehMap = _vehicles.ToDictionary(v => v.Id, v => v.Plaka);
-        _cariler = await Cariler.ListForSelectAsync();
-        _cariMap = _cariler.ToDictionary(x => x.Id, x => x.Ad);
+        _accounts = await Cariler.ListForSelectAsync();
+        _accountMap = _accounts.ToDictionary(x => x.Id, x => x.Ad);
     }
 
     /// <summary>Kredinin bağlı olduğu araç plakası; filo geneli kredide "—".</summary>
-    private string Arac(Guid? id) => id is { } g && _vehMap.TryGetValue(g, out var p) ? p : "—";
+    private string VehicleLabel(Guid? id) => id is { } g && _vehMap.TryGetValue(g, out var p) ? p : "—";
 
     /// <summary>Kredinin ilişkili carisi; bağlanmamışsa "—".</summary>
-    private string Cari(Guid? id) => id is { } g && _cariMap.TryGetValue(g, out var n) ? n : "—";
+    private string Account(Guid? id) => id is { } g && _accountMap.TryGetValue(g, out var n) ? n : "—";
 }

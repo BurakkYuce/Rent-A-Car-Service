@@ -13,11 +13,11 @@ namespace RentACar.IntegrationTests;
 [Collection("postgres")]
 public sealed class VehicleSaleTests(PostgresFixture fx)
 {
-    private static async Task<Guid> SeedVehicleAsync(IServiceScope scope, string plaka = "34SAT34")
+    private static async Task<Guid> SeedVehicleAsync(IServiceScope scope, string plate = "34SAT34")
     {
         var factory = scope.ServiceProvider.GetRequiredService<IDbContextFactory<AppDbContext>>();
         await using var db = await factory.CreateDbContextAsync();
-        var v = new Vehicle { Plaka = plaka, Durum = VehicleStatus.Musait };
+        var v = new Vehicle { Plaka = plate, Durum = VehicleStatus.Musait };
         db.Vehicles.Add(v);
         await db.SaveChangesAsync();
         return v.Id;
@@ -31,22 +31,22 @@ public sealed class VehicleSaleTests(PostgresFixture fx)
         var sales = scope.ServiceProvider.GetRequiredService<VehicleSaleService>();
         var cash = scope.ServiceProvider.GetRequiredService<CashService>();
         var vehicleId = await SeedVehicleAsync(scope);
-        var alici = Guid.NewGuid();
+        var recipient = Guid.NewGuid();
 
         // net 100000 @0.20 → KDV 20000, brüt 120000.
         var id = await sales.CreateAsync(new VehicleSaleInput
         {
-            VehicleId = vehicleId, AliciCariId = alici, SatisNet = 100000m, KdvOrani = 0.20m, NoterNo = "N-1"
+            VehicleId = vehicleId, AliciCariId = recipient, SatisNet = 100000m, KdvOrani = 0.20m, NoterNo = "N-1"
         });
 
         var sale = await sales.GetAsync(id);
-        BelgeNoOracle.BeklenenlerdenBiri(14, 1, sale!.No);
+        DocumentNoOracle.OneOfExpected(14, 1, sale!.No);
         Assert.Equal(20000m, sale.KdvTutar);
         Assert.Equal(120000m, sale.GenelToplam);
         Assert.Equal(SaleStatus.Tamamlandi, sale.Durum);
 
         // Alıcı cari brüt kadar borçlanır (+120000).
-        Assert.Equal(120000m, await cash.GetAccountBalanceAsync(alici));
+        Assert.Equal(120000m, await cash.GetAccountBalanceAsync(recipient));
 
         var factory = scope.ServiceProvider.GetRequiredService<IDbContextFactory<AppDbContext>>();
         await using var db = await factory.CreateDbContextAsync();

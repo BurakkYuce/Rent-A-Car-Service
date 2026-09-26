@@ -19,14 +19,14 @@ public sealed partial class UiSystemAdminTests
         Assert.False(empty.GetProperty("kayitli").GetBoolean());
 
         var first = await Json(await Send(admin, HttpMethod.Put, url, new { govde = "Merhaba {{Ad}}", aktif = true }));
-        var surum = first.GetProperty("surum").GetString();
-        Assert.NotNull(surum);
+        var version = first.GetProperty("surum").GetString();
+        Assert.NotNull(version);
         Assert.Equal("Merhaba {{Ad}}", first.GetProperty("govde").GetString());
 
         await Problem(await Send(admin, HttpMethod.Put, url, new { govde = "ikinci" }), HttpStatusCode.BadRequest, "dogrulama", "surum");
-        var second = await Json(await Send(admin, HttpMethod.Put, url, new { govde = "ikinci", surum }));
+        var second = await Json(await Send(admin, HttpMethod.Put, url, new { govde = "ikinci", surum = version }));
         Assert.Equal("ikinci", second.GetProperty("govde").GetString());
-        await Problem(await Send(admin, HttpMethod.Put, url, new { govde = "bayat", surum }), HttpStatusCode.Conflict, "cakisma");
+        await Problem(await Send(admin, HttpMethod.Put, url, new { govde = "bayat", surum = version }), HttpStatusCode.Conflict, "cakisma");
 
         await Problem(await Send(admin, HttpMethod.Put, url, new { govde = new string('x', 601), surum = second.GetProperty("surum").GetString() }),
             HttpStatusCode.BadRequest, "dogrulama", "govde");
@@ -84,9 +84,9 @@ public sealed partial class UiSystemAdminTests
         var a = await _kit.SetupAsync();
         var b = await _kit.SetupAsync();
         var vehicle = Guid.NewGuid();
-        var own = new Bildirim { Tur = "Sigorta", VehicleId = vehicle, VadeTarihi = TestZaman.GunSonra(5), Mesaj = "Sigorta bitiyor" };
+        var own = new Bildirim { Tur = "Sigorta", VehicleId = vehicle, VadeTarihi = TestZaman.DaysLater(5), Mesaj = "Sigorta bitiyor" };
         await _kit.WriteAsync(a.TenantId, db => db.Bildirimler.Add(own));
-        var foreign = new Bildirim { Tur = "Muayene", VehicleId = vehicle, VadeTarihi = TestZaman.GunSonra(6), Mesaj = "Yabancı" };
+        var foreign = new Bildirim { Tur = "Muayene", VehicleId = vehicle, VadeTarihi = TestZaman.DaysLater(6), Mesaj = "Yabancı" };
         await _kit.WriteAsync(b.TenantId, db => db.Bildirimler.Add(foreign));
 
         var op = await _kit.LoginAsync(a, Who.OperatorA);

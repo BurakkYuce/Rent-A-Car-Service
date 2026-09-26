@@ -15,12 +15,12 @@ namespace RentACar.IntegrationTests;
 [Collection("postgres")]
 public sealed class MuayeneOdemeTests(PostgresFixture fx)
 {
-    private static async Task<(IServiceProvider sp, Guid inspId)> Seed(IServiceScope scope, string plaka, decimal ucret = 500m)
+    private static async Task<(IServiceProvider sp, Guid inspId)> Seed(IServiceScope scope, string plate, decimal fee = 500m)
     {
         var sp = scope.ServiceProvider;
-        var v = await sp.GetRequiredService<VehicleService>().CreateAsync(new VehicleInput { Plaka = plaka, Durum = VehicleStatus.Musait });
+        var v = await sp.GetRequiredService<VehicleService>().CreateAsync(new VehicleInput { Plaka = plate, Durum = VehicleStatus.Musait });
         var insp = await sp.GetRequiredService<RegulationService>().AddInspectionAsync(
-            v, new DateTimeOffset(2026, 1, 10, 0, 0, 0, TimeSpan.Zero), new DateTimeOffset(2028, 1, 10, 0, 0, 0, TimeSpan.Zero), ucret);
+            v, new DateTimeOffset(2026, 1, 10, 0, 0, 0, TimeSpan.Zero), new DateTimeOffset(2028, 1, 10, 0, 0, 0, TimeSpan.Zero), fee);
         return (sp, insp);
     }
 

@@ -24,7 +24,7 @@ public static partial class WebsiteApi
     private static void MapListings(RouteGroupBuilder v1)
     {
         var g = v1.MapGroup("/web-sitesi").WithTags(SystemApiCommon.WebsiteTag)
-            .RequirePermission(Permission.OperationsWrite).RequireWebSitesiModulu();
+            .RequirePermission(Permission.OperationsWrite).RequireWebsiteModule();
 
         g.MapGet("/ozet", async (WebListingService s, CancellationToken ct) =>
         {
@@ -39,8 +39,8 @@ public static partial class WebsiteApi
                 .ToList()));
 
         g.MapGet("/ilanlar", async (int? sayfa, int? boyut, string? sirala, WebListingService s, CancellationToken ct) =>
-            TypedResults.Ok(F5Ortak.Sayfala((await s.ListAsync(ct)).Select(ToRow).ToList(), ListingSort, sayfa, boyut, sirala)))
-            .AlanlariEsle(F5Ortak.SiralamaKurallari);
+            TypedResults.Ok(F5Shared.Paginate((await s.ListAsync(ct)).Select(ToRow).ToList(), ListingSort, sayfa, boyut, sirala)))
+            .MapFields(F5Shared.SortRules);
 
         g.MapPost("/ilanlar", CreateListing);
 
@@ -54,13 +54,13 @@ public static partial class WebsiteApi
             if (await s.GetAsync(id, ct) is null) return SystemApiCommon.NotFound("İlan bulunamadı.");
             SystemApiCommon.RequireVersion(i.Surum);
             if (i.GunlukFiyat is null) throw new ValidationException("Günlük fiyat zorunludur.", "gunlukFiyat");
-            Sinirlar.Tutar(i.GunlukFiyat, "gunlukFiyat", "Günlük fiyat");
-            Sinirlar.Tutar(i.HaftalikToplam, "haftalikToplam", "Haftalık toplam");
-            Sinirlar.Tutar(i.AylikToplam, "aylikToplam", "Aylık toplam");
+            RentalLimits.Amount(i.GunlukFiyat, "gunlukFiyat", "Günlük fiyat");
+            RentalLimits.Amount(i.HaftalikToplam, "haftalikToplam", "Haftalık toplam");
+            RentalLimits.Amount(i.AylikToplam, "aylikToplam", "Aylık toplam");
             var copied = await s.StepTwoAsync(id, i.GunlukFiyat.Value, i.HaftalikToplam, i.AylikToplam, i.KdvDahil, i.Surum!, ct);
             return await ListingDetailAsync(id, s, ct) is { } d
                 ? TypedResults.Ok(new ListingPriceResultDto(copied, d)) : SystemApiCommon.NotFound("İlan bulunamadı.");
-        }).AlanlariEsle(PriceRules);
+        }).MapFields(PriceRules);
 
         g.MapPut("/ilanlar/{id:guid}/ozellikler", async Task<Results<Ok<ListingFeaturesResultDto>, ProblemHttpResult>> (
             Guid id, ListingFeaturesRequest i, WebListingService s, CancellationToken ct) =>
@@ -71,17 +71,17 @@ public static partial class WebsiteApi
             var published = await s.StepThreeAsync(id, rows, i.Surum!, ct);
             return await ListingDetailAsync(id, s, ct) is { } d
                 ? TypedResults.Ok(new ListingFeaturesResultDto(published, d)) : SystemApiCommon.NotFound("İlan bulunamadı.");
-        }).AlanlariEsle(FeatureRules);
+        }).MapFields(FeatureRules);
 
         g.MapPost("/ilanlar/{id:guid}/durum", async Task<Results<Ok<ListingDetailDto>, ProblemHttpResult>> (
             Guid id, ListingStatusRequest i, WebListingService s, CancellationToken ct) =>
         {
             if (await s.GetAsync(id, ct) is null) return SystemApiCommon.NotFound("İlan bulunamadı.");
-            var status = F5Ortak.EnumAdi<WebIlanDurum>(i.Durum, "durum")
+            var status = F5Shared.EnumAdi<WebIlanDurum>(i.Durum, "durum")
                          ?? throw new ValidationException("Durum zorunludur (Yayinda ya da Pasif).", "durum");
             await s.SetStatusAsync(id, status, ct);
             return await ListingDetailAsync(id, s, ct) is { } d ? TypedResults.Ok(d) : SystemApiCommon.NotFound("İlan bulunamadı.");
-        }).AlanlariEsle([("İlan taslağa", "durum")]);
+        }).MapFields([("İlan taslağa", "durum")]);
 
         g.MapDelete("/ilanlar/{id:guid}", async Task<Results<NoContent, ProblemHttpResult>> (
             Guid id, WebListingService s, CancellationToken ct) =>
@@ -94,7 +94,7 @@ public static partial class WebsiteApi
         // ---- fotoğraflar (üye araçlarda saklanır; tür/boyut/adet sınırı VehiclePhotoService'te)
         g.MapPost("/ilanlar/{id:guid}/fotograflar", UploadListingPhoto).DisableAntiforgery()
             .WithMetadata(new RequestSizeLimitAttribute(UploadRequestLimit))
-            .AlanlariEsle(PhotoRules);
+            .MapFields(PhotoRules);
 
         g.MapDelete("/ilanlar/{id:guid}/fotograflar/{aracId:guid}/{fotoId:guid}",
             async Task<Results<Ok<IReadOnlyList<ListingPhotoDto>>, ProblemHttpResult>> (

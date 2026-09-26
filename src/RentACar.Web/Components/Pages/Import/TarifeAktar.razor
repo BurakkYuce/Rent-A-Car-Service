@@ -63,13 +63,13 @@
     <label>Rez. Kaynağı (Kanal)
         <select name="kanal">
             <option value="">— tümü —</option>
-            @foreach (var k in _kanallar) { <option value="@k" selected="@(k == Kanal)">@k</option> }
+            @foreach (var k in _channels) { <option value="@k" selected="@(k == Kanal)">@k</option> }
         </select>
     </label>
     <label>Şube
         <select name="sube">
             <option value="">— tümü —</option>
-            @foreach (var s in _subeler) { <option value="@s" selected="@(s == Sube)">@s</option> }
+            @foreach (var s in _branches) { <option value="@s" selected="@(s == Sube)">@s</option> }
         </select>
     </label>
     <label>Onay
@@ -95,11 +95,11 @@
     {
         <div class="vt-box warn" style="margin:0 0 1rem;padding:.6rem .9rem;">
             <form method="post" action="/tarife-aktar/kanal-sil"
-                  data-confirm="@($"'{Kanal}' kaynağının TÜM ŞUBELERİNDEKİ {_silinecek} BEKLEYEN tarife satırı silinecek. Onaylı satırlar SİLİNMEZ. Devam edilsin mi?")">
+                  data-confirm="@($"'{Kanal}' kaynağının TÜM ŞUBELERİNDEKİ {_toDelete} BEKLEYEN tarife satırı silinecek. Onaylı satırlar SİLİNMEZ. Devam edilsin mi?")">
                 <AntiforgeryToken />
                 <input type="hidden" name="kanal" value="@Kanal" />
-                <button type="submit" class="link danger" disabled="@(_silinecek == 0)">
-                    Sadece Seçili Rezervasyon Kaynağını Sil (@_silinecek bekleyen satır)
+                <button type="submit" class="link danger" disabled="@(_toDelete == 0)">
+                    Sadece Seçili Rezervasyon Kaynağını Sil (@_toDelete bekleyen satır)
                 </button>
             </form>
             <p class="muted small" style="margin:.4rem 0 0;">Bu işlem <strong>yalnız Bekliyor</strong>
@@ -135,10 +135,10 @@
                 <td>@(r.Kanal ?? "—")</td>
                 <td>@(r.Sube ?? "—")</td>
                 <td>@(r.AracGrupKod ?? "—")</td>
-                <td>@Tarih(r.BasTar)</td>
-                <td>@Tarih(r.BitTar)</td>
-                <td class="num">@Para(r.Gun1)</td>
-                <td class="num">@Para(r.Gun7)</td>
+                <td>@Date(r.BasTar)</td>
+                <td>@Date(r.BitTar)</td>
+                <td class="num">@Money(r.Gun1)</td>
+                <td class="num">@Money(r.Gun7)</td>
                 <td>@(r.ParaBirimi ?? "—")</td>
                 <td>
                     <span class="status-pill @(r.OnayDurumu == TariffApprovalStatus.Onayli ? "sp-success" : "sp-warn")">@r.OnayDurumu</span>
@@ -161,9 +161,9 @@
     [SupplyParameterFromQuery(Name = "durum")] public string? Durum { get; set; }
 
     private IReadOnlyList<RateMatrix> _rows = [];
-    private string[] _kanallar = [];
-    private string[] _subeler = [];
-    private int _silinecek;
+    private string[] _channels = [];
+    private string[] _branches = [];
+    private int _toDelete;
 
     private bool FiltreVar => !string.IsNullOrWhiteSpace(Kanal) || !string.IsNullOrWhiteSpace(Sube)
         || !string.IsNullOrWhiteSpace(Durum);
@@ -174,24 +174,24 @@
     private bool SilmeKutusuGorunur => string.IsNullOrWhiteSpace(Sube)
         && (string.IsNullOrWhiteSpace(Durum) || Durum == nameof(TariffApprovalStatus.Bekliyor));
 
-    private static string Tarih(DateTimeOffset? d) => d?.LocalDateTime.ToString("dd.MM.yyyy") ?? "—";
-    private static string Para(decimal? v) => v is { } x ? x.ToString("N2") : "—";
+    private static string Date(DateTimeOffset? d) => d?.LocalDateTime.ToString("dd.MM.yyyy") ?? "—";
+    private static string Money(decimal? v) => v is { } x ? x.ToString("N2") : "—";
 
     protected override async Task OnInitializedAsync()
     {
-        var hepsi = await Tarifeler.ListAsync();
+        var all = await Tarifeler.ListAsync();
 
         // Seçenekler FİLTRESİZ listeden: filtrelenmişten türetilseydi bir seçimden sonra diğer
         // kanallar kaybolur ve filtre kendini kilitlerdi.
-        _kanallar = hepsi.Select(r => r.Kanal).Where(x => !string.IsNullOrWhiteSpace(x))
+        _channels = all.Select(r => r.Kanal).Where(x => !string.IsNullOrWhiteSpace(x))
             .Select(x => x!.Trim()).Distinct(StringComparer.OrdinalIgnoreCase)
             .OrderBy(x => x, StringComparer.CurrentCulture).ToArray();
-        _subeler = hepsi.Select(r => r.Sube).Where(x => !string.IsNullOrWhiteSpace(x))
+        _branches = all.Select(r => r.Sube).Where(x => !string.IsNullOrWhiteSpace(x))
             .Select(x => x!.Trim()).Distinct(StringComparer.OrdinalIgnoreCase)
             .OrderBy(x => x, StringComparer.CurrentCulture).ToArray();
 
         // Eşleşme comparer'ı motorunkiyle (RowMatches) AYNI: OrdinalIgnoreCase.
-        var q = hepsi.AsEnumerable();
+        var q = all.AsEnumerable();
         if (!string.IsNullOrWhiteSpace(Kanal))
             q = q.Where(r => string.Equals(r.Kanal?.Trim(), Kanal.Trim(), StringComparison.OrdinalIgnoreCase));
         if (!string.IsNullOrWhiteSpace(Sube))
@@ -204,6 +204,6 @@
         // ayrı bir sayım yazsaydı, kural değiştiğinde iki sayı sessizce ayrışır ve kullanıcı
         // yanlış sayıyı onaylardı. Yüklem SAF olduğu için ikinci bir DB okuması gerekmez:
         // filtresiz liste zaten elimizde (adversarial L4 — sayfa tek okuma yapar).
-        _silinecek = hepsi.Count(r => RateMatrixService.DeletionCandidate(r, Kanal));
+        _toDelete = all.Count(r => RateMatrixService.DeletionCandidate(r, Kanal));
     }
 }

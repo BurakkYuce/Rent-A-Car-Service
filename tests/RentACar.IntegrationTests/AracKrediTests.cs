@@ -23,7 +23,7 @@ public sealed class AracKrediTests(PostgresFixture fx)
         { BankaAdi = "X Bank", KrediTutari = 120_000m, FaizOran = 0m, TaksitSayisi = 12 });
 
         var k0 = await svc.GetAsync(id);
-        BelgeNoOracle.BeklenenlerdenBiri(15, 1, k0!.No);   // 15 = AracKredi
+        DocumentNoOracle.OneOfExpected(15, 1, k0!.No);   // 15 = AracKredi
         var o0 = VehicleLoanService.Calculate(k0);
         Assert.Equal(10_000m, o0.AylikTaksit);        // 120000/12
         Assert.Equal(120_000m, o0.ToplamGeriOdeme);

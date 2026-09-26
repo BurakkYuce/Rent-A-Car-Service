@@ -16,54 +16,54 @@ namespace RentACar.IntegrationTests;
 [Collection("postgres")]
 public sealed class KdvModuTests(PostgresFixture fx)
 {
-    private static readonly DateTimeOffset Bas =
+    private static readonly DateTimeOffset Start =
         new DateTimeOffset(DateTime.UtcNow.Date, TimeSpan.Zero).AddDays(-2).AddHours(9);
 
-    private static async Task<(Guid m, Guid v)> SeedAsync(IServiceProvider sp, string plaka)
+    private static async Task<(Guid m, Guid v)> SeedAsync(IServiceProvider sp, string plate)
     {
-        var v = await sp.GetRequiredService<VehicleService>().CreateAsync(new VehicleInput { Plaka = plaka });
+        var v = await sp.GetRequiredService<VehicleService>().CreateAsync(new VehicleInput { Plaka = plate });
         var m = await sp.GetRequiredService<CustomerService>().CreateAsync(new CustomerInput { Tip = CustomerType.Bireysel, Ad = "Kdv", Soyad = "M" });
         return (m, v);
     }
 
-    private static BookingInput B(Guid m, Guid v, decimal ucret, string mod) => new()
-    { MusteriId = m, VehicleId = v, BasTar = Bas, BitTar = Bas.AddDays(3), GunlukUcret = ucret, FiyatTuru = mod };
+    private static BookingInput B(Guid m, Guid v, decimal fee, string mod) => new()
+    { MusteriId = m, VehicleId = v, BasTar = Start, BitTar = Start.AddDays(3), GunlukUcret = fee, FiyatTuru = mod };
 
     [Theory]
     [InlineData("KDV Dahil Günlük", 100, 300, 100)] // brüt günlük → Tutar 3×100=300; günlük 100
     [InlineData("Günlük", 100, 360, 120)]           // NET günlük 100 → brüt 120; Tutar 3×120=360
     [InlineData("KDV Dahil Toplam", 300, 300, 100)] // brüt toplam 300 → Tutar 300; günlük 300/3=100
     [InlineData("Toplam", 300, 360, 120)]           // NET toplam 300 → brüt 360; günlük 360/3=120
-    public async Task Mod_dogru_brut_tutar_ve_gunluk_ucret(string mod, decimal girilen, decimal beklenenTutar, decimal beklenenGunluk)
+    public async Task Mod_dogru_brut_tutar_ve_gunluk_ucret(string mod, decimal entered, decimal expectedAmount, decimal expectedDaily)
     {
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
         var sp = scope.ServiceProvider;
         var (m, v) = await SeedAsync(sp, "34 KV 0" + mod.Length % 9);
-        var id = await sp.GetRequiredService<RentalService>().CreateDirectAsync(B(m, v, girilen, mod));
+        var id = await sp.GetRequiredService<RentalService>().CreateDirectAsync(B(m, v, entered, mod));
         var c = await sp.GetRequiredService<RentalService>().GetAsync(id);
-        Assert.Equal(beklenenTutar, c!.Tutar);        // brüt Tutar
-        Assert.Equal(beklenenGunluk, c.GunlukUcret);  // günlük ücret brüte normalize
+        Assert.Equal(expectedAmount, c!.Tutar);        // brüt Tutar
+        Assert.Equal(expectedDaily, c.GunlukUcret);  // günlük ücret brüte normalize
     }
 
     [Theory]
     [InlineData("Günlük", 100, 360, 300, 60)]           // NET girdi → fatura net 300 (girilen niyet), kdv 60
     [InlineData("Toplam", 300, 360, 300, 60)]           // NET toplam → net 300, kdv 60
     [InlineData("KDV Dahil Günlük", 100, 300, 250, 50)] // brüt 300 → net 250, kdv 50
-    public async Task Fatura_roundtrip_net_niyeti_korur(string mod, decimal girilen, decimal brut, decimal beklenenNet, decimal beklenenKdv)
+    public async Task Fatura_roundtrip_net_niyeti_korur(string mod, decimal entered, decimal gross, decimal expectedNet, decimal expectedVat)
     {
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
         var sp = scope.ServiceProvider;
         var (m, v) = await SeedAsync(sp, "34 KW 0" + mod.Length % 9);
-        var id = await sp.GetRequiredService<RentalService>().CreateDirectAsync(B(m, v, girilen, mod));
+        var id = await sp.GetRequiredService<RentalService>().CreateDirectAsync(B(m, v, entered, mod));
         var fId = await sp.GetRequiredService<InvoiceService>().CreateFromRentalAsync(id);
         var f = await sp.GetRequiredService<IInvoiceRepository>().FindAsync(fId);
-        Assert.Equal(brut, f!.GenelToplam);         // brüt = Tutar
-        Assert.Equal(beklenenNet, f.NetTutar);      // net girilen niyeti korur (mod'a göre)
-        Assert.Equal(beklenenKdv, f.KdvTutar);
+        Assert.Equal(gross, f!.GenelToplam);         // brüt = Tutar
+        Assert.Equal(expectedNet, f.NetTutar);      // net girilen niyeti korur (mod'a göre)
+        Assert.Equal(expectedVat, f.KdvTutar);
         // Cari borç = brüt (defter).
-        Assert.Equal(brut, await sp.GetRequiredService<CashService>().GetAccountBalanceAsync(m));
+        Assert.Equal(gross, await sp.GetRequiredService<CashService>().GetAccountBalanceAsync(m));
     }
 
     [Fact]
@@ -86,8 +86,8 @@ public sealed class KdvModuTests(PostgresFixture fx)
 
         // Brüt modda override SERBEST (girilen zaten brüt; oran yalnız yeniden ayrıştırır).
         var (m2, v2) = await SeedAsync(sp, "34 KY 02");
-        var brutId = await sp.GetRequiredService<RentalService>().CreateDirectAsync(B(m2, v2, 100, "KDV Dahil Günlük"));
-        var f2 = await invoices.CreateFromRentalAsync(brutId, vatRate: 0.10m); // reddedilmez
+        var grossId = await sp.GetRequiredService<RentalService>().CreateDirectAsync(B(m2, v2, 100, "KDV Dahil Günlük"));
+        var f2 = await invoices.CreateFromRentalAsync(grossId, vatRate: 0.10m); // reddedilmez
         Assert.NotEqual(Guid.Empty, f2);
     }
 
@@ -101,7 +101,7 @@ public sealed class KdvModuTests(PostgresFixture fx)
         var rentals = sp.GetRequiredService<RentalService>();
         var (m, v) = await SeedAsync(sp, "34 KX 01");
         var id = await rentals.CreateDirectAsync(B(m, v, 100, "Günlük")); // günlük brüt 120, Tutar 360
-        await rentals.ExtendAsync(id, Bas.AddDays(4)); // +1 gün
+        await rentals.ExtendAsync(id, Start.AddDays(4)); // +1 gün
         var c = await rentals.GetAsync(id);
         Assert.Equal(4, c!.Gun);
         Assert.Equal(360m + 120m, c.Tutar); // 480: brüt günlük 120 eklendi

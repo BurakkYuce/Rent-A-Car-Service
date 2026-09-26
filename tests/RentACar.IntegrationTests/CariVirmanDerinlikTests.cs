@@ -25,9 +25,9 @@ namespace RentACar.IntegrationTests;
 [Collection("postgres")]
 public sealed class CariVirmanDerinlikTests(PostgresFixture fx)
 {
-    private static async Task<Guid> CariAsync(IServiceProvider sp, string unvan)
+    private static async Task<Guid> CustomerAsync(IServiceProvider sp, string title)
         => await sp.GetRequiredService<CustomerService>()
-            .CreateAsync(new CustomerInput { Tip = CustomerType.Kurumsal, Unvan = unvan });
+            .CreateAsync(new CustomerInput { Tip = CustomerType.Kurumsal, Unvan = title });
 
     [Fact]
     public async Task Kunye_alanlari_round_trip_ve_BAKIYE_ETKISI_AYNI()
@@ -36,13 +36,13 @@ public sealed class CariVirmanDerinlikTests(PostgresFixture fx)
         using var s = host.ScopeFor(Guid.NewGuid(), Guid.NewGuid(), "muhasebeci");
         var sp = s.ServiceProvider;
         var cash = sp.GetRequiredService<CashService>();
-        var a = await CariAsync(sp, "Kaynak A.Ş.");
-        var b = await CariAsync(sp, "Hedef Ltd.");
+        var a = await CustomerAsync(sp, "Kaynak A.Ş.");
+        var b = await CustomerAsync(sp, "Hedef Ltd.");
 
-        var tarih = TestZaman.Simdi().AddDays(-3);
-        var vade = tarih.AddDays(30);
+        var date = TestZaman.Now().AddDays(-3);
+        var due = date.AddDays(30);
         await cash.TransferBetweenAccountsAsync(a, b, 2500m,
-            description: "Grup içi mahsup", date: tarih, due: vade,
+            description: "Grup içi mahsup", date: date, due: due,
             receiptNo: " MKB-77 ", branch: " Merkez ");
 
         // ELLE: kaynak −2500 (alacaklandı), hedef +2500 (borçlandı). Toplam etki 0 (dengeli).
@@ -54,8 +54,8 @@ public sealed class CariVirmanDerinlikTests(PostgresFixture fx)
         Assert.Equal("Kaynak A.Ş.", v.KaynakCariAd);
         Assert.Equal(b, v.HedefCariId);
         Assert.Equal("Hedef Ltd.", v.HedefCariAd);
-        Assert.Equal(tarih, v.Tarih);
-        Assert.Equal(vade, v.Vade);
+        Assert.Equal(date, v.Tarih);
+        Assert.Equal(due, v.Vade);
         Assert.Equal("MKB-77", v.MakbuzNo);          // trim
         Assert.Equal("Merkez", v.Sube);
         Assert.Equal("Grup içi mahsup", v.Aciklama);
@@ -64,8 +64,8 @@ public sealed class CariVirmanDerinlikTests(PostgresFixture fx)
         // Tutar DEFTERDEN geliyor: listedeki rakam ekstredekiyle AYNI olmalı.
         Assert.Equal(2500m, v.Tutar);
         Assert.Equal(2500m, v.TutarTl);
-        var ekstre = await cash.GetStatementAsync(b);
-        Assert.Equal(2500m, Assert.Single(ekstre.Satirlar, e => e.SourceType == "CariVirman").Amount.Amount);
+        var statement = await cash.GetStatementAsync(b);
+        Assert.Equal(2500m, Assert.Single(statement.Satirlar, e => e.SourceType == "CariVirman").Amount.Amount);
     }
 
     [Fact]
@@ -75,16 +75,16 @@ public sealed class CariVirmanDerinlikTests(PostgresFixture fx)
         using var s = host.ScopeFor(Guid.NewGuid());
         var sp = s.ServiceProvider;
         var cash = sp.GetRequiredService<CashService>();
-        var a = await CariAsync(sp, "A");
-        var b = await CariAsync(sp, "B");
+        var a = await CustomerAsync(sp, "A");
+        var b = await CustomerAsync(sp, "B");
 
-        var gecmis = TestZaman.Simdi().AddDays(-20);
-        await cash.TransferBetweenAccountsAsync(a, b, 100m, date: gecmis);
+        var history = TestZaman.Now().AddDays(-20);
+        await cash.TransferBetweenAccountsAsync(a, b, 100m, date: history);
 
         // Defter satırının tarihi verilen tarih olmalı — künye ile defter ayrışamaz.
-        var satir = Assert.Single((await cash.GetStatementAsync(b)).Satirlar);
-        Assert.Equal(gecmis, satir.EntryDateUtc);
-        Assert.Equal(gecmis, Assert.Single(await cash.ListAccountTransfersAsync()).Tarih);
+        var row = Assert.Single((await cash.GetStatementAsync(b)).Satirlar);
+        Assert.Equal(history, row.EntryDateUtc);
+        Assert.Equal(history, Assert.Single(await cash.ListAccountTransfersAsync()).Tarih);
     }
 
     [Fact]
@@ -94,13 +94,13 @@ public sealed class CariVirmanDerinlikTests(PostgresFixture fx)
         using var s = host.ScopeFor(Guid.NewGuid());
         var sp = s.ServiceProvider;
         var cash = sp.GetRequiredService<CashService>();
-        var a = await CariAsync(sp, "A");
-        var b = await CariAsync(sp, "B");
+        var a = await CustomerAsync(sp, "A");
+        var b = await CustomerAsync(sp, "B");
 
         await Assert.ThrowsAsync<ValidationException>(() => cash.TransferBetweenAccountsAsync(
-            a, b, 100m, date: TestZaman.Simdi().AddDays(10)));
+            a, b, 100m, date: TestZaman.Now().AddDays(10)));
 
-        var t = TestZaman.Simdi();
+        var t = TestZaman.Now();
         var ex = await Assert.ThrowsAsync<ValidationException>(() => cash.TransferBetweenAccountsAsync(
             a, b, 100m, date: t, due: t.AddDays(-5)));
         Assert.Contains("Vade tarihi", ex.Message);
@@ -119,8 +119,8 @@ public sealed class CariVirmanDerinlikTests(PostgresFixture fx)
         using var s = host.ScopeFor(Guid.NewGuid());
         var sp = s.ServiceProvider;
         var cash = sp.GetRequiredService<CashService>();
-        var a = await CariAsync(sp, "A");
-        var b = await CariAsync(sp, "B");
+        var a = await CustomerAsync(sp, "A");
+        var b = await CustomerAsync(sp, "B");
 
         await cash.TransferBetweenAccountsAsync(a, b, 750m);
 
@@ -140,8 +140,8 @@ public sealed class CariVirmanDerinlikTests(PostgresFixture fx)
         using var s = host.ScopeFor(Guid.NewGuid());
         var sp = s.ServiceProvider;
         var cash = sp.GetRequiredService<CashService>();
-        var a = await CariAsync(sp, "A");
-        var b = await CariAsync(sp, "B");
+        var a = await CustomerAsync(sp, "A");
+        var b = await CustomerAsync(sp, "B");
 
         var token = Guid.NewGuid();
         await cash.TransferBetweenAccountsAsync(a, b, 300m, operationKey: token, receiptNo: "MK-1");
@@ -160,11 +160,11 @@ public sealed class CariVirmanDerinlikTests(PostgresFixture fx)
         using var s = host.ScopeFor(Guid.NewGuid());
         var sp = s.ServiceProvider;
         var cash = sp.GetRequiredService<CashService>();
-        var a = await CariAsync(sp, "Alfa");
-        var b = await CariAsync(sp, "Beta");
-        var c = await CariAsync(sp, "Gama");
+        var a = await CustomerAsync(sp, "Alfa");
+        var b = await CustomerAsync(sp, "Beta");
+        var c = await CustomerAsync(sp, "Gama");
 
-        var t = TestZaman.Simdi();
+        var t = TestZaman.Now();
         await cash.TransferBetweenAccountsAsync(a, b, 100m, date: t.AddDays(-30), receiptNo: "MK-A", branch: "Merkez");
         await cash.TransferBetweenAccountsAsync(b, c, 200m, date: t.AddDays(-10), receiptNo: "MK-B", branch: "Şube2");
         await cash.TransferBetweenAccountsAsync(c, a, 300m, date: t.AddDays(-1), receiptNo: "MK-C", description: "son virman");
@@ -192,8 +192,8 @@ public sealed class CariVirmanDerinlikTests(PostgresFixture fx)
             new CariVirmanFilter { Bas = t.AddDays(-15), Bit = t.AddDays(-5) })).MakbuzNo);
 
         // Sıralama: en yeni önce.
-        var hepsi = await cash.ListAccountTransfersAsync();
-        Assert.Equal("MK-C", hepsi[0].MakbuzNo);
+        var all = await cash.ListAccountTransfersAsync();
+        Assert.Equal("MK-C", all[0].MakbuzNo);
     }
 
     [Fact]
@@ -205,8 +205,8 @@ public sealed class CariVirmanDerinlikTests(PostgresFixture fx)
         using var s = host.ScopeFor(Guid.NewGuid());
         var sp = s.ServiceProvider;
         var cash = sp.GetRequiredService<CashService>();
-        var a = await CariAsync(sp, "A");
-        var b = await CariAsync(sp, "B");
+        var a = await CustomerAsync(sp, "A");
+        var b = await CustomerAsync(sp, "B");
 
         await cash.TransferBetweenAccountsAsync(a, b, 500m);
         // Künyeyi sil → "eski kayıt" durumunu taklit et.
@@ -232,7 +232,7 @@ public sealed class CariVirmanDerinlikTests(PostgresFixture fx)
         {
             var sp = s1.ServiceProvider;
             await sp.GetRequiredService<CashService>().TransferBetweenAccountsAsync(
-                await CariAsync(sp, "Gizli A"), await CariAsync(sp, "Gizli B"), 100m, receiptNo: "GIZLI");
+                await CustomerAsync(sp, "Gizli A"), await CustomerAsync(sp, "Gizli B"), 100m, receiptNo: "GIZLI");
         }
 
         using (var s2 = host.ScopeFor(Guid.NewGuid()))

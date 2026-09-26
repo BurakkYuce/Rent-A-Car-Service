@@ -12,8 +12,8 @@ public sealed class TurkishIdentityTests
     [Theory]
     [InlineData("10000000146")]
     [InlineData("12345678950")]
-    public void Valid_tckn_passes(string tckn)
-        => Assert.True(TurkishIdentity.IsValidNationalId(tckn));
+    public void Valid_tckn_passes(string nationalId)
+        => Assert.True(TurkishIdentity.IsValidNationalId(nationalId));
 
     [Theory]
     [InlineData("11111111111")]   // checksum tutmaz
@@ -25,14 +25,14 @@ public sealed class TurkishIdentityTests
     [InlineData("1000000014A")]   // rakam değil
     [InlineData("")]              // boş
     [InlineData(null)]            // null
-    public void Invalid_tckn_fails(string? tckn)
-        => Assert.False(TurkishIdentity.IsValidNationalId(tckn));
+    public void Invalid_tckn_fails(string? nationalId)
+        => Assert.False(TurkishIdentity.IsValidNationalId(nationalId));
 
     [Theory]
     [InlineData("1234567890")]    // 10 hane
     [InlineData("0000000000")]
-    public void Valid_vergino_format_passes(string vkn)
-        => Assert.True(TurkishIdentity.IsValidTaxNoFormat(vkn));
+    public void Valid_vergino_format_passes(string taxNo)
+        => Assert.True(TurkishIdentity.IsValidTaxNoFormat(taxNo));
 
     [Theory]
     [InlineData("123456789")]     // 9 hane
@@ -40,6 +40,6 @@ public sealed class TurkishIdentityTests
     [InlineData("12345678AB")]    // rakam değil
     [InlineData("")]
     [InlineData(null)]
-    public void Invalid_vergino_format_fails(string? vkn)
-        => Assert.False(TurkishIdentity.IsValidTaxNoFormat(vkn));
+    public void Invalid_vergino_format_fails(string? taxNo)
+        => Assert.False(TurkishIdentity.IsValidTaxNoFormat(taxNo));
 }

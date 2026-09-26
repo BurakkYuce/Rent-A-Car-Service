@@ -31,9 +31,9 @@ public sealed class EkHizmetEkonomisiTests(PostgresFixture fx)
         db.Customers.Add(c);
 
         var gps = new EkHizmetTanim { Kod = "GPS", Ad = "Navigasyon", BirimUcret = 100m, KdvOrani = 0.20m };
-        var koltuk = new EkHizmetTanim { Kod = "KOLTUK", Ad = "Bebek Koltuğu", BirimUcret = 50m, KdvOrani = 0.10m };
+        var seat = new EkHizmetTanim { Kod = "KOLTUK", Ad = "Bebek Koltuğu", BirimUcret = 50m, KdvOrani = 0.10m };
         db.EkHizmetTanimlari.Add(gps);
-        db.EkHizmetTanimlari.Add(koltuk);
+        db.EkHizmetTanimlari.Add(seat);
 
         var rental = new RentalContract
         {
@@ -44,7 +44,7 @@ public sealed class EkHizmetEkonomisiTests(PostgresFixture fx)
         };
         db.Rentals.Add(rental);
         await db.SaveChangesAsync();
-        return (rental.Id, gps.Id, koltuk.Id);
+        return (rental.Id, gps.Id, seat.Id);
     }
 
     private static async Task<RentalContract> GetRentalAsync(IServiceScope scope, Guid id)
@@ -97,12 +97,12 @@ public sealed class EkHizmetEkonomisiTests(PostgresFixture fx)
     {
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
-        var (rentalId, gpsId, koltukId) = await SeedAsync(scope);
+        var (rentalId, gpsId, seatId) = await SeedAsync(scope);
         var addSvc = scope.ServiceProvider.GetRequiredService<RentalAddOnService>();
         var invSvc = scope.ServiceProvider.GetRequiredService<InvoiceService>();
 
         await addSvc.AddAsync(rentalId, gpsId, quantity: 2m);     // net 200, kdv 40 (%20)
-        await addSvc.AddAsync(rentalId, koltukId, quantity: 1m);  // net 50, kdv 5 (%10)
+        await addSvc.AddAsync(rentalId, seatId, quantity: 1m);  // net 50, kdv 5 (%10)
         // GenelToplam = 400 + 240 + 55 = 695
 
         var invId = await invSvc.CreateFromRentalAsync(rentalId);
@@ -124,10 +124,10 @@ public sealed class EkHizmetEkonomisiTests(PostgresFixture fx)
         await using var db = await factory.CreateDbContextAsync();
         var entries = await db.AccountLedgerEntries.AsNoTracking()
             .Where(e => e.SourceType == "Fatura" && e.SourceId == invId).ToListAsync();
-        var borc = entries.Where(e => e.Direction == LedgerDirection.Debit).Sum(e => e.Amount.AmountInBase);
-        var alacak = entries.Where(e => e.Direction == LedgerDirection.Credit).Sum(e => e.Amount.AmountInBase);
-        Assert.Equal(695m, borc);
-        Assert.Equal(borc, alacak);  // DENGE
+        var debit = entries.Where(e => e.Direction == LedgerDirection.Debit).Sum(e => e.Amount.AmountInBase);
+        var credit = entries.Where(e => e.Direction == LedgerDirection.Credit).Sum(e => e.Amount.AmountInBase);
+        Assert.Equal(695m, debit);
+        Assert.Equal(debit, credit);  // DENGE
         Assert.Equal(695m, entries.Single(e => e.AccountType == LedgerAccountType.Cari).Amount.AmountInBase);
         Assert.Equal(583.33m, entries.Single(e => e.AccountType == LedgerAccountType.Gelir).Amount.AmountInBase);
         Assert.Equal(111.67m, entries.Single(e => e.AccountType == LedgerAccountType.Kdv).Amount.AmountInBase);
@@ -184,9 +184,9 @@ public sealed class EkHizmetEkonomisiTests(PostgresFixture fx)
         using var scope = host.ScopeFor(Guid.NewGuid());
         var (rentalId, gpsId, _) = await SeedAsync(scope);
         // Muhasebe rolü OperationsWrite'a sahip değil.
-        using var muh = host.ScopeFor(Guid.NewGuid(), Guid.NewGuid(), "muh", UserRole.Muhasebe);
+        using var acct = host.ScopeFor(Guid.NewGuid(), Guid.NewGuid(), "muh", UserRole.Muhasebe);
         // Aynı tenant'ta çalışması için aynı tenant id ile seed gerekir; burada yetki reddi yeterli:
-        var svc = muh.ServiceProvider.GetRequiredService<RentalAddOnService>();
+        var svc = acct.ServiceProvider.GetRequiredService<RentalAddOnService>();
         await Assert.ThrowsAsync<NoPermissionException>(() => svc.AddAsync(rentalId, gpsId, quantity: 1m));
     }
 }

@@ -14,7 +14,7 @@ namespace RentACar.Web.Api.Cari;
 /// <summary>
 /// <c>/api/ui/v1/hukuk-dosyalari/*</c> — hukuk dosyası (Blazor <c>HukukList</c>). İzin OperationsWrite. Şube kolonu yok
 /// (cariye bağlı, firma geneli). Tutar/tahsilat BİLGİ alanıdır (deftere yazmaz — servis çiti). Müşteri adı/telefonu
-/// <see cref="F5Ortak.CarilerAsync"/> ile KVKK kuralından geçer.
+/// <see cref="F5Shared.CustomersAsync"/> ile KVKK kuralından geçer.
 /// </summary>
 public static partial class CrmApi
 {
@@ -27,14 +27,14 @@ public static partial class CrmApi
     private static void MapLegalFiles(RouteGroupBuilder g)
     {
         var s = g.MapGroup("/hukuk-dosyalari").WithTags("CRM");
-        s.MapGet("", ListLegalFiles).AlanlariEsle(F5Ortak.SiralamaKurallari);
+        s.MapGet("", ListLegalFiles).MapFields(F5Shared.SortRules);
         s.MapGet("/{id:guid}", GetLegalFile);
-        s.MapPost("", CreateLegalFile).AlanlariEsle(LegalFieldRules);
-        s.MapPut("/{id:guid}", UpdateLegalFile).AlanlariEsle(LegalFieldRules);
+        s.MapPost("", CreateLegalFile).MapFields(LegalFieldRules);
+        s.MapPut("/{id:guid}", UpdateLegalFile).MapFields(LegalFieldRules);
         s.MapDelete("/{id:guid}", DeleteLegalFile);
     }
 
-    private static ProblemHttpResult LegalNotFound() => F5Ortak.Bulunamadi("Hukuk dosyası bulunamadı.");
+    private static ProblemHttpResult LegalNotFound() => F5Shared.NotFound("Hukuk dosyası bulunamadı.");
 
     private static readonly SortFieldMap<LegalFileRow> LegalSort = SortFieldMap<LegalFileRow>
         .Create(r => r.Id)
@@ -58,24 +58,24 @@ public static partial class CrmApi
         [AsParameters] LegalFileListFilter f, LegalCaseService files, IDbContextFactory<AppDbContext> dbf,
         int? sayfa, int? boyut, string? sirala, CancellationToken ct)
     {
-        Sinirlar.Metin(f.Ara, 100, "ara", "Arama metni");
-        Sinirlar.Metin(f.FaturaNo, 64, "faturaNo", "Fatura no");
-        Sinirlar.Metin(f.DosyaNo, 64, "dosyaNo", "Dosya no");
-        var (min, max) = F5Ortak.GunAraligi(f.TarihBas, f.TarihBit);
+        RentalLimits.Text(f.Ara, 100, "ara", "Arama metni");
+        RentalLimits.Text(f.FaturaNo, 64, "faturaNo", "Fatura no");
+        RentalLimits.Text(f.DosyaNo, 64, "dosyaNo", "Dosya no");
+        var (min, max) = F5Shared.DayRange(f.TarihBas, f.TarihBit);
         var items = await files.SearchAsync(new HukukDosyaFilter
         {
-            CariId = f.CariId, Bas = min, Bit = max, FaturaNo = F5Ortak.Nz(f.FaturaNo), DosyaNo = F5Ortak.Nz(f.DosyaNo),
-            Ara = F5Ortak.Nz(f.Ara), Tur = F5Ortak.EnumAdi<LegalType>(f.Tur, "tur"),
-            Durum = F5Ortak.EnumAdi<LegalStatus>(f.Durum, "durum"), EnFazla = 10_000,
+            CariId = f.CariId, Bas = min, Bit = max, FaturaNo = F5Shared.Nz(f.FaturaNo), DosyaNo = F5Shared.Nz(f.DosyaNo),
+            Ara = F5Shared.Nz(f.Ara), Tur = F5Shared.EnumAdi<LegalType>(f.Tur, "tur"),
+            Durum = F5Shared.EnumAdi<LegalStatus>(f.Durum, "durum"), EnFazla = 10_000,
         }, ct);
         var rows = await LegalRowsAsync(dbf, items.Select(x => x.Dosya).ToList(), ct);
-        return TypedResults.Ok(F5Ortak.Sayfala(rows, LegalSort, sayfa, boyut, sirala));
+        return TypedResults.Ok(F5Shared.Paginate(rows, LegalSort, sayfa, boyut, sirala));
     }
 
     private static async Task<List<LegalFileRow>> LegalRowsAsync(
         IDbContextFactory<AppDbContext> dbf, IReadOnlyList<HukukDosya> items, CancellationToken ct)
     {
-        var customers = await F5Ortak.CarilerAsync(dbf, items.Where(h => h.CariId is not null).Select(h => h.CariId!.Value), ct);
+        var customers = await F5Shared.CustomersAsync(dbf, items.Where(h => h.CariId is not null).Select(h => h.CariId!.Value), ct);
         return items.Select(h =>
         {
             var c = h.CariId is { } id && customers.TryGetValue(id, out var v) ? v : null;
@@ -98,23 +98,23 @@ public static partial class CrmApi
 
     private static async Task<HukukDosyaInput> LegalInputAsync(LegalFileRequest r, IDbContextFactory<AppDbContext> dbf, CancellationToken ct)
     {
-        Sinirlar.Metin(r.DosyaNo, 64, "dosyaNo", "Dosya no");
-        Sinirlar.Metin(r.Avukat, 128, "avukat", "Avukat");
-        Sinirlar.Metin(r.Aciklama, 1024, "aciklama", "Açıklama");
-        Sinirlar.Metin(r.FaturaNoTemp, 64, "faturaNoTemp", "Fatura no");
-        Sinirlar.Metin(r.AvukatTel, 32, "avukatTel", "Avukat telefonu");
-        Sinirlar.Metin(r.AvukatMail, 256, "avukatMail", "Avukat e-postası");
-        Sinirlar.Metin(r.Avukat2Ad, 128, "avukat2Ad", "2. avukat adı");
-        Sinirlar.Metin(r.Avukat2Tel, 32, "avukat2Tel", "2. avukat telefonu");
-        Sinirlar.Metin(r.Avukat2Mail, 256, "avukat2Mail", "2. avukat e-postası");
-        Sinirlar.Tutar(r.Tutar, "tutar", "Tutar");
-        Sinirlar.Tutar(r.Tahsilat, "tahsilat", "Tahsilat");
+        RentalLimits.Text(r.DosyaNo, 64, "dosyaNo", "Dosya no");
+        RentalLimits.Text(r.Avukat, 128, "avukat", "Avukat");
+        RentalLimits.Text(r.Aciklama, 1024, "aciklama", "Açıklama");
+        RentalLimits.Text(r.FaturaNoTemp, 64, "faturaNoTemp", "Fatura no");
+        RentalLimits.Text(r.AvukatTel, 32, "avukatTel", "Avukat telefonu");
+        RentalLimits.Text(r.AvukatMail, 256, "avukatMail", "Avukat e-postası");
+        RentalLimits.Text(r.Avukat2Ad, 128, "avukat2Ad", "2. avukat adı");
+        RentalLimits.Text(r.Avukat2Tel, 32, "avukat2Tel", "2. avukat telefonu");
+        RentalLimits.Text(r.Avukat2Mail, 256, "avukat2Mail", "2. avukat e-postası");
+        RentalLimits.Amount(r.Tutar, "tutar", "Tutar");
+        RentalLimits.Amount(r.Tahsilat, "tahsilat", "Tahsilat");
         await CrmScope.RequireCustomerAsync(dbf, r.CariId, "cariId", ct);
         return new HukukDosyaInput
         {
-            DosyaNo = r.DosyaNo, CariId = r.CariId, Tur = F5Ortak.EnumAdi<LegalType>(r.Tur, "tur") ?? LegalType.Dava,
-            Avukat = r.Avukat, Tutar = r.Tutar, Durum = F5Ortak.EnumAdi<LegalStatus>(r.Durum, "durum") ?? LegalStatus.Acik,
-            Tarih = F5Ortak.Utc(r.Tarih), Aciklama = r.Aciklama, Aktif = r.Aktif, FaturaNoTemp = r.FaturaNoTemp,
+            DosyaNo = r.DosyaNo, CariId = r.CariId, Tur = F5Shared.EnumAdi<LegalType>(r.Tur, "tur") ?? LegalType.Dava,
+            Avukat = r.Avukat, Tutar = r.Tutar, Durum = F5Shared.EnumAdi<LegalStatus>(r.Durum, "durum") ?? LegalStatus.Acik,
+            Tarih = F5Shared.Utc(r.Tarih), Aciklama = r.Aciklama, Aktif = r.Aktif, FaturaNoTemp = r.FaturaNoTemp,
             AvukatTel = r.AvukatTel, AvukatMail = r.AvukatMail, Avukat2Ad = r.Avukat2Ad, Avukat2Tel = r.Avukat2Tel,
             Avukat2Mail = r.Avukat2Mail, Tahsilat = r.Tahsilat,
         };

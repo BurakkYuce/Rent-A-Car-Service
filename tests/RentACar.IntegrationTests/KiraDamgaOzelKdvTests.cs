@@ -19,19 +19,19 @@ namespace RentACar.IntegrationTests;
 [Collection("postgres")]
 public sealed class KiraDamgaOzelKdvTests(PostgresFixture fx)
 {
-    private static readonly DateTimeOffset Bas =
+    private static readonly DateTimeOffset Start =
         new DateTimeOffset(DateTime.UtcNow.Date, TimeSpan.Zero).AddDays(-3).AddHours(9);
 
-    private static async Task<(Guid rental, Guid cari)> KiraAsync(IServiceProvider sp, string plaka,
-        decimal? ozelKdv = null, decimal? damga = null, string? fiyatTuru = null)
+    private static async Task<(Guid rental, Guid cari)> RentalAsync(IServiceProvider sp, string plate,
+        decimal? customVat = null, decimal? stamp = null, string? priceType = null)
     {
-        var v = await sp.GetRequiredService<VehicleService>().CreateAsync(new VehicleInput { Plaka = plaka });
+        var v = await sp.GetRequiredService<VehicleService>().CreateAsync(new VehicleInput { Plaka = plate });
         var m = await sp.GetRequiredService<CustomerService>()
             .CreateAsync(new CustomerInput { Tip = CustomerType.Bireysel, Ad = "Vergi", Soyad = "Cari" });
         var r = await sp.GetRequiredService<RentalService>().CreateDirectAsync(new BookingInput
         {
-            MusteriId = m, VehicleId = v, BasTar = Bas, BitTar = Bas.AddDays(3), GunlukUcret = 100m,
-            KmLimit = 300, FazlaKmUcret = 2m, OzelKdvOran = ozelKdv, DamgaVergisi = damga, FiyatTuru = fiyatTuru
+            MusteriId = m, VehicleId = v, BasTar = Start, BitTar = Start.AddDays(3), GunlukUcret = 100m,
+            KmLimit = 300, FazlaKmUcret = 2m, OzelKdvOran = customVat, DamgaVergisi = stamp, FiyatTuru = priceType
         });
         return (r, m);
     }
@@ -42,7 +42,7 @@ public sealed class KiraDamgaOzelKdvTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
         var sp = scope.ServiceProvider;
-        var (rental, _) = await KiraAsync(sp, "34 VG 01", ozelKdv: 0.10m, damga: 50m);
+        var (rental, _) = await RentalAsync(sp, "34 VG 01", customVat: 0.10m, stamp: 50m);
 
         // Sözleşme tutarı bilgi alanlarından ETKİLENMEZ: 3×100 = 300 (elle).
         Assert.Equal(300m, (await sp.GetRequiredService<RentalService>().GetAsync(rental))!.GenelToplam);
@@ -61,7 +61,7 @@ public sealed class KiraDamgaOzelKdvTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
         var sp = scope.ServiceProvider;
-        var (rental, _) = await KiraAsync(sp, "34 VG 02", ozelKdv: 0.10m, damga: 50m);
+        var (rental, _) = await RentalAsync(sp, "34 VG 02", customVat: 0.10m, stamp: 50m);
 
         var invId = await sp.GetRequiredService<InvoiceService>().CreateFromRentalAsync(rental,
             vatRate: 0m, tax: new InvoiceTaxInfo(null, null, null, 75m, false, false));
@@ -80,11 +80,11 @@ public sealed class KiraDamgaOzelKdvTests(PostgresFixture fx)
 
         // CREATE: "Günlük" NET mod + özel oran → çelişki hiç oluşmaz (fark-kilidi senaryosu imkânsız).
         await Assert.ThrowsAsync<ValidationException>(
-            () => KiraAsync(sp, "34 VG 03", ozelKdv: 0.10m, fiyatTuru: "Günlük"));
+            () => RentalAsync(sp, "34 VG 03", customVat: 0.10m, priceType: "Günlük"));
 
         // UPDATE: oransız net-mod kira sonradan oran alamaz (aynı çit). (Farklı plaka: reddedilen
         // create yine de aracı oluşturmuştu — duplicate-plaka çakışması.)
-        var (rental, _) = await KiraAsync(sp, "34 VG 03B", fiyatTuru: "Günlük");
+        var (rental, _) = await RentalAsync(sp, "34 VG 03B", priceType: "Günlük");
         await Assert.ThrowsAsync<ValidationException>(
             () => sp.GetRequiredService<RentalService>()
                 .UpdateOpenAsync(rental, new RentalUpdateInput { OzelKdvOran = 0.10m }));
@@ -99,18 +99,18 @@ public sealed class KiraDamgaOzelKdvTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
         var sp = scope.ServiceProvider;
-        var (rental, _) = await KiraAsync(sp, "34 VG 06", damga: 50m);
+        var (rental, _) = await RentalAsync(sp, "34 VG 06", stamp: 50m);
         var invoices = sp.GetRequiredService<InvoiceService>();
         var rentals = sp.GetRequiredService<RentalService>();
         var repo = sp.GetRequiredService<IInvoiceRepository>();
 
         var baseId = await invoices.CreateFromRentalAsync(rental);
         await rentals.DeliverAsync(rental, pickupKm: 1000, pickupFuel: 8);
-        await rentals.ReturnAsync(rental, returnKm: 1600, returnFuel: 8, Bas.AddDays(3));
-        var farkId = await invoices.CreateFromRentalAsync(rental);
+        await rentals.ReturnAsync(rental, returnKm: 1600, returnFuel: 8, Start.AddDays(3));
+        var differenceId = await invoices.CreateFromRentalAsync(rental);
 
         Assert.Equal(50m, (await repo.FindAsync(baseId))!.DamgaVergisi);   // base'de pul VAR
-        Assert.Null((await repo.FindAsync(farkId))!.DamgaVergisi);         // fark'ta TEKRARLANMAZ
+        Assert.Null((await repo.FindAsync(differenceId))!.DamgaVergisi);         // fark'ta TEKRARLANMAZ
     }
 
     [Fact]
@@ -119,19 +119,19 @@ public sealed class KiraDamgaOzelKdvTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
         var sp = scope.ServiceProvider;
-        var (rental, _) = await KiraAsync(sp, "34 VG 04", ozelKdv: 0.10m);
+        var (rental, _) = await RentalAsync(sp, "34 VG 04", customVat: 0.10m);
         var invoices = sp.GetRequiredService<InvoiceService>();
         var rentals = sp.GetRequiredService<RentalService>();
 
         await invoices.CreateFromRentalAsync(rental);                                   // base 300 → 272,73/27,27
         await rentals.DeliverAsync(rental, pickupKm: 1000, pickupFuel: 8);
-        await rentals.ReturnAsync(rental, returnKm: 1600, returnFuel: 8, Bas.AddDays(3)); // 300 aşım×2=600 fark
-        var farkId = await invoices.CreateFromRentalAsync(rental);                       // fark da 0.10 (zincir)
+        await rentals.ReturnAsync(rental, returnKm: 1600, returnFuel: 8, Start.AddDays(3)); // 300 aşım×2=600 fark
+        var differenceId = await invoices.CreateFromRentalAsync(rental);                       // fark da 0.10 (zincir)
 
-        var fark = (await sp.GetRequiredService<IInvoiceRepository>().FindAsync(farkId))!;
-        Assert.Equal(545.45m, fark.NetTutar);      // 600/1.10 (elle)
-        Assert.Equal(54.55m, fark.KdvTutar);
-        Assert.Equal(600m, fark.GenelToplam);
+        var difference = (await sp.GetRequiredService<IInvoiceRepository>().FindAsync(differenceId))!;
+        Assert.Equal(545.45m, difference.NetTutar);      // 600/1.10 (elle)
+        Assert.Equal(54.55m, difference.KdvTutar);
+        Assert.Equal(600m, difference.GenelToplam);
     }
 
     [Fact]
@@ -140,7 +140,7 @@ public sealed class KiraDamgaOzelKdvTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
         var sp = scope.ServiceProvider;
-        var (rental, _) = await KiraAsync(sp, "34 VG 05");
+        var (rental, _) = await RentalAsync(sp, "34 VG 05");
         var rentals = sp.GetRequiredService<RentalService>();
 
         // Açık kirada bilgi alanı güncellenebilir; para/tarih alanları RentalUpdateInput TİPİNDE YOK.

@@ -17,11 +17,11 @@ namespace RentACar.IntegrationTests;
 [Collection("postgres")]
 public sealed class DokumTasimaTests(PostgresFixture fx)
 {
-    private static readonly DateTimeOffset Bas = new DateTimeOffset(DateTime.UtcNow.Date, TimeSpan.Zero).AddDays(5);
+    private static readonly DateTimeOffset Start = new DateTimeOffset(DateTime.UtcNow.Date, TimeSpan.Zero).AddDays(5);
 
-    private static async Task<(Guid m, Guid v)> SeedAsync(IServiceProvider sp, string plaka)
+    private static async Task<(Guid m, Guid v)> SeedAsync(IServiceProvider sp, string plate)
     {
-        var v = await sp.GetRequiredService<VehicleService>().CreateAsync(new VehicleInput { Plaka = plaka, Grup = "B" });
+        var v = await sp.GetRequiredService<VehicleService>().CreateAsync(new VehicleInput { Plaka = plate, Grup = "B" });
         var m = await sp.GetRequiredService<CustomerService>().CreateAsync(new CustomerInput { Tip = CustomerType.Bireysel, Ad = "Dok", Soyad = "M" });
         await sp.GetRequiredService<RateMatrixService>().CreateAsync(new RateMatrixInput
         { Kod = "DK-B", Ad = "DK", AracGrupKod = "B", ParaBirimi = "TRY", Gun1 = 300m, Gun2 = 280m, Gun3 = 240m, OnayDurumu = TariffApprovalStatus.Onayli, Onaylayan = "t" });
@@ -39,18 +39,18 @@ public sealed class DokumTasimaTests(PostgresFixture fx)
         var res = sp.GetRequiredService<ReservationService>();
         var (m, v) = await SeedAsync(sp, "34 DK 01");
 
-        var rezId = await res.CreateAsync(new BookingInput
-        { MusteriId = m, VehicleId = v, BasTar = Bas, BitTar = Bas.AddDays(3), FiyatTuru = "Otomatik" });
+        var resId = await res.CreateAsync(new BookingInput
+        { MusteriId = m, VehicleId = v, BasTar = Start, BitTar = Start.AddDays(3), FiyatTuru = "Otomatik" });
 
         // Rezervasyonda döküm dolu (Tutar 432, hediye 1, iskonto 48).
-        var rez = await res.GetAsync(rezId);
-        Assert.Equal(432m, rez!.Tutar);
-        Assert.Equal(1, rez.HediyeGun);
-        Assert.Equal(48m, rez.IskontoTutar);
+        var resv = await res.GetAsync(resId);
+        Assert.Equal(432m, resv!.Tutar);
+        Assert.Equal(1, resv.HediyeGun);
+        Assert.Equal(48m, resv.IskontoTutar);
 
         // Rez → Kira dönüşümü: döküm de taşınır (PR4b L2 boşluğu kapandı).
-        var kiraId = await res.ConvertToRentalAsync(rezId);
-        var s = await sp.GetRequiredService<ContractService>().GetAsync(kiraId);
+        var rentalId = await res.ConvertToRentalAsync(resId);
+        var s = await sp.GetRequiredService<ContractService>().GetAsync(rentalId);
         Assert.Equal(432m, s!.Tutar);        // para (zaten korunuyordu)
         Assert.Equal(1, s.HediyeGun);        // döküm ARTIK taşınıyor
         Assert.Equal(2, s.FaturalananGun);
@@ -66,13 +66,13 @@ public sealed class DokumTasimaTests(PostgresFixture fx)
         var (m, v) = await SeedAsync(sp, "34 DK 02");
 
         // Teklif FiyatTuru=Otomatik ile → döküm dolar; Kabul → Rezervasyona taşınır.
-        var teklifId = await sp.GetRequiredService<QuotationService>().CreateAsync(new QuotationInput
-        { MusteriId = m, VehicleId = v, BasTar = Bas, BitTar = Bas.AddDays(3), FiyatTuru = "Otomatik" });
-        var rezId = await sp.GetRequiredService<QuotationService>().AcceptAsync(teklifId);
+        var quotationId = await sp.GetRequiredService<QuotationService>().CreateAsync(new QuotationInput
+        { MusteriId = m, VehicleId = v, BasTar = Start, BitTar = Start.AddDays(3), FiyatTuru = "Otomatik" });
+        var resId = await sp.GetRequiredService<QuotationService>().AcceptAsync(quotationId);
 
-        var rez = await sp.GetRequiredService<ReservationService>().GetAsync(rezId);
-        Assert.Equal(432m, rez!.Tutar);
-        Assert.Equal(1, rez.HediyeGun);      // teklif → rez döküm taşındı
-        Assert.Equal(48m, rez.IskontoTutar);
+        var res = await sp.GetRequiredService<ReservationService>().GetAsync(resId);
+        Assert.Equal(432m, res!.Tutar);
+        Assert.Equal(1, res.HediyeGun);      // teklif → rez döküm taşındı
+        Assert.Equal(48m, res.IskontoTutar);
     }
 }

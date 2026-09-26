@@ -346,7 +346,7 @@
     </div>
 </div>
 @code {
-    [Parameter, EditorRequired] public KiraFormVm Vm { get; set; } = default!;
+    [Parameter, EditorRequired] public RentalFormVm Vm { get; set; } = default!;
 
     private bool TahsilatOlur => Vm.Edit && Vm.Rental!.Durum != RentACar.Domain.Enums.RentalStatus.Iptal;
     private string KapaliNot => Vm.Edit

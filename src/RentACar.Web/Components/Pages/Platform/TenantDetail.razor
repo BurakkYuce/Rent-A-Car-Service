@@ -89,7 +89,7 @@ else
        Tek alan (TenantSettings.LogoBytes) — son yazan kazanır. ---- *@
     <h2>PDF Logosu</h2>
     <div class="kf-panel">
-        @if (_loguVar)
+        @if (_hasLogo)
         {
             @* BASKI BOYUTUNDA önizleme: PDF'te logo 38 pt yüksekliğe sığdırılıyor (PdfExportService:65).
                Ekranda 38 px göstermek bulanıklığı PDF üretmeden, müşteriye gitmeden görünür kılar. *@
@@ -98,10 +98,10 @@ else
                 <img src="/platform/tenants/@_d.Id/logo" alt="Logo önizleme" style="height:38px;width:auto" />
             </div>
             <p class="muted small">
-                @_logoBilgi
-                @if (_logoUyari is not null)
+                @_logoInfo
+                @if (_logoWarning is not null)
                 {
-                    <br /><span class="badge warn">@_logoUyari</span>
+                    <br /><span class="badge warn">@_logoWarning</span>
                 }
             </p>
             <form method="post" action="/platform/tenants/logo-sil" class="tahsil-mini"
@@ -203,22 +203,22 @@ else
 
     private PlatformTenantDetay? _d;
     // PR-A logo durumu (byte'ın kendisi tutulmaz — önizleme ayrı uçtan servis edilir).
-    private bool _loguVar;
-    private string? _logoBilgi;
-    private string? _logoUyari;
+    private bool _hasLogo;
+    private string? _logoInfo;
+    private string? _logoWarning;
 
     protected override async Task OnInitializedAsync()
     {
         _d = await Platform.GetTenantAsync(Id);
         if (_d is null) return;
-        var (bytes, degerlendirme) = await Platform.GetTenantLogoAsync(Id);
-        _loguVar = bytes is { Length: > 0 };
-        if (degerlendirme is { } d)
+        var (bytes, evaluation) = await Platform.GetTenantLogoAsync(Id);
+        _hasLogo = bytes is { Length: > 0 };
+        if (evaluation is { } d)
         {
-            _logoBilgi = d.Genislik is { } g && d.Yukseklik is { } y
+            _logoInfo = d.Genislik is { } g && d.Yukseklik is { } y
                 ? $"{g}×{y} px · {d.Bayt / 1024} KB"
                 : $"{d.Bayt} bayt · ölçü okunamadı";
-            _logoUyari = d.Uyari;
+            _logoWarning = d.Uyari;
         }
     }
 }

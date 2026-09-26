@@ -52,7 +52,7 @@ public static partial class FinanceHubApi
         if (day < DateOnly.FromDateTime(DatePolicy.EarliestDocumentDate.UtcDateTime))
             throw new ValidationException("Kapanış tarihi 2000 yılından önce olamaz.", "kapanisTarihi");
         // Kilit İSTANBUL takvim günü granülünde (PeriodLock) — günün İstanbul gece yarısı, UTC olarak gider.
-        await closing.CloseAsync(F5Ortak.GunBasi(day), ct);
+        await closing.CloseAsync(F5Shared.DayStart(day), ct);
         return TypedResults.NoContent();
     }
 
@@ -68,7 +68,7 @@ public static partial class FinanceHubApi
         AutoCollectionService auto, ITenantSettingsRepository settings, IDbContextFactory<AppDbContext> f,
         CancellationToken ct)
     {
-        FinansApi.Metin(sozlesmeNo, 64, "sozlesmeNo");
+        FinanceOpsApi.Text(sozlesmeNo, 64, "sozlesmeNo");
         // L1: uç tarihler (9999-12-31 + 1 gün) DateTimeOffset'i taşırıp 500 üretiyordu.
         foreach (var (d, field) in new[] { (vadeMin, "vadeMin"), (vadeMax, "vadeMax") })
             if (d is { Year: < 2000 or > 2100 })
@@ -76,17 +76,17 @@ public static partial class FinanceHubApi
         // Blazor ile aynı: vade günleri UTC takvim günü, bitiş günü DAHİL.
         var candidates = await auto.CandidatesAsync(new OtomatikTahsilatFiltre
         {
-            SozlesmeNo = F5Ortak.Nz(sozlesmeNo),
+            SozlesmeNo = F5Shared.Nz(sozlesmeNo),
             VadeMin = vadeMin is { } a ? new DateTimeOffset(a.ToDateTime(TimeOnly.MinValue), TimeSpan.Zero) : null,
             VadeMax = vadeMax is { } b ? new DateTimeOffset(b.ToDateTime(TimeOnly.MinValue), TimeSpan.Zero).AddDays(1).AddTicks(-1) : null,
             SadeceBakiyeli = bakiyeli == true,
         }, ct);
         // Ayar okuması doğrudan repo'dan: TenantSettingsService ManageUsers ister; bu yalnız bilgi bayrağıdır.
         var jobOn = (await settings.GetAsync(ct))?.DonemselOtomatikTahsilat ?? false;
-        var names = await F5Ortak.CarilerAsync(f, candidates.Select(c => c.CariId), ct);
+        var names = await F5Shared.CustomersAsync(f, candidates.Select(c => c.CariId), ct);
         return TypedResults.Ok(new AutoCollectionList(jobOn,
             [.. candidates.Select(c => new AutoCollectionCandidate(c.RentalId, c.SozlesmeNo, c.DonemSira, c.DonemBas, c.DonemBit,
-                c.CariId, F5Ortak.CariAdi(names, c.CariId), c.Sube, c.Doviz, c.KiraTutar, c.CariBakiye))],
+                c.CariId, F5Shared.CustomerName(names, c.CariId), c.Sube, c.Doviz, c.KiraTutar, c.CariBakiye))],
             [.. AutoCollectionService.CurrencyTotals(candidates).Select(t => new CurrencyTotal(t.Doviz, t.Toplam))]));
     }
 
@@ -95,7 +95,7 @@ public static partial class FinanceHubApi
     private static async Task<Ok<AutoCollectionResult>> PostAutoCollection(
         AutoCollectionRequest req, AutoCollectionService auto, CancellationToken ct)
     {
-        var account = FinansApi.Hesap(req.Hesap, "hesap");
+        var account = FinanceOpsApi.Account(req.Hesap, "hesap");
         var selection = req.Secim ?? [];
         if (selection.Count == 0) throw new ValidationException("En az bir dönem seçilmelidir.", "secim");
         if (selection.Count > AutoCollectionService.MaxSelection)

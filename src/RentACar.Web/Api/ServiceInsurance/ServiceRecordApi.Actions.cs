@@ -24,9 +24,9 @@ internal static partial class ServiceRecordApi
         ServiceRecordRequest r, HttpContext http, ServiceRecordService svc, IDbContextFactory<AppDbContext> dbf, ICurrentUser user,
         CancellationToken ct)
     {
-        var key = IdempotencyBasligi.Anahtar(http);
+        var key = IdempotencyHeader.Key(http);
         if (key is { } k && await ScopedAsync(k, svc, dbf, user, ct) is { } m) throw Duplicate(m, r); // (1) ÖNCE mevcut
-        if (r.KusurOrani is { } ko) AracFinansOrtak.EnsureMaxScale(ko, 4, "kusurOrani");
+        if (r.KusurOrani is { } ko) VehicleFinanceShared.EnsureMaxScale(ko, 4, "kusurOrani");
         S.IntRange(r.GirisKm, 0, 10_000_000, "girisKm");
         if (r.Bilgi is { } b) InfoLimits(b, null);
         if (r.Kalem is { } l) LineLimits(l);
@@ -34,13 +34,13 @@ internal static partial class ServiceRecordApi
         var input = new ServiceRecordInput
         {
             Id = key, VehicleId = r.VehicleId!.Value,
-            Tip = F5Ortak.EnumAdi<ServiceType>(r.Tip, "tip") ?? ServiceType.Periyodik, GirisKm = r.GirisKm ?? 0,
+            Tip = F5Shared.EnumAdi<ServiceType>(r.Tip, "tip") ?? ServiceType.Periyodik, GirisKm = r.GirisKm ?? 0,
             GirisTarihi = S.Date(r.GirisTarihi, "girisTarihi"),
-            HasarSorumlu = F5Ortak.EnumAdi<DamageResponsible>(r.HasarSorumlu, "hasarSorumlu") ?? DamageResponsible.Yok,
+            HasarSorumlu = F5Shared.EnumAdi<DamageResponsible>(r.HasarSorumlu, "hasarSorumlu") ?? DamageResponsible.Yok,
             KusurOrani = r.KusurOrani, Rezervasyon = r.Rezervasyon,
         };
         if (r.Bilgi is { } bi) ApplyInfo(input, bi);
-        if (r.Kalem is { } kl && F5Ortak.Nz(kl.Aciklama) is not null) input.Lines.Add(LineInput(kl, null));
+        if (r.Kalem is { } kl && F5Shared.Nz(kl.Aciklama) is not null) input.Lines.Add(LineInput(kl, null));
         Guid id;
         try
         {
@@ -68,7 +68,7 @@ internal static partial class ServiceRecordApi
         ICurrentUser user, CancellationToken ct)
     {
         if (await ScopedAsync(id, svc, dbf, user, ct) is not { } old) return NotFound();
-        var version = AracFinansOrtak.Surum(r.Surum);
+        var version = VehicleFinanceShared.Version(r.Surum);
         InfoLimits(r, old);
         var input = new ServiceRecordBilgiInput();
         ApplyInfo(input, r);
@@ -88,9 +88,9 @@ internal static partial class ServiceRecordApi
         if (r.OdemeKur is { } k && r.OdemeKur != o?.OdemeKur)
         {
             if (k >= 1_000_000m) throw new ValidationException("Kur çok büyük.", "odemeKur");
-            AracFinansOrtak.EnsureMaxScale(k, 6, "odemeKur");
+            VehicleFinanceShared.EnsureMaxScale(k, 6, "odemeKur");
         }
-        F5Ortak.EnumAdi<PaymentMethod>(r.OdemeTuru, "odemeTuru");
+        F5Shared.EnumAdi<PaymentMethod>(r.OdemeTuru, "odemeTuru");
     }
 
     private static void ApplyInfo(ServiceRecordBilgiInput b, ServiceInfoRequest r)
@@ -100,7 +100,7 @@ internal static partial class ServiceRecordApi
         b.KazaSorumlusu = r.KazaSorumlusu; b.HasarDosyaNo = r.HasarDosyaNo; b.DegerKaybi = r.DegerKaybi;
         b.FaturaTarihi = S.Date(r.FaturaTarihi, "faturaTarihi"); b.FaturaNo = r.FaturaNo; b.FaturaTutar = r.FaturaTutar;
         b.FaturaKdv = r.FaturaKdv; b.OdemeTarihi = S.Date(r.OdemeTarihi, "odemeTarihi"); b.Odeme = r.Odeme;
-        b.OdemeDoviz = r.OdemeDoviz; b.OdemeKur = r.OdemeKur; b.OdemeTuru = F5Ortak.EnumAdi<PaymentMethod>(r.OdemeTuru, "odemeTuru");
+        b.OdemeDoviz = r.OdemeDoviz; b.OdemeKur = r.OdemeKur; b.OdemeTuru = F5Shared.EnumAdi<PaymentMethod>(r.OdemeTuru, "odemeTuru");
         b.KasaKodu = r.KasaKodu; b.HesapNo = r.HesapNo; b.CikisYakit = r.CikisYakit; b.DonusYakit = r.DonusYakit;
         b.PlanBasTarihi = S.Date(r.PlanBasTarihi, "planBasTarihi"); b.PlanBitTarihi = S.Date(r.PlanBitTarihi, "planBitTarihi");
     }

@@ -50,13 +50,13 @@ public static partial class ReportApi
         ReportScope.RequireFirmWide(user);
         var p = q.Validate();
         var d = await reports.GetVehicleScorecardAsync(id, p.FromUtc, p.ToUtc, ct);
-        if (d is null) return F5Ortak.Bulunamadi("Araç bulunamadı.");
+        if (d is null) return F5Shared.NotFound("Araç bulunamadı.");
         var h = d.Header;
-        var vadeler = (await dues.GetForVehicleAsync(id, ct: ct))
+        var dueList = (await dues.GetForVehicleAsync(id, ct: ct))
             .Select(v => new ScorecardDue(v.Tur, v.Bitis, v.KalanGun, v.Bucket.ToString())).ToList();
-        var bakim = (await reports.GetPeriodicServiceAsync(ct: ct)).FirstOrDefault(r => r.VehicleId == id);
+        var maintenance = (await reports.GetPeriodicServiceAsync(ct: ct)).FirstOrDefault(r => r.VehicleId == id);
         var m = d.MaliyetModel;
-        var karne = new VehicleScorecardReport(
+        var scorecard = new VehicleScorecardReport(
             new ScorecardHeader(h.VehicleId, h.Plaka, h.Marka, h.Tip, h.Grup, h.Segment, h.Sube, h.AracSahibi,
                 h.Durum.ToString(), h.Km, h.AlimBedeli, h.AlimTarihi, h.IkinciElDeger, h.FiloGirisTarih, h.FiloCikisTarih,
                 h.SonBakimTarih, h.SonBakimKm),
@@ -64,8 +64,8 @@ public static partial class ReportApi
             m is null ? null : new ScorecardCostModel(m.ResidualDeger, m.NetAmortisman, m.FinansmanFaiz, m.FinansmanVergi,
                 m.Damga, m.ToplamGider, m.ToplamMaliyet, m.BasaBasAylik, m.Kar, m.TeklifNet, m.TeklifAylikNet, m.TeklifKdvli,
                 m.Kalemler.Select(k => new ScorecardCostItem(k.Ad, k.Periyot.ToString(), k.Birim, k.DonemTutar)).ToList()),
-            d.TutSat, d.BasaBasGunluk, d.Kalinti, d.DonemKm, d.DonemKmMaliyet, vadeler, bakim);
-        return TypedResults.Ok(new ReportSummaryResult<VehicleScorecardReport>(p.ToDto(), karne,
+            d.TutSat, d.BasaBasGunluk, d.Kalinti, d.DonemKm, d.DonemKmMaliyet, dueList, maintenance);
+        return TypedResults.Ok(new ReportSummaryResult<VehicleScorecardReport>(p.ToDto(), scorecard,
             ReportExport.Links(http, user, "arac-karne", [("vehicleId", id.ToString()), .. ReportExport.Period(p)])));
     }
 
@@ -90,19 +90,19 @@ public static partial class ReportApi
     {
         ReportScope.RequireFirmWide(user);
         var p = q.Validate();
-        var sira = F(siralama)?.ToLowerInvariant();
-        if (sira is not null && !FleetOrders.Contains(sira))
+        var order = F(siralama)?.ToLowerInvariant();
+        if (order is not null && !FleetOrders.Contains(order))
             throw new Application.Common.ValidationException(
                 $"Geçersiz siralama. İzin verilenler: {string.Join(", ", FleetOrders)}.", "siralama");
-        var d = await reports.GetFleetAnalysisAsync(p.FromUtc, p.ToUtc, sira, ct);
-        var sayfa = page.Apply(d.Satirlar, FleetMap);
-        var uyarilar = await dues.GetWarningCountsByVehicleAsync(ct: ct);
-        var sayfadaki = sayfa.Kayitlar.Select(r => r.VehicleId).ToHashSet();
-        var ozet = new FleetAnalysisSummary(d.ToplamGelir, d.ToplamGider, d.ToplamNetKar, d.AtanmamisGelir,
+        var d = await reports.GetFleetAnalysisAsync(p.FromUtc, p.ToUtc, order, ct);
+        var pageResult = page.Apply(d.Satirlar, FleetMap);
+        var warnings = await dues.GetWarningCountsByVehicleAsync(ct: ct);
+        var onPage = pageResult.Kayitlar.Select(r => r.VehicleId).ToHashSet();
+        var summary = new FleetAnalysisSummary(d.ToplamGelir, d.ToplamGider, d.ToplamNetKar, d.AtanmamisGelir,
             d.AtanmamisGider, d.YasKohortu, d.HavuzKpi, d.TutSatAday,
-            uyarilar.Where(u => sayfadaki.Contains(u.Key)).ToDictionary(u => u.Key, u => u.Value));
-        return TypedResults.Ok(new ReportResult<FleetAnalysisSummary, FiloAnalizRow>(p.ToDto(), ozet, sayfa,
-            ReportExport.Links(http, user, "filo-analiz", [.. ReportExport.Period(p), ("siralama", sira)])));
+            warnings.Where(u => onPage.Contains(u.Key)).ToDictionary(u => u.Key, u => u.Value));
+        return TypedResults.Ok(new ReportResult<FleetAnalysisSummary, FiloAnalizRow>(p.ToDto(), summary, pageResult,
+            ReportExport.Links(http, user, "filo-analiz", [.. ReportExport.Period(p), ("siralama", order)])));
     }
 
     private static readonly Application.Common.SortFieldMap<FiloAnalizRow> FleetMap =
@@ -140,12 +140,12 @@ public static partial class ReportApi
         ReportScope.RequireFirmWide(user);
         var today = ReportPeriod.Today;
         var p = ReportPeriod.Validate(q.Bas ?? new DateOnly(today.Year, today.Month, 1), q.Bit ?? today, maxDays: 366);
-        var b = F5Ortak.EnumAdi<OccupancyDimension>(boyut, "boyut") ?? OccupancyDimension.Yok;
+        var b = F5Shared.EnumAdi<OccupancyDimension>(boyut, "boyut") ?? OccupancyDimension.Yok;
         var from = ReportPeriod.Anchor(p.Bas!.Value);
         var to = ReportPeriod.Anchor(p.Bit!.Value);
-        var ozet = await reports.GetOccupancyAsync(from, to, ct);
+        var summary = await reports.GetOccupancyAsync(from, to, ct);
         var g = await reports.GetOccupancyDailyAsync(from, to, b, ct);
-        return TypedResults.Ok(new ReportSummaryResult<OccupancyReport>(p.ToDto(), new OccupancyReport(ozet,
+        return TypedResults.Ok(new ReportSummaryResult<OccupancyReport>(p.ToDto(), new OccupancyReport(summary,
                 new OccupancyDaily(g.Satirlar, g.Boyut.ToString(), g.PaydaAciklama, g.DonemGun, g.ToplamKiraGun, g.ToplamRezGun)),
             ReportExport.Links(http, user, "doluluk", ReportExport.Period(p))));
     }

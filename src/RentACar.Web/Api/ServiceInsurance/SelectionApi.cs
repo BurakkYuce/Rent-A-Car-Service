@@ -42,7 +42,7 @@ internal static class SelectionApi
                 var visible = await S.VisibleAsync(dbf, user, policies, p => p.VehicleId, ct);
                 var plates = await S.PlatesAsync(dbf, visible.Select(p => p.VehicleId), ct);
                 return TypedResults.Ok(Filter(visible.Select(p => new SecimOgesi(p.Id,
-                    $"{F5Ortak.Plaka(plates, p.VehicleId)} · {p.Tip}" + (string.IsNullOrWhiteSpace(p.PoliceNo) ? "" : $" · {p.PoliceNo}"),
+                    $"{F5Shared.Plate(plates, p.VehicleId)} · {p.Tip}" + (string.IsNullOrWhiteSpace(p.PoliceNo) ? "" : $" · {p.PoliceNo}"),
                     p.PoliceNo)), q, limit));
             }).RequirePermission(Permission.OperationsWrite);
     }
@@ -50,7 +50,7 @@ internal static class SelectionApi
     private static IReadOnlyList<SecimOgesi> Filter(IEnumerable<SecimOgesi> items, string? q, int? limit)
     {
         var n = Math.Clamp(limit ?? SelectionService.MaxLimit, 1, SelectionService.MaxLimit);
-        var text = F5Ortak.Nz(q);
+        var text = F5Shared.Nz(q);
         return items.Where(i => text is null || i.Etiket.Contains(text, StringComparison.CurrentCultureIgnoreCase)
                                 || (i.Kod?.Contains(text, StringComparison.CurrentCultureIgnoreCase) ?? false))
             .Take(n).ToList();

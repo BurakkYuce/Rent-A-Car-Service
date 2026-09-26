@@ -23,22 +23,22 @@ namespace RentACar.IntegrationTests;
 [Collection("postgres")]
 public sealed class CariBakiyeFiltreTests(PostgresFixture fx)
 {
-    private static async Task<Guid> CariAsync(IServiceScope scope, Action<Customer> kur)
+    private static async Task<Guid> CustomerAsync(IServiceScope scope, Action<Customer> exchangeRate)
     {
         var factory = scope.ServiceProvider.GetRequiredService<IDbContextFactory<AppDbContext>>();
         await using var db = await factory.CreateDbContextAsync();
         var c = new Customer { Tip = CustomerType.Bireysel };
-        kur(c);
+        exchangeRate(c);
         db.Customers.Add(c);
         await db.SaveChangesAsync();
         return c.Id;
     }
 
-    private static async Task<Guid> AracAsync(IServiceScope scope, string plaka)
+    private static async Task<Guid> VehicleAsync(IServiceScope scope, string plate)
     {
         var factory = scope.ServiceProvider.GetRequiredService<IDbContextFactory<AppDbContext>>();
         await using var db = await factory.CreateDbContextAsync();
-        var v = new Vehicle { Plaka = plaka, Durum = VehicleStatus.Musait };
+        var v = new Vehicle { Plaka = plate, Durum = VehicleStatus.Musait };
         db.Vehicles.Add(v);
         await db.SaveChangesAsync();
         return v.Id;
@@ -54,9 +54,9 @@ public sealed class CariBakiyeFiltreTests(PostgresFixture fx)
         var cash = sp.GetRequiredService<CashService>();
         var reports = sp.GetRequiredService<ReportService>();
 
-        var cari = await CariAsync(scope, c => { c.Ad = "Brut"; c.Soyad = "Test"; });
-        var v1 = await AracAsync(scope, "34 BF 01");
-        var v2 = await AracAsync(scope, "34 BF 02");
+        var account = await CustomerAsync(scope, c => { c.Ad = "Brut"; c.Soyad = "Test"; });
+        var v1 = await VehicleAsync(scope, "34 BF 01");
+        var v2 = await VehicleAsync(scope, "34 BF 02");
 
         // ELLE: 2 borç hareketi + 1 alacak hareketi.
         //   satış net 1000 @%20 → borç 1200
@@ -64,10 +64,10 @@ public sealed class CariBakiyeFiltreTests(PostgresFixture fx)
         //   tahsilat 300                       → ToplamAlacak = 300
         //   net bakiye = 1800 − 300 = 1500
         await sales.CreateAsync(new VehicleSaleInput
-        { VehicleId = v1, AliciCariId = cari, SatisNet = 1000m, KdvOrani = 0.20m });
+        { VehicleId = v1, AliciCariId = account, SatisNet = 1000m, KdvOrani = 0.20m });
         await sales.CreateAsync(new VehicleSaleInput
-        { VehicleId = v2, AliciCariId = cari, SatisNet = 500m, KdvOrani = 0.20m });
-        await cash.CollectAsync(new CashInput { CariId = cari, Tutar = 300m });
+        { VehicleId = v2, AliciCariId = account, SatisNet = 500m, KdvOrani = 0.20m });
+        await cash.CollectAsync(new CashInput { CariId = account, Tutar = 300m });
 
         var b = Assert.Single(await reports.GetAccountBalancesAsync());
         Assert.Equal(1800m, b.ToplamBorc);
@@ -84,13 +84,13 @@ public sealed class CariBakiyeFiltreTests(PostgresFixture fx)
         using var scope = host.ScopeFor(Guid.NewGuid());
         var sp = scope.ServiceProvider;
 
-        var cari = await CariAsync(scope, c =>
+        var account = await CustomerAsync(scope, c =>
         {
             c.Tip = CustomerType.Kurumsal; c.Unvan = "Acme A.Ş.";
             c.CepTel = "05551112233"; c.Email = "muhasebe@acme.test";
             c.BankaAdi = "Ziraat"; c.Doviz = "EURO"; c.OzelCariTip = "Grup İçi"; c.Sinif = "Kurumsal";
         });
-        await sp.GetRequiredService<CashService>().CollectAsync(new CashInput { CariId = cari, Tutar = 100m });
+        await sp.GetRequiredService<CashService>().CollectAsync(new CashInput { CariId = account, Tutar = 100m });
 
         var b = Assert.Single(await sp.GetRequiredService<ReportService>().GetAccountBalancesAsync());
         Assert.Equal("Acme A.Ş.", b.Ad);
@@ -106,25 +106,25 @@ public sealed class CariBakiyeFiltreTests(PostgresFixture fx)
     }
 
     /// <summary>Üç farklı profilde cari kurar; her filtre testi bu tabandan beklenen ADI seçer.</summary>
-    private static async Task<(Guid borclu, Guid alacakli, Guid kucuk)> SenaryoAsync(IServiceScope scope)
+    private static async Task<(Guid borclu, Guid alacakli, Guid kucuk)> ScenarioAsync(IServiceScope scope)
     {
         var sp = scope.ServiceProvider;
         var sales = sp.GetRequiredService<VehicleSaleService>();
         var cash = sp.GetRequiredService<CashService>();
 
         // A: kurumsal, TL, "Yurtiçi" — satış net 1000 @%20 → borç 1200 (borçlu)
-        var a = await CariAsync(scope, c =>
+        var a = await CustomerAsync(scope, c =>
         { c.Tip = CustomerType.Kurumsal; c.Unvan = "Alfa Lojistik"; c.Doviz = "TL"; c.OzelCariTip = "Yurtiçi"; c.CepTel = "05320001122"; });
         await sales.CreateAsync(new VehicleSaleInput
-        { VehicleId = await AracAsync(scope, "34 FL 01"), AliciCariId = a, SatisNet = 1000m, KdvOrani = 0.20m });
+        { VehicleId = await VehicleAsync(scope, "34 FL 01"), AliciCariId = a, SatisNet = 1000m, KdvOrani = 0.20m });
 
         // B: bireysel, EURO, "Yurtdışı" — tahsilat 800 → bakiye −800 (alacaklı)
-        var b = await CariAsync(scope, c =>
+        var b = await CustomerAsync(scope, c =>
         { c.Ad = "Beta"; c.Soyad = "Yılmaz"; c.Doviz = "EURO"; c.OzelCariTip = "Yurtdışı"; c.Email = "beta@ornek.test"; });
         await cash.CollectAsync(new CashInput { CariId = b, Tutar = 800m });
 
         // C: bireysel, TL, "Yurtiçi" — tahsilat 50 → bakiye −50 (küçük)
-        var c3 = await CariAsync(scope, c =>
+        var c3 = await CustomerAsync(scope, c =>
         { c.Ad = "Cem"; c.Soyad = "Küçük"; c.Doviz = "TL"; c.OzelCariTip = "Yurtiçi"; });
         await cash.CollectAsync(new CashInput { CariId = c3, Tutar = 50m });
 
@@ -136,15 +136,15 @@ public sealed class CariBakiyeFiltreTests(PostgresFixture fx)
     {
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
-        await SenaryoAsync(scope);
+        await ScenarioAsync(scope);
         var reports = scope.ServiceProvider.GetRequiredService<ReportService>();
 
         // Elle: 3 cari, hepsinin bakiyesi sıfırdan farklı → 3 satır, borçtan alacağa sıralı.
-        var hepsi = await reports.GetAccountBalancesAsync();
-        Assert.Equal(3, hepsi.Count);
-        Assert.Equal(1200m, hepsi[0].Bakiye);     // en yüksek önce
-        Assert.Equal(-50m, hepsi[1].Bakiye);
-        Assert.Equal(-800m, hepsi[2].Bakiye);
+        var all = await reports.GetAccountBalancesAsync();
+        Assert.Equal(3, all.Count);
+        Assert.Equal(1200m, all[0].Bakiye);     // en yüksek önce
+        Assert.Equal(-50m, all[1].Bakiye);
+        Assert.Equal(-800m, all[2].Bakiye);
         // null filtre ile boş filtre nesnesi AYNI sonucu vermeli (filtre eklenmiş olması daraltmasın).
         Assert.Equal(3, (await reports.GetAccountBalancesAsync(new CariBakiyeFilter())).Count);
     }
@@ -154,7 +154,7 @@ public sealed class CariBakiyeFiltreTests(PostgresFixture fx)
     {
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
-        var (a, b, kucuk) = await SenaryoAsync(scope);
+        var (a, b, small) = await ScenarioAsync(scope);
         var r = scope.ServiceProvider.GetRequiredService<ReportService>();
 
         // Metin araması: ada göre
@@ -179,7 +179,7 @@ public sealed class CariBakiyeFiltreTests(PostgresFixture fx)
         // Min tutar MUTLAK bakiyeye uygulanır: 100 → A (1200) ve B (−800) kalır, C (−50) düşer.
         var min100 = await r.GetAccountBalancesAsync(new CariBakiyeFilter { MinTutar = 100m });
         Assert.Equal(2, min100.Count);
-        Assert.DoesNotContain(min100, x => x.CariId == kucuk);
+        Assert.DoesNotContain(min100, x => x.CariId == small);
 
         // Birleşik filtre: alacaklı VE mutlak ≥100 → yalnız B.
         Assert.Equal(b, Assert.Single(await r.GetAccountBalancesAsync(
@@ -194,22 +194,22 @@ public sealed class CariBakiyeFiltreTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
         var sp = scope.ServiceProvider;
-        var cari = await CariAsync(scope, c => { c.Ad = "Silinecek"; c.Soyad = "Cari"; });
-        await sp.GetRequiredService<CashService>().CollectAsync(new CashInput { CariId = cari, Tutar = 250m });
+        var account = await CustomerAsync(scope, c => { c.Ad = "Silinecek"; c.Soyad = "Cari"; });
+        await sp.GetRequiredService<CashService>().CollectAsync(new CashInput { CariId = account, Tutar = 250m });
 
         var factory = sp.GetRequiredService<IDbContextFactory<AppDbContext>>();
         await using (var db = await factory.CreateDbContextAsync())
         {
-            db.Customers.Remove(await db.Customers.FirstAsync(c => c.Id == cari));
+            db.Customers.Remove(await db.Customers.FirstAsync(c => c.Id == account));
             await db.SaveChangesAsync();
         }
 
         var r = sp.GetRequiredService<ReportService>();
-        var satir = Assert.Single(await r.GetAccountBalancesAsync());
-        Assert.Equal(-250m, satir.Bakiye);
-        Assert.Null(satir.Telefon);
-        Assert.Null(satir.Doviz);
-        Assert.False(satir.Kurumsal);
+        var row = Assert.Single(await r.GetAccountBalancesAsync());
+        Assert.Equal(-250m, row.Bakiye);
+        Assert.Null(row.Telefon);
+        Assert.Null(row.Doviz);
+        Assert.False(row.Kurumsal);
         // Filtre yine çalışır (null alanlar eşleşmez, istisna atmaz).
         Assert.Empty(await r.GetAccountBalancesAsync(new CariBakiyeFilter { Doviz = "TL" }));
         Assert.Single(await r.GetAccountBalancesAsync(new CariBakiyeFilter { MinTutar = 100m }));

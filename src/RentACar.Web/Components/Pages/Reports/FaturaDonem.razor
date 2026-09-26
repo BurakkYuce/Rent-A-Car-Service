@@ -90,7 +90,7 @@ else
         <label>İşlem Şube
             <select name="sube">
                 <option value="">Tümü</option>
-                @foreach (var s in _subeler)
+                @foreach (var s in _branches)
                 {
                     <option value="@s.Id" selected="@(Sube == s.Id.ToString())">@s.Ad</option>
                 }
@@ -103,15 +103,15 @@ else
 
     <div class="cards">
         <div class="card">
-            <div class="card-num">@_kiraRows.Count(k => !k.Faturalanan)</div>
+            <div class="card-num">@_rentalRows.Count(k => !k.Faturalanan)</div>
             <div class="card-label">Faturalanmamış Kira</div>
         </div>
         <div class="card">
-            <div class="card-num">@_kiraRows.Count(k => k.Faturalanan)</div>
+            <div class="card-num">@_rentalRows.Count(k => k.Faturalanan)</div>
             <div class="card-label">Faturalanmış Kira</div>
         </div>
         <div class="card">
-            <div class="card-num">@_kiraRows.Sum(k => k.FaturalananTutar).ToString("N2")</div>
+            <div class="card-num">@_rentalRows.Sum(k => k.FaturalananTutar).ToString("N2")</div>
             <div class="card-label">Faturalanan Tutar ₺</div>
         </div>
     </div>
@@ -124,11 +124,11 @@ else
                 <th class="num">Faturalanan Tutar ₺</th></tr>
         </thead>
         <tbody>
-            @if (_kiraRows.Count == 0)
+            @if (_rentalRows.Count == 0)
             {
                 <tr><td colspan="10" class="muted">Bu süzgeçle kira yok.</td></tr>
             }
-            @foreach (var k in _kiraRows)
+            @foreach (var k in _rentalRows)
             {
                 <tr>
                     <td><a href="/kiralar/@k.RentalId">@k.SozlesmeNo</a></td>
@@ -166,8 +166,8 @@ else
     [SupplyParameterFromQuery(Name = "sube")] public string? Sube { get; set; }
 
     private IReadOnlyList<FaturaDonemRow> _rows = [];
-    private IReadOnlyList<KiraFaturaDurumRow> _kiraRows = [];
-    private IReadOnlyList<Branch> _subeler = [];
+    private IReadOnlyList<KiraFaturaDurumRow> _rentalRows = [];
+    private IReadOnlyList<Branch> _branches = [];
 
     private bool KiraSekmesi => string.Equals(Sekme, "kira", StringComparison.OrdinalIgnoreCase);
 
@@ -188,8 +188,8 @@ else
             return;
         }
 
-        _subeler = await Branches.ListActiveAsync();
-        _kiraRows = await Reports.GetRentalInvoiceStatusAsync(from, to, new KiraFaturaDurumFilter
+        _branches = await Branches.ListActiveAsync();
+        _rentalRows = await Reports.GetRentalInvoiceStatusAsync(from, to, new KiraFaturaDurumFilter
         {
             Q = string.IsNullOrWhiteSpace(Q) ? null : Q,
             Faturalanan = FaturaDurum switch { "yok" => false, "var" => true, _ => null },

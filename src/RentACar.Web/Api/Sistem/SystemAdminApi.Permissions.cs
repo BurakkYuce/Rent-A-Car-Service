@@ -27,34 +27,34 @@ public static partial class SystemAdminApi
 
         g.MapPost("/ekranlar", async Task<Ok<IReadOnlyList<ScreenPermissionDto>>> (ScreenPermissionRequest i, ScreenPermissionService s, CancellationToken ct) =>
         {
-            Sinirlar.Metin(i.EkranKodu, 64, "ekranKodu", "Ekran kodu");
+            RentalLimits.Text(i.EkranKodu, 64, "ekranKodu", "Ekran kodu");
             var roles = ParseRoles(i.Roller);
             await s.SetAsync(i.EkranKodu ?? "", roles, i.Aktif, ct);
             return TypedResults.Ok(await ScreensAsync(s, ct));
-        }).AlanlariEsle([("Ekran kodu", "ekranKodu")]);
+        }).MapFields([("Ekran kodu", "ekranKodu")]);
 
         g.MapDelete("/ekranlar/{kod}", async Task<Results<NoContent, ProblemHttpResult>> (string kod, ScreenPermissionService s, CancellationToken ct)
             => await s.RemoveAsync(kod, ct) ? TypedResults.NoContent() : SystemApiCommon.NotFound("Ekran override'ı bulunamadı."));
 
         g.MapPost("/kopyala", async Task<Ok<CountResult>> (RoleCopyRequest i, ScreenPermissionService s, CancellationToken ct) =>
         {
-            var source = F5Ortak.EnumAdi<UserRole>(i.Kaynak, "kaynak") ?? throw new ValidationException("Kaynak rol seçilmelidir.", "kaynak");
-            var target = F5Ortak.EnumAdi<UserRole>(i.Hedef, "hedef") ?? throw new ValidationException("Hedef rol seçilmelidir.", "hedef");
+            var source = F5Shared.EnumAdi<UserRole>(i.Kaynak, "kaynak") ?? throw new ValidationException("Kaynak rol seçilmelidir.", "kaynak");
+            var target = F5Shared.EnumAdi<UserRole>(i.Hedef, "hedef") ?? throw new ValidationException("Hedef rol seçilmelidir.", "hedef");
             return TypedResults.Ok(new CountResult(await s.CopyRoleAsync(source, target, ct)));
-        }).AlanlariEsle([("Kaynak ve hedef", "hedef")]);
+        }).MapFields([("Kaynak ve hedef", "hedef")]);
 
         g.MapGet("/gruplar", async Task<Ok<IReadOnlyList<PermissionGroupDto>>> (ScreenPermissionService s, CancellationToken ct)
             => TypedResults.Ok(await GroupsAsync(s, ct)));
 
         g.MapPost("/gruplar", async Task<Ok<IReadOnlyList<PermissionGroupDto>>> (PermissionGroupRequest i, ScreenPermissionService s, CancellationToken ct) =>
         {
-            Sinirlar.Metin(i.Ad, 128, "ad", "Şablon adı");
+            RentalLimits.Text(i.Ad, 128, "ad", "Şablon adı");
             await s.SnapshotGroupAsync(i.Ad ?? "", ct);
             return TypedResults.Ok(await GroupsAsync(s, ct));
-        }).AlanlariEsle([("Şablon adı", "ad")]);
+        }).MapFields([("Şablon adı", "ad")]);
 
         g.MapPost("/gruplar/uygula", async Task<Ok<CountResult>> (PermissionGroupRequest i, ScreenPermissionService s, CancellationToken ct)
-            => TypedResults.Ok(new CountResult(await s.ApplyGroupAsync(i.Ad ?? "", ct)))).AlanlariEsle([("Şablon bulunamadı", "ad")]);
+            => TypedResults.Ok(new CountResult(await s.ApplyGroupAsync(i.Ad ?? "", ct)))).MapFields([("Şablon bulunamadı", "ad")]);
 
         g.MapDelete("/gruplar", async Task<Results<NoContent, ProblemHttpResult>> (string? ad, ScreenPermissionService s, CancellationToken ct)
             => !string.IsNullOrWhiteSpace(ad) && await s.DeleteGroupAsync(ad, ct) ? TypedResults.NoContent() : SystemApiCommon.NotFound("Şablon bulunamadı."));
@@ -64,7 +64,7 @@ public static partial class SystemAdminApi
     {
         var result = new List<UserRole>();
         foreach (var r in roles ?? [])
-            result.Add(F5Ortak.EnumAdi<UserRole>(r, "roller") ?? throw new ValidationException("Rol adı boş olamaz.", "roller"));
+            result.Add(F5Shared.EnumAdi<UserRole>(r, "roller") ?? throw new ValidationException("Rol adı boş olamaz.", "roller"));
         return result.Distinct().ToList();
     }
 

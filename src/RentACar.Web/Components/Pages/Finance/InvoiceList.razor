@@ -24,7 +24,7 @@
     <input name="ara" value="@Ara" placeholder="Fatura no / cari / özel kod / plaka / vergi no" />
     <select name="cariId">
         <option value="">Cari (tümü)</option>
-        @foreach (var c in _cariler) { <option value="@c.Id" selected="@(CariId == c.Id.ToString())">@c.Ad</option> }
+        @foreach (var c in _accounts) { <option value="@c.Id" selected="@(CariId == c.Id.ToString())">@c.Ad</option> }
     </select>
     @* No aralığı süzgeci KALDIRILDI: metin karşılaştırmasıydı ve "no'lar sabit genişlikte"
        varsayımına dayanıyordu. Yeni fatura no'su GİB formatında (RNT2026000000001) ve eski
@@ -37,11 +37,11 @@
     </select>
     <select name="doviz">
         <option value="">Döviz (tümü)</option>
-        @foreach (var d in _dovizler) { <option value="@d" selected="@(Doviz == d)">@d</option> }
+        @foreach (var d in _currencies) { <option value="@d" selected="@(Doviz == d)">@d</option> }
     </select>
     <select name="ofis">
         <option value="">Ofis (tümü)</option>
-        @foreach (var o in _ofisler) { <option value="@o" selected="@(Ofis == o)">@o</option> }
+        @foreach (var o in _offices) { <option value="@o" selected="@(Ofis == o)">@o</option> }
     </select>
     <input name="bas" type="date" value="@Bas" title="Tarih ≥" />
     <input name="bit" type="date" value="@Bit" title="Tarih ≤ (gün dahil)" />
@@ -50,7 +50,7 @@
 </form>
 
 <p class="muted small">@_list.Count fatura
-    @foreach (var (doviz, toplam) in Toplamlar) { <text>· @toplam.ToString("N2") @doviz </text> }
+    @foreach (var (currency, total) in Toplamlar) { <text>· @total.ToString("N2") @currency </text> }
 </p>
 
 <div class="table-scroll">
@@ -66,29 +66,29 @@
         {
             <tr><td colspan="16" class="muted">@(SuzgecVar ? "Aramaya uyan fatura yok." : "Fatura yok.")</td></tr>
         }
-        @foreach (var satir in _list)
+        @foreach (var row in _list)
         {
-            var i = satir.Fatura;
+            var i = row.Fatura;
             <tr>
                 <td class="kart-baslik">@i.No</td>
                 <td data-etiket="Tarih">@i.Tarih.LocalDateTime.ToString("dd.MM.yyyy")</td>
-                <td data-etiket="Müşteri">@satir.CariAd</td>
-                <td>@(satir.CariOzelKod ?? "—")</td>
-                <td>@(string.IsNullOrWhiteSpace(satir.VergiDairesi) && string.IsNullOrWhiteSpace(satir.VergiNo)
-                        ? "—" : $"{satir.VergiDairesi} / {satir.VergiNo}")</td>
-                <td>@(satir.Ulke ?? "—")</td>
-                <td>@(satir.SozlesmeNo ?? "—")</td>
-                <td>@(satir.Plaka ?? "—")</td>
-                <td>@(satir.Ofis ?? "—")</td>
+                <td data-etiket="Müşteri">@row.CariAd</td>
+                <td>@(row.CariOzelKod ?? "—")</td>
+                <td>@(string.IsNullOrWhiteSpace(row.VergiDairesi) && string.IsNullOrWhiteSpace(row.VergiNo)
+                        ? "—" : $"{row.VergiDairesi} / {row.VergiNo}")</td>
+                <td>@(row.Ulke ?? "—")</td>
+                <td>@(row.SozlesmeNo ?? "—")</td>
+                <td>@(row.Plaka ?? "—")</td>
+                <td>@(row.Ofis ?? "—")</td>
                 <td>@i.NetTutar.ToString("N2")</td>
                 <td>@i.KdvTutar.ToString("N2")</td>
                 <td data-etiket="Toplam">@i.GenelToplam.ToString("N2")</td>
                 <td data-etiket="Döviz">@(i.Currency == "TRY" ? "TL" : $"{i.Currency} @ {i.Kur.ToString("N4")} → {(i.GenelToplam * i.Kur).ToString("N2")} TL")</td>
-                <td>@(i.IadeMi ? "İade" : (_iadeEdilmis.Contains(i.Id) ? "İade edilmiş" : "Normal"))</td>
+                <td>@(i.IadeMi ? "İade" : (_refunded.Contains(i.Id) ? "İade edilmiş" : "Normal"))</td>
                 <td data-etiket="Durum">@i.Durum</td>
                 <td class="kart-aksiyon">
                     <a href="/faturalar/@i.Id/pdf" class="link" target="_blank" rel="noopener">Yazdır (PDF)</a>
-                    @if (!i.IadeMi && i.Durum != InvoiceStatus.Iptal && !_iadeEdilmis.Contains(i.Id))
+                    @if (!i.IadeMi && i.Durum != InvoiceStatus.Iptal && !_refunded.Contains(i.Id))
                     {
                         @* Yetki çiti: uç grup kapısından DAHA DAR izin istiyor (UcIzinKapsamaTests) — kapılanmazsa 403 → /yetkisiz. *@
                         <AuthorizeView Policy="izin:FinanceReverse" Context="iadeCtx">
@@ -115,7 +115,7 @@
     <label>Cari
         <select name="cariId" required>
             <option value="">—</option>
-            @foreach (var c in _cariler)
+            @foreach (var c in _accounts)
             {
                 <option value="@c.Id">@c.Ad</option>
             }
@@ -159,7 +159,7 @@
    tek bozuk sözleşme 19 geçerli faturayı geri almamalı). *@
 <details class="new-vehicle">
     <summary>Toplu Faturala (faturasız kiralar)</summary>
-    @if (_faturalanabilir.Count == 0)
+    @if (_invoiceable.Count == 0)
     {
         <p class="muted">Faturalanacak kira yok.</p>
     }
@@ -173,7 +173,7 @@
                     <thead><tr><th></th><th>Sözleşme</th><th>Müşteri</th><th>Plaka</th><th>Durum</th>
                         <th class="num">Tutar</th><th>Döviz</th></tr></thead>
                     <tbody>
-                        @foreach (var r in _faturalanabilir)
+                        @foreach (var r in _invoiceable)
                         {
                             <tr>
                                 <td data-etiket="Seç"><input type="checkbox" name="secili" value="@r.Id" /></td>
@@ -228,11 +228,11 @@
             .OrderBy(x => x.Doviz, StringComparer.Ordinal);
 
     private IReadOnlyList<InvoiceRow> _list = [];
-    private IReadOnlyList<CariSecim> _cariler = [];
-    private IReadOnlyList<string> _dovizler = [];
-    private IReadOnlyList<string> _ofisler = [];
-    private IReadOnlyList<RentalRow> _faturalanabilir = [];
-    private HashSet<Guid> _iadeEdilmis = new(); // kaynak faturaId'leri: zaten iade edilmiş → buton gizli
+    private IReadOnlyList<CariSecim> _accounts = [];
+    private IReadOnlyList<string> _currencies = [];
+    private IReadOnlyList<string> _offices = [];
+    private IReadOnlyList<RentalRow> _invoiceable = [];
+    private HashSet<Guid> _refunded = new(); // kaynak faturaId'leri: zaten iade edilmiş → buton gizli
     private readonly Guid _token = Guid.NewGuid(); // manuel fatura çift-submit idempotency token
 
     protected override async Task OnInitializedAsync()
@@ -244,27 +244,27 @@
             Iptal = Durum switch { "iptal" => true, "iptalharic" => false, _ => null },
             Doviz = string.IsNullOrWhiteSpace(Doviz) ? null : Doviz,
             Ofis = string.IsNullOrWhiteSpace(Ofis) ? null : Ofis,
-            Bas = ParseGun(Bas),
-            Bit = ParseGun(Bit)?.AddDays(1).AddTicks(-1)   // bitiş günü DAHİL
+            Bas = ParseDay(Bas),
+            Bit = ParseDay(Bit)?.AddDays(1).AddTicks(-1)   // bitiş günü DAHİL
         });
         // PII'siz seçim listesi (ListAsync tüm müşterilerin TC/ehliyetini çözerdi).
-        _cariler = await Customers.ListForSelectAsync();
+        _accounts = await Customers.ListForSelectAsync();
 
         // Süzgeç seçenekleri VERİDEN türetilir (sabit liste bakımı unutulur).
-        var tumu = await Invoices.SearchAsync();
-        _dovizler = [.. tumu.Select(x => x.Fatura.Currency).Where(x => !string.IsNullOrWhiteSpace(x))
+        var all = await Invoices.SearchAsync();
+        _currencies = [.. all.Select(x => x.Fatura.Currency).Where(x => !string.IsNullOrWhiteSpace(x))
             .Distinct(StringComparer.Ordinal).OrderBy(x => x, StringComparer.Ordinal)];
-        _ofisler = [.. tumu.Select(x => x.Ofis).Where(x => !string.IsNullOrWhiteSpace(x)).Select(x => x!.Trim())
+        _offices = [.. all.Select(x => x.Ofis).Where(x => !string.IsNullOrWhiteSpace(x)).Select(x => x!.Trim())
             .Distinct(StringComparer.OrdinalIgnoreCase).OrderBy(x => x, StringComparer.CurrentCulture)];
 
-        _iadeEdilmis = _list.Where(x => x.Fatura.KaynakFaturaId is not null)
+        _refunded = _list.Where(x => x.Fatura.KaynakFaturaId is not null)
             .Select(x => x.Fatura.KaynakFaturaId!.Value).ToHashSet();
 
         // FAZ-54 toplu faturalama: faturasız, iptal olmayan ve tutarı olan kiralar.
-        _faturalanabilir = [.. (await Rentals.SearchAsync(new RentalFilter { Faturali = false }))
+        _invoiceable = [.. (await Rentals.SearchAsync(new RentalFilter { Faturali = false }))
             .Where(r => r.Durum != RentalStatus.Iptal && r.Tutar > 0m).Take(200)];
     }
 
-    private static DateTimeOffset? ParseGun(string? s)
+    private static DateTimeOffset? ParseDay(string? s)
         => DateTimeOffset.TryParse(s, out var d) ? new DateTimeOffset(d.Date, TimeSpan.Zero) : null;
 }

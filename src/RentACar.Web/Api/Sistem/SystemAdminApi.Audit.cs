@@ -22,14 +22,14 @@ public static partial class SystemAdminApi
         v1.MapGet("/denetim", async Task<Ok<Sayfa<AuditDto>>> (string? tablo, string? kullanici, string? islem, int? sayfa, int? boyut,
             AuditService s, CancellationToken ct) =>
         {
-            Sinirlar.Metin(tablo, 128, "tablo", "Tablo");
-            Sinirlar.Metin(kullanici, 128, "kullanici", "Kullanıcı");
+            RentalLimits.Text(tablo, 128, "tablo", "Tablo");
+            RentalLimits.Text(kullanici, 128, "kullanici", "Kullanıcı");
             var page = Math.Max(1, sayfa ?? 1);
             var size = boyut is null or < 1 or > 200 ? 30 : boyut.Value;
             var r = await s.SearchAsync(new AuditFilter
             {
                 EntityName = SystemApiCommon.Clean(tablo), UserName = SystemApiCommon.Clean(kullanici),
-                Action = F5Ortak.EnumAdi<AuditAction>(islem, "islem"), Page = page, PageSize = size,
+                Action = F5Shared.EnumAdi<AuditAction>(islem, "islem"), Page = page, PageSize = size,
             }, ct);
             var items = r.Items.Select(a => new AuditDto(a.Id, a.TimestampUtc.ToUniversalTime(), a.UserName, a.EntityName, a.EntityId,
                 a.Action.ToString(), MaskSecrets(a.OldValues, a.EntityName), MaskSecrets(a.NewValues, a.EntityName))).ToList();

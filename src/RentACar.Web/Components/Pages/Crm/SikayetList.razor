@@ -23,13 +23,13 @@
     <label>Müşteri
         <select name="cariId">
             <option value="">— tümü —</option>
-            @foreach (var c in _cariler) { <option value="@c.Id" selected="@(c.Id.ToString() == CariId)">@c.DisplayName</option> }
+            @foreach (var c in _accounts) { <option value="@c.Id" selected="@(c.Id.ToString() == CariId)">@c.DisplayName</option> }
         </select>
     </label>
     <label>Çıkış Ofisi
         <select name="ofis">
             <option value="">— tümü —</option>
-            @foreach (var o in _ofisler) { <option value="@o" selected="@(o == Ofis)">@o</option> }
+            @foreach (var o in _offices) { <option value="@o" selected="@(o == Ofis)">@o</option> }
         </select>
     </label>
     <label>Şikayet Yeri
@@ -41,7 +41,7 @@
     <label>Kanal
         <select name="kanal">
             <option value="">— tümü —</option>
-            @foreach (var k in _kanallar) { <option value="@k" selected="@(k == Kanal)">@k</option> }
+            @foreach (var k in _channels) { <option value="@k" selected="@(k == Kanal)">@k</option> }
         </select>
     </label>
     <label>Durum
@@ -106,13 +106,13 @@
     <label>Müşteri
         <select name="cariId">
             <option value="">—</option>
-            @foreach (var c in _cariler) { <option value="@c.Id" selected="@(c.Id == _edit?.CariId)">@c.DisplayName</option> }
+            @foreach (var c in _accounts) { <option value="@c.Id" selected="@(c.Id == _edit?.CariId)">@c.DisplayName</option> }
         </select>
     </label>
     <label>Sözleşme (opsiyonel)
         <select name="rentalId">
             <option value="">— sözleşmesiz genel şikayet —</option>
-            @foreach (var k in _kiralar) { <option value="@k.Id" selected="@(k.Id == _edit?.RentalId)">@k.SozlesmeNo — @k.Plaka</option> }
+            @foreach (var k in _rentals) { <option value="@k.Id" selected="@(k.Id == _edit?.RentalId)">@k.SozlesmeNo — @k.Plaka</option> }
         </select>
     </label>
     <label>Şikayet Yeri
@@ -128,7 +128,7 @@
     </label>
     <label>Çıkış Ofisi<input name="cikisOfisi" list="dl-sikayet-ofis" value="@_edit?.CikisOfisi" maxlength="128" />
         <datalist id="dl-sikayet-ofis">
-            @foreach (var o in _ofisler) { <option value="@o"></option> }
+            @foreach (var o in _offices) { <option value="@o"></option> }
         </datalist>
     </label>
     @* Bu iki alan ŞİKAYETİN KENDİ alanıdır; sözleşmedeki personelden kopya DEĞİLDİR.
@@ -136,13 +136,13 @@
     <label>Teslim Alan Personel
         <select name="teslimAlanPersonelId">
             <option value="">—</option>
-            @foreach (var p in _personeller) { <option value="@p.Id" selected="@(p.Id == _edit?.TeslimAlanPersonelId)">@p.Ad @p.Soyad</option> }
+            @foreach (var p in _personnel) { <option value="@p.Id" selected="@(p.Id == _edit?.TeslimAlanPersonelId)">@p.Ad @p.Soyad</option> }
         </select>
     </label>
     <label>Teslim Eden Personel
         <select name="teslimEdenPersonelId">
             <option value="">—</option>
-            @foreach (var p in _personeller) { <option value="@p.Id" selected="@(p.Id == _edit?.TeslimEdenPersonelId)">@p.Ad @p.Soyad</option> }
+            @foreach (var p in _personnel) { <option value="@p.Id" selected="@(p.Id == _edit?.TeslimEdenPersonelId)">@p.Ad @p.Soyad</option> }
         </select>
     </label>
     <label>Puan (1-5)<input name="puan" type="number" min="1" max="5" value="@_edit?.Puan" /></label>
@@ -181,11 +181,11 @@
 
     private IReadOnlyList<SikayetSatirDto> _rows = [];
     private RentACar.Domain.Entities.Sikayet? _edit;
-    private IReadOnlyList<Customer> _cariler = [];
-    private IReadOnlyList<PersonelSecim> _personeller = [];
-    private IReadOnlyList<RentalRow> _kiralar = [];
-    private string[] _ofisler = [];
-    private string[] _kanallar = [];
+    private IReadOnlyList<Customer> _accounts = [];
+    private IReadOnlyList<PersonelSecim> _personnel = [];
+    private IReadOnlyList<RentalRow> _rentals = [];
+    private string[] _offices = [];
+    private string[] _channels = [];
 
     private bool FiltreVar => !string.IsNullOrWhiteSpace(CariId) || !string.IsNullOrWhiteSpace(Ofis)
         || !string.IsNullOrWhiteSpace(Yer) || !string.IsNullOrWhiteSpace(Kanal)
@@ -193,11 +193,11 @@
 
     protected override async Task OnInitializedAsync()
     {
-        _cariler = await Cariler.ListAsync();
+        _accounts = await Cariler.ListAsync();
         // PII'sız uç: ListAsync ManageUsers ister ve Operatör rolünde patlar (kira mega-form dersi).
-        _personeller = await Personeller.ListForSelectAsync();
-        _kiralar = await Kiralar.SearchAsync(new RentalFilter());
-        _ofisler = (await Ofisler.ListActiveAsync()).Select(o => o.Ad).OrderBy(a => a).ToArray();
+        _personnel = await Personeller.ListForSelectAsync();
+        _rentals = await Kiralar.SearchAsync(new RentalFilter());
+        _offices = (await Ofisler.ListActiveAsync()).Select(o => o.Ad).OrderBy(a => a).ToArray();
 
         _rows = await Sikayetler.SearchAsync(new SikayetFilter
         {
@@ -211,7 +211,7 @@
 
         // Kanal filtresi seçenekleri MEVCUT kayıtlardan (master tablo yok) — filtrelenmiş listeden
         // türetilseydi bir seçimden sonra diğer kanallar kaybolurdu.
-        _kanallar = (await Sikayetler.SearchAsync()).Select(x => x.Sikayet.SikayetKanali)
+        _channels = (await Sikayetler.SearchAsync()).Select(x => x.Sikayet.SikayetKanali)
             .Where(k => !string.IsNullOrWhiteSpace(k)).Select(k => k!.Trim())
             .Distinct(StringComparer.OrdinalIgnoreCase).OrderBy(k => k).ToArray();
 

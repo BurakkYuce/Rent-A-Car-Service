@@ -72,16 +72,16 @@
     <thead><tr><th>Tarih</th><th>Kaynak</th><th>Hedef</th><th class="num">Tutar</th><th>Döviz</th>
         <th>Makbuz No</th><th>İşlem Şubesi</th><th>İşlemi Yapan</th><th>Açıklama</th></tr></thead>
     <tbody>
-        @if (_virmanlar.Count == 0)
+        @if (_transfers.Count == 0)
         {
             <tr><td colspan="9" class="muted">Virman yok.</td></tr>
         }
-        @foreach (var v in _virmanlar)
+        @foreach (var v in _transfers)
         {
             <tr>
                 <td class="kart-baslik">@v.Tarih.LocalDateTime.ToString("dd.MM.yyyy HH:mm")</td>
-                <td data-etiket="Kaynak">@v.KaynakTur@(v.KaynakHesapId is { } kh && _hesapAdlari.TryGetValue(kh, out var kad) ? $" · {kad}" : "")</td>
-                <td data-etiket="Hedef">@v.HedefTur@(v.HedefHesapId is { } hh && _hesapAdlari.TryGetValue(hh, out var had) ? $" · {had}" : "")</td>
+                <td data-etiket="Kaynak">@v.KaynakTur@(v.KaynakHesapId is { } kh && _accountNames.TryGetValue(kh, out var kad) ? $" · {kad}" : "")</td>
+                <td data-etiket="Hedef">@v.HedefTur@(v.HedefHesapId is { } hh && _accountNames.TryGetValue(hh, out var had) ? $" · {had}" : "")</td>
                 <td class="num" data-etiket="Tutar">@v.Tutar.ToString("N2")</td>
                 <td data-etiket="Döviz">@v.Doviz</td>
                 <td data-etiket="Makbuz No">@(v.MakbuzNo ?? "—")</td>
@@ -136,9 +136,9 @@
         {
             <tr><td colspan="11" class="muted">İşlem yok.</td></tr>
         }
-        @foreach (var satir in _txns)
+        @foreach (var row in _txns)
         {
-            var t = satir.Islem;
+            var t = row.Islem;
             <tr>
                 @* Başlık ilk hücre: kart başlığının ortada değil ÜSTTE olması için. İşlem no hemen
                    altında ilk etiketli alan olarak duruyor. *@
@@ -150,14 +150,14 @@
                 </td>
                 <td data-etiket="Hesap">@t.KarsiHesap</td>
                 @* FAZ-50: hangi spesifik hesap. Boş = bu fazdan önceki kayıt (hesap belirtilmemiş). *@
-                <td>@(t.HesapId is { } hid && _hesapAdlari.TryGetValue(hid, out var hAd) ? hAd : "—")</td>
+                <td>@(t.HesapId is { } hid && _accountNames.TryGetValue(hid, out var hName) ? hName : "—")</td>
                 @* FAZ-84: Null → bu alan eklenmeden ÖNCE yazılmış geçmiş kayıt; o dönemde tek kanal
                    masaüstüydü, ekranda bu yüzden "Masaüstü" gösterilir (DB'de gerçek NULL kalır).
                    HesapId'den AYRI kavram: biri "hangi spesifik kasa/banka hesabı", diğeri
                    "hangi kanaldan girildi" (Masaüstü/Mobil/Tablet). *@
                 <td>@(t.Kanal ?? CashKanal.Masaustu)</td>
-                <td data-etiket="Cari"><a href="/cariler/@t.CariId/ekstre">@satir.CariAd</a></td>
-                <td>@(satir.CariKod ?? "—")</td>
+                <td data-etiket="Cari"><a href="/cariler/@t.CariId/ekstre">@row.CariAd</a></td>
+                <td>@(row.CariKod ?? "—")</td>
                 <td data-etiket="Tutar">@t.Amount.Amount.ToString("N2") @t.Amount.Currency</td>
                 <td>@t.Aciklama</td>
                 <td class="kart-aksiyon"><a href="/kasa/makbuz/@t.Id/pdf" target="_blank" rel="noopener">PDF</a></td>
@@ -183,8 +183,8 @@
 
     private CashboxSummaryDto _summary = new(0, 0, 0, 0, 0, 0);
     private IReadOnlyList<NakitIslemSatirDto> _txns = [];
-    private Dictionary<Guid, string> _hesapAdlari = new();
-    private IReadOnlyList<KasaVirmanSatirDto> _virmanlar = [];
+    private Dictionary<Guid, string> _accountNames = new();
+    private IReadOnlyList<KasaVirmanSatirDto> _transfers = [];
 
     protected override async Task OnInitializedAsync()
     {
@@ -192,24 +192,24 @@
         // FAZ-67: süzme SUNUCUDA (SearchIslemlerAsync) ve LİMİTTEN ÖNCE — FAZ-84'ün "önce süz,
         // sonra kes" dersi korunuyor: tersi olsaydı eşleşen satırlar ilk 50'nin dışında kalıp
         // görünmezdi. Cari adı/kodu da orada çözülür (PII çözülmez: düz-metin kolonlar).
-        var tumu = await Cash.SearchTransactionsAsync(new CashFilter
+        var all = await Cash.SearchTransactionsAsync(new CashFilter
         {
             Ara = string.IsNullOrWhiteSpace(Q) ? null : Q,
             Tip = Enum.TryParse<CashTransactionType>(Tip, out var tp) ? tp : null,
             Hesap = Enum.TryParse<LedgerAccountType>(HesapTur, out var hs) ? hs : null,
-            Bas = ParseGun(Bas),
-            Bit = ParseGun(Bit)?.AddDays(1).AddTicks(-1),   // bitiş günü DAHİL
+            Bas = ParseDay(Bas),
+            Bit = ParseDay(Bit)?.AddDays(1).AddTicks(-1),   // bitiş günü DAHİL
             EnFazla = 2000
         });
         // Kanal süzgeci FAZ-84 semantiğini korur: NULL geçmiş kayıt "Masaüstü" sayılır.
         _txns = [.. (string.IsNullOrEmpty(KanalFiltre)
-                ? tumu
-                : tumu.Where(x => (x.Islem.Kanal ?? CashKanal.Masaustu) == KanalFiltre))
+                ? all
+                : all.Where(x => (x.Islem.Kanal ?? CashKanal.Masaustu) == KanalFiltre))
             .Take(50)];
-        _hesapAdlari = (await Hesaplar.ListAsync()).ToDictionary(h => h.Id, h => h.Ad);
-        _virmanlar = await Cash.ListCashTransfersAsync(new KasaVirmanFilter { EnFazla = 50 });
+        _accountNames = (await Hesaplar.ListAsync()).ToDictionary(h => h.Id, h => h.Ad);
+        _transfers = await Cash.ListCashTransfersAsync(new KasaVirmanFilter { EnFazla = 50 });
     }
 
-    private static DateTimeOffset? ParseGun(string? s)
+    private static DateTimeOffset? ParseDay(string? s)
         => DateTimeOffset.TryParse(s, out var d) ? new DateTimeOffset(d.Date, TimeSpan.Zero) : null;
 }

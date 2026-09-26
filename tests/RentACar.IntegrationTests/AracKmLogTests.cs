@@ -31,32 +31,32 @@ public sealed class AracKmLogTests(PostgresFixture fx)
         var veh = sp.GetRequiredService<VehicleService>();
         // Whole-second taban (CI dersi): PG timestamptz µs kesiyor — .NET 100ns tick'li "now" ile
         // DB round-trip eşitliği Linux'ta patlar; tam-saniye hizalı tarih birebir döner.
-        var simdi = new DateTimeOffset(DateTime.UtcNow.Date, TimeSpan.Zero).AddHours(9);
+        var now = new DateTimeOffset(DateTime.UtcNow.Date, TimeSpan.Zero).AddHours(9);
 
         var v = await veh.CreateAsync(new VehicleInput { Plaka = "34 KM 01" });
-        var cari = await sp.GetRequiredService<CustomerService>()
+        var account = await sp.GetRequiredService<CustomerService>()
             .CreateAsync(new CustomerInput { Tip = CustomerType.Bireysel, Ad = "Km", Soyad = "C" });
 
         // Kira: teslim 1000 → dönüş 1300 (gerçek dönüş T-10). Dönüş logu AYNI transaction'da düşer.
         var rentals = sp.GetRequiredService<RentalService>();
         var r = await rentals.CreateDirectAsync(new BookingInput
-        { MusteriId = cari, VehicleId = v, BasTar = simdi.AddDays(-12), BitTar = simdi.AddDays(-10), GunlukUcret = 100m });
+        { MusteriId = account, VehicleId = v, BasTar = now.AddDays(-12), BitTar = now.AddDays(-10), GunlukUcret = 100m });
         await rentals.DeliverAsync(r, pickupKm: 1000, pickupFuel: 8);
-        await rentals.ReturnAsync(r, returnKm: 1300, returnFuel: 8, simdi.AddDays(-10));
+        await rentals.ReturnAsync(r, returnKm: 1300, returnFuel: 8, now.AddDays(-10));
 
-        var seri1 = await veh.KmLogsAsync(v);
-        var donus = Assert.Single(seri1);
-        Assert.Equal(1300, donus.Km);
-        Assert.Equal(KmLogSource.Donus, donus.Kaynak);
-        Assert.Equal(simdi.AddDays(-10), donus.Tarih);   // log tarihi = gerçek dönüş tarihi
+        var series1 = await veh.KmLogsAsync(v);
+        var returnInfo = Assert.Single(series1);
+        Assert.Equal(1300, returnInfo.Km);
+        Assert.Equal(KmLogSource.Donus, returnInfo.Kaynak);
+        Assert.Equal(now.AddDays(-10), returnInfo.Tarih);   // log tarihi = gerçek dönüş tarihi
 
         // Manuel 1350: log + Vehicle.Km birlikte.
         await veh.EnterManualKmAsync(v, 1350);
         Assert.Equal(1350, (await veh.GetAsync(v))!.Km);
-        var seri2 = await veh.KmLogsAsync(v);
-        Assert.Equal(2, seri2.Count);
-        Assert.Equal(1350, seri2[0].Km);                 // en yeni önce
-        Assert.Equal(KmLogSource.Manuel, seri2[0].Kaynak);
+        var series2 = await veh.KmLogsAsync(v);
+        Assert.Equal(2, series2.Count);
+        Assert.Equal(1350, series2[0].Km);                 // en yeni önce
+        Assert.Equal(KmLogSource.Manuel, series2[0].Kaynak);
 
         // Geriye 1200: red — seri ve odometre DEĞİŞMEZ (odometre monoton).
         await Assert.ThrowsAsync<ValidationException>(() => veh.EnterManualKmAsync(v, 1200));
@@ -68,12 +68,12 @@ public sealed class AracKmLogTests(PostgresFixture fx)
         await sp.GetRequiredService<ExpenseService>().CreateAsync(new ExpenseInput
         {
             Tip = ExpenseType.Arac, VehicleId = v, NetTutar = 100m, KdvOrani = 0m,
-            Tarih = simdi.AddDays(-3), OdemeYontemi = PaymentMethod.Nakit
+            Tarih = now.AddDays(-3), OdemeYontemi = PaymentMethod.Nakit
         });
-        var karne = (await sp.GetRequiredService<ReportService>()
-            .GetVehicleScorecardAsync(v, from: simdi.AddDays(-7)))!;
-        Assert.Equal(50, karne.DonemKm);
-        Assert.Equal(2.00m, karne.DonemKmMaliyet);
+        var scorecard = (await sp.GetRequiredService<ReportService>()
+            .GetVehicleScorecardAsync(v, from: now.AddDays(-7)))!;
+        Assert.Equal(50, scorecard.DonemKm);
+        Assert.Equal(2.00m, scorecard.DonemKmMaliyet);
     }
 
     [Fact]
@@ -85,10 +85,10 @@ public sealed class AracKmLogTests(PostgresFixture fx)
         var veh = sp.GetRequiredService<VehicleService>();
 
         var v = await veh.CreateAsync(new VehicleInput { Plaka = "34 KM 02" });
-        var servis = sp.GetRequiredService<ServiceRecordService>();
-        var sid = await servis.CreateAsync(new ServiceRecordInput { VehicleId = v, GirisKm = 500 });
-        await servis.StartAsync(sid);
-        await servis.CompleteAsync(sid, pickupKm: 800);
+        var service = sp.GetRequiredService<ServiceRecordService>();
+        var sid = await service.CreateAsync(new ServiceRecordInput { VehicleId = v, GirisKm = 500 });
+        await service.StartAsync(sid);
+        await service.CompleteAsync(sid, pickupKm: 800);
 
         var log = Assert.Single(await veh.KmLogsAsync(v));
         Assert.Equal(800, log.Km);

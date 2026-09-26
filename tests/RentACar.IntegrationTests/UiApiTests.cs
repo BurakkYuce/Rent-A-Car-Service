@@ -27,66 +27,66 @@ namespace RentACar.IntegrationTests;
 public sealed class UiApiTests(WebFixture fx)
 {
     private const string Ben = "/api/ui/v1/oturum/ben";
-    private const string Giris = "/api/ui/v1/oturum/giris";
-    private const string Cikis = "/api/ui/v1/oturum/cikis";
+    private const string Login = "/api/ui/v1/oturum/giris";
+    private const string Logout = "/api/ui/v1/oturum/cikis";
     private const string Xsrf = "/api/ui/v1/oturum/xsrf";
 
     // ------------------------------------------------------------ yardımcılar
 
-    private static string? CerezDegeri(HttpResponseMessage r, string ad)
+    private static string? CookieValue(HttpResponseMessage r, string name)
     {
-        if (!r.Headers.TryGetValues("Set-Cookie", out var degerler)) return null;
-        foreach (var d in degerler)
-            if (d.StartsWith(ad + "=", StringComparison.Ordinal))
-                return Uri.UnescapeDataString(d[(ad.Length + 1)..].Split(';')[0]);
+        if (!r.Headers.TryGetValues("Set-Cookie", out var values)) return null;
+        foreach (var d in values)
+            if (d.StartsWith(name + "=", StringComparison.Ordinal))
+                return Uri.UnescapeDataString(d[(name.Length + 1)..].Split(';')[0]);
         return null;
     }
 
-    private static async Task<JsonElement> Govde(HttpResponseMessage r)
+    private static async Task<JsonElement> Body(HttpResponseMessage r)
         => JsonDocument.Parse(await r.Content.ReadAsStringAsync()).RootElement.Clone();
 
-    private static async Task ProblemBekle(HttpResponseMessage r, HttpStatusCode durum, string? kod)
+    private static async Task ExpectProblem(HttpResponseMessage r, HttpStatusCode status, string? code)
     {
-        var metin = await r.Content.ReadAsStringAsync();
-        Assert.True(durum == r.StatusCode, $"Beklenen {(int)durum}, gelen {(int)r.StatusCode}: {metin}");
+        var text = await r.Content.ReadAsStringAsync();
+        Assert.True(status == r.StatusCode, $"Beklenen {(int)status}, gelen {(int)r.StatusCode}: {text}");
         Assert.Null(r.Headers.Location); // yönlendirme YOK
         Assert.Equal("application/problem+json", r.Content.Headers.ContentType?.MediaType);
-        var j = JsonDocument.Parse(metin).RootElement;
-        Assert.Equal((int)durum, j.GetProperty("status").GetInt32());
+        var j = JsonDocument.Parse(text).RootElement;
+        Assert.Equal((int)status, j.GetProperty("status").GetInt32());
         Assert.True(j.TryGetProperty("title", out _));
-        if (kod is null) Assert.False(j.TryGetProperty("kod", out _));
-        else Assert.Equal(kod, j.GetProperty("kod").GetString());
+        if (code is null) Assert.False(j.TryGetProperty("kod", out _));
+        else Assert.Equal(code, j.GetProperty("kod").GetString());
         Assert.True(r.Headers.CacheControl?.NoStore == true, "no-store eksik");
     }
 
-    private static HttpRequestMessage Istek(HttpMethod m, string url, string? xsrf, object? govde = null)
+    private static HttpRequestMessage Request(HttpMethod m, string url, string? xsrf, object? body = null)
     {
         var req = new HttpRequestMessage(m, url);
         if (xsrf is not null) req.Headers.Add("X-XSRF-TOKEN", xsrf);
-        if (govde is not null) req.Content = JsonContent.Create(govde);
+        if (body is not null) req.Content = JsonContent.Create(body);
         return req;
     }
 
-    private static async Task<string> XsrfAl(HttpClient c)
+    private static async Task<string> GetXsrf(HttpClient c)
     {
         var r = await c.GetAsync(Xsrf);
         Assert.Equal(HttpStatusCode.NoContent, r.StatusCode);
-        return CerezDegeri(r, "XSRF-TOKEN") ?? throw new Xunit.Sdk.XunitException("XSRF-TOKEN çerezi verilmedi");
+        return CookieValue(r, "XSRF-TOKEN") ?? throw new Xunit.Sdk.XunitException("XSRF-TOKEN çerezi verilmedi");
     }
 
     /// <summary>JSON giriş gövdesi — kimlik fixture'da çalışma anında üretilir (sabit parola yok).</summary>
-    private static object GirisGovdesi(TestKimlik k, string? sifre = null)
-        => new { firma = k.Firma, kullanici = k.Kullanici, sifre = sifre ?? k.Sifre };
+    private static object LoginBody(TestKimlik k, string? password = null)
+        => new { firma = k.Firma, kullanici = k.Kullanici, sifre = password ?? k.Sifre };
 
     /// <summary>Giriş yapar; (istemci, girişten ÖNCEKİ belirteç, girişten SONRAKİ belirteç) döner.</summary>
-    private async Task<(HttpClient C, string Once, string Sonra)> GirisYap(TestKimlik? k = null, WebFactory? f = null)
+    private async Task<(HttpClient C, string Once, string Sonra)> DoLogin(TestKimlik? k = null, WebFactory? f = null)
     {
-        var c = (f ?? fx.Web).Istemci();
-        var once = await XsrfAl(c);
-        var r = await c.SendAsync(Istek(HttpMethod.Post, Giris, once, GirisGovdesi(k ?? fx.PilotAdmin)));
+        var c = (f ?? fx.Web).Client();
+        var once = await GetXsrf(c);
+        var r = await c.SendAsync(Request(HttpMethod.Post, Login, once, LoginBody(k ?? fx.PilotAdmin)));
         Assert.True(r.StatusCode == HttpStatusCode.OK, await r.Content.ReadAsStringAsync());
-        var sonra = CerezDegeri(r, "XSRF-TOKEN") ?? throw new Xunit.Sdk.XunitException("girişte XSRF yenilenmedi");
-        return (c, once, sonra);
+        var after = CookieValue(r, "XSRF-TOKEN") ?? throw new Xunit.Sdk.XunitException("girişte XSRF yenilenmedi");
+        return (c, once, after);
     }
 
     // ------------------------------------------------------------ 401 / oturum
@@ -94,38 +94,38 @@ public sealed class UiApiTests(WebFixture fx)
     [Fact]
     public async Task Anonim_ben_401_oturum_yok_json_302_degil()
     {
-        var r = await fx.Web.Istemci().GetAsync(Ben);
-        await ProblemBekle(r, HttpStatusCode.Unauthorized, "oturum_yok");
+        var r = await fx.Web.Client().GetAsync(Ben);
+        await ExpectProblem(r, HttpStatusCode.Unauthorized, "oturum_yok");
     }
 
     [Fact]
     public async Task Giris_oturum_cerezi_ve_taze_xsrf_verir_ben_doner()
     {
-        var c = fx.Web.Istemci();
-        var once = await XsrfAl(c);
-        var r = await c.SendAsync(Istek(HttpMethod.Post, Giris, once, GirisGovdesi(fx.PilotAdmin)));
+        var c = fx.Web.Client();
+        var once = await GetXsrf(c);
+        var r = await c.SendAsync(Request(HttpMethod.Post, Login, once, LoginBody(fx.PilotAdmin)));
 
         Assert.Equal(HttpStatusCode.OK, r.StatusCode);
-        Assert.NotNull(CerezDegeri(r, "racar.session"));
-        var sonra = CerezDegeri(r, "XSRF-TOKEN");
-        Assert.NotNull(sonra);
-        Assert.NotEqual(once, sonra);
-        var xsrfCerez = r.Headers.GetValues("Set-Cookie").Single(x => x.StartsWith("XSRF-TOKEN=", StringComparison.Ordinal));
-        Assert.Contains("path=/", xsrfCerez, StringComparison.OrdinalIgnoreCase);
-        Assert.Contains("samesite=strict", xsrfCerez, StringComparison.OrdinalIgnoreCase);
-        Assert.DoesNotContain("httponly", xsrfCerez, StringComparison.OrdinalIgnoreCase); // JS okuyabilmeli
+        Assert.NotNull(CookieValue(r, "racar.session"));
+        var after = CookieValue(r, "XSRF-TOKEN");
+        Assert.NotNull(after);
+        Assert.NotEqual(once, after);
+        var xsrfCookie = r.Headers.GetValues("Set-Cookie").Single(x => x.StartsWith("XSRF-TOKEN=", StringComparison.Ordinal));
+        Assert.Contains("path=/", xsrfCookie, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("samesite=strict", xsrfCookie, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("httponly", xsrfCookie, StringComparison.OrdinalIgnoreCase); // JS okuyabilmeli
         Assert.True(r.Headers.CacheControl?.NoStore == true);
 
-        var j = await Govde(r);
+        var j = await Body(r);
         Assert.Equal(fx.PilotAdmin.Kullanici, j.GetProperty("kullanici").GetProperty("kullaniciAdi").GetString());
         Assert.Equal("Test Admin", j.GetProperty("kullanici").GetProperty("adSoyad").GetString());
         Assert.Equal(fx.PilotAdmin.Firma, j.GetProperty("kiraci").GetProperty("kod").GetString());
         Assert.Equal("Pilot Test Firması", j.GetProperty("kiraci").GetProperty("ad").GetString());
-        Assert.Equal(fx.PilotFirmaId, j.GetProperty("kiraci").GetProperty("id").GetGuid());
+        Assert.Equal(fx.PilotCompanyId, j.GetProperty("kiraci").GetProperty("id").GetGuid());
         Assert.Equal("Admin", j.GetProperty("rol").GetString());
-        var izinler = j.GetProperty("izinler").EnumerateArray().Select(x => x.GetString()).ToList();
-        Assert.Contains("ManageUsers", izinler);
-        Assert.Contains("FinanceWrite", izinler);
+        var permissions = j.GetProperty("izinler").EnumerateArray().Select(x => x.GetString()).ToList();
+        Assert.Contains("ManageUsers", permissions);
+        Assert.Contains("FinanceWrite", permissions);
         Assert.True(j.GetProperty("subeKapsami").GetProperty("tumSubeler").GetBoolean());
         Assert.False(j.GetProperty("moduller").GetProperty("webSitesi").GetBoolean());
         Assert.True(j.GetProperty("pilot").GetBoolean());
@@ -138,47 +138,47 @@ public sealed class UiApiTests(WebFixture fx)
     [Fact]
     public async Task Operator_ben_sube_kapsami_ve_dar_izinler()
     {
-        var (c, _, _) = await GirisYap(fx.PilotOperator);
-        var j = await Govde(await c.GetAsync(Ben));
+        var (c, _, _) = await DoLogin(fx.PilotOperator);
+        var j = await Body(await c.GetAsync(Ben));
 
         Assert.Equal("Operator", j.GetProperty("rol").GetString());
-        var kapsam = j.GetProperty("subeKapsami");
-        Assert.False(kapsam.GetProperty("tumSubeler").GetBoolean());
-        Assert.Equal("Merkez", kapsam.GetProperty("subeAd").GetString());
-        var izinler = j.GetProperty("izinler").EnumerateArray().Select(x => x.GetString()).ToList();
-        Assert.Contains("OperationsWrite", izinler);
-        Assert.DoesNotContain("FinanceWrite", izinler);
-        Assert.DoesNotContain("ManageUsers", izinler);
+        var scope = j.GetProperty("subeKapsami");
+        Assert.False(scope.GetProperty("tumSubeler").GetBoolean());
+        Assert.Equal("Merkez", scope.GetProperty("subeAd").GetString());
+        var permissions = j.GetProperty("izinler").EnumerateArray().Select(x => x.GetString()).ToList();
+        Assert.Contains("OperationsWrite", permissions);
+        Assert.DoesNotContain("FinanceWrite", permissions);
+        Assert.DoesNotContain("ManageUsers", permissions);
     }
 
     [Fact]
     public async Task Hatali_sifre_400_dogrulama_oturum_acilmaz()
     {
-        var c = fx.Web.Istemci();
-        var t = await XsrfAl(c);
-        var r = await c.SendAsync(Istek(HttpMethod.Post, Giris, t, GirisGovdesi(fx.PilotAdmin, WebFixture.RastgeleParola())));
+        var c = fx.Web.Client();
+        var t = await GetXsrf(c);
+        var r = await c.SendAsync(Request(HttpMethod.Post, Login, t, LoginBody(fx.PilotAdmin, WebFixture.RandomPassword())));
 
-        await ProblemBekle(r, HttpStatusCode.BadRequest, "dogrulama");
-        Assert.Null(CerezDegeri(r, "racar.session"));
-        await ProblemBekle(await c.GetAsync(Ben), HttpStatusCode.Unauthorized, "oturum_yok");
+        await ExpectProblem(r, HttpStatusCode.BadRequest, "dogrulama");
+        Assert.Null(CookieValue(r, "racar.session"));
+        await ExpectProblem(await c.GetAsync(Ben), HttpStatusCode.Unauthorized, "oturum_yok");
     }
 
     [Fact]
     public async Task Cikis_oturumu_kapatir_belirteci_yeniler()
     {
-        var (c, _, sonra) = await GirisYap();
+        var (c, _, after) = await DoLogin();
 
-        var r = await c.SendAsync(Istek(HttpMethod.Post, Cikis, sonra));
+        var r = await c.SendAsync(Request(HttpMethod.Post, Logout, after));
         Assert.Equal(HttpStatusCode.NoContent, r.StatusCode);
-        var cikisSonrasi = CerezDegeri(r, "XSRF-TOKEN");
-        Assert.NotNull(cikisSonrasi);
-        await ProblemBekle(await c.GetAsync(Ben), HttpStatusCode.Unauthorized, "oturum_yok");
+        var afterLogout = CookieValue(r, "XSRF-TOKEN");
+        Assert.NotNull(afterLogout);
+        await ExpectProblem(await c.GetAsync(Ben), HttpStatusCode.Unauthorized, "oturum_yok");
 
         // Kullanıcıya bağlı eski belirteç anonim kimlikte reddedilir; çıkışta verilen kabul edilir.
-        var eski = await c.SendAsync(Istek(HttpMethod.Post, Giris, sonra, GirisGovdesi(fx.PilotAdmin)));
-        await ProblemBekle(eski, HttpStatusCode.BadRequest, "xsrf_gecersiz");
-        var yeni = await c.SendAsync(Istek(HttpMethod.Post, Giris, cikisSonrasi, GirisGovdesi(fx.PilotAdmin)));
-        Assert.Equal(HttpStatusCode.OK, yeni.StatusCode);
+        var old = await c.SendAsync(Request(HttpMethod.Post, Login, after, LoginBody(fx.PilotAdmin)));
+        await ExpectProblem(old, HttpStatusCode.BadRequest, "xsrf_gecersiz");
+        var newItem = await c.SendAsync(Request(HttpMethod.Post, Login, afterLogout, LoginBody(fx.PilotAdmin)));
+        Assert.Equal(HttpStatusCode.OK, newItem.StatusCode);
     }
 
     // ------------------------------------------------------------ CSRF
@@ -186,13 +186,13 @@ public sealed class UiApiTests(WebFixture fx)
     [Fact]
     public async Task Basliksiz_guvensiz_istek_reddedilir()
     {
-        var (c, _, sonra) = await GirisYap();
+        var (c, _, after) = await DoLogin();
 
-        await ProblemBekle(await c.SendAsync(Istek(HttpMethod.Post, "/api/ui/v1/test/yaz", null)),
+        await ExpectProblem(await c.SendAsync(Request(HttpMethod.Post, "/api/ui/v1/test/yaz", null)),
             HttpStatusCode.BadRequest, "xsrf_gecersiz");
-        await ProblemBekle(await c.SendAsync(Istek(HttpMethod.Post, "/api/ui/v1/test/yaz", "uydurma-belirtec")),
+        await ExpectProblem(await c.SendAsync(Request(HttpMethod.Post, "/api/ui/v1/test/yaz", "uydurma-belirtec")),
             HttpStatusCode.BadRequest, "xsrf_gecersiz");
-        Assert.Equal(HttpStatusCode.OK, (await c.SendAsync(Istek(HttpMethod.Post, "/api/ui/v1/test/yaz", sonra))).StatusCode);
+        Assert.Equal(HttpStatusCode.OK, (await c.SendAsync(Request(HttpMethod.Post, "/api/ui/v1/test/yaz", after))).StatusCode);
         // Güvenli yöntem belirteç istemez.
         Assert.Equal(HttpStatusCode.OK, (await c.GetAsync("/api/ui/v1/test/tamam")).StatusCode);
     }
@@ -200,30 +200,30 @@ public sealed class UiApiTests(WebFixture fx)
     [Fact]
     public async Task Giristen_once_alinan_belirtec_giristen_sonra_reddedilir()
     {
-        var (c, once, sonra) = await GirisYap();
+        var (c, once, after) = await DoLogin();
 
-        await ProblemBekle(await c.SendAsync(Istek(HttpMethod.Post, "/api/ui/v1/test/yaz", once)),
+        await ExpectProblem(await c.SendAsync(Request(HttpMethod.Post, "/api/ui/v1/test/yaz", once)),
             HttpStatusCode.BadRequest, "xsrf_gecersiz");
-        Assert.Equal(HttpStatusCode.OK, (await c.SendAsync(Istek(HttpMethod.Post, "/api/ui/v1/test/yaz", sonra))).StatusCode);
+        Assert.Equal(HttpStatusCode.OK, (await c.SendAsync(Request(HttpMethod.Post, "/api/ui/v1/test/yaz", after))).StatusCode);
     }
 
     [Fact]
     public async Task Giris_de_csrf_ister()
     {
-        var c = fx.Web.Istemci();
-        await XsrfAl(c); // çerez var ama başlık yok
-        var r = await c.SendAsync(Istek(HttpMethod.Post, Giris, null, GirisGovdesi(fx.PilotAdmin)));
-        await ProblemBekle(r, HttpStatusCode.BadRequest, "xsrf_gecersiz");
-        Assert.Null(CerezDegeri(r, "racar.session"));
+        var c = fx.Web.Client();
+        await GetXsrf(c); // çerez var ama başlık yok
+        var r = await c.SendAsync(Request(HttpMethod.Post, Login, null, LoginBody(fx.PilotAdmin)));
+        await ExpectProblem(r, HttpStatusCode.BadRequest, "xsrf_gecersiz");
+        Assert.Null(CookieValue(r, "racar.session"));
     }
 
     [Fact]
     public async Task Baska_kullanicinin_belirteci_kabul_edilmez()
     {
-        var (_, _, adminBelirteci) = await GirisYap();
-        var (op, _, _) = await GirisYap(fx.PilotOperator);
+        var (_, _, adminToken) = await DoLogin();
+        var (op, _, _) = await DoLogin(fx.PilotOperator);
 
-        await ProblemBekle(await op.SendAsync(Istek(HttpMethod.Post, "/api/ui/v1/test/yaz", adminBelirteci)),
+        await ExpectProblem(await op.SendAsync(Request(HttpMethod.Post, "/api/ui/v1/test/yaz", adminToken)),
             HttpStatusCode.BadRequest, "xsrf_gecersiz");
     }
 
@@ -231,57 +231,57 @@ public sealed class UiApiTests(WebFixture fx)
 
     [Fact]
     public async Task Servis_YetkiYok_403_yetki_yok()
-        => await ProblemBekle(await (await GirisYap()).C.GetAsync("/api/ui/v1/test/yetki-yok"),
+        => await ExpectProblem(await (await DoLogin()).C.GetAsync("/api/ui/v1/test/yetki-yok"),
             HttpStatusCode.Forbidden, "yetki_yok");
 
     [Fact]
     public async Task Uc_izin_kapisi_403_yetki_yok_yetkisiz_sayfasina_yonlendirmez()
     {
-        var (c, _, _) = await GirisYap(fx.PilotOperator);
-        await ProblemBekle(await c.GetAsync("/api/ui/v1/test/finans"), HttpStatusCode.Forbidden, "yetki_yok");
+        var (c, _, _) = await DoLogin(fx.PilotOperator);
+        await ExpectProblem(await c.GetAsync("/api/ui/v1/test/finans"), HttpStatusCode.Forbidden, "yetki_yok");
 
-        var (admin, _, _) = await GirisYap();
+        var (admin, _, _) = await DoLogin();
         Assert.Equal(HttpStatusCode.OK, (await admin.GetAsync("/api/ui/v1/test/finans")).StatusCode);
     }
 
     [Fact]
     public async Task Pilot_olmayan_firma_403_pilot_degil_oturum_uclari_acik()
     {
-        var (c, _, sonra) = await GirisYap(fx.DigerAdmin);
+        var (c, _, after) = await DoLogin(fx.OtherAdmin);
 
-        await ProblemBekle(await c.GetAsync("/api/ui/v1/test/tamam"), HttpStatusCode.Forbidden, "pilot_degil");
-        await ProblemBekle(await c.SendAsync(Istek(HttpMethod.Post, "/api/ui/v1/test/yaz", sonra)),
+        await ExpectProblem(await c.GetAsync("/api/ui/v1/test/tamam"), HttpStatusCode.Forbidden, "pilot_degil");
+        await ExpectProblem(await c.SendAsync(Request(HttpMethod.Post, "/api/ui/v1/test/yaz", after)),
             HttpStatusCode.Forbidden, "pilot_degil");
 
         var ben = await c.GetAsync(Ben); // oturum/* pilot kapısından muaf
         Assert.Equal(HttpStatusCode.OK, ben.StatusCode);
-        Assert.False((await Govde(ben)).GetProperty("pilot").GetBoolean());
+        Assert.False((await Body(ben)).GetProperty("pilot").GetBoolean());
 
-        var (pilot, _, _) = await GirisYap();
+        var (pilot, _, _) = await DoLogin();
         Assert.Equal(HttpStatusCode.OK, (await pilot.GetAsync("/api/ui/v1/test/tamam")).StatusCode);
     }
 
     [Fact]
     public async Task Pilot_bayragi_kapatilinca_aninda_kapanir()
     {
-        var k = await fx.FirmaVeKullaniciAsync("Pilot Aç-Kapa Firması");
-        var yeni = await fx.TenantIdAsync(k.Firma);
-        await fx.PilotYapAsync(yeni, true);
-        var (c, _, _) = await GirisYap(k);
+        var k = await fx.CompanyAndUserAsync("Pilot Aç-Kapa Firması");
+        var newItem = await fx.TenantIdAsync(k.Firma);
+        await fx.MakePilotAsync(newItem, true);
+        var (c, _, _) = await DoLogin(k);
         Assert.Equal(HttpStatusCode.OK, (await c.GetAsync("/api/ui/v1/test/tamam")).StatusCode);
 
-        await fx.PilotYapAsync(yeni, false);
-        await ProblemBekle(await c.GetAsync("/api/ui/v1/test/tamam"), HttpStatusCode.Forbidden, "pilot_degil");
+        await fx.MakePilotAsync(newItem, false);
+        await ExpectProblem(await c.GetAsync("/api/ui/v1/test/tamam"), HttpStatusCode.Forbidden, "pilot_degil");
     }
 
     [Fact]
     public async Task Alanli_ValidationException_400_errors_tasir()
     {
-        var (c, _, t) = await GirisYap();
-        var r = await c.SendAsync(Istek(HttpMethod.Post, "/api/ui/v1/test/dogrulama", t));
+        var (c, _, t) = await DoLogin();
+        var r = await c.SendAsync(Request(HttpMethod.Post, "/api/ui/v1/test/dogrulama", t));
 
-        await ProblemBekle(r, HttpStatusCode.BadRequest, "dogrulama");
-        var j = await Govde(r);
+        await ExpectProblem(r, HttpStatusCode.BadRequest, "dogrulama");
+        var j = await Body(r);
         Assert.Equal("Plaka zorunludur.", j.GetProperty("detail").GetString());
         Assert.Equal("Plaka zorunludur.", j.GetProperty("errors").GetProperty("Plaka")[0].GetString());
     }
@@ -289,29 +289,29 @@ public sealed class UiApiTests(WebFixture fx)
     [Fact]
     public async Task Cakisma_ve_mukerrer_ayri_409_kodlari()
     {
-        var (c, _, t) = await GirisYap();
+        var (c, _, t) = await DoLogin();
 
-        await ProblemBekle(await c.SendAsync(Istek(HttpMethod.Post, "/api/ui/v1/test/cakisma", t)),
+        await ExpectProblem(await c.SendAsync(Request(HttpMethod.Post, "/api/ui/v1/test/cakisma", t)),
             HttpStatusCode.Conflict, "cakisma");
-        await ProblemBekle(await c.SendAsync(Istek(HttpMethod.Post, "/api/ui/v1/test/mukerrer", t)),
+        await ExpectProblem(await c.SendAsync(Request(HttpMethod.Post, "/api/ui/v1/test/mukerrer", t)),
             HttpStatusCode.Conflict, "mukerrer");
     }
 
     [Fact]
     public async Task Beklenmeyen_hata_500_problem_ayrinti_sizdirmaz()
     {
-        var r = await (await GirisYap()).C.GetAsync("/api/ui/v1/test/patla");
+        var r = await (await DoLogin()).C.GetAsync("/api/ui/v1/test/patla");
 
-        await ProblemBekle(r, HttpStatusCode.InternalServerError, null);
-        Assert.DoesNotContain(TestUiUclari.GizliAyrinti, await r.Content.ReadAsStringAsync());
+        await ExpectProblem(r, HttpStatusCode.InternalServerError, null);
+        Assert.DoesNotContain(TestUiEndpoints.HiddenDetail, await r.Content.ReadAsStringAsync());
     }
 
     [Fact]
     public async Task Bozuk_json_400_500_degil()
     {
-        var c = fx.Web.Istemci();
-        var t = await XsrfAl(c);
-        var req = Istek(HttpMethod.Post, Giris, t);
+        var c = fx.Web.Client();
+        var t = await GetXsrf(c);
+        var req = Request(HttpMethod.Post, Login, t);
         req.Content = new StringContent("{bozuk", Encoding.UTF8, "application/json");
         var r = await c.SendAsync(req);
 
@@ -327,48 +327,48 @@ public sealed class UiApiTests(WebFixture fx)
     [Theory]
     [InlineData(true)]
     [InlineData(false)]
-    public async Task Bozuk_json_her_ortamda_400_kod_dogrulama(bool gelistirmeGibi)
+    public async Task Bozuk_json_her_ortamda_400_kod_dogrulama(bool developmentLike)
     {
         await using var f = fx.Web.WithWebHostBuilder(b => b.ConfigureTestServices(s =>
-            s.Configure<RouteHandlerOptions>(o => o.ThrowOnBadRequest = gelistirmeGibi)));
+            s.Configure<RouteHandlerOptions>(o => o.ThrowOnBadRequest = developmentLike)));
         var c = f.CreateClient(new Microsoft.AspNetCore.Mvc.Testing.WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
-        var t = await XsrfAl(c);
-        var req = Istek(HttpMethod.Post, Giris, t);
+        var t = await GetXsrf(c);
+        var req = Request(HttpMethod.Post, Login, t);
         req.Content = new StringContent("{bozuk", Encoding.UTF8, "application/json");
         var r = await c.SendAsync(req);
 
-        await ProblemBekle(r, HttpStatusCode.BadRequest, "dogrulama");
-        Assert.Equal("İstek gövdesi okunamadı ya da eksik.", (await Govde(r)).GetProperty("detail").GetString());
+        await ExpectProblem(r, HttpStatusCode.BadRequest, "dogrulama");
+        Assert.Equal("İstek gövdesi okunamadı ya da eksik.", (await Body(r)).GetProperty("detail").GetString());
     }
 
     [Theory]
     [InlineData("22001", LogLevel.Warning)]
     [InlineData("22003", LogLevel.Warning)]
     [InlineData("23505", LogLevel.Error)]   // tanınmayan DB hatası: 500 + Error (gizlenmez)
-    public void Veri_tasmasi_agi_Warning_loglanir(string sqlState, LogLevel beklenen)
+    public void Veri_tasmasi_agi_Warning_loglanir(string sqlState, LogLevel expected)
     {
         var ex = new Microsoft.EntityFrameworkCore.DbUpdateException("x",
             new PostgresException("taşma", "ERROR", "ERROR", sqlState));
-        Assert.Equal(beklenen, UiApiExtensions.LogSeviyesi(ex));
+        Assert.Equal(expected, UiApiExtensions.LevelFor(ex));
     }
 
     [Fact]
     public void Istemci_hatasi_Information_beklenmeyen_Error()
     {
-        Assert.Equal(LogLevel.Information, UiApiExtensions.LogSeviyesi(new RentACar.Application.Common.ValidationException("x")));
-        Assert.Equal(LogLevel.Information, UiApiExtensions.LogSeviyesi(new BadHttpRequestException("x")));
-        Assert.Equal(LogLevel.Error, UiApiExtensions.LogSeviyesi(new InvalidOperationException("x")));
+        Assert.Equal(LogLevel.Information, UiApiExtensions.LevelFor(new RentACar.Application.Common.ValidationException("x")));
+        Assert.Equal(LogLevel.Information, UiApiExtensions.LevelFor(new BadHttpRequestException("x")));
+        Assert.Equal(LogLevel.Error, UiApiExtensions.LevelFor(new InvalidOperationException("x")));
     }
 
     [Fact]
     public async Task Bilinmeyen_rota_ve_yanlis_yontem_json_html_degil()
     {
-        var c = fx.Web.Istemci();
-        await ProblemBekle(await c.GetAsync("/api/ui/v1/boyle-bir-uc-yok"), HttpStatusCode.NotFound, null);
-        await ProblemBekle(await c.GetAsync("/api/ui/v1/test"), HttpStatusCode.NotFound, null);
-        var yanlisYontem = await c.GetAsync(Giris); // POST-only uca GET: 404/405, ama her durumda JSON
-        Assert.True(yanlisYontem.StatusCode is HttpStatusCode.NotFound or HttpStatusCode.MethodNotAllowed);
-        Assert.Equal("application/problem+json", yanlisYontem.Content.Headers.ContentType?.MediaType);
+        var c = fx.Web.Client();
+        await ExpectProblem(await c.GetAsync("/api/ui/v1/boyle-bir-uc-yok"), HttpStatusCode.NotFound, null);
+        await ExpectProblem(await c.GetAsync("/api/ui/v1/test"), HttpStatusCode.NotFound, null);
+        var wrongMethod = await c.GetAsync(Login); // POST-only uca GET: 404/405, ama her durumda JSON
+        Assert.True(wrongMethod.StatusCode is HttpStatusCode.NotFound or HttpStatusCode.MethodNotAllowed);
+        Assert.Equal("application/problem+json", wrongMethod.Content.Headers.ContentType?.MediaType);
     }
 
     // ------------------------------------------------------------ kiracı kapalı / platform / hız sınırı
@@ -376,9 +376,9 @@ public sealed class UiApiTests(WebFixture fx)
     [Fact]
     public async Task Kapali_firma_401_kiraci_kapali_ve_oturum_duser()
     {
-        var k = await fx.FirmaVeKullaniciAsync("Kapanacak Firma");
+        var k = await fx.CompanyAndUserAsync("Kapanacak Firma");
         var id = await fx.TenantIdAsync(k.Firma);
-        var (c, _, _) = await GirisYap(k);
+        var (c, _, _) = await DoLogin(k);
         Assert.Equal(HttpStatusCode.OK, (await c.GetAsync(Ben)).StatusCode);
 
         await using (var conn = new NpgsqlConnection(fx.Pg.OwnerConnectionString))
@@ -391,34 +391,34 @@ public sealed class UiApiTests(WebFixture fx)
         using (var scope = fx.Web.Services.CreateScope()) // platform konsolunun yaptığı gibi anında kesme
             scope.ServiceProvider.GetRequiredService<TenantStatusCache>().Invalidate(id);
 
-        await ProblemBekle(await c.GetAsync(Ben), HttpStatusCode.Unauthorized, "kiraci_kapali");
-        await ProblemBekle(await c.GetAsync(Ben), HttpStatusCode.Unauthorized, "oturum_yok"); // çerez silindi
+        await ExpectProblem(await c.GetAsync(Ben), HttpStatusCode.Unauthorized, "kiraci_kapali");
+        await ExpectProblem(await c.GetAsync(Ben), HttpStatusCode.Unauthorized, "oturum_yok"); // çerez silindi
     }
 
     [Fact]
     public async Task Platform_operatoru_ui_verisine_403_ben_401_yonlendirme_yok()
     {
-        var c = fx.Web.Istemci();
-        var giris = await c.PostAsync("/platform/auth/login", new FormUrlEncodedContent(new Dictionary<string, string>
+        var c = fx.Web.Client();
+        var entry = await c.PostAsync("/platform/auth/login", new FormUrlEncodedContent(new Dictionary<string, string>
         {
             ["kullanici"] = fx.Platform.Kullanici, ["sifre"] = fx.Platform.Sifre,
         }));
-        Assert.Equal(HttpStatusCode.Redirect, giris.StatusCode);
-        Assert.NotNull(CerezDegeri(giris, "racar.session"));
+        Assert.Equal(HttpStatusCode.Redirect, entry.StatusCode);
+        Assert.NotNull(CookieValue(entry, "racar.session"));
 
-        await ProblemBekle(await c.GetAsync("/api/ui/v1/test/tamam"), HttpStatusCode.Forbidden, "yetki_yok");
-        await ProblemBekle(await c.GetAsync(Ben), HttpStatusCode.Unauthorized, "oturum_yok"); // muaf ama firma oturumu yok
+        await ExpectProblem(await c.GetAsync("/api/ui/v1/test/tamam"), HttpStatusCode.Forbidden, "yetki_yok");
+        await ExpectProblem(await c.GetAsync(Ben), HttpStatusCode.Unauthorized, "oturum_yok"); // muaf ama firma oturumu yok
         Assert.Equal(HttpStatusCode.NoContent, (await c.GetAsync(Xsrf)).StatusCode);
     }
 
     [Fact]
     public async Task Giris_hiz_siniri_429_cok_istek_json()
     {
-        var c = fx.DarLimitli.Istemci(); // limit 2
-        var govde = GirisGovdesi(fx.PilotAdmin, WebFixture.RastgeleParola());
-        await c.SendAsync(Istek(HttpMethod.Post, Giris, null, govde));
-        await c.SendAsync(Istek(HttpMethod.Post, Giris, null, govde));
-        await ProblemBekle(await c.SendAsync(Istek(HttpMethod.Post, Giris, null, govde)),
+        var c = fx.NarrowLimited.Client(); // limit 2
+        var body = LoginBody(fx.PilotAdmin, WebFixture.RandomPassword());
+        await c.SendAsync(Request(HttpMethod.Post, Login, null, body));
+        await c.SendAsync(Request(HttpMethod.Post, Login, null, body));
+        await ExpectProblem(await c.SendAsync(Request(HttpMethod.Post, Login, null, body)),
             HttpStatusCode.TooManyRequests, "cok_istek");
     }
 
@@ -427,29 +427,29 @@ public sealed class UiApiTests(WebFixture fx)
     [Fact]
     public async Task Blazor_yonlendirmeleri_degismedi()
     {
-        var c = fx.Web.Istemci();
+        var c = fx.Web.Client();
 
-        var ana = await c.GetAsync("/");
-        Assert.Equal(HttpStatusCode.Redirect, ana.StatusCode);
-        Assert.StartsWith("/login", ana.Headers.Location?.OriginalString);
+        var main = await c.GetAsync("/");
+        Assert.Equal(HttpStatusCode.Redirect, main.StatusCode);
+        Assert.StartsWith("/login", main.Headers.Location?.OriginalString);
 
-        var cikis = await c.PostAsync("/auth/logout", new FormUrlEncodedContent([]));
-        Assert.Equal(HttpStatusCode.Redirect, cikis.StatusCode);
-        Assert.Equal("/login", cikis.Headers.Location?.OriginalString);
+        var pickup = await c.PostAsync("/auth/logout", new FormUrlEncodedContent([]));
+        Assert.Equal(HttpStatusCode.Redirect, pickup.StatusCode);
+        Assert.Equal("/login", pickup.Headers.Location?.OriginalString);
 
         // Blazor girişi hâlâ form + yönlendirme; aynı claim setiyle /api/ui/ben'i de açar (tek cookie şeması).
-        var giris = await c.PostAsync("/auth/login", new FormUrlEncodedContent(new Dictionary<string, string>
+        var entry = await c.PostAsync("/auth/login", new FormUrlEncodedContent(new Dictionary<string, string>
         {
             ["firma"] = fx.PilotAdmin.Firma, ["kullanici"] = fx.PilotAdmin.Kullanici, ["sifre"] = fx.PilotAdmin.Sifre,
         }));
-        Assert.Equal(HttpStatusCode.Redirect, giris.StatusCode);
-        Assert.Equal("/", giris.Headers.Location?.OriginalString);
+        Assert.Equal(HttpStatusCode.Redirect, entry.StatusCode);
+        Assert.Equal("/", entry.Headers.Location?.OriginalString);
         Assert.Equal(HttpStatusCode.OK, (await c.GetAsync(Ben)).StatusCode);
 
         // Bilinmeyen Blazor yolu hâlâ StatusCodePages'in not-found sayfası (ProblemDetails değil).
-        var yok = await c.GetAsync("/boyle-bir-sayfa-yok");
-        Assert.Equal(HttpStatusCode.NotFound, yok.StatusCode);
-        Assert.Equal("text/html", yok.Content.Headers.ContentType?.MediaType);
+        var none = await c.GetAsync("/boyle-bir-sayfa-yok");
+        Assert.Equal(HttpStatusCode.NotFound, none.StatusCode);
+        Assert.Equal("text/html", none.Content.Headers.ContentType?.MediaType);
     }
 }
 
@@ -461,39 +461,39 @@ public sealed class UiApiTests(WebFixture fx)
 public sealed class UiApiYapisalTests(WebFixture fx)
 {
     /// <summary>Modül yolu → modül. Yeni satın alınabilir modülün uçları eklenirken buraya satır eklenir.</summary>
-    private static readonly Dictionary<string, string> ModulYollari = new(StringComparer.OrdinalIgnoreCase)
+    private static readonly Dictionary<string, string> ModulePaths = new(StringComparer.OrdinalIgnoreCase)
     {
         ["/api/ui/v1/web-sitesi"] = "WebSitesi",
     };
 
-    private List<RouteEndpoint> UiUclari()
+    private List<RouteEndpoint> UiEndpoints()
         => fx.Web.Services.GetRequiredService<EndpointDataSource>().Endpoints
             .OfType<RouteEndpoint>()
             .Where(e => ("/" + (e.RoutePattern.RawText ?? "").TrimStart('/')).StartsWith("/api/ui", StringComparison.OrdinalIgnoreCase))
             .ToList();
 
-    private static string Rota(RouteEndpoint e) => "/" + (e.RoutePattern.RawText ?? "").TrimStart('/');
+    private static string RouteOf(RouteEndpoint e) => "/" + (e.RoutePattern.RawText ?? "").TrimStart('/');
 
     [Fact]
     public void Oturum_uclari_kayitli()
     {
-        var rotalar = UiUclari().Select(Rota).ToList();
+        var routes = UiEndpoints().Select(RouteOf).ToList();
         foreach (var r in new[] { "/api/ui/v1/oturum/giris", "/api/ui/v1/oturum/cikis", "/api/ui/v1/oturum/ben", "/api/ui/v1/oturum/xsrf" })
-            Assert.Contains(r, rotalar);
+            Assert.Contains(r, routes);
     }
 
     [Fact]
     public void Her_ui_ucu_grupta_ve_izinli_ya_da_acikca_muaf()
     {
-        var uclar = UiUclari();
-        Assert.NotEmpty(uclar);
-        var ihlal = uclar
+        var endpoints = UiEndpoints();
+        Assert.NotEmpty(endpoints);
+        var violation = endpoints
             .Where(e => e.Metadata.GetMetadata<UiApiGrubuMetadata>() is null
                         || (e.Metadata.GetMetadata<IzinMetadata>() is null
                             && e.Metadata.GetMetadata<IzinlerdenBiriMetadata>() is null // F4.1: "izinlerden biri" kapısı
                             && e.Metadata.GetMetadata<IzinMuafMetadata>() is null))
-            .Select(Rota).ToList();
-        Assert.True(ihlal.Count == 0, "Grupsuz ya da izinsiz /api/ui ucu: " + string.Join(", ", ihlal));
+            .Select(RouteOf).ToList();
+        Assert.True(violation.Count == 0, "Grupsuz ya da izinsiz /api/ui ucu: " + string.Join(", ", violation));
     }
 
     [Fact]
@@ -502,10 +502,10 @@ public sealed class UiApiYapisalTests(WebFixture fx)
         // TypedResults zorunlu. Ayrıca yakalar: yalnız (HttpContext) alıp Task<T> dönen yöntem grubu
         // RequestDelegate aşırı yüklemesine bağlanır, dönüş değeri yok sayılır (200 boş gövde) — o uçta
         // yanıt türü metadatası OLMAZ.
-        var ihlal = UiUclari()
+        var violation = UiEndpoints()
             .Where(e => e.Metadata.GetMetadata<Microsoft.AspNetCore.Http.Metadata.IProducesResponseTypeMetadata>() is null)
-            .Select(Rota).ToList();
-        Assert.True(ihlal.Count == 0, "Yanıt türü bildirmeyen /api/ui ucu: " + string.Join(", ", ihlal));
+            .Select(RouteOf).ToList();
+        Assert.True(violation.Count == 0, "Yanıt türü bildirmeyen /api/ui ucu: " + string.Join(", ", violation));
     }
 
     [Fact]
@@ -514,12 +514,12 @@ public sealed class UiApiYapisalTests(WebFixture fx)
         // F1.6: /menu da muaf — her oturumun bir menüsü var, kapı ÖĞE düzeyinde (MenuApi.Gorunur).
         // F3.5: /tablo-duzenleri/* muaf — kişisel arayüz tercihi; kullanıcı oturumdan gelir (uçta kullanıcı
         // parametresi yok), iş verisi taşımaz. Kullanıcı/firma izolasyonu TabloDuzeniTests'te kilitli.
-        var muaf = UiUclari().Where(e => e.Metadata.GetMetadata<IzinMuafMetadata>() is not null
+        var exempt = UiEndpoints().Where(e => e.Metadata.GetMetadata<IzinMuafMetadata>() is not null
                                          && e.Metadata.GetMetadata<IzinMetadata>() is null
                                          && e.Metadata.GetMetadata<IzinlerdenBiriMetadata>() is null)
-            .Select(Rota).ToList();
+            .Select(RouteOf).ToList();
         // F3.3: /istemci-hata da muaf — her oturum yalnız KENDİ tarayıcı hatasını raporlar (veri yok, yalnız log).
-        Assert.All(muaf, r => Assert.True(r.StartsWith("/api/ui/v1/oturum/", StringComparison.Ordinal)
+        Assert.All(exempt, r => Assert.True(r.StartsWith("/api/ui/v1/oturum/", StringComparison.Ordinal)
                                           || r == "/api/ui/v1/menu"
                                           || r == "/api/ui/v1/istemci-hata"
                                           // F4.1: ana ekran her oturumun; kapılar İÇERİKTE (finans ViewReports, tahsilat
@@ -554,34 +554,34 @@ public sealed class UiApiYapisalTests(WebFixture fx)
         // F12.1: every /api/ui/v1/platform endpoint is behind "PlatformAdmin"; the only anonymous ones are
         // login/logout. A new platform endpoint without the policy would be reachable by any tenant user
         // (IzinMuaf skips the tenant permission matrix) — this is the fence.
-        var platform = UiUclari().Where(e => Rota(e).StartsWith("/api/ui/v1/platform/", StringComparison.Ordinal)).ToList();
+        var platform = UiEndpoints().Where(e => RouteOf(e).StartsWith("/api/ui/v1/platform/", StringComparison.Ordinal)).ToList();
         Assert.NotEmpty(platform);
         var anonymous = platform.Where(e => e.Metadata.GetMetadata<Microsoft.AspNetCore.Authorization.IAllowAnonymous>() is not null)
-            .Select(Rota).OrderBy(r => r, StringComparer.Ordinal).ToList();
+            .Select(RouteOf).OrderBy(r => r, StringComparer.Ordinal).ToList();
         Assert.Equal(new[] { "/api/ui/v1/platform/oturum/cikis", "/api/ui/v1/platform/oturum/giris" }, anonymous);
         var missing = platform
             .Where(e => !e.Metadata.GetOrderedMetadata<Microsoft.AspNetCore.Authorization.IAuthorizeData>()
                 .Any(a => a.Policy == "PlatformAdmin"))
-            .Select(Rota).ToList();
+            .Select(RouteOf).ToList();
         Assert.True(missing.Count == 0, "PlatformAdmin policy eksik: " + string.Join(", ", missing));
         // And the policy is not used outside the platform area of the UI API.
-        var leaked = UiUclari().Where(e => !Rota(e).StartsWith("/api/ui/v1/platform/", StringComparison.Ordinal)
+        var leaked = UiEndpoints().Where(e => !RouteOf(e).StartsWith("/api/ui/v1/platform/", StringComparison.Ordinal)
                                            && e.Metadata.GetOrderedMetadata<Microsoft.AspNetCore.Authorization.IAuthorizeData>()
                                                .Any(a => a.Policy == "PlatformAdmin"))
-            .Select(Rota).ToList();
+            .Select(RouteOf).ToList();
         Assert.Empty(leaked);
     }
 
     [Fact]
     public void Modul_yolundaki_uc_modul_metadatasi_tasir()
     {
-        var ihlal = new List<string>();
-        foreach (var e in UiUclari())
-        foreach (var (onek, modul) in ModulYollari)
-            if (Rota(e).StartsWith(onek + "/", StringComparison.OrdinalIgnoreCase)
-                && e.Metadata.GetOrderedMetadata<ModulMetadata>().All(m => m.Modul != modul))
-                ihlal.Add(Rota(e));
-        Assert.True(ihlal.Count == 0, "Modül metadatası eksik: " + string.Join(", ", ihlal));
+        var violation = new List<string>();
+        foreach (var e in UiEndpoints())
+        foreach (var (prefix, module) in ModulePaths)
+            if (RouteOf(e).StartsWith(prefix + "/", StringComparison.OrdinalIgnoreCase)
+                && e.Metadata.GetOrderedMetadata<ModulMetadata>().All(m => m.Modul != module))
+                violation.Add(RouteOf(e));
+        Assert.True(violation.Count == 0, "Modül metadatası eksik: " + string.Join(", ", violation));
     }
 
     [Fact]
@@ -589,7 +589,7 @@ public sealed class UiApiYapisalTests(WebFixture fx)
     {
         // RequireWebSitesiModulu filtreyi takarken metadatayı da yazar — mevcut Blazor uçlarında kanıt.
         var ws = fx.Web.Services.GetRequiredService<EndpointDataSource>().Endpoints.OfType<RouteEndpoint>()
-            .Where(e => Rota(e).StartsWith("/web-sitesi/", StringComparison.OrdinalIgnoreCase)
+            .Where(e => RouteOf(e).StartsWith("/web-sitesi/", StringComparison.OrdinalIgnoreCase)
                         && e.Metadata.GetMetadata<System.Reflection.MethodInfo>() is not null) // minimal API (Razor sayfası değil)
             .ToList();
         Assert.NotEmpty(ws);
@@ -605,8 +605,8 @@ public sealed class UiApiYapisalTests(WebFixture fx)
     [InlineData("/api/ui/v1/test/tamam", false)]
     [InlineData("/api/ui/v1/platform/kiracilar", true)]   // F12.1: platform oturumunun firması yok
     [InlineData("/api/ui/v1/platformx/kiracilar", false)] // segment sınırı
-    public void Pilot_muafiyeti_rota_segmentine_gore(string rota, bool muaf)
-        => Assert.Equal(muaf, UiApiExtensions.PilotMuaf(rota));
+    public void Pilot_muafiyeti_rota_segmentine_gore(string route, bool exempt)
+        => Assert.Equal(exempt, UiApiExtensions.PilotExempt(route));
 
     [Theory]
     [InlineData("GET", true)]
@@ -616,8 +616,8 @@ public sealed class UiApiYapisalTests(WebFixture fx)
     [InlineData("PUT", false)]
     [InlineData("PATCH", false)]
     [InlineData("DELETE", false)]
-    public void Csrf_yalniz_guvensiz_yontemde(string yontem, bool guvenli)
-        => Assert.Equal(guvenli, UiApiExtensions.GuvenliYontem(yontem));
+    public void Csrf_yalniz_guvensiz_yontemde(string method, bool safe)
+        => Assert.Equal(safe, UiApiExtensions.SafeMethod(method));
 }
 
 /// <summary>
@@ -628,7 +628,7 @@ public sealed class UiApiYapisalTests(WebFixture fx)
 [Collection("web")]
 public sealed class UiApiOpenApiTests(WebFixture fx)
 {
-    private static string RepoKok()
+    private static string RepoRoot()
     {
         var d = new DirectoryInfo(AppContext.BaseDirectory);
         while (d is not null && !File.Exists(Path.Combine(d.FullName, "RentACar.slnx"))) d = d.Parent;
@@ -638,7 +638,7 @@ public sealed class UiApiOpenApiTests(WebFixture fx)
     [Fact]
     public async Task Anlik_goruntu_guncel()
     {
-        var r = await fx.Web.Istemci().GetAsync("/openapi/ui-v1.json");
+        var r = await fx.Web.Client().GetAsync("/openapi/ui-v1.json");
         Assert.Equal(HttpStatusCode.OK, r.StatusCode);
         var node = JsonNode.Parse(await r.Content.ReadAsStringAsync())!;
         var paths = node["paths"]!.AsObject().Select(p => p.Key).ToList();
@@ -646,15 +646,15 @@ public sealed class UiApiOpenApiTests(WebFixture fx)
         Assert.All(paths, p => Assert.StartsWith("/api/ui/v1/", p)); // Blazor uçları belgeye sızmaz
         Assert.DoesNotContain(paths, p => p.StartsWith("/api/ui/v1/test/", StringComparison.Ordinal)); // test uçları yok
 
-        var guncel = node.ToJsonString(new JsonSerializerOptions { WriteIndented = true }).ReplaceLineEndings("\n") + "\n";
-        var dosya = Path.Combine(RepoKok(), "docs", "api", "ui-v1.json");
+        var current = node.ToJsonString(new JsonSerializerOptions { WriteIndented = true }).ReplaceLineEndings("\n") + "\n";
+        var file = Path.Combine(RepoRoot(), "docs", "api", "ui-v1.json");
         if (Environment.GetEnvironmentVariable("RACAR_OPENAPI_GUNCELLE") == "1")
         {
-            Directory.CreateDirectory(Path.GetDirectoryName(dosya)!);
-            await File.WriteAllTextAsync(dosya, guncel);
+            Directory.CreateDirectory(Path.GetDirectoryName(file)!);
+            await File.WriteAllTextAsync(file, current);
         }
-        Assert.True(File.Exists(dosya), "docs/api/ui-v1.json yok — RACAR_OPENAPI_GUNCELLE=1 ile üretin.");
-        Assert.True((await File.ReadAllTextAsync(dosya)).ReplaceLineEndings("\n") == guncel,
+        Assert.True(File.Exists(file), "docs/api/ui-v1.json yok — RACAR_OPENAPI_GUNCELLE=1 ile üretin.");
+        Assert.True((await File.ReadAllTextAsync(file)).ReplaceLineEndings("\n") == current,
             "OpenAPI anlık görüntüsü bayat — RACAR_OPENAPI_GUNCELLE=1 ile güncelleyip commit edin.");
     }
 }

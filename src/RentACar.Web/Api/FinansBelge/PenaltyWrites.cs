@@ -64,7 +64,7 @@ internal static class PenaltyWrites
         var id = await penalties.CreateAsync(new PenaltyInput
         {
             CezaTuru = req.CezaTuru.Trim(),
-            TebligTarihi = F5Ortak.Utc(req.TebligTarihi),
+            TebligTarihi = F5Shared.Utc(req.TebligTarihi),
             VadeGun = req.VadeGun ?? 15,
             VehicleId = req.AracId, CariId = req.CariId, RentalId = req.KiraId,
             Sebep = Trimmed(req.Sebep),
@@ -80,7 +80,7 @@ internal static class PenaltyWrites
     {
         await using (var db = await dbf.CreateDbContextAsync(ct))
             if (await PenaltyUiApi.LoadInScopeAsync(db, penalties, user, id, ct) is null)
-                return F5Ortak.Bulunamadi("Ceza bulunamadı.");
+                return F5Shared.NotFound("Ceza bulunamadı.");
         await penalties.ReflectAsync(id, ct);
         return TypedResults.Ok(new PenaltyStateResult(id, PenaltyStatus.Yansitildi.ToString()));
     }
@@ -90,7 +90,7 @@ internal static class PenaltyWrites
     {
         await using (var db = await dbf.CreateDbContextAsync(ct))
             if (await PenaltyUiApi.LoadInScopeAsync(db, penalties, user, id, ct) is null)
-                return F5Ortak.Bulunamadi("Ceza bulunamadı.");
+                return F5Shared.NotFound("Ceza bulunamadı.");
         await penalties.CancelAsync(id, ct);
         return TypedResults.Ok(new PenaltyStateResult(id, PenaltyStatus.Iptal.ToString()));
     }
@@ -104,7 +104,7 @@ internal static class PenaltyWrites
         Guid id, PenaltyPaymentRequest req, HttpContext http, PenaltyService penalties, ICurrentUser user,
         IDbContextFactory<AppDbContext> dbf, CancellationToken ct)
     {
-        var key = IdempotencyBasligi.ZorunluAnahtar(http);
+        var key = IdempotencyHeader.RequiredKey(http);
         if (req.SatirId == Guid.Empty) throw new ValidationException("Ödenecek ceza kalemi seçilmelidir.", "satirId");
         var account = Account(req.Hesap);
         OptionalAmount(req.Tutar, "tutar");
@@ -117,7 +117,7 @@ internal static class PenaltyWrites
         await using (var db = await dbf.CreateDbContextAsync(ct))
         {
             if (await PenaltyUiApi.LoadInScopeAsync(db, penalties, user, id, ct) is not { } penalty)
-                return F5Ortak.Bulunamadi("Ceza bulunamadı.");
+                return F5Shared.NotFound("Ceza bulunamadı.");
             if (await db.PenaltyOdemeleri.AsNoTracking().FirstOrDefaultAsync(o => o.IslemAnahtari == key, ct) is { } o)
             {
                 var same = o.PenaltyId == id && o.SatirId == req.SatirId && o.Hesap == account
@@ -134,7 +134,7 @@ internal static class PenaltyWrites
 
         var r = await penalties.PayPartialAsync(id, new CezaOdemeInput
         {
-            SatirId = req.SatirId, Tutar = req.Tutar, Hesap = account, Tarih = F5Ortak.Utc(req.Tarih),
+            SatirId = req.SatirId, Tutar = req.Tutar, Hesap = account, Tarih = F5Shared.Utc(req.Tarih),
             MakbuzNo = Trimmed(req.MakbuzNo), KasaKodu = Trimmed(req.KasaKodu), HesapNo = Trimmed(req.HesapNo),
             IslemYapan = Trimmed(req.IslemYapan), Aciklama = Trimmed(req.Aciklama), IslemAnahtari = key,
         }, ct);

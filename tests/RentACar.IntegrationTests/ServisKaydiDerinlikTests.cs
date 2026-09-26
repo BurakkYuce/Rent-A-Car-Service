@@ -30,21 +30,21 @@ namespace RentACar.IntegrationTests;
 public sealed class ServisKaydiDerinlikTests(PostgresFixture fx)
 {
     // Gün-hassas rapor testleri için whole-second hizalı taban (CI'da µs/100ns tick farkı tuzağı).
-    private static readonly DateTimeOffset Taban =
+    private static readonly DateTimeOffset Base =
         new DateTimeOffset(DateTime.UtcNow.Date, TimeSpan.Zero).AddDays(-10).AddHours(9);
-    private static readonly DateTimeOffset Gecmis = new(2026, 3, 1, 10, 0, 0, TimeSpan.Zero);
+    private static readonly DateTimeOffset History = new(2026, 3, 1, 10, 0, 0, TimeSpan.Zero);
 
-    private static Task<Guid> AracAsync(IServiceProvider sp, string plaka)
-        => sp.GetRequiredService<VehicleService>().CreateAsync(new VehicleInput { Plaka = plaka, Durum = VehicleStatus.Musait });
+    private static Task<Guid> VehicleAsync(IServiceProvider sp, string plate)
+        => sp.GetRequiredService<VehicleService>().CreateAsync(new VehicleInput { Plaka = plate, Durum = VehicleStatus.Musait });
 
-    private static async Task<VehicleStatus> AracDurumAsync(IServiceProvider sp, Guid id)
+    private static async Task<VehicleStatus> VehicleStatusAsync(IServiceProvider sp, Guid id)
     {
         var f = sp.GetRequiredService<IDbContextFactory<AppDbContext>>();
         await using var db = await f.CreateDbContextAsync();
         return (await db.Vehicles.AsNoTracking().FirstAsync(v => v.Id == id)).Durum;
     }
 
-    private static async Task<int> DefterSatirSayisiAsync(IServiceProvider sp)
+    private static async Task<int> LedgerLineCountAsync(IServiceProvider sp)
     {
         var f = sp.GetRequiredService<IDbContextFactory<AppDbContext>>();
         await using var db = await f.CreateDbContextAsync();
@@ -52,7 +52,7 @@ public sealed class ServisKaydiDerinlikTests(PostgresFixture fx)
     }
 
     /// <summary>ELLE doldurulmuş bilgi bloğu — round-trip oracle'ı (değerler sabit).</summary>
-    private static void BilgiDoldur(ServiceRecordBilgiInput b)
+    private static void FillInfo(ServiceRecordBilgiInput b)
     {
         b.AtolyeAdi = "Merkez Atölye";
         b.Aciklama = "Sağ ön çamurluk";
@@ -60,17 +60,17 @@ public sealed class ServisKaydiDerinlikTests(PostgresFixture fx)
         b.BeyanTuru = "Kaza Tespit Tutanağı";
         b.KarsiPlaka = "06 xy 999";          // normalize edilerek büyük harfe çekilir
         b.KarsiTrafikSigortasi = "Anadolu Sigorta / TRF-778";
-        b.KazaTarihi = Gecmis;
+        b.KazaTarihi = History;
         b.KazaSorumlusu = "Karşı sürücü";
         b.HasarDosyaNo = "HD-2026-4451";
         b.DegerKaybi = 7_500.50m;
 
-        b.FaturaTarihi = Gecmis.AddDays(3);
+        b.FaturaTarihi = History.AddDays(3);
         b.FaturaNo = "SRV-FTR-9001";
         b.FaturaTutar = 1_000m;
         b.FaturaKdv = 180m;                  // → GenelToplam 1.180 (ELLE)
 
-        b.OdemeTarihi = Gecmis.AddDays(5);
+        b.OdemeTarihi = History.AddDays(5);
         b.Odeme = 1_180m;
         b.OdemeDoviz = "eur";                // normalize → EUR
         b.OdemeKur = 38.4512m;
@@ -80,8 +80,8 @@ public sealed class ServisKaydiDerinlikTests(PostgresFixture fx)
 
         b.CikisYakit = 4;
         b.DonusYakit = 9;
-        b.PlanBasTarihi = Gecmis.AddDays(-2);
-        b.PlanBitTarihi = Gecmis.AddDays(-1);
+        b.PlanBasTarihi = History.AddDays(-2);
+        b.PlanBitTarihi = History.AddDays(-1);
     }
 
     // ==================== A — alan turu (round-trip) ====================
@@ -93,11 +93,11 @@ public sealed class ServisKaydiDerinlikTests(PostgresFixture fx)
         using var scope = host.ScopeFor(Guid.NewGuid());
         var sp = scope.ServiceProvider;
         var svc = sp.GetRequiredService<ServiceRecordService>();
-        var arac = await AracAsync(sp, "34 SD 01");
+        var vehicle = await VehicleAsync(sp, "34 SD 01");
 
-        var girdi = new ServiceRecordInput { VehicleId = arac, Tip = ServiceType.Ariza, GirisKm = 51_000 };
-        BilgiDoldur(girdi);
-        var id = await svc.CreateAsync(girdi);
+        var input = new ServiceRecordInput { VehicleId = vehicle, Tip = ServiceType.Ariza, GirisKm = 51_000 };
+        FillInfo(input);
+        var id = await svc.CreateAsync(input);
 
         var rec = await svc.GetAsync(id);
         Assert.NotNull(rec);
@@ -105,16 +105,16 @@ public sealed class ServisKaydiDerinlikTests(PostgresFixture fx)
         Assert.Equal("Kaza Tespit Tutanağı", rec.BeyanTuru);
         Assert.Equal("06 XY 999", rec.KarsiPlaka);                 // ELLE: büyük harfe normalize
         Assert.Equal("Anadolu Sigorta / TRF-778", rec.KarsiTrafikSigortasi);
-        Assert.Equal(Gecmis, rec.KazaTarihi);
+        Assert.Equal(History, rec.KazaTarihi);
         Assert.Equal("Karşı sürücü", rec.KazaSorumlusu);
         Assert.Equal("HD-2026-4451", rec.HasarDosyaNo);
         Assert.Equal(7_500.50m, rec.DegerKaybi);
-        Assert.Equal(Gecmis.AddDays(3), rec.FaturaTarihi);
+        Assert.Equal(History.AddDays(3), rec.FaturaTarihi);
         Assert.Equal("SRV-FTR-9001", rec.FaturaNo);
         Assert.Equal(1_000m, rec.FaturaTutar);
         Assert.Equal(180m, rec.FaturaKdv);
         Assert.Equal(1_180m, rec.FaturaGenelToplam);               // ELLE: 1.000 + 180
-        Assert.Equal(Gecmis.AddDays(5), rec.OdemeTarihi);
+        Assert.Equal(History.AddDays(5), rec.OdemeTarihi);
         Assert.Equal(1_180m, rec.Odeme);
         Assert.Equal("EUR", rec.OdemeDoviz);                       // ELLE: normalize
         Assert.Equal(38.4512m, rec.OdemeKur);
@@ -123,12 +123,12 @@ public sealed class ServisKaydiDerinlikTests(PostgresFixture fx)
         Assert.Equal("TR33 0006 1005 1978 6457 8413 26", rec.HesapNo);
         Assert.Equal(4, rec.CikisYakit);
         Assert.Equal(9, rec.DonusYakit);
-        Assert.Equal(Gecmis.AddDays(-2), rec.PlanBasTarihi);
-        Assert.Equal(Gecmis.AddDays(-1), rec.PlanBitTarihi);
+        Assert.Equal(History.AddDays(-2), rec.PlanBasTarihi);
+        Assert.Equal(History.AddDays(-1), rec.PlanBitTarihi);
 
         // Güncelleme yolu (fatura genelde servis bittikten SONRA gelir).
-        var guncel = new ServiceRecordBilgiInput { FaturaNo = "SRV-FTR-9002", FaturaTutar = 2_000m, FaturaKdv = 400m };
-        Assert.True(await svc.UpdateInfoAsync(id, guncel));
+        var current = new ServiceRecordBilgiInput { FaturaNo = "SRV-FTR-9002", FaturaTutar = 2_000m, FaturaKdv = 400m };
+        Assert.True(await svc.UpdateInfoAsync(id, current));
         var rec2 = await svc.GetAsync(id);
         Assert.Equal("SRV-FTR-9002", rec2!.FaturaNo);
         Assert.Equal(2_400m, rec2.FaturaGenelToplam);              // ELLE: 2.000 + 400
@@ -143,18 +143,18 @@ public sealed class ServisKaydiDerinlikTests(PostgresFixture fx)
         using var scope = host.ScopeFor(Guid.NewGuid());
         var sp = scope.ServiceProvider;
         var svc = sp.GetRequiredService<ServiceRecordService>();
-        var arac = await AracAsync(sp, "34 SD 02");
+        var vehicle = await VehicleAsync(sp, "34 SD 02");
 
         var id = await svc.CreateAsync(new ServiceRecordInput
         {
-            VehicleId = arac, GirisKm = 12_345,
+            VehicleId = vehicle, GirisKm = 12_345,
             Lines = [new ServiceLineInput { Aciklama = "Yağ", Tutar = 800m }]
         });
         await svc.StartAsync(id);
 
-        var girdi = new ServiceRecordBilgiInput();
-        BilgiDoldur(girdi);
-        Assert.True(await svc.UpdateInfoAsync(id, girdi));
+        var input = new ServiceRecordBilgiInput();
+        FillInfo(input);
+        Assert.True(await svc.UpdateInfoAsync(id, input));
 
         var rec = await svc.GetAsync(id);
         // Whitelist TİP düzeyinde: bu alanlar ServiceRecordBilgiInput'ta yok → değişemezler.
@@ -174,11 +174,11 @@ public sealed class ServisKaydiDerinlikTests(PostgresFixture fx)
         using var scope = host.ScopeFor(Guid.NewGuid());
         var sp = scope.ServiceProvider;
         var svc = sp.GetRequiredService<ServiceRecordService>();
-        var arac = await AracAsync(sp, "34 SD 03");
+        var vehicle = await VehicleAsync(sp, "34 SD 03");
 
         var id = await svc.CreateAsync(new ServiceRecordInput
         {
-            VehicleId = arac, GirisKm = 0,
+            VehicleId = vehicle, GirisKm = 0,
             Lines =
             [
                 // ELLE: 250 × 3 = 750; − 50 indirim = 700 (KDV net'e KARIŞMAZ).
@@ -189,14 +189,14 @@ public sealed class ServisKaydiDerinlikTests(PostgresFixture fx)
         });
 
         var rec = await svc.GetAsync(id);
-        var kaporta = rec!.Lines.Single(l => l.Aciklama == "Kaporta");
-        var boya = rec.Lines.Single(l => l.Aciklama == "Boya");
-        Assert.Equal(700m, kaporta.Tutar);      // ELLE
-        Assert.Equal(250m, kaporta.BirimFiyat);
-        Assert.Equal(3m, kaporta.Miktar);
-        Assert.Equal(50m, kaporta.Indirim);
-        Assert.Equal(0.20m, kaporta.KdvOran);
-        Assert.Equal(999m, boya.Tutar);         // ELLE: açık tutar kazandı
+        var bodywork = rec!.Lines.Single(l => l.Aciklama == "Kaporta");
+        var paint = rec.Lines.Single(l => l.Aciklama == "Boya");
+        Assert.Equal(700m, bodywork.Tutar);      // ELLE
+        Assert.Equal(250m, bodywork.BirimFiyat);
+        Assert.Equal(3m, bodywork.Miktar);
+        Assert.Equal(50m, bodywork.Indirim);
+        Assert.Equal(0.20m, bodywork.KdvOran);
+        Assert.Equal(999m, paint.Tutar);         // ELLE: açık tutar kazandı
         Assert.Equal(1_699m, rec.ToplamIscilik); // ELLE: 700 + 999
 
         // Miktarsız birim fiyat → 1 kabul edilir ve KALICI yazılır.
@@ -216,21 +216,21 @@ public sealed class ServisKaydiDerinlikTests(PostgresFixture fx)
     [Fact]
     public void Satir_bazli_KDV_yuvarlamasi_artigi_SATIRDA_kalir()
     {
-        var satirlar = new[] { 33.33m, 33.33m, 33.33m };
+        var rows = new[] { 33.33m, 33.33m, 33.33m };
 
-        var satirKdvleri = satirlar.Select(n => ServiceItemCalculation.Calculate(n, null, null, 0.20m).KdvTutar).ToArray();
-        Assert.All(satirKdvleri, k => Assert.Equal(6.67m, k));       // ELLE: 6,666 → 6,67
+        var lineVats = rows.Select(n => ServiceItemCalculation.Calculate(n, null, null, 0.20m).KdvTutar).ToArray();
+        Assert.All(lineVats, k => Assert.Equal(6.67m, k));       // ELLE: 6,666 → 6,67
 
-        var net = satirlar.Sum();
-        var kdvSatirBazli = satirKdvleri.Sum();
+        var net = rows.Sum();
+        var vatLineBased = lineVats.Sum();
         Assert.Equal(99.99m, net);                                    // ELLE
-        Assert.Equal(20.01m, kdvSatirBazli);                          // ELLE: 3 × 6,67
-        Assert.Equal(120.00m, net + kdvSatirBazli);                   // ELLE
+        Assert.Equal(20.01m, vatLineBased);                          // ELLE: 3 × 6,67
+        Assert.Equal(120.00m, net + vatLineBased);                   // ELLE
 
         // Toplam-bazlı (KULLANILMAYAN) yol farklı çıkar; fark tam 0,01'dir ve satırlarda kalır.
-        var kdvToplamBazli = decimal.Round(net * 0.20m, 2, MidpointRounding.AwayFromZero);
-        Assert.Equal(20.00m, kdvToplamBazli);
-        Assert.Equal(0.01m, kdvSatirBazli - kdvToplamBazli);
+        var vatTotalBased = decimal.Round(net * 0.20m, 2, MidpointRounding.AwayFromZero);
+        Assert.Equal(20.00m, vatTotalBased);
+        Assert.Equal(0.01m, vatLineBased - vatTotalBased);
 
         // Brüt de satır bazında yuvarlanır: 12,345 × 3 = 37,035 → 37,04 (indirimsiz net).
         Assert.Equal(37.04m, ServiceItemCalculation.Net(12.345m, 3m));
@@ -245,7 +245,7 @@ public sealed class ServisKaydiDerinlikTests(PostgresFixture fx)
         using var scope = host.ScopeFor(Guid.NewGuid());
         var sp = scope.ServiceProvider;
         var svc = sp.GetRequiredService<ServiceRecordService>();
-        var arac = await AracAsync(sp, "34 SD 04");
+        var vehicle = await VehicleAsync(sp, "34 SD 04");
 
         // TARİH TABANI SANİYE HİZALI: PostgreSQL timestamptz MİKROSANİYE çözünürlüklüdür, .NET
         // DateTimeOffset 100ns'lik tick kullanır. Ham UtcNow yazılıp geri okunduğunda 3 tick'lik
@@ -256,31 +256,31 @@ public sealed class ServisKaydiDerinlikTests(PostgresFixture fx)
         plan = plan.AddTicks(-(plan.Ticks % TimeSpan.TicksPerSecond));
         var id = await svc.CreateAsync(new ServiceRecordInput
         {
-            VehicleId = arac, Tip = ServiceType.Periyodik, GirisKm = 0, Rezervasyon = true,
+            VehicleId = vehicle, Tip = ServiceType.Periyodik, GirisKm = 0, Rezervasyon = true,
             PlanBasTarihi = plan, PlanBitTarihi = plan.AddDays(1)
         });
 
-        var rez = await svc.GetAsync(id);
-        Assert.Equal(ServiceStatus.Rezerve, rez!.Durum);
-        Assert.Equal(plan, rez.PlanBasTarihi);
+        var res = await svc.GetAsync(id);
+        Assert.Equal(ServiceStatus.Rezerve, res!.Durum);
+        Assert.Equal(plan, res.PlanBasTarihi);
         // Randevu aracı bakıma SOKMAZ.
-        Assert.Equal(VehicleStatus.Musait, await AracDurumAsync(sp, arac));
+        Assert.Equal(VehicleStatus.Musait, await VehicleStatusAsync(sp, vehicle));
 
-        var oncesi = DateTimeOffset.UtcNow.AddSeconds(-2);
+        var before = DateTimeOffset.UtcNow.AddSeconds(-2);
         Assert.True(await svc.TakeIntoServiceAsync(id, entryKm: 62_500));
-        var acik = await svc.GetAsync(id);
-        Assert.Equal(ServiceStatus.Acik, acik!.Durum);                  // ELLE: sabit hedef durum
-        Assert.Equal(62_500, acik.GirisKm);                           // ELLE
-        Assert.InRange(acik.GirisTarihi, oncesi, DateTimeOffset.UtcNow.AddSeconds(2)); // "o an"
-        Assert.Equal(plan, acik.PlanBasTarihi);                       // plan KORUNUR (plan-gerçek farkı ölçülebilsin)
-        Assert.Equal(VehicleStatus.Musait, await AracDurumAsync(sp, arac));
+        var open = await svc.GetAsync(id);
+        Assert.Equal(ServiceStatus.Acik, open!.Durum);                  // ELLE: sabit hedef durum
+        Assert.Equal(62_500, open.GirisKm);                           // ELLE
+        Assert.InRange(open.GirisTarihi, before, DateTimeOffset.UtcNow.AddSeconds(2)); // "o an"
+        Assert.Equal(plan, open.PlanBasTarihi);                       // plan KORUNUR (plan-gerçek farkı ölçülebilsin)
+        Assert.Equal(VehicleStatus.Musait, await VehicleStatusAsync(sp, vehicle));
 
         // Buradan sonrası mevcut akışın AYNISI: Açık → Serviste → Tamamlandı.
         Assert.True(await svc.StartAsync(id));
-        Assert.Equal(VehicleStatus.Serviste, await AracDurumAsync(sp, arac));
+        Assert.Equal(VehicleStatus.Serviste, await VehicleStatusAsync(sp, vehicle));
         Assert.True(await svc.CompleteAsync(id, pickupKm: 62_600));
         Assert.Equal(ServiceStatus.Tamamlandi, (await svc.GetAsync(id))!.Durum);
-        Assert.Equal(VehicleStatus.Musait, await AracDurumAsync(sp, arac));
+        Assert.Equal(VehicleStatus.Musait, await VehicleStatusAsync(sp, vehicle));
     }
 
     [Fact]
@@ -290,23 +290,23 @@ public sealed class ServisKaydiDerinlikTests(PostgresFixture fx)
         using var scope = host.ScopeFor(Guid.NewGuid());
         var sp = scope.ServiceProvider;
         var svc = sp.GetRequiredService<ServiceRecordService>();
-        var arac = await AracAsync(sp, "34 SD 05");
+        var vehicle = await VehicleAsync(sp, "34 SD 05");
 
-        var rezId = await svc.CreateAsync(new ServiceRecordInput { VehicleId = arac, Rezervasyon = true });
+        var resId = await svc.CreateAsync(new ServiceRecordInput { VehicleId = vehicle, Rezervasyon = true });
         // Randevu gerçekleşmeden araç servise giremez / kayıt tamamlanamaz.
-        await Assert.ThrowsAsync<ValidationException>(() => svc.StartAsync(rezId));
-        await Assert.ThrowsAsync<ValidationException>(() => svc.CompleteAsync(rezId, 100));
+        await Assert.ThrowsAsync<ValidationException>(() => svc.StartAsync(resId));
+        await Assert.ThrowsAsync<ValidationException>(() => svc.CompleteAsync(resId, 100));
 
         // Normal (Açık) kayıt "Servise Al" edilemez — o yalnız randevu açma aksiyonudur.
-        var acikId = await svc.CreateAsync(new ServiceRecordInput { VehicleId = arac });
-        await Assert.ThrowsAsync<ValidationException>(() => svc.TakeIntoServiceAsync(acikId));
+        var openId = await svc.CreateAsync(new ServiceRecordInput { VehicleId = vehicle });
+        await Assert.ThrowsAsync<ValidationException>(() => svc.TakeIntoServiceAsync(openId));
 
         // Randevu iptal edilebilir; araç zaten Serviste olmadığı için durumu değişmez.
-        Assert.True(await svc.CancelAsync(rezId));
-        Assert.Equal(ServiceStatus.Iptal, (await svc.GetAsync(rezId))!.Durum);
-        Assert.Equal(VehicleStatus.Musait, await AracDurumAsync(sp, arac));
+        Assert.True(await svc.CancelAsync(resId));
+        Assert.Equal(ServiceStatus.Iptal, (await svc.GetAsync(resId))!.Durum);
+        Assert.Equal(VehicleStatus.Musait, await VehicleStatusAsync(sp, vehicle));
         // Kapanmış kayıt ikinci kez servise alınamaz.
-        await Assert.ThrowsAsync<ValidationException>(() => svc.TakeIntoServiceAsync(rezId));
+        await Assert.ThrowsAsync<ValidationException>(() => svc.TakeIntoServiceAsync(resId));
     }
 
     [Fact]
@@ -317,9 +317,9 @@ public sealed class ServisKaydiDerinlikTests(PostgresFixture fx)
         var sp = scope.ServiceProvider;
         var f = sp.GetRequiredService<IDbContextFactory<AppDbContext>>();
 
-        var rezerveli = await AracAsync(sp, "34 RZ 01");
-        var iptalli = await AracAsync(sp, "34 RZ 02");
-        var gercek = await AracAsync(sp, "34 RZ 03");
+        var reserved = await VehicleAsync(sp, "34 RZ 01");
+        var cancelled = await VehicleAsync(sp, "34 RZ 02");
+        var actual = await VehicleAsync(sp, "34 RZ 03");
 
         // ELLE KURULAN TAKVİM — aralık T+0 … T+2 (3 gün). Üç aracın da servis kaydı AYNI aralığı
         // kapsıyor; yalnız GERÇEKLEŞMİŞ (Tamamlandı) olan bakım günü saymalı.
@@ -327,40 +327,40 @@ public sealed class ServisKaydiDerinlikTests(PostgresFixture fx)
         {
             db.ServiceRecords.Add(new RentACar.Domain.Entities.ServiceRecord
             {
-                No = "SRV-RZ1", VehicleId = rezerveli, Durum = ServiceStatus.Rezerve,
-                GirisTarihi = Taban, CikisTarihi = Taban.AddDays(2),
-                PlanBasTarihi = Taban, PlanBitTarihi = Taban.AddDays(2)
+                No = "SRV-RZ1", VehicleId = reserved, Durum = ServiceStatus.Rezerve,
+                GirisTarihi = Base, CikisTarihi = Base.AddDays(2),
+                PlanBasTarihi = Base, PlanBitTarihi = Base.AddDays(2)
             });
             db.ServiceRecords.Add(new RentACar.Domain.Entities.ServiceRecord
             {
-                No = "SRV-RZ2", VehicleId = iptalli, Durum = ServiceStatus.Iptal,
-                GirisTarihi = Taban, CikisTarihi = Taban.AddDays(2)
+                No = "SRV-RZ2", VehicleId = cancelled, Durum = ServiceStatus.Iptal,
+                GirisTarihi = Base, CikisTarihi = Base.AddDays(2)
             });
             db.ServiceRecords.Add(new RentACar.Domain.Entities.ServiceRecord
             {
-                No = "SRV-RZ3", VehicleId = gercek, Durum = ServiceStatus.Tamamlandi,
-                GirisTarihi = Taban, CikisTarihi = Taban.AddDays(2)
+                No = "SRV-RZ3", VehicleId = actual, Durum = ServiceStatus.Tamamlandi,
+                GirisTarihi = Base, CikisTarihi = Base.AddDays(2)
             });
             await db.SaveChangesAsync();
         }
 
         var rs = sp.GetRequiredService<ReportService>();
-        var satirlar = await rs.GetVehicleStatusTrackingByVehicleAsync(null, Taban, Taban.AddDays(2));
+        var rows = await rs.GetVehicleStatusTrackingByVehicleAsync(null, Base, Base.AddDays(2));
 
-        var rz1 = satirlar.Single(r => r.Plaka == "34RZ01");
-        Assert.Equal(0, rz1.BakimGun);   // ELLE: randevu gerçekleşmedi
-        Assert.Equal(3, rz1.BosGun);     // ELLE: T+0..T+2
+        var res1 = rows.Single(r => r.Plaka == "34RZ01");
+        Assert.Equal(0, res1.BakimGun);   // ELLE: randevu gerçekleşmedi
+        Assert.Equal(3, res1.BosGun);     // ELLE: T+0..T+2
 
-        var rz2 = satirlar.Single(r => r.Plaka == "34RZ02");
-        Assert.Equal(0, rz2.BakimGun);   // FAZ-76 davranışı KORUNUYOR
-        Assert.Equal(3, rz2.BosGun);
+        var res2 = rows.Single(r => r.Plaka == "34RZ02");
+        Assert.Equal(0, res2.BakimGun);   // FAZ-76 davranışı KORUNUYOR
+        Assert.Equal(3, res2.BosGun);
 
-        var rz3 = satirlar.Single(r => r.Plaka == "34RZ03");
-        Assert.Equal(3, rz3.BakimGun);   // ELLE: kontrol — gerçek servis sayılır
-        Assert.Equal(0, rz3.BosGun);
+        var res3 = rows.Single(r => r.Plaka == "34RZ03");
+        Assert.Equal(3, res3.BakimGun);   // ELLE: kontrol — gerçek servis sayılır
+        Assert.Equal(0, res3.BosGun);
 
         // Gün kırılımı (filo geneli) da aynı kuralı uygular: 3 araçtan yalnız 1'i bakımda.
-        var gunler = await rs.GetVehicleStatusTrackingAsync(Taban, Taban.AddDays(2));
+        var gunler = await rs.GetVehicleStatusTrackingAsync(Base, Base.AddDays(2));
         Assert.All(gunler, g => Assert.Equal(1, g.Bakim));
     }
 
@@ -374,31 +374,31 @@ public sealed class ServisKaydiDerinlikTests(PostgresFixture fx)
         var sp = scope.ServiceProvider;
         var svc = sp.GetRequiredService<ServiceRecordService>();
         var rs = sp.GetRequiredService<ReportService>();
-        var arac = await AracAsync(sp, "34 SD 06");
+        var vehicle = await VehicleAsync(sp, "34 SD 06");
 
         // GERÇEK maliyet: Giderler ekranından (tek doğru yol) — net 500, KDV yok.
         await sp.GetRequiredService<ExpenseService>().CreateAsync(new ExpenseInput
         {
-            Tip = ExpenseType.Arac, VehicleId = arac, NetTutar = 500m, KdvOrani = 0m,
-            Tarih = Taban, OdemeYontemi = PaymentMethod.Nakit
+            Tip = ExpenseType.Arac, VehicleId = vehicle, NetTutar = 500m, KdvOrani = 0m,
+            Tarih = Base, OdemeYontemi = PaymentMethod.Nakit
         });
 
         var id = await svc.CreateAsync(new ServiceRecordInput
         {
-            VehicleId = arac, GirisKm = 1_000,
+            VehicleId = vehicle, GirisKm = 1_000,
             Lines = [new ServiceLineInput { Aciklama = "Onarım", Tutar = 400m }]
         });
         await svc.StartAsync(id);
         await svc.CompleteAsync(id, pickupKm: 1_100);
 
         // ---- ÖNCE: durum fotoğrafı
-        var defterOnce = await DefterSatirSayisiAsync(sp);
+        var ledgerBefore = await LedgerLineCountAsync(sp);
         var ggOnce = await rs.GetRevenueExpenseAsync(null, null);
-        var karneOnce = await rs.GetVehicleScorecardAsync(arac);
-        var servisMaliyetOnce = await rs.GetServiceCostSummaryAsync(null, null);
+        var scorecardBefore = await rs.GetVehicleScorecardAsync(vehicle);
+        var serviceCostBefore = await rs.GetServiceCostSummaryAsync(null, null);
         Assert.Equal(500m, ggOnce.GiderToplam);            // ELLE: yalnız Gider kaydı
-        Assert.Equal(500m, karneOnce!.ToplamGider);        // ELLE: servis kaydı deftere GİRMEZ
-        Assert.Equal(400m, servisMaliyetOnce.Single().Toplam); // operasyonel maliyet raporu (defter değil)
+        Assert.Equal(500m, scorecardBefore!.ToplamGider);        // ELLE: servis kaydı deftere GİRMEZ
+        Assert.Equal(400m, serviceCostBefore.Single().Toplam); // operasyonel maliyet raporu (defter değil)
 
         // ---- UÇUK fatura + ödeme bilgisi yazılır
         Assert.True(await svc.UpdateInfoAsync(id, new ServiceRecordBilgiInput
@@ -406,7 +406,7 @@ public sealed class ServisKaydiDerinlikTests(PostgresFixture fx)
             FaturaNo = "ABARTI-1", FaturaTutar = 999_999_999m, FaturaKdv = 179_999_999.82m,
             Odeme = 1_234_567_890m, OdemeDoviz = "USD", OdemeKur = 41.5m,
             OdemeTuru = PaymentMethod.Banka, KasaKodu = "KASA-99", DegerKaybi = 88_888m,
-            FaturaTarihi = Taban, OdemeTarihi = Taban
+            FaturaTarihi = Base, OdemeTarihi = Base
         }));
 
         // Yazıldığını doğrula (test boşa geçmesin).
@@ -415,16 +415,16 @@ public sealed class ServisKaydiDerinlikTests(PostgresFixture fx)
         Assert.Equal(1_179_999_998.82m, rec.FaturaGenelToplam);  // ELLE: 999.999.999 + 179.999.999,82
 
         // ---- SONRA: hiçbir mali rakam DEĞİŞMEDİ
-        Assert.Equal(defterOnce, await DefterSatirSayisiAsync(sp));
-        var ggSonra = await rs.GetRevenueExpenseAsync(null, null);
-        Assert.Equal(ggOnce.GiderToplam, ggSonra.GiderToplam);
-        Assert.Equal(ggOnce.GelirToplam, ggSonra.GelirToplam);
-        Assert.Equal(ggOnce.NetKar, ggSonra.NetKar);
-        var karneSonra = await rs.GetVehicleScorecardAsync(arac);
-        Assert.Equal(karneOnce.ToplamGider, karneSonra!.ToplamGider);
-        Assert.Equal(karneOnce.ToplamGelir, karneSonra.ToplamGelir);
-        Assert.Equal(karneOnce.ToplamNetKar, karneSonra.ToplamNetKar);
-        Assert.Equal(servisMaliyetOnce.Single().Toplam, (await rs.GetServiceCostSummaryAsync(null, null)).Single().Toplam);
+        Assert.Equal(ledgerBefore, await LedgerLineCountAsync(sp));
+        var plAfter = await rs.GetRevenueExpenseAsync(null, null);
+        Assert.Equal(ggOnce.GiderToplam, plAfter.GiderToplam);
+        Assert.Equal(ggOnce.GelirToplam, plAfter.GelirToplam);
+        Assert.Equal(ggOnce.NetKar, plAfter.NetKar);
+        var scorecardAfter = await rs.GetVehicleScorecardAsync(vehicle);
+        Assert.Equal(scorecardBefore.ToplamGider, scorecardAfter!.ToplamGider);
+        Assert.Equal(scorecardBefore.ToplamGelir, scorecardAfter.ToplamGelir);
+        Assert.Equal(scorecardBefore.ToplamNetKar, scorecardAfter.ToplamNetKar);
+        Assert.Equal(serviceCostBefore.Single().Toplam, (await rs.GetServiceCostSummaryAsync(null, null)).Single().Toplam);
         // Servis kaydının işçilik toplamı da fatura alanlarından ETKİLENMEZ.
         Assert.Equal(400m, rec.ToplamIscilik);
         // Fatura/ödeme kaynaklı hiçbir defter satırı doğmadı.
@@ -440,13 +440,13 @@ public sealed class ServisKaydiDerinlikTests(PostgresFixture fx)
         using var scope = host.ScopeFor(Guid.NewGuid());
         var sp = scope.ServiceProvider;
         var svc = sp.GetRequiredService<ServiceRecordService>();
-        var arac = await AracAsync(sp, "34 SD 07");
-        var cari = await sp.GetRequiredService<CustomerService>()
+        var vehicle = await VehicleAsync(sp, "34 SD 07");
+        var account = await sp.GetRequiredService<CustomerService>()
             .CreateAsync(new CustomerInput { Tip = CustomerType.Bireysel, Ad = "Rücu", Soyad = "Müşteri" });
 
         var id = await svc.CreateAsync(new ServiceRecordInput
         {
-            VehicleId = arac, Tip = ServiceType.Ariza, HasarSorumlu = DamageResponsible.Musteri, KusurOrani = 0.5m,
+            VehicleId = vehicle, Tip = ServiceType.Ariza, HasarSorumlu = DamageResponsible.Musteri, KusurOrani = 0.5m,
             Lines = [new ServiceLineInput { Aciklama = "Onarım", BirimFiyat = 500m, Miktar = 2m, KdvOran = 0.20m }]
         });
         await svc.StartAsync(id);
@@ -454,7 +454,7 @@ public sealed class ServisKaydiDerinlikTests(PostgresFixture fx)
         // Fatura KDV'li 1.200 olsa bile rücu tabanı KDV HARİÇ işçiliktir.
         Assert.True(await svc.UpdateInfoAsync(id, new ServiceRecordBilgiInput { FaturaTutar = 1_000m, FaturaKdv = 200m }));
 
-        await svc.ReflectAsync(id, cari);
+        await svc.ReflectAsync(id, account);
 
         var rec = await svc.GetAsync(id);
         Assert.Equal(1_000m, rec!.ToplamIscilik);       // ELLE: 500 × 2 (KDV net'e karışmaz)
@@ -462,9 +462,9 @@ public sealed class ServisKaydiDerinlikTests(PostgresFixture fx)
 
         var f = sp.GetRequiredService<IDbContextFactory<AppDbContext>>();
         await using var db = await f.CreateDbContextAsync();
-        var satirlar = await db.AccountLedgerEntries.Where(e => e.SourceType == "ServisYansitma").ToListAsync();
-        Assert.Equal(2, satirlar.Count);                                    // ELLE: borç + alacak
-        Assert.All(satirlar, s => Assert.Equal(500m, s.Amount.Amount));
+        var rows = await db.AccountLedgerEntries.Where(e => e.SourceType == "ServisYansitma").ToListAsync();
+        Assert.Equal(2, rows.Count);                                    // ELLE: borç + alacak
+        Assert.All(rows, s => Assert.Equal(500m, s.Amount.Amount));
     }
 
     // ==================== E — doğrulama ====================
@@ -476,12 +476,12 @@ public sealed class ServisKaydiDerinlikTests(PostgresFixture fx)
         using var scope = host.ScopeFor(Guid.NewGuid());
         var sp = scope.ServiceProvider;
         var svc = sp.GetRequiredService<ServiceRecordService>();
-        var arac = await AracAsync(sp, "34 SD 08");
+        var vehicle = await VehicleAsync(sp, "34 SD 08");
 
-        Task Red(Action<ServiceRecordInput> ayarla)
+        Task Red(Action<ServiceRecordInput> configure)
         {
-            var i = new ServiceRecordInput { VehicleId = arac };
-            ayarla(i);
+            var i = new ServiceRecordInput { VehicleId = vehicle };
+            configure(i);
             return Assert.ThrowsAsync<ValidationException>(() => svc.CreateAsync(i));
         }
 
@@ -512,7 +512,7 @@ public sealed class ServisKaydiDerinlikTests(PostgresFixture fx)
         // Plan penceresi GELECEĞE açıktır (randevu) — reddedilmemeli.
         var ok = await svc.CreateAsync(new ServiceRecordInput
         {
-            VehicleId = arac, Rezervasyon = true,
+            VehicleId = vehicle, Rezervasyon = true,
             PlanBasTarihi = DateTimeOffset.UtcNow.AddDays(30), PlanBitTarihi = DateTimeOffset.UtcNow.AddDays(31)
         });
         Assert.Equal(ServiceStatus.Rezerve, (await svc.GetAsync(ok))!.Durum);
@@ -530,15 +530,15 @@ public sealed class ServisKaydiDerinlikTests(PostgresFixture fx)
         using (var admin = host.ScopeFor(tenant))
         {
             var sp = admin.ServiceProvider;
-            var arac = await AracAsync(sp, "34 SD 09");
+            var vehicle = await VehicleAsync(sp, "34 SD 09");
             id = await sp.GetRequiredService<ServiceRecordService>()
-                .CreateAsync(new ServiceRecordInput { VehicleId = arac, Rezervasyon = true });
+                .CreateAsync(new ServiceRecordInput { VehicleId = vehicle, Rezervasyon = true });
         }
 
         // Muhasebe: FinanceWrite var, OperationsWrite YOK → operasyonel aksiyonlar reddedilir.
-        using (var muhasebe = host.ScopeFor(tenant, Guid.NewGuid(), "muhasebeci", UserRole.Muhasebe))
+        using (var accounting = host.ScopeFor(tenant, Guid.NewGuid(), "muhasebeci", UserRole.Muhasebe))
         {
-            var svc = muhasebe.ServiceProvider.GetRequiredService<ServiceRecordService>();
+            var svc = accounting.ServiceProvider.GetRequiredService<ServiceRecordService>();
             await Assert.ThrowsAsync<NoPermissionException>(() => svc.TakeIntoServiceAsync(id));
             await Assert.ThrowsAsync<NoPermissionException>(() =>
                 svc.UpdateInfoAsync(id, new ServiceRecordBilgiInput { FaturaNo = "X" }));
@@ -563,27 +563,27 @@ public sealed class ServisKaydiDerinlikTests(PostgresFixture fx)
         var a = Guid.NewGuid();
         var b = Guid.NewGuid();
 
-        Guid kayitA;
+        Guid recordA;
         using (var sa = host.ScopeFor(a))
         {
-            var arac = await AracAsync(sa.ServiceProvider, "34 IZ 01");
-            var girdi = new ServiceRecordInput
+            var vehicle = await VehicleAsync(sa.ServiceProvider, "34 IZ 01");
+            var input = new ServiceRecordInput
             {
-                VehicleId = arac, GirisKm = 100,
+                VehicleId = vehicle, GirisKm = 100,
                 Lines = [new ServiceLineInput { Aciklama = "Kalem", Tutar = 10m, KdvOran = 0.20m }]
             };
-            BilgiDoldur(girdi);
-            kayitA = await sa.ServiceProvider.GetRequiredService<ServiceRecordService>().CreateAsync(girdi);
+            FillInfo(input);
+            recordA = await sa.ServiceProvider.GetRequiredService<ServiceRecordService>().CreateAsync(input);
         }
 
         using (var sb = host.ScopeFor(b))
         {
             var svcB = sb.ServiceProvider.GetRequiredService<ServiceRecordService>();
             Assert.Empty(await svcB.ListAsync());
-            Assert.Null(await svcB.GetAsync(kayitA));
+            Assert.Null(await svcB.GetAsync(recordA));
             // B, A'nın kaydının fatura bilgisini DEĞİŞTİREMEZ (satır görünmez → false).
-            Assert.False(await svcB.UpdateInfoAsync(kayitA, new ServiceRecordBilgiInput { FaturaNo = "HACK" }));
-            Assert.False(await svcB.TakeIntoServiceAsync(kayitA));
+            Assert.False(await svcB.UpdateInfoAsync(recordA, new ServiceRecordBilgiInput { FaturaNo = "HACK" }));
+            Assert.False(await svcB.TakeIntoServiceAsync(recordA));
         }
 
         // HAM RLS (racar_app): B GUC'uyla A'nın satırı yok, UPDATE 0 satır; A GUC'uyla 1 satır.
@@ -614,18 +614,18 @@ public sealed class ServisKaydiDerinlikTests(PostgresFixture fx)
 
         // DB değişmezleri (migration'a ELLE eklenen CHECK'ler) gerçekten açık mı — ampirik.
         // KdvOran bir ORANDIR: 1,5 yazmak (yani "%150" ya da "1,5 TL" niyeti) DB'de de reddedilir.
-        await using (var kdv = new NpgsqlCommand(
+        await using (var vat = new NpgsqlCommand(
             "update \"ServiceLines\" set \"KdvOran\" = 1.5 where \"TenantId\" = @a", conn))
         {
-            kdv.Parameters.AddWithValue("a", a);
-            var ex = await Assert.ThrowsAsync<PostgresException>(() => kdv.ExecuteNonQueryAsync());
+            vat.Parameters.AddWithValue("a", a);
+            var ex = await Assert.ThrowsAsync<PostgresException>(() => vat.ExecuteNonQueryAsync());
             Assert.Equal("23514", ex.SqlState); // check_violation
         }
-        await using (var kur = new NpgsqlCommand(
+        await using (var exchangeRate = new NpgsqlCommand(
             "update \"ServiceRecords\" set \"OdemeKur\" = 0 where \"TenantId\" = @a", conn))
         {
-            kur.Parameters.AddWithValue("a", a);
-            var ex = await Assert.ThrowsAsync<PostgresException>(() => kur.ExecuteNonQueryAsync());
+            exchangeRate.Parameters.AddWithValue("a", a);
+            var ex = await Assert.ThrowsAsync<PostgresException>(() => exchangeRate.ExecuteNonQueryAsync());
             Assert.Equal("23514", ex.SqlState); // check_violation
         }
     }

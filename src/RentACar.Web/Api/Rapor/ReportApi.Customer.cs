@@ -50,40 +50,40 @@ public static partial class ReportApi
         ICurrentUser user, IDbContextFactory<AppDbContext> dbf, HttpContext http, CancellationToken ct)
     {
         ReportScope.RequireFirmWide(user);
-        if (f.Min is { } m && Math.Abs(m) > Kira.Sinirlar.EnFazlaTutar)
-            throw new ValidationException($"Tutar en fazla {Kira.Sinirlar.EnFazlaTutar:N0} olabilir.", "min");
+        if (f.Min is { } m && Math.Abs(m) > Kira.RentalLimits.MaxAmount)
+            throw new ValidationException($"Tutar en fazla {Kira.RentalLimits.MaxAmount:N0} olabilir.", "min");
         var tip = F(f.Tip)?.ToLowerInvariant() switch
         {
             null => (bool?)null, "kurumsal" => true, "bireysel" => false,
             _ => throw new ValidationException("Geçersiz tip değeri. İzin verilenler: kurumsal, bireysel.", "tip"),
         };
-        var bakiye = F(f.Bakiye)?.ToLowerInvariant();
-        if (bakiye is not null and not "borclu" and not "alacakli")
+        var balance = F(f.Bakiye)?.ToLowerInvariant();
+        if (balance is not null and not "borclu" and not "alacakli")
             throw new ValidationException("Geçersiz bakiye değeri. İzin verilenler: borclu, alacakli.", "bakiye");
 
-        var satirlar = await reports.GetAccountBalancesAsync(new CariBakiyeFilter
+        var rowList = await reports.GetAccountBalancesAsync(new CariBakiyeFilter
         {
             Ara = F(f.Ara), OzelKod = F(f.OzelKod), Sinif = F(f.Sinif), Doviz = F(f.Doviz),
-            Kurumsal = tip, BakiyeTuru = bakiye, MinTutar = f.Min,
+            Kurumsal = tip, BakiyeTuru = balance, MinTutar = f.Min,
         }, ct);
-        var tumu = await reports.GetAccountBalancesAsync(ct: ct);
-        var mask = await CustomerMask.LoadAsync(dbf, satirlar.Select(s => s.CariId), ct);
-        var rows = satirlar.Select(s => s with
+        var all = await reports.GetAccountBalancesAsync(ct: ct);
+        var mask = await CustomerMask.LoadAsync(dbf, rowList.Select(s => s.CariId), ct);
+        var rows = rowList.Select(s => s with
         {
             Ad = mask.Name(s.CariId, s.Ad), Telefon = mask.Phone(s.CariId, s.Telefon), Email = mask.Email(s.CariId, s.Email),
         }).ToList();
-        var ozet = new BalanceReportSummary(
-            tumu.Where(b => b.Bakiye > 0).Sum(b => b.Bakiye), -tumu.Where(b => b.Bakiye < 0).Sum(b => b.Bakiye),
-            Distinct(tumu.Select(b => b.OzelKod?.Trim()), StringComparer.OrdinalIgnoreCase),
-            Distinct(tumu.Select(b => b.Sinif?.Trim()), StringComparer.OrdinalIgnoreCase),
-            Distinct(tumu.Select(b => b.Doviz?.Trim()), StringComparer.OrdinalIgnoreCase));
+        var summary = new BalanceReportSummary(
+            all.Where(b => b.Bakiye > 0).Sum(b => b.Bakiye), -all.Where(b => b.Bakiye < 0).Sum(b => b.Bakiye),
+            Distinct(all.Select(b => b.OzelKod?.Trim()), StringComparer.OrdinalIgnoreCase),
+            Distinct(all.Select(b => b.Sinif?.Trim()), StringComparer.OrdinalIgnoreCase),
+            Distinct(all.Select(b => b.Doviz?.Trim()), StringComparer.OrdinalIgnoreCase));
         var export = ReportExport.Links(http, user, "cari-bakiye",
         [
             ("ara", f.Ara), ("ozelKod", f.OzelKod), ("sinif", f.Sinif), ("doviz", f.Doviz), ("tip", f.Tip),
             ("bakiye", f.Bakiye), ("min", f.Min?.ToString(System.Globalization.CultureInfo.InvariantCulture)),
         ], pdf: true);
         return TypedResults.Ok(new ReportResult<BalanceReportSummary, CariBalanceDto>(
-            new ReportPeriodDto(null, null), ozet, page.Apply(rows, BalanceMap), export));
+            new ReportPeriodDto(null, null), summary, page.Apply(rows, BalanceMap), export));
     }
 
     private static readonly SortFieldMap<CariBalanceDto> BalanceMap = SortFieldMap<CariBalanceDto>
@@ -100,16 +100,16 @@ public static partial class ReportApi
         IDbContextFactory<AppDbContext> dbf, HttpContext http, CancellationToken ct)
     {
         ReportScope.RequireFirmWide(user);
-        var gun = ReportPeriod.ValidateDay(tarih, "tarih") ?? ReportPeriod.Today;
+        var day = ReportPeriod.ValidateDay(tarih, "tarih") ?? ReportPeriod.Today;
         // Servis yaşı UTC takvim günü farkıyla sayar → günün UTC çıpası (gün sonu dahil).
-        var satirlar = await reports.GetAgingAsync(ReportPeriod.Anchor(gun).AddDays(1).AddMicroseconds(-1), ct);
-        var mask = await CustomerMask.LoadAsync(dbf, satirlar.Select(s => s.CariId), ct);
-        var rows = satirlar.Select(s => s with { Ad = mask.Name(s.CariId, s.Ad) }).ToList();
-        var kova = new ReportAgingBuckets(rows.Sum(a => a.B0_30), rows.Sum(a => a.B31_60), rows.Sum(a => a.B61_90),
+        var rowList = await reports.GetAgingAsync(ReportPeriod.Anchor(day).AddDays(1).AddMicroseconds(-1), ct);
+        var mask = await CustomerMask.LoadAsync(dbf, rowList.Select(s => s.CariId), ct);
+        var rows = rowList.Select(s => s with { Ad = mask.Name(s.CariId, s.Ad) }).ToList();
+        var bucket = new ReportAgingBuckets(rows.Sum(a => a.B0_30), rows.Sum(a => a.B31_60), rows.Sum(a => a.B61_90),
             rows.Sum(a => a.B90Plus));
-        return TypedResults.Ok(new ReportResult<AgingReportSummary, AgingRowDto>(new ReportPeriodDto(null, gun),
-            new AgingReportSummary(gun, kova, rows.Sum(a => a.Toplam)), page.Apply(rows, AgingMap),
-            ReportExport.Links(http, user, "yaslandirma", [("asOf", ReportExport.Day(gun))], pdf: true)));
+        return TypedResults.Ok(new ReportResult<AgingReportSummary, AgingRowDto>(new ReportPeriodDto(null, day),
+            new AgingReportSummary(day, bucket, rows.Sum(a => a.Toplam)), page.Apply(rows, AgingMap),
+            ReportExport.Links(http, user, "yaslandirma", [("asOf", ReportExport.Day(day))], pdf: true)));
     }
 
     private static readonly SortFieldMap<AgingRowDto> AgingMap = SortFieldMap<AgingRowDto>

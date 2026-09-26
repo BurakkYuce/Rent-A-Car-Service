@@ -165,7 +165,7 @@ public sealed partial class UiWebsiteApiTests
         Assert.False(removed.GetProperty("kapakVar").GetBoolean());
 
         // oturumsuz içerik isteği 401 JSON (yönlendirme yok)
-        var anon = await fx.Web.Istemci().GetAsync($"{V1}/blog-yonetim/{id}/kapak");
+        var anon = await fx.Web.Client().GetAsync($"{V1}/blog-yonetim/{id}/kapak");
         Assert.Equal(HttpStatusCode.Unauthorized, anon.StatusCode);
     }
 }

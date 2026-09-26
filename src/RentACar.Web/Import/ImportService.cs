@@ -350,19 +350,19 @@ public sealed class ImportService(VehicleService vehicles, CustomerService custo
     }
 
     // ---------- Araç ----------
-    public async Task<ImportResult> ImportAraclarAsync(IReadOnlyList<Dictionary<string, string>> rows, CancellationToken ct = default)
+    public async Task<ImportResult> ImportVehiclesAsync(IReadOnlyList<Dictionary<string, string>> rows, CancellationToken ct = default)
     {
-        int eklenen = 0, atlanan = 0;
-        var hatalar = new List<ImportError>();
+        int added = 0, skipped = 0;
+        var errors = new List<ImportError>();
         foreach (var r in rows)
         {
-            var plaka = Get(r, "Plaka", "Plaka No");
-            if (string.IsNullOrWhiteSpace(plaka)) continue;
+            var plate = Get(r, "Plaka", "Plaka No");
+            if (string.IsNullOrWhiteSpace(plate)) continue;
             try
             {
                 await _vehicles.CreateAsync(new VehicleInput
                 {
-                    Plaka = plaka,
+                    Plaka = plate,
                     Marka = Get(r, "Marka"),
                     // "Tipi" = model adı (Egea); "Model" bazı export'larda YIL'dır → ModelYili'ye gider, Tip'e DEĞİL.
                     Tip = Get(r, "Tip", "Tipi", "Model Tipi", "Araç Model"),
@@ -371,7 +371,7 @@ public sealed class ImportService(VehicleService vehicles, CustomerService custo
                     Renk = Get(r, "Renk"),
                     ModelYili = ParseInt(Get(r, "Model Yılı", "Yıl", "Model Yili", "Model")),
                     Yakit = ParseEnum<FuelType>(Get(r, "Yakıt Türü", "Yakıt", "Yakit")) ?? FuelType.Benzin,
-                    Vites = ParseEnum<Transmission>(VitesNorm(Get(r, "Vites", "Şanzıman"))),
+                    Vites = ParseEnum<Transmission>(NormalizeTransmission(Get(r, "Vites", "Şanzıman"))),
                     Km = ParseInt(Get(r, "KM", "Kilometre", "Son Km")) ?? 0,
                     SasiNo = Get(r, "Şasi No", "Şase No", "Şase", "Şasi", "Şasi Numarası"),
                     MotorNo = Get(r, "Motor No", "Motor Numarası"),
@@ -382,51 +382,51 @@ public sealed class ImportService(VehicleService vehicles, CustomerService custo
                     AracSahibi = Get(r, "Araç Sahibi", "Sahibi", "Malik"),
                     Durum = VehicleStatus.Musait
                 }, ct);
-                eklenen++;
+                added++;
             }
-            catch (DuplicatePlakaException) { atlanan++; }
-            catch (ValidationException ex) { hatalar.Add(new ImportError(plaka, ex.Message)); }
+            catch (DuplicatePlakaException) { skipped++; }
+            catch (ValidationException ex) { errors.Add(new ImportError(plate, ex.Message)); }
         }
-        return Result(eklenen, atlanan, hatalar);
+        return Result(added, skipped, errors);
     }
 
     // ---------- Müşteri (cari) ----------
-    public async Task<ImportResult> ImportCarilerAsync(IReadOnlyList<Dictionary<string, string>> rows, CancellationToken ct = default)
+    public async Task<ImportResult> ImportCustomersAsync(IReadOnlyList<Dictionary<string, string>> rows, CancellationToken ct = default)
     {
-        int eklenen = 0, atlanan = 0;
-        var hatalar = new List<ImportError>();
+        int added = 0, skipped = 0;
+        var errors = new List<ImportError>();
         foreach (var r in rows)
         {
             var tipStr = Norm(Get(r, "Tip", "Cari Tipi", "Müşteri Tipi", "Cari Türü") ?? "");
-            var unvan = Get(r, "Ünvan", "Unvan", "Firma", "Firma Adı", "Firma Unvanı", "Cari Ünvan", "Ünvan1", "Ünvan 1");
+            var title = Get(r, "Ünvan", "Unvan", "Firma", "Firma Adı", "Firma Unvanı", "Cari Ünvan", "Ünvan1", "Ünvan 1");
             // "Cari Bilgi" referans sistem müşteri export'unda ad(-ünvan) alanıdır; Soyad ayrı sütunda.
-            var ad = Get(r, "Ad", "Adı", "İsim", "Cari Bilgi", "Cari", "Cari Adı");
+            var name = Get(r, "Ad", "Adı", "İsim", "Cari Bilgi", "Cari", "Cari Adı");
             var soyad = Get(r, "Soyad", "Soyadı");
-            var adSoyad = Get(r, "Ad Soyad", "Adı Soyadı", "Müşteri", "Müşteri Adı", "İsim Soyisim", "Ad-Soyad");
-            var vergiNoOn = Get(r, "Vergi No", "VKN", "Vergi Numarası");
-            var tcOn = Digits(Get(r, "TC", "TC Kimlik", "TC Kimlik No", "TCKN", "Kimlik No", "T.C. Kimlik", "T.C. No"));
+            var fullName = Get(r, "Ad Soyad", "Adı Soyadı", "Müşteri", "Müşteri Adı", "İsim Soyisim", "Ad-Soyad");
+            var taxNoPrefix = Get(r, "Vergi No", "VKN", "Vergi Numarası");
+            var nationalIdPrefix = Digits(Get(r, "TC", "TC Kimlik", "TC Kimlik No", "TCKN", "Kimlik No", "T.C. Kimlik", "T.C. No"));
 
-            bool kurumsal = tipStr.Contains("kurum") || tipStr.Contains("tuzel") || tipStr.Contains("firma")
-                || (!string.IsNullOrWhiteSpace(vergiNoOn) && string.IsNullOrWhiteSpace(soyad) && string.IsNullOrWhiteSpace(tcOn))
-                || (string.IsNullOrWhiteSpace(ad) && string.IsNullOrWhiteSpace(adSoyad) && !string.IsNullOrWhiteSpace(unvan));
+            bool corporate = tipStr.Contains("kurum") || tipStr.Contains("tuzel") || tipStr.Contains("firma")
+                || (!string.IsNullOrWhiteSpace(taxNoPrefix) && string.IsNullOrWhiteSpace(soyad) && string.IsNullOrWhiteSpace(nationalIdPrefix))
+                || (string.IsNullOrWhiteSpace(name) && string.IsNullOrWhiteSpace(fullName) && !string.IsNullOrWhiteSpace(title));
 
-            if (!kurumsal && string.IsNullOrWhiteSpace(ad) && !string.IsNullOrWhiteSpace(adSoyad))
+            if (!corporate && string.IsNullOrWhiteSpace(name) && !string.IsNullOrWhiteSpace(fullName))
             {
-                var parts = adSoyad.Split(' ', StringSplitOptions.RemoveEmptyEntries);
-                if (parts.Length == 1) ad = parts[0];
-                else { soyad = parts[^1]; ad = string.Join(' ', parts[..^1]); }
+                var parts = fullName.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+                if (parts.Length == 1) name = parts[0];
+                else { soyad = parts[^1]; name = string.Join(' ', parts[..^1]); }
             }
-            if (kurumsal && string.IsNullOrWhiteSpace(unvan)) unvan = adSoyad;
+            if (corporate && string.IsNullOrWhiteSpace(title)) title = fullName;
 
-            var etiket = unvan ?? adSoyad ?? ad ?? "(satır)";
+            var label = title ?? fullName ?? name ?? "(satır)";
             try
             {
                 await _customers.CreateAsync(new CustomerInput
                 {
-                    Tip = kurumsal ? CustomerType.Kurumsal : CustomerType.Bireysel,
-                    Ad = ad, Soyad = soyad, Unvan = unvan,
-                    TcKimlik = tcOn,
-                    VergiNo = vergiNoOn,
+                    Tip = corporate ? CustomerType.Kurumsal : CustomerType.Bireysel,
+                    Ad = name, Soyad = soyad, Unvan = title,
+                    TcKimlik = nationalIdPrefix,
+                    VergiNo = taxNoPrefix,
                     VergiDairesi = Get(r, "Vergi Dairesi"),
                     CepTel = Get(r, "Telefon", "GSM", "Cep", "Cep Tel", "Cep Telefonu", "Gsm No"),
                     Gsm2 = Get(r, "Telefon 2", "GSM 2", "Diğer Telefon", "Tel2", "Tel 2"),
@@ -440,12 +440,12 @@ public sealed class ImportService(VehicleService vehicles, CustomerService custo
                     MusteriTemsilcisi = Get(r, "Müşteri Temsilcisi", "Temsilci"),
                     Kaynak = Get(r, "Kaynak", "Entegrasyon Kodu")
                 }, ct);
-                eklenen++;
+                added++;
             }
-            catch (DuplicateCariException) { atlanan++; }
-            catch (ValidationException ex) { hatalar.Add(new ImportError(etiket, ex.Message)); }
+            catch (DuplicateCariException) { skipped++; }
+            catch (ValidationException ex) { errors.Add(new ImportError(label, ex.Message)); }
         }
-        return Result(eklenen, atlanan, hatalar);
+        return Result(added, skipped, errors);
     }
 
     // ---------- Tarife matrisi (FAZ 6.1 — xml_fiyat_aktar karşılığı) ----------
@@ -454,30 +454,30 @@ public sealed class ImportService(VehicleService vehicles, CustomerService custo
     /// onaysız fiyatı CANLIYA çıkaramaz (motor yalnız Onaylı seçer). Kod tekrarı (mevcut/dosya-içi)
     /// atlanır; bozuk satır (kodsuz, negatif/sayı-olmayan fiyat, bozuk tarih) satır-hata raporuna düşer,
     /// diğerleri girer (atomik değil — /ice-aktar deseniyle tutarlı).</summary>
-    public async Task<ImportResult> ImportTarifelerAsync(IReadOnlyList<Dictionary<string, string>> rows, CancellationToken ct = default)
+    public async Task<ImportResult> ImportTariffsAsync(IReadOnlyList<Dictionary<string, string>> rows, CancellationToken ct = default)
     {
-        int eklenen = 0, atlanan = 0;
-        var hatalar = new List<ImportError>();
-        var mevcutKodlar = new HashSet<string>(
+        int added = 0, skipped = 0;
+        var errors = new List<ImportError>();
+        var existingCodes = new HashSet<string>(
             (await _rateMatrices.ListAsync(ct)).Select(m => m.Kod), StringComparer.Ordinal);
 
-        int sira = 1;
+        int order = 1;
         foreach (var r in rows)
         {
-            sira++; // başlık 1. satır → veri 2'den başlar (hata mesajında dosya satırı)
-            var kodHam = Get(r, "Kod", "Tarife Kodu", "Kodu");
-            var etiket = kodHam ?? $"(satır {sira})";
+            order++; // başlık 1. satır → veri 2'den başlar (hata mesajında dosya satırı)
+            var rawCode = Get(r, "Kod", "Tarife Kodu", "Kodu");
+            var label = rawCode ?? $"(satır {order})";
             try
             {
-                if (string.IsNullOrWhiteSpace(kodHam))
+                if (string.IsNullOrWhiteSpace(rawCode))
                     throw new ValidationException("Tarife kodu zorunludur.");
-                var kod = kodHam.Trim().ToUpperInvariant();
-                if (!mevcutKodlar.Add(kod)) { atlanan++; continue; } // mevcut VEYA dosya-içi tekrar
+                var code = rawCode.Trim().ToUpperInvariant();
+                if (!existingCodes.Add(code)) { skipped++; continue; } // mevcut VEYA dosya-içi tekrar
 
                 await _rateMatrices.CreateAsync(new RateMatrixInput
                 {
-                    Kod = kod,
-                    Ad = Get(r, "Ad", "Adı", "Tarife Adı") ?? kod,
+                    Kod = code,
+                    Ad = Get(r, "Ad", "Adı", "Tarife Adı") ?? code,
                     Aciklama = Get(r, "Açıklama"),
                     Kanal = Get(r, "Kanal"),
                     Sube = Get(r, "Şube"),
@@ -496,15 +496,15 @@ public sealed class ImportService(VehicleService vehicles, CustomerService custo
                     OnayDurumu = TariffApprovalStatus.Bekliyor,
                     Onaylayan = null, OnayZaman = null, Aktif = true
                 }, ct);
-                eklenen++;
+                added++;
             }
             catch (ValidationException ex)
             {
-                mevcutKodlar.Remove(kodHam?.Trim().ToUpperInvariant() ?? "");
-                hatalar.Add(new ImportError(etiket, ex.Message));
+                existingCodes.Remove(rawCode?.Trim().ToUpperInvariant() ?? "");
+                errors.Add(new ImportError(label, ex.Message));
             }
         }
-        return Result(eklenen, atlanan, hatalar);
+        return Result(added, skipped, errors);
     }
 
     /// <summary>TR/EN sayı: "1.250,50" ve "1250.50" ikisi de çalışır (son ayraç ondalık; TCMB
@@ -513,14 +513,14 @@ public sealed class ImportService(VehicleService vehicles, CustomerService custo
     {
         if (string.IsNullOrWhiteSpace(s)) return null;
         var t = s.Trim().Replace(" ", "");
-        int nokta = t.LastIndexOf('.'), virgul = t.LastIndexOf(',');
-        if (nokta >= 0 && virgul >= 0)
+        int dot = t.LastIndexOf('.'), comma = t.LastIndexOf(',');
+        if (dot >= 0 && comma >= 0)
         {
-            var binlik = nokta > virgul ? "," : ".";
-            t = t.Replace(binlik, "");
+            var thousandsSeparator = dot > comma ? "," : ".";
+            t = t.Replace(thousandsSeparator, "");
             t = t.Replace(',', '.');
         }
-        else if (virgul >= 0) t = t.Replace(',', '.');
+        else if (comma >= 0) t = t.Replace(',', '.');
         return decimal.TryParse(t, System.Globalization.NumberStyles.Number,
                 System.Globalization.CultureInfo.InvariantCulture, out var v)
             ? v
@@ -559,7 +559,7 @@ public sealed class ImportService(VehicleService vehicles, CustomerService custo
         => Enum.TryParse<T>(s, true, out var v) && Enum.IsDefined(v) ? v : null;
 
     // Vites serbest-metnini enum'a köprüle (referans sistem "Düz" = Manuel, "Oto" = Otomatik).
-    private static string? VitesNorm(string? s)
+    private static string? NormalizeTransmission(string? s)
     {
         if (string.IsNullOrWhiteSpace(s)) return s;
         var n = s.Trim().ToLowerInvariant();

@@ -50,32 +50,32 @@ public sealed partial class PlatformUiApiTests
     {
         var s = await PlatformLoginAsync();
         var (id, _) = await CreateTenantAsync(s);
-        var surum = (await Json(await s.C.GetAsync(P + $"/kiracilar/{id}"))).GetProperty("surum").GetString();
+        var version = (await Json(await s.C.GetAsync(P + $"/kiracilar/{id}"))).GetProperty("surum").GetString();
 
         await ExpectProblem(await Send(s, HttpMethod.Put, P + $"/kiracilar/{id}", new { ad = "Yeni Ad" }),
             HttpStatusCode.BadRequest, "dogrulama", "surum");
-        await ExpectProblem(await Send(s, HttpMethod.Put, P + $"/kiracilar/{id}", new { ad = "Yeni Ad", eposta = "bozuk", surum }),
+        await ExpectProblem(await Send(s, HttpMethod.Put, P + $"/kiracilar/{id}", new { ad = "Yeni Ad", eposta = "bozuk", surum = version }),
             HttpStatusCode.BadRequest, "dogrulama", "eposta");
-        await ExpectProblem(await Send(s, HttpMethod.Put, P + $"/kiracilar/{id}", new { ad = "", surum }),
+        await ExpectProblem(await Send(s, HttpMethod.Put, P + $"/kiracilar/{id}", new { ad = "", surum = version }),
             HttpStatusCode.BadRequest, "dogrulama", "ad");
 
         var ok = await Send(s, HttpMethod.Put, P + $"/kiracilar/{id}",
-            new { ad = "Yeni Ad", yetkiliAd = "Ayşe Demir", eposta = "a@b.co", telefon = "05550001122", plan = "Pro", surum });
+            new { ad = "Yeni Ad", yetkiliAd = "Ayşe Demir", eposta = "a@b.co", telefon = "05550001122", plan = "Pro", surum = version });
         Assert.Equal(HttpStatusCode.OK, ok.StatusCode);
         var after = await Json(ok);
         Assert.Equal("Yeni Ad", after.GetProperty("ad").GetString());
         Assert.Equal("Pro", after.GetProperty("plan").GetString());
-        Assert.NotEqual(surum, after.GetProperty("surum").GetString());
+        Assert.NotEqual(version, after.GetProperty("surum").GetString());
 
         // The old version is stale now → 409 cakisma, nothing written.
-        await ExpectProblem(await Send(s, HttpMethod.Put, P + $"/kiracilar/{id}", new { ad = "Bayat", surum }),
+        await ExpectProblem(await Send(s, HttpMethod.Put, P + $"/kiracilar/{id}", new { ad = "Bayat", surum = version }),
             HttpStatusCode.Conflict, "cakisma");
         Assert.Equal("Yeni Ad", (await Json(await s.C.GetAsync(P + $"/kiracilar/{id}"))).GetProperty("ad").GetString());
 
         var upd = Assert.Single(await AuditRowsAsync(id), a => a.Action == 1);
         Assert.Contains("Platform API Firması", upd.OldValues);
         Assert.Contains("Yeni Ad", upd.NewValues);
-        await ExpectProblem(await Send(s, HttpMethod.Put, P + $"/kiracilar/{Guid.NewGuid()}", new { ad = "X", surum }),
+        await ExpectProblem(await Send(s, HttpMethod.Put, P + $"/kiracilar/{Guid.NewGuid()}", new { ad = "X", surum = version }),
             HttpStatusCode.NotFound, null);
     }
 

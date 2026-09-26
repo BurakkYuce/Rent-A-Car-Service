@@ -23,10 +23,10 @@
         <label>Açıklama<input name="aciklama" /></label>
         <label>Kaynak (broker/kanal)<input name="kaynak" placeholder="Boş → tümü" /></label>
         <label>Araç Grubu (birden çok seçilebilir)
-            <CokluSecim Name="aracGrupKod" Secenekler="_grupKodlari" Placeholder="ek grup kodu" />
+            <CokluSecim Name="aracGrupKod" Secenekler="_groupCodes" Placeholder="ek grup kodu" />
         </label>
         <label>Bölge (birden çok)
-            <CokluSecim Name="bolge" Secenekler="_bolgeler" Placeholder="Antalya, İzmir" />
+            <CokluSecim Name="bolge" Secenekler="_regions" Placeholder="Antalya, İzmir" />
         </label>
         <label>Min Gün<input name="minGun" type="number" min="0" placeholder="altı yasak" /></label>
         <label>Tüm satış kapalı
@@ -67,10 +67,10 @@
                             <label>Açıklama<input name="aciklama" value="@r.Aciklama" /></label>
                             <label>Kaynak<input name="kaynak" value="@r.Kaynak" /></label>
                             <label>Araç Grubu (birden çok)
-                                <CokluSecim Name="aracGrupKod" Secenekler="_grupKodlari" Deger="@r.AracGrupKod" />
+                                <CokluSecim Name="aracGrupKod" Secenekler="_groupCodes" Deger="@r.AracGrupKod" />
                             </label>
                             <label>Bölge (birden çok)
-                                <CokluSecim Name="bolge" Secenekler="_bolgeler" Deger="@r.Bolge" />
+                                <CokluSecim Name="bolge" Secenekler="_regions" Deger="@r.Bolge" />
                             </label>
                             <label>Min Gün<input name="minGun" type="number" min="0" value="@r.MinGun" /></label>
                             <label>Tüm satış kapalı
@@ -105,17 +105,17 @@
     [SupplyParameterFromQuery(Name = "hata")] public string? Hata { get; set; }
 
     private IReadOnlyList<BrokerYasak> _list = [];
-    private string[] _grupKodlari = [];
+    private string[] _groupCodes = [];
     /// <summary>Bölge için master tablo YOK → mevcut kayıtlardaki değerler öneri olarak sunulur.</summary>
-    private string[] _bolgeler = [];
+    private string[] _regions = [];
 
     protected override async Task OnInitializedAsync()
     {
         _list = await BrokerYasaklari.ListAsync();
-        _grupKodlari = (await AracGruplari.ListActiveAsync()).Select(g => g.Kod)
+        _groupCodes = (await AracGruplari.ListActiveAsync()).Select(g => g.Kod)
             .Where(k => !string.IsNullOrWhiteSpace(k)).Distinct(StringComparer.OrdinalIgnoreCase)
             .OrderBy(k => k).ToArray();
-        _bolgeler = _list.Select(x => x.Bolge).Where(b => !string.IsNullOrWhiteSpace(b))
+        _regions = _list.Select(x => x.Bolge).Where(b => !string.IsNullOrWhiteSpace(b))
             .SelectMany(b => b!.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
             .Distinct(StringComparer.OrdinalIgnoreCase).OrderBy(b => b).ToArray();
     }

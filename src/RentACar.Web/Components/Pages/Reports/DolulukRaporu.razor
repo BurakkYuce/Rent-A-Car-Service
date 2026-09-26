@@ -20,10 +20,10 @@
     <label>Bitiş<input name="to" type="date" value="@To" /></label>
     <label>Karşılaştır
         <select name="boyut">
-            <option value="Yok" selected="@(_boyut == OccupancyDimension.Yok)">— kırılım yok —</option>
-            <option value="Sube" selected="@(_boyut == OccupancyDimension.Sube)">Şube</option>
-            <option value="AracGrubu" selected="@(_boyut == OccupancyDimension.AracGrubu)">Araç Grubu</option>
-            <option value="RezervasyonKaynagi" selected="@(_boyut == OccupancyDimension.RezervasyonKaynagi)">Rezervasyon Kaynağı</option>
+            <option value="Yok" selected="@(_size == OccupancyDimension.Yok)">— kırılım yok —</option>
+            <option value="Sube" selected="@(_size == OccupancyDimension.Sube)">Şube</option>
+            <option value="AracGrubu" selected="@(_size == OccupancyDimension.AracGrubu)">Araç Grubu</option>
+            <option value="RezervasyonKaynagi" selected="@(_size == OccupancyDimension.RezervasyonKaynagi)">Rezervasyon Kaynağı</option>
         </select>
     </label>
     <button type="submit">Göster</button>
@@ -54,13 +54,13 @@
 
 <p class="muted small">Dönem: @_from.ToString("yyyy-MM-dd") — @_to.ToString("yyyy-MM-dd")</p>
 
-<h2 class="dash-h2">Gün Kırılımı@(_boyut == OccupancyDimension.Yok ? "" : $" — {BoyutAd}")</h2>
+<h2 class="dash-h2">Gün Kırılımı@(_size == OccupancyDimension.Yok ? "" : $" — {BoyutAd}")</h2>
 @* Payda semantiği boyuta göre DEĞİŞİR; etiketsiz bırakmak yanıltıcı olurdu. Metin servisten
    geliyor ki sayfa ile hesap ayrışmasın. *@
-<p class="muted small">@_gunluk.PaydaAciklama</p>
-<p class="muted small">Kira-Gün toplamı <strong>@_gunluk.ToplamKiraGun</strong> ·
-    Rez-Gün toplamı <strong>@_gunluk.ToplamRezGun</strong> ·
-    @_gunluk.DonemGun gün × @Seriler seri = @_gunluk.Satirlar.Count satır.
+<p class="muted small">@_daily.PaydaAciklama</p>
+<p class="muted small">Kira-Gün toplamı <strong>@_daily.ToplamKiraGun</strong> ·
+    Rez-Gün toplamı <strong>@_daily.ToplamRezGun</strong> ·
+    @_daily.DonemGun gün × @Seriler seri = @_daily.Satirlar.Count satır.
     <em>Rez-Gün</em>: kiraya çevrilmemiş rezervasyonlar (çevrilmiş olan kira tarafında sayılır,
     çift sayılmaz).</p>
 
@@ -68,20 +68,20 @@
 <table class="grid tr-grid">
     <thead>
         <tr><th>Gün</th>
-            @if (_boyut != OccupancyDimension.Yok) { <th>@BoyutAd</th> }
+            @if (_size != OccupancyDimension.Yok) { <th>@BoyutAd</th> }
             <th class="num">Araç (payda)</th><th class="num">Kira</th><th class="num">Kira %</th>
             <th class="num">Rez</th><th class="num">Rez %</th></tr>
     </thead>
     <tbody>
-        @if (_gunluk.Satirlar.Count == 0)
+        @if (_daily.Satirlar.Count == 0)
         {
             <tr><td colspan="7" class="muted">Veri yok.</td></tr>
         }
-        @foreach (var r in _gunluk.Satirlar)
+        @foreach (var r in _daily.Satirlar)
         {
             <tr>
                 <td>@r.Gun.ToString("dd.MM.yyyy")</td>
-                @if (_boyut != OccupancyDimension.Yok) { <td>@r.Seri</td> }
+                @if (_size != OccupancyDimension.Yok) { <td>@r.Seri</td> }
                 <td class="num">@r.AracSayisi</td>
                 <td class="num">@r.KiraGun</td>
                 <td class="num">@(r.KiraYuzde is { } k ? $"%{k:N2}" : "—")</td>
@@ -99,14 +99,14 @@
     [SupplyParameterFromQuery(Name = "boyut")] public string? Boyut { get; set; }
 
     private DolulukDto _data = new(0, 0, 0, 0, 0m);
-    private DolulukGunlukDto _gunluk = new([], OccupancyDimension.Yok, "", 0, 0, 0);
-    private OccupancyDimension _boyut;
+    private DolulukGunlukDto _daily = new([], OccupancyDimension.Yok, "", 0, 0, 0);
+    private OccupancyDimension _size;
     private DateTimeOffset _from;
     private DateTimeOffset _to;
 
-    private int Seriler => _gunluk.DonemGun > 0 ? _gunluk.Satirlar.Count / _gunluk.DonemGun : 0;
+    private int Seriler => _daily.DonemGun > 0 ? _daily.Satirlar.Count / _daily.DonemGun : 0;
 
-    private string BoyutAd => _boyut switch
+    private string BoyutAd => _size switch
     {
         OccupancyDimension.Sube => "Şube",
         OccupancyDimension.AracGrubu => "Araç Grubu",
@@ -116,12 +116,12 @@
 
     protected override async Task OnInitializedAsync()
     {
-        var bugun = DateTimeOffset.Now.Date;
-        _from = ParseDate(From) ?? new DateTimeOffset(new DateTime(bugun.Year, bugun.Month, 1), TimeSpan.Zero);
-        _to = ParseDate(To) ?? new DateTimeOffset(bugun, TimeSpan.Zero);
-        _boyut = Enum.TryParse<OccupancyDimension>(Boyut, out var b) ? b : OccupancyDimension.Yok;
+        var today = DateTimeOffset.Now.Date;
+        _from = ParseDate(From) ?? new DateTimeOffset(new DateTime(today.Year, today.Month, 1), TimeSpan.Zero);
+        _to = ParseDate(To) ?? new DateTimeOffset(today, TimeSpan.Zero);
+        _size = Enum.TryParse<OccupancyDimension>(Boyut, out var b) ? b : OccupancyDimension.Yok;
         _data = await Reports.GetOccupancyAsync(_from, _to);
-        _gunluk = await Reports.GetOccupancyDailyAsync(_from, _to, _boyut);
+        _daily = await Reports.GetOccupancyDailyAsync(_from, _to, _size);
     }
 
     private static DateTimeOffset? ParseDate(string? s)

@@ -44,12 +44,12 @@ public static class UserEndpoints
         return app;
     }
 
-    private static async Task<IResult> Run(Func<Task> action, string mesaj)
+    private static async Task<IResult> Run(Func<Task> action, string message)
     {
         try
         {
             await action();
-            return Sonuc.Tamam("/kullanicilar", mesaj);
+            return Result.Ok("/kullanicilar", message);
         }
         catch (ValidationException ex)
         {

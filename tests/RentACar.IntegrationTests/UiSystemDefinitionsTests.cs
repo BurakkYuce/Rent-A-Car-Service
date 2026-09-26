@@ -17,7 +17,7 @@ public sealed partial class UiSystemDefinitionsTests(WebFixture fx)
 
     private static string Code(string prefix) => (prefix + Guid.NewGuid().ToString("N")[..6]).ToUpperInvariant();
 
-    private static string Surum(JsonElement e) => e.GetProperty("surum").GetString()!;
+    private static string VersionOf(JsonElement e) => e.GetProperty("surum").GetString()!;
 
     private static List<string> Codes(JsonElement page)
         => page.GetProperty("kayitlar").EnumerateArray().Select(x => x.GetProperty("kod").GetString()!).ToList();
@@ -33,7 +33,7 @@ public sealed partial class UiSystemDefinitionsTests(WebFixture fx)
         var id = created.GetProperty("id").GetGuid();
         Assert.Equal("AXA", created.GetProperty("kod").GetString()); // kod büyük harfe normalize
         Assert.Equal("AXA Sigorta", created.GetProperty("ad").GetString());
-        Assert.False(string.IsNullOrEmpty(Surum(created)));
+        Assert.False(string.IsNullOrEmpty(VersionOf(created)));
 
         // benzersizlik → 400 errors[kod]
         await Problem(await Send(admin, HttpMethod.Post, path, new { kod = "AXA", ad = "Başka" }), HttpStatusCode.BadRequest, "dogrulama", "kod");
@@ -42,11 +42,11 @@ public sealed partial class UiSystemDefinitionsTests(WebFixture fx)
 
         // PUT: surum eksik 400, doğru surum 200, bayat surum 409 cakisma
         await Problem(await Send(admin, HttpMethod.Put, $"{path}/{id}", new { kod = "AXA", ad = "AXA 2" }), HttpStatusCode.BadRequest, "dogrulama", "surum");
-        var s1 = Surum(created);
+        var s1 = VersionOf(created);
         var updated = await Json(await Send(admin, HttpMethod.Put, $"{path}/{id}", new { kod = "AXA", ad = "AXA Hayat", aktif = false, surum = s1 }));
         Assert.Equal("AXA Hayat", updated.GetProperty("ad").GetString());
         Assert.False(updated.GetProperty("aktif").GetBoolean());
-        Assert.NotEqual(s1, Surum(updated));
+        Assert.NotEqual(s1, VersionOf(updated));
         await Problem(await Send(admin, HttpMethod.Put, $"{path}/{id}", new { kod = "AXA", ad = "Bayat", surum = s1 }), HttpStatusCode.Conflict, "cakisma");
 
         // liste: arama + aktif süzgeci
@@ -64,7 +64,7 @@ public sealed partial class UiSystemDefinitionsTests(WebFixture fx)
         var other = await _kit.SetupAsync();
         var otherAdmin = await _kit.LoginAsync(other, Who.Admin);
         await Problem(await otherAdmin.C.GetAsync($"{path}/{id}"), HttpStatusCode.NotFound, null);
-        await Problem(await Send(otherAdmin, HttpMethod.Put, $"{path}/{id}", new { kod = "AXA", ad = "Ele geçir", surum = Surum(updated) }), HttpStatusCode.NotFound, null);
+        await Problem(await Send(otherAdmin, HttpMethod.Put, $"{path}/{id}", new { kod = "AXA", ad = "Ele geçir", surum = VersionOf(updated) }), HttpStatusCode.NotFound, null);
         await Problem(await Send(otherAdmin, HttpMethod.Delete, $"{path}/{id}"), HttpStatusCode.NotFound, null);
         Assert.Empty(Codes(await Json(await otherAdmin.C.GetAsync(path))));
 
@@ -88,7 +88,7 @@ public sealed partial class UiSystemDefinitionsTests(WebFixture fx)
         await Problem(await Send(admin, HttpMethod.Post, path, new { kod = "K00", ad = "Oransız" }), HttpStatusCode.BadRequest, "dogrulama", "oran");
         await Problem(await Send(admin, HttpMethod.Post, path, new { kod = "K20", ad = "Tekrar", oran = 0.1m }), HttpStatusCode.BadRequest, "dogrulama", "kod");
 
-        var s1 = Surum(created);
+        var s1 = VersionOf(created);
         var upd = await Json(await Send(admin, HttpMethod.Put, $"{path}/{id}", new { kod = "K20", ad = "Genel", oran = 0.18m, surum = s1 }));
         Assert.Equal(0.18m, upd.GetProperty("oran").GetDecimal());
         await Problem(await Send(admin, HttpMethod.Put, $"{path}/{id}", new { kod = "K20", ad = "Genel", oran = 0.10m, surum = s1 }), HttpStatusCode.Conflict, "cakisma");
@@ -114,7 +114,7 @@ public sealed partial class UiSystemDefinitionsTests(WebFixture fx)
         await Problem(await Send(op, HttpMethod.Post, path, new { kod = "BUY", ad = "Taşma", varsayilanTutar = 1e17m }), HttpStatusCode.BadRequest, "dogrulama", "varsayilanTutar");
         await Problem(await Send(op, HttpMethod.Post, path, new { kod = "UZN", ad = new string('x', 129) }), HttpStatusCode.BadRequest, "dogrulama", "ad");
 
-        var upd = await Json(await Send(op, HttpMethod.Put, $"{path}/{id}", new { kod = "HIZ", ad = "Hız", varsayilanTutar = (decimal?)null, surum = Surum(created) }));
+        var upd = await Json(await Send(op, HttpMethod.Put, $"{path}/{id}", new { kod = "HIZ", ad = "Hız", varsayilanTutar = (decimal?)null, surum = VersionOf(created) }));
         Assert.Equal(JsonValueKind.Null, upd.GetProperty("varsayilanTutar").ValueKind);
 
         var other = await _kit.SetupAsync();

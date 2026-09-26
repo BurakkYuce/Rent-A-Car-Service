@@ -45,7 +45,7 @@ public sealed record MusteriTaksitSatiri(
     DateTimeOffset Vade, decimal TaksitTutari, string Doviz, decimal Kur, decimal TutarBaz, string Durum, bool Gecikti,
     DateTimeOffset? OdemeTarihi, string? Aciklama, string? Surum)
 {
-    public static MusteriTaksitSatiri From(MusteriTaksit t, string cariAd, string? plaka, string? surum = null) => new(
-        t.Id, t.Sira, t.CariId, cariAd, t.VehicleId, plaka, t.VehicleSaleId, t.Vade, t.TaksitTutari, t.Currency, t.Kur,
-        t.TutarBaz, t.Durum.ToString(), t.Gecikti, t.OdemeTarihi, t.Aciklama, surum);
+    public static MusteriTaksitSatiri From(MusteriTaksit t, string customerName, string? plate, string? version = null) => new(
+        t.Id, t.Sira, t.CariId, customerName, t.VehicleId, plate, t.VehicleSaleId, t.Vade, t.TaksitTutari, t.Currency, t.Kur,
+        t.TutarBaz, t.Durum.ToString(), t.Gecikti, t.OdemeTarihi, t.Aciklama, version);
 }

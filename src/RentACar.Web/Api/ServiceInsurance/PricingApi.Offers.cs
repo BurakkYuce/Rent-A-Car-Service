@@ -16,7 +16,7 @@ namespace RentACar.Web.Api.ServiceInsurance;
 /// <summary>
 /// <c>/maliyet-teklifleri</c> — kaydedilmiş filo maliyet teklifi (planlama belgesi; DEFTERE YAZMAZ). Sonuç alanları
 /// istemciden ALINMAZ: servis girdiden yeniden hesaplar ve snapshot'ı yazar. Cari adı KVKK kuralıyla
-/// (<see cref="Kira.MusteriGorunumu"/>) döner. Oluşturmada <c>Idempotency-Key</c> isteğe bağlı → kayıt Id'si.
+/// (<see cref="Kira.CustomerView"/>) döner. Oluşturmada <c>Idempotency-Key</c> isteğe bağlı → kayıt Id'si.
 /// </summary>
 internal static partial class PricingApi
 {
@@ -25,12 +25,12 @@ internal static partial class PricingApi
     private static void MapCostOffers(RouteGroupBuilder v1)
     {
         var g = v1.MapGroup("/maliyet-teklifleri").WithTags("Fiyat & Tarife");
-        g.MapGet("", ListOffers).AlanlariEsle(F5Ortak.SiralamaKurallari)
+        g.MapGet("", ListOffers).MapFields(F5Shared.SortRules)
             .RequireAnyPermission(Permission.FinanceWrite, Permission.ViewReports);
         g.MapGet("/{id:guid}", OfferDetail).RequireAnyPermission(Permission.FinanceWrite, Permission.ViewReports);
-        g.MapPost("", CreateOffer).AlanlariEsle(CostFieldRules("girdi.")).RequirePermission(Permission.FinanceWrite)
-            .Produces<UiHata.MukerrerProblemi>(StatusCodes.Status409Conflict, "application/problem+json");
-        g.MapPut("/{id:guid}", UpdateOffer).AlanlariEsle(CostFieldRules("girdi.")).RequirePermission(Permission.FinanceWrite);
+        g.MapPost("", CreateOffer).MapFields(CostFieldRules("girdi.")).RequirePermission(Permission.FinanceWrite)
+            .Produces<UiError.MukerrerProblemi>(StatusCodes.Status409Conflict, "application/problem+json");
+        g.MapPut("/{id:guid}", UpdateOffer).MapFields(CostFieldRules("girdi.")).RequirePermission(Permission.FinanceWrite);
         g.MapDelete("/{id:guid}", async Task<Results<NoContent, ProblemHttpResult>> (Guid id, CostQuotationService s, CancellationToken ct)
             => await s.DeleteAsync(id, ct) ? TypedResults.NoContent() : OfferNotFound()).RequirePermission(Permission.FinanceWrite);
     }
@@ -53,14 +53,14 @@ internal static partial class PricingApi
         string? metin, string? plaka, Guid? cariId, DateOnly? bas, DateOnly? bit, decimal? fiyatMin, decimal? fiyatMax,
         int? sayfa, int? boyut, string? sirala, CostQuotationService svc, IDbContextFactory<AppDbContext> dbf, CancellationToken ct)
     {
-        var (min, max) = F5Ortak.GunAraligi(bas, bit);
+        var (min, max) = F5Shared.DayRange(bas, bit);
         var list = await svc.SearchAsync(new MaliyetTeklifiFilter
         {
-            Metin = F5Ortak.Nz(metin), Plaka = F5Ortak.Nz(plaka), CariId = cariId, TarihMin = min, TarihMax = max,
+            Metin = F5Shared.Nz(metin), Plaka = F5Shared.Nz(plaka), CariId = cariId, TarihMin = min, TarihMax = max,
             FiyatMin = fiyatMin, FiyatMax = fiyatMax,
         }, ct);
         var rows = await OfferRowsAsync(dbf, list, ct);
-        return TypedResults.Ok(new CostOfferList(F5Ortak.Sayfala(rows, OfferSort, sayfa, boyut, sirala), CostQuotationService.Summary(list)));
+        return TypedResults.Ok(new CostOfferList(F5Shared.Paginate(rows, OfferSort, sayfa, boyut, sirala), CostQuotationService.Summary(list)));
     }
 
     private static async Task<Results<Ok<CostOfferDetail>, ProblemHttpResult>> OfferDetail(
@@ -83,7 +83,7 @@ internal static partial class PricingApi
         S.Text(r.Baslik, 256, "baslik"); S.Text(r.Plaka, 32, "plaka"); S.Text(r.Aciklama, 1024, "aciklama");
         var input = CostInput(r.Girdi ?? new CostInputDto(null, null, null, null, null, null, null, null, null, null, null, null,
             null, null, null, null, null, null, null, null, null, null, null, null, null), "girdi.");
-        await AracFinansOrtak.CariVarAsync(dbf, r.CariId, "cariId", zorunlu: false, ct);
+        await VehicleFinanceShared.CustomerExistsAsync(dbf, r.CariId, "cariId", required: false, ct);
         if (r.HazirlayanId is { } p && p != Guid.Empty)
         {
             await using var db = await dbf.CreateDbContextAsync(ct);
@@ -101,7 +101,7 @@ internal static partial class PricingApi
     private static async Task<Results<Created<CostOfferDetail>, ProblemHttpResult>> CreateOffer(
         CostOfferRequest r, HttpContext http, CostQuotationService svc, IDbContextFactory<AppDbContext> dbf, CancellationToken ct)
     {
-        var key = IdempotencyBasligi.Anahtar(http);
+        var key = IdempotencyHeader.Key(http);
         if (key is { } k && await svc.GetAsync(k, ct) is { } m) throw OfferDuplicate(m, r); // (1) ÖNCE mevcut
         var input = await OfferInputAsync(r, dbf, key, ct);
         Guid id;
@@ -112,7 +112,7 @@ internal static partial class PricingApi
         catch (DbUpdateException ex) when (key is { } k2 && S.IsPrimaryKeyViolation(ex))
         {
             if (await svc.GetAsync(k2, ct) is { } won) throw OfferDuplicate(won, r);
-            throw new DuplicateOperationException(RegulationApi.AnahtarBaskaIslemde);
+            throw new DuplicateOperationException(RegulationApi.KeyInOtherOperation);
         }
         var d = await OfferDetailAsync(id, svc, dbf, ct);
         return TypedResults.Created($"{OffersRoot}/{id}", d!);
@@ -128,7 +128,7 @@ internal static partial class PricingApi
         Guid id, CostOfferRequest r, CostQuotationService svc, IDbContextFactory<AppDbContext> dbf, CancellationToken ct)
     {
         if (await svc.GetAsync(id, ct) is null) return OfferNotFound();
-        var version = AracFinansOrtak.Surum(r.Surum);
+        var version = VehicleFinanceShared.Version(r.Surum);
         var input = await OfferInputAsync(r, dbf, null, ct);
         if (!await svc.UpdateVersionedAsync(id, input, version, ct)) return OfferNotFound();
         return TypedResults.Ok((await OfferDetailAsync(id, svc, dbf, ct))!);

@@ -18,11 +18,11 @@ namespace RentACar.IntegrationTests;
 [Collection("postgres")]
 public sealed class BranchFkTests(PostgresFixture fx)
 {
-    private static Task<Guid> Branch(IServiceProvider sp, string kod, string ad)
-        => sp.GetRequiredService<BranchService>().CreateAsync(new BranchInput { Kod = kod, Ad = ad });
+    private static Task<Guid> Branch(IServiceProvider sp, string code, string name)
+        => sp.GetRequiredService<BranchService>().CreateAsync(new BranchInput { Kod = code, Ad = name });
 
-    private static Task<Guid> Ofis(IServiceProvider sp, string kod, string? sube)
-        => sp.GetRequiredService<LocationService>().CreateAsync(new LocationInput { Kod = kod, Ad = "Ofis " + kod, Sube = sube });
+    private static Task<Guid> Office(IServiceProvider sp, string code, string? branch)
+        => sp.GetRequiredService<LocationService>().CreateAsync(new LocationInput { Kod = code, Ad = "Ofis " + code, Sube = branch });
 
     [Fact]
     public async Task Interceptor_yazimda_sube_metnini_FKye_cozer_case_insensitive()
@@ -33,13 +33,13 @@ public sealed class BranchFkTests(PostgresFixture fx)
         var loc = sp.GetRequiredService<LocationService>();
         var branchId = await Branch(sp, "MRK", "Kadıköy");
 
-        var id1 = await Ofis(sp, "OF1", "  kadıköy  ");     // farklı case + boşluk
+        var id1 = await Office(sp, "OF1", "  kadıköy  ");     // farklı case + boşluk
         Assert.Equal(branchId, (await loc.GetAsync(id1))!.SubeId); // interceptor çözdü
 
-        var id2 = await Ofis(sp, "OF2", "Olmayan Şube");    // eşleşmeyen
+        var id2 = await Office(sp, "OF2", "Olmayan Şube");    // eşleşmeyen
         Assert.Null((await loc.GetAsync(id2))!.SubeId);
 
-        var id3 = await Ofis(sp, "OF3", null);              // boş
+        var id3 = await Office(sp, "OF3", null);              // boş
         Assert.Null((await loc.GetAsync(id3))!.SubeId);
     }
 
@@ -66,7 +66,7 @@ public sealed class BranchFkTests(PostgresFixture fx)
         using var sB = host.ScopeFor(Guid.NewGuid());
         await Branch(sA.ServiceProvider, "MRK", "Kadıköy"); // yalnız tenant A
 
-        var id = await Ofis(sB.ServiceProvider, "OF1", "Kadıköy"); // B'de aynı ad → B'nin şubesi yok
+        var id = await Office(sB.ServiceProvider, "OF1", "Kadıköy"); // B'de aynı ad → B'nin şubesi yok
         Assert.Null((await sB.ServiceProvider.GetRequiredService<LocationService>().GetAsync(id))!.SubeId);
     }
 
@@ -79,7 +79,7 @@ public sealed class BranchFkTests(PostgresFixture fx)
         var sp = scope.ServiceProvider;
         var factory = sp.GetRequiredService<IDbContextFactory<AppDbContext>>();
         var branchId = await Branch(sp, "MRK", "Kadıköy");
-        var locId = await Ofis(sp, "OF1", "Kadıköy");
+        var locId = await Office(sp, "OF1", "Kadıköy");
 
         // ESKİ satır simülasyonu: FK'yi raw SQL ile null'la (SaveChanges değil → interceptor atlanır).
         await using (var db = await factory.CreateDbContextAsync())

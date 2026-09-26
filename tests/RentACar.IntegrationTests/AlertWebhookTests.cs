@@ -16,8 +16,8 @@ public sealed class AlertWebhookTests
     [InlineData(null, "s3cr3t", false)]
     [InlineData("s3cr3t", null, false)]
     [InlineData("s3cr3t", "s3cr3", false)] // uzunluk farkı
-    public void Anahtar_kapisi(string? configured, string? provided, bool beklenen)
-        => Assert.Equal(beklenen, AlertWebhook.Authorized(provided, configured));
+    public void Anahtar_kapisi(string? configured, string? provided, bool expected)
+        => Assert.Equal(expected, AlertWebhook.Authorized(provided, configured));
 
     // ---- Anahtar çıkarımı: X-Alert-Token öncelikli; yoksa Authorization: Bearer ----
     [Theory]
@@ -26,8 +26,8 @@ public sealed class AlertWebhookTests
     [InlineData(null, "bearer tok3", "tok3")]                // case-insensitive
     [InlineData(null, "Basic abc", null)]                    // Bearer değil → yok
     [InlineData("", null, null)]                             // ikisi de yok
-    public void Anahtar_cikarimi(string? xToken, string? authz, string? beklenen)
-        => Assert.Equal(beklenen, AlertWebhook.ExtractToken(xToken, authz));
+    public void Anahtar_cikarimi(string? xToken, string? authz, string? expected)
+        => Assert.Equal(expected, AlertWebhook.ExtractToken(xToken, authz));
 
     // ---- Özet: Grafana alerts[] gövdesinden alertname+summary+status ----
     [Fact]

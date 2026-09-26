@@ -22,31 +22,31 @@ namespace RentACar.IntegrationTests;
 [Collection("postgres")]
 public sealed class KarlilikAtifTests(PostgresFixture fx)
 {
-    private static readonly DateTimeOffset Bas =
+    private static readonly DateTimeOffset Start =
         new DateTimeOffset(DateTime.UtcNow.Date, TimeSpan.Zero).AddDays(-3).AddHours(9);
 
     /// <summary>3 gün × 100 = 300 brüt baz; KmLimit 300, FazlaKmUcret 2 → dönüşte 300 aşım = 600 fark.</summary>
-    private static async Task<(Guid rental, Guid vehicle, Guid cari)> KiraKurAsync(IServiceProvider sp, string plaka)
+    private static async Task<(Guid rental, Guid vehicle, Guid cari)> RentalExchangeRateAsync(IServiceProvider sp, string plate)
     {
-        var v = await sp.GetRequiredService<VehicleService>().CreateAsync(new VehicleInput { Plaka = plaka });
+        var v = await sp.GetRequiredService<VehicleService>().CreateAsync(new VehicleInput { Plaka = plate });
         var m = await sp.GetRequiredService<CustomerService>()
             .CreateAsync(new CustomerInput { Tip = CustomerType.Bireysel, Ad = "Atif", Soyad = "Musteri" });
         var r = await sp.GetRequiredService<RentalService>().CreateDirectAsync(new BookingInput
         {
-            MusteriId = m, VehicleId = v, BasTar = Bas, BitTar = Bas.AddDays(3),
+            MusteriId = m, VehicleId = v, BasTar = Start, BitTar = Start.AddDays(3),
             GunlukUcret = 100m, KmLimit = 300, FazlaKmUcret = 2m
         });
         return (r, v, m);
     }
 
     /// <summary>Base fatura + dönüş (300 aşım × 2 = 600) + FARK faturası; fark fatura id döner.</summary>
-    private static async Task<Guid> FarkSenaryosuAsync(IServiceProvider sp, Guid rental)
+    private static async Task<Guid> DifferenceScenarioAsync(IServiceProvider sp, Guid rental)
     {
         var invoices = sp.GetRequiredService<InvoiceService>();
         var rentals = sp.GetRequiredService<RentalService>();
         await invoices.CreateFromRentalAsync(rental);                                     // base 300 brüt → net 250
         await rentals.DeliverAsync(rental, pickupKm: 1000, pickupFuel: 8);
-        await rentals.ReturnAsync(rental, returnKm: 1600, returnFuel: 8, Bas.AddDays(3));  // sözleşme 900
+        await rentals.ReturnAsync(rental, returnKm: 1600, returnFuel: 8, Start.AddDays(3));  // sözleşme 900
         return await invoices.CreateFromRentalAsync(rental);                              // FARK 600 brüt → net 500
     }
 
@@ -56,8 +56,8 @@ public sealed class KarlilikAtifTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
         var sp = scope.ServiceProvider;
-        var (rental, vehicle, _) = await KiraKurAsync(sp, "34 AT 01");
-        await FarkSenaryosuAsync(sp, rental);
+        var (rental, vehicle, _) = await RentalExchangeRateAsync(sp, "34 AT 01");
+        await DifferenceScenarioAsync(sp, rental);
 
         var rs = sp.GetRequiredService<ReportService>();
         var k = await rs.GetProfitabilityAsync();
@@ -76,12 +76,12 @@ public sealed class KarlilikAtifTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
         var sp = scope.ServiceProvider;
-        var (rental, vehicle, _) = await KiraKurAsync(sp, "34 AT 02");
-        var farkId = await FarkSenaryosuAsync(sp, rental);
+        var (rental, vehicle, _) = await RentalExchangeRateAsync(sp, "34 AT 02");
+        var differenceId = await DifferenceScenarioAsync(sp, rental);
 
         // Fark faturasının KENDİSİ iade edilir → iade'nin KaynakFaturaId'si fark'a işaret eder;
         // fark'ın RentalId'si null olduğundan kira bağı ancak KaynakKiraId iki-hop'uyla çözülür.
-        await sp.GetRequiredService<InvoiceService>().CreateRefundAsync(farkId);
+        await sp.GetRequiredService<InvoiceService>().CreateRefundAsync(differenceId);
 
         var rs = sp.GetRequiredService<ReportService>();
         var k = await rs.GetProfitabilityAsync();
@@ -98,7 +98,7 @@ public sealed class KarlilikAtifTests(PostgresFixture fx)
         using var scope = host.ScopeFor(Guid.NewGuid());
         var sp = scope.ServiceProvider;
         var vehicle = await sp.GetRequiredService<VehicleService>().CreateAsync(new VehicleInput { Plaka = "34 AT 03" });
-        var cari = await sp.GetRequiredService<CustomerService>()
+        var account = await sp.GetRequiredService<CustomerService>()
             .CreateAsync(new CustomerInput { Tip = CustomerType.Bireysel, Ad = "Rucu", Soyad = "Cari" });
 
         // Servis maliyeti 1000, kusur 0.5 → rücu 500 (elle). SourceType=ServisYansitma.
@@ -111,7 +111,7 @@ public sealed class KarlilikAtifTests(PostgresFixture fx)
         });
         await svc.StartAsync(svcId);
         await svc.CompleteAsync(svcId, pickupKm: 100);
-        await svc.ReflectAsync(svcId, cari);
+        await svc.ReflectAsync(svcId, account);
 
         var rs = sp.GetRequiredService<ReportService>();
         var k = await rs.GetProfitabilityAsync();
@@ -127,12 +127,12 @@ public sealed class KarlilikAtifTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
         var sp = scope.ServiceProvider;
-        var (rental, vehicle, cari) = await KiraKurAsync(sp, "34 AT 04");
+        var (rental, vehicle, account) = await RentalExchangeRateAsync(sp, "34 AT 04");
 
         // Ceza VehicleId=NULL ama RentalId dolu → kira → araç fallback. Tutar 100 (elle).
         var pen = sp.GetRequiredService<PenaltyService>();
         var pid = await pen.CreateAsync(new PenaltyInput
-        { CezaTuru = "Hız", VehicleId = null, RentalId = rental, CariId = cari, Tutar = 100m });
+        { CezaTuru = "Hız", VehicleId = null, RentalId = rental, CariId = account, Tutar = 100m });
         await pen.ReflectAsync(pid);
 
         var rs = sp.GetRequiredService<ReportService>();
@@ -149,12 +149,12 @@ public sealed class KarlilikAtifTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
         var sp = scope.ServiceProvider;
-        var cari = await sp.GetRequiredService<CustomerService>()
+        var account = await sp.GetRequiredService<CustomerService>()
             .CreateAsync(new CustomerInput { Tip = CustomerType.Bireysel, Ad = "Serbest", Soyad = "Cari" });
 
         // Ne araç ne kira bağı → atfedilemez; doğru davranış "(Atanmamış)" (kayıp değil, görünür).
         var pen = sp.GetRequiredService<PenaltyService>();
-        var pid = await pen.CreateAsync(new PenaltyInput { CezaTuru = "Park", CariId = cari, Tutar = 80m });
+        var pid = await pen.CreateAsync(new PenaltyInput { CezaTuru = "Park", CariId = account, Tutar = 80m });
         await pen.ReflectAsync(pid);
 
         var k = await sp.GetRequiredService<ReportService>().GetProfitabilityAsync();
@@ -170,8 +170,8 @@ public sealed class KarlilikAtifTests(PostgresFixture fx)
         var tenantA = Guid.NewGuid();
         using (var scopeA = host.ScopeFor(tenantA))
         {
-            var (rental, _, _) = await KiraKurAsync(scopeA.ServiceProvider, "34 AT 05");
-            await FarkSenaryosuAsync(scopeA.ServiceProvider, rental);
+            var (rental, _, _) = await RentalExchangeRateAsync(scopeA.ServiceProvider, "34 AT 05");
+            await DifferenceScenarioAsync(scopeA.ServiceProvider, rental);
         }
 
         // Tenant B (racar_app + RLS): A'nın fark geliri görünmez.

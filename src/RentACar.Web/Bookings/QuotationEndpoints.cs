@@ -28,7 +28,7 @@ public static class QuotationEndpoints
                     GunlukUcret = FormParse.Dec(gunlukUcret) ?? 0m, CikisOfisi = cikisOfisi, DonusOfisi = donusOfisi,
                     GecerlilikTarihi = FormParse.Date(gecerlilik), Aciklama = aciklama, FiyatTuru = fiyatTuru
                 });
-                return Sonuc.Tamam("/teklifler", "Kayıt eklendi.");
+                return Result.Ok("/teklifler", "Kayıt eklendi.");
             }
             catch (ValidationException ex)
             {
@@ -38,19 +38,19 @@ public static class QuotationEndpoints
 
         grp.MapPost("/gonder", async (QuotationService svc, [FromForm] Guid id) =>
         {
-            try { await svc.SendAsync(id); return Sonuc.Tamam("/teklifler", "Gönderildi."); }
+            try { await svc.SendAsync(id); return Result.Ok("/teklifler", "Gönderildi."); }
             catch (ValidationException ex) { return Results.Redirect($"/teklifler?hata={Uri.EscapeDataString(ex.Message)}"); }
         });
 
         grp.MapPost("/reddet", async (QuotationService svc, [FromForm] Guid id) =>
         {
-            try { await svc.RejectAsync(id); return Sonuc.Tamam("/teklifler", "Reddedildi."); }
+            try { await svc.RejectAsync(id); return Result.Ok("/teklifler", "Reddedildi."); }
             catch (ValidationException ex) { return Results.Redirect($"/teklifler?hata={Uri.EscapeDataString(ex.Message)}"); }
         });
 
         grp.MapPost("/kabul", async (QuotationService svc, [FromForm] Guid id) =>
         {
-            try { await svc.AcceptAsync(id); return Sonuc.Tamam("/rezervasyonlar", "Kabul edildi."); }
+            try { await svc.AcceptAsync(id); return Result.Ok("/rezervasyonlar", "Kabul edildi."); }
             catch (ValidationException ex) { return Results.Redirect($"/teklifler?hata={Uri.EscapeDataString(ex.Message)}"); }
         });
 

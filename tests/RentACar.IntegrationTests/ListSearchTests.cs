@@ -16,8 +16,8 @@ public sealed class ListSearchTests(PostgresFixture fx)
     {
         var factory = scope.ServiceProvider.GetRequiredService<IDbContextFactory<AppDbContext>>();
         await using var db = await factory.CreateDbContextAsync();
-        foreach (var (plaka, marka, grup, sube, durum) in vs)
-            db.Vehicles.Add(new Vehicle { Plaka = plaka, Marka = marka, Grup = grup, Sube = sube, Durum = durum });
+        foreach (var (plate, brand, group, branch, status) in vs)
+            db.Vehicles.Add(new Vehicle { Plaka = plate, Marka = brand, Grup = group, Sube = branch, Durum = status });
         await db.SaveChangesAsync();
     }
 
@@ -37,13 +37,13 @@ public sealed class ListSearchTests(PostgresFixture fx)
         Assert.Equal(2, bmw.Total);
 
         // Plaka + durum filtresi.
-        var musaitBmw = await svc.SearchAsync(new VehicleFilter { Query = "34BMW", Durum = VehicleStatus.Musait });
-        Assert.Equal(1, musaitBmw.Total);
-        Assert.Equal("34BMW01", musaitBmw.Items[0].Plaka);
+        var availableBmw = await svc.SearchAsync(new VehicleFilter { Query = "34BMW", Durum = VehicleStatus.Musait });
+        Assert.Equal(1, availableBmw.Total);
+        Assert.Equal("34BMW01", availableBmw.Items[0].Plaka);
 
         // Grup filtresi.
-        var grupA = await svc.SearchAsync(new VehicleFilter { Grup = "A" });
-        Assert.Equal(2, grupA.Total);
+        var groupA = await svc.SearchAsync(new VehicleFilter { Grup = "A" });
+        Assert.Equal(2, groupA.Total);
     }
 
     [Fact]

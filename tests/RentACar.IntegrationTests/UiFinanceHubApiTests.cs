@@ -74,8 +74,8 @@ public sealed partial class UiFinanceHubApiTests
         // carinin ekstresi dahil operatöre 403; Muhasebe okur.
         await Problem(await GetAsync(s, $"/cariler/{e.CustomerA}/ekstre"), HttpStatusCode.Forbidden, "yetki_yok");
         await Problem(await GetAsync(s, $"/cariler/{e.CustomerA}/ekstre?mod=ozet"), HttpStatusCode.Forbidden, "yetki_yok");
-        var muhasebe = await LoginAsync(e, Who.Accountant);
-        await Ok(await GetAsync(muhasebe, $"/cariler/{e.CustomerA}/ekstre"));
+        var accounting = await LoginAsync(e, Who.Accountant);
+        await Ok(await GetAsync(accounting, $"/cariler/{e.CustomerA}/ekstre"));
         await Problem(await PostAsync(s, "/kurlar/sabit", new { kod = "USD", kur = 30m }), HttpStatusCode.Forbidden, "yetki_yok");
     }
 
@@ -119,7 +119,7 @@ public sealed partial class UiFinanceHubApiTests
         var yesterday = DateOnly.FromDateTime(DateTime.UtcNow.Date.AddDays(-1));
         Assert.Equal(HttpStatusCode.NoContent, (await PostAsync(s, "/donem-kapanis/kilitle", new { kapanisTarihi = yesterday })).StatusCode);
         await Problem(await PostAsync(s, "/bakiye-duzeltme",
-            new { cariId = e.CustomerA, yon = "Borclandir", tutar = 5m, tarih = TestZaman.GunSonra(-2) }, NewKey()),
+            new { cariId = e.CustomerA, yon = "Borclandir", tutar = 5m, tarih = TestZaman.DaysLater(-2) }, NewKey()),
             HttpStatusCode.BadRequest, "dogrulama");
         await IdOf(await PostAsync(s, "/bakiye-duzeltme", new { cariId = e.CustomerA, yon = "Borclandir", tutar = 5m }, NewKey()));
         Assert.Equal(5m, await BalanceAsync(e, e.CustomerA));

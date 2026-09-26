@@ -31,9 +31,9 @@ namespace RentACar.IntegrationTests;
 public sealed partial class UiReportTests(WebFixture fx)
 {
     private const string V1 = "/api/ui/v1";
-    private const string Rapor = V1 + "/raporlar";
-    private const string MusteriA = "Ayla";
-    private const string AnonimGercekAd = "Gizlenecek";
+    private const string Report = V1 + "/raporlar";
+    private const string CustomerA = "Ayla";
+    private const string AnonymousRealName = "Gizlenecek";
 
     private enum Who { Admin, Accounting, OperatorA, OperatorB }
 
@@ -55,7 +55,7 @@ public sealed partial class UiReportTests(WebFixture fx)
     {
         var e = new Env
         {
-            TenantId = Guid.NewGuid(), Code = Random("f101"), Password = WebFixture.RastgeleParola(),
+            TenantId = Guid.NewGuid(), Code = Random("f101"), Password = WebFixture.RandomPassword(),
             Users = Enum.GetValues<Who>().ToDictionary(k => k, _ => Random("u")),
         };
         var opts = new DbContextOptionsBuilder<AppDbContext>().UseNpgsql(fx.Pg.OwnerConnectionString).Options;
@@ -78,10 +78,10 @@ public sealed partial class UiReportTests(WebFixture fx)
             }
             await db.SaveChangesAsync();
         }
-        await fx.PilotYapAsync(e.TenantId, true);
+        await fx.MakePilotAsync(e.TenantId, true);
 
-        var a = new Customer { Tip = CustomerType.Bireysel, Ad = MusteriA, Soyad = "Deniz", CepTel = "05320000001" };
-        var b = new Customer { Tip = CustomerType.Bireysel, Ad = AnonimGercekAd, Soyad = "Kisi", CepTel = "05329999999", AnonimAd = true, AnonimTelefon = true };
+        var a = new Customer { Tip = CustomerType.Bireysel, Ad = CustomerA, Soyad = "Deniz", CepTel = "05320000001" };
+        var b = new Customer { Tip = CustomerType.Bireysel, Ad = AnonymousRealName, Soyad = "Kisi", CepTel = "05329999999", AnonimAd = true, AnonimTelefon = true };
         var va = new Vehicle { Plaka = "34RPA" + Guid.NewGuid().ToString("N")[..3].ToUpperInvariant(), Durum = VehicleStatus.Musait, Sube = "SubeA", Grup = "C" };
         var vb = new Vehicle { Plaka = "34RPB" + Guid.NewGuid().ToString("N")[..3].ToUpperInvariant(), Durum = VehicleStatus.Musait, Sube = "SubeB", Grup = "D" };
         await WriteAsync(e.TenantId, db => { db.Customers.AddRange(a, b); db.Vehicles.AddRange(va, vb); });
@@ -123,7 +123,7 @@ public sealed partial class UiReportTests(WebFixture fx)
 
     private async Task<Session> LoginAsync(Env e, Who who)
     {
-        var c = fx.Web.Istemci();
+        var c = fx.Web.Client();
         var first = Cookie(await c.GetAsync(V1 + "/oturum/xsrf"), "XSRF-TOKEN")!;
         var req = new HttpRequestMessage(HttpMethod.Post, V1 + "/oturum/giris")
         { Content = JsonContent.Create(new { firma = e.Code, kullanici = e.Users[who], sifre = e.Password }) };

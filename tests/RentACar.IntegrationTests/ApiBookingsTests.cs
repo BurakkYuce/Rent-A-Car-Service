@@ -37,12 +37,12 @@ public sealed class ApiBookingsTests(PostgresFixture fx)
             new { plaka = "34BK01", grup = "B", durum = "Musait", km = 0, yakit = "Benzin" });
         var custId = await CreateAndIdAsync(c, "/api/v1/customers", new { tip = "Bireysel", ad = "Kir", soyad = "Acı" });
 
-        var bas = DateTimeOffset.UtcNow.AddDays(3); // now-göreli gelecek (rez geçmişe kapalı)
-        var bit = bas.AddDays(3);
+        var start = DateTimeOffset.UtcNow.AddDays(3); // now-göreli gelecek (rez geçmişe kapalı)
+        var bit = start.AddDays(3);
 
         // Rezervasyon (manuel 100/gün → 3×100=300)
         var resvId = await CreateAndIdAsync(c, "/api/v1/reservations",
-            new { musteriId = custId, vehicleId, basTar = bas, bitTar = bit, gunlukUcret = 100m });
+            new { musteriId = custId, vehicleId, basTar = start, bitTar = bit, gunlukUcret = 100m });
 
         // Onayla → Onayli
         var conf = await c.PostAsync($"/api/v1/reservations/{resvId}/confirm", null);

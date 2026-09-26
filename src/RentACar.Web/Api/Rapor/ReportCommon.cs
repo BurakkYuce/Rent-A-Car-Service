@@ -38,18 +38,18 @@ internal static class ReportScope
         ICurrentUser user, string? requested, IDbContextFactory<AppDbContext> dbf, CancellationToken ct)
     {
         var f = BranchScope.EffectiveFilter(user);
-        var istenen = string.IsNullOrWhiteSpace(requested) ? null : requested.Trim();
-        if (f.Unrestricted) return istenen;
-        var ad = f.SubeAd;
-        if (ad is null && f.SubeId is { } id)
+        var requestedScope = string.IsNullOrWhiteSpace(requested) ? null : requested.Trim();
+        if (f.Unrestricted) return requestedScope;
+        var name = f.SubeAd;
+        if (name is null && f.SubeId is { } id)
         {
             await using var db = await dbf.CreateDbContextAsync(ct);
-            ad = await db.Branches.AsNoTracking().Where(b => b.Id == id).Select(b => b.Ad).FirstOrDefaultAsync(ct);
+            name = await db.Branches.AsNoTracking().Where(b => b.Id == id).Select(b => b.Ad).FirstOrDefaultAsync(ct);
         }
-        if (ad is null) throw new NoPermissionException("Şube kapsamınız çözülemedi.");
-        if (istenen is not null && !string.Equals(istenen, ad.Trim(), StringComparison.Ordinal))
+        if (name is null) throw new NoPermissionException("Şube kapsamınız çözülemedi.");
+        if (requestedScope is not null && !string.Equals(requestedScope, name.Trim(), StringComparison.Ordinal))
             throw new NoPermissionException("Bu şube kapsamınız dışında.");
-        return ad.Trim();
+        return name.Trim();
     }
 
     /// <summary>Kira kimliklerinden kapsamdakiler (çıkış şubesi FK'si + çıkış ofisi metni — kira listesiyle aynı kural).</summary>
@@ -61,14 +61,14 @@ internal static class ReportScope
         var ids = rentalIds.Distinct().ToList();
         if (ids.Count == 0) return [];
         await using var db = await dbf.CreateDbContextAsync(ct);
-        var kiralar = await db.Rentals.AsNoTracking().Where(r => ids.Contains(r.Id))
+        var rentals = await db.Rentals.AsNoTracking().Where(r => ids.Contains(r.Id))
             .Select(r => new { r.Id, r.CikisSubeId, r.CikisOfisi }).ToListAsync(ct);
-        return kiralar.Where(r => BranchScope.InScope(f, r.CikisSubeId, r.CikisOfisi)).Select(r => r.Id).ToHashSet();
+        return rentals.Where(r => BranchScope.InScope(f, r.CikisSubeId, r.CikisOfisi)).Select(r => r.Id).ToHashSet();
     }
 }
 
 /// <summary>
-/// F10.1 — rapor yanıtlarındaki müşteri adı/iletişimi, KVKK TEK KURALIYLA (<see cref="MusteriGorunumu"/>).
+/// F10.1 — rapor yanıtlarındaki müşteri adı/iletişimi, KVKK TEK KURALIYLA (<see cref="CustomerView"/>).
 /// Rapor servisleri cari adını <c>DisplayName</c>'den üretir ve anonimleştirme bayraklarını okumaz; uç yeniden çözer.
 /// <list type="bullet">
 /// <item>Kimliği bilinen satır: carinin kendi bayrakları (<c>AnonimAd/AnonimTelefon/AnonimMail</c>).</item>
@@ -109,13 +109,13 @@ internal sealed class CustomerMask
     public string Name(Guid? id, string? name)
     {
         if (id is { } i && _flags.TryGetValue(i, out var f))
-            return f.Ad ? MusteriGorunumu.AnonimAdEtiketi : name ?? "—";
+            return f.Ad ? CustomerView.AnonymousNameLabel : name ?? "—";
         return Name(name);
     }
 
     /// <summary>Yalnız adla (kimliksiz satır) maskeleme.</summary>
     public string Name(string? name)
-        => name is not null && _anonNames.Contains(name) ? MusteriGorunumu.AnonimAdEtiketi : name ?? "—";
+        => name is not null && _anonNames.Contains(name) ? CustomerView.AnonymousNameLabel : name ?? "—";
 
     public string? Phone(Guid id, string? phone) => _flags.TryGetValue(id, out var f) && f.Tel ? null : phone;
 

@@ -19,7 +19,7 @@ namespace RentACar.IntegrationTests;
 /// </summary>
 public sealed class WireInKapsamaTests
 {
-    private static string Kok()
+    private static string Root()
     {
         var d = new DirectoryInfo(AppContext.BaseDirectory);
         while (d is not null && !File.Exists(Path.Combine(d.FullName, "RentACar.slnx"))) d = d.Parent;
@@ -27,9 +27,9 @@ public sealed class WireInKapsamaTests
         return d!.FullName;
     }
 
-    private static string Oku(string gorecelYol) => File.ReadAllText(Path.Combine(Kok(), gorecelYol));
+    private static string Read(string relativePath) => File.ReadAllText(Path.Combine(Root(), relativePath));
 
-    public static TheoryData<string, string, string> Beklenenler() => new()
+    public static TheoryData<string, string, string> ExpectedValues() => new()
     {
         // (form dosyası, form alan adı, neden önemli)
         { "src/RentACar.Web/Components/Pages/AracKredileri/AracKrediList.razor", "vehicleId",
@@ -48,20 +48,20 @@ public sealed class WireInKapsamaTests
     };
 
     [Theory]
-    [MemberData(nameof(Beklenenler))]
-    public void Form_alani_SORULUYOR(string dosya, string alan, string neden)
-        => Assert.True(Regex.IsMatch(Oku(dosya), $@"name=""{Regex.Escape(alan)}"""),
-            $"`{alan}` alanı {dosya} formunda YOK — {neden}.");
+    [MemberData(nameof(ExpectedValues))]
+    public void Form_alani_SORULUYOR(string file, string alan, string reason)
+        => Assert.True(Regex.IsMatch(Read(file), $@"name=""{Regex.Escape(alan)}"""),
+            $"`{alan}` alanı {file} formunda YOK — {reason}.");
 
     [Theory]
-    [MemberData(nameof(Beklenenler))]
-    public void Ucta_da_OKUNUYOR(string dosya, string alan, string neden)
+    [MemberData(nameof(ExpectedValues))]
+    public void Ucta_da_OKUNUYOR(string file, string alan, string reason)
     {
         // Formda sorulup uçta okunmaması da aynı sınıf hata: kullanıcı doldurur, veri kaybolur.
-        var uc = dosya.Contains("AracKredileri") ? "src/RentACar.Web/AracKredileri/AracKrediEndpoints.cs"
-               : dosya.Contains("VehicleSales") ? "src/RentACar.Web/VehicleSales/VehicleSaleEndpoints.cs"
+        var endpoint = file.Contains("AracKredileri") ? "src/RentACar.Web/AracKredileri/VehicleLoanEndpoints.cs"
+               : file.Contains("VehicleSales") ? "src/RentACar.Web/VehicleSales/VehicleSaleEndpoints.cs"
                : "src/RentACar.Web/Baflar/BafEndpoints.cs";
-        Assert.True(Oku(uc).Contains(alan, StringComparison.Ordinal),
-            $"`{alan}` uçta ({uc}) okunmuyor — {neden}.");
+        Assert.True(Read(endpoint).Contains(alan, StringComparison.Ordinal),
+            $"`{alan}` uçta ({endpoint}) okunmuyor — {reason}.");
     }
 }

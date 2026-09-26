@@ -10,7 +10,7 @@ public sealed record InsurancePolicyRow(Guid Id, Guid VehicleId, string Plaka, s
     DateTimeOffset Bitis, decimal Prim, decimal ZeyilPrim, string Doviz, string? PoliceNo, string? Firma, string? Acenta,
     decimal? AracDegeri, decimal? ImmDegeri, decimal? AksesuarDegeri, decimal Kalan, bool Odendi)
 {
-    public static InsurancePolicyRow From(InsurancePolicy p, string plaka) => new(p.Id, p.VehicleId, plaka, p.Tip.ToString(),
+    public static InsurancePolicyRow From(InsurancePolicy p, string plate) => new(p.Id, p.VehicleId, plate, p.Tip.ToString(),
         p.Baslangic, p.Bitis, p.Prim, p.ZeyilPrim, p.Currency, p.PoliceNo, p.Firma, p.Acenta, p.AracDegeri, p.ImmDegeri,
         p.AksesuarDegeri, p.Kalan, p.Odendi);
 }
@@ -46,14 +46,14 @@ public sealed record EndorsementRequest(string? ZeyilNo, DateTimeOffset? Tarih, 
 public sealed record MtvRow(Guid Id, Guid VehicleId, string Plaka, string Donem, decimal Tutar, decimal Kalan,
     DateTimeOffset Vade, bool Odendi, string? Aciklama)
 {
-    public static MtvRow From(MtvRecord m, string plaka) => new(m.Id, m.VehicleId, plaka, m.Donem, m.Tutar, m.Kalan, m.Vade,
+    public static MtvRow From(MtvRecord m, string plate) => new(m.Id, m.VehicleId, plate, m.Donem, m.Tutar, m.Kalan, m.Vade,
         m.Odendi, m.Aciklama);
 }
 
 public sealed record InspectionRow(Guid Id, Guid VehicleId, string Plaka, DateTimeOffset MuayeneTarihi, DateTimeOffset Bitis,
     decimal Ucret, decimal Ceza, decimal Kalan, int? IslemKm, bool Odendi, string? Aciklama)
 {
-    public static InspectionRow From(InspectionRecord i, string plaka) => new(i.Id, i.VehicleId, plaka, i.MuayeneTarihi,
+    public static InspectionRow From(InspectionRecord i, string plate) => new(i.Id, i.VehicleId, plate, i.MuayeneTarihi,
         i.Bitis, i.Ucret, i.Ceza, i.Kalan, i.IslemKm, i.Odendi, i.Aciklama);
 }
 

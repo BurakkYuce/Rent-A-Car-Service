@@ -21,16 +21,16 @@ internal static partial class PricingApi
     private static async Task<Ok<RateImportView>> ImportView(
         string? kanal, string? sube, string? durum, int? sayfa, int? boyut, string? sirala, RateMatrixService svc, CancellationToken ct)
     {
-        var state = F5Ortak.EnumAdi<TariffApprovalStatus>(durum, "durum");
+        var state = F5Shared.EnumAdi<TariffApprovalStatus>(durum, "durum");
         var all = await svc.ListAsync(ct);
-        var k = F5Ortak.Nz(kanal);
-        var sb = F5Ortak.Nz(sube);
+        var k = F5Shared.Nz(kanal);
+        var sb = F5Shared.Nz(sube);
         var rows = all.Where(r => (k is null || string.Equals(r.Kanal?.Trim(), k, StringComparison.OrdinalIgnoreCase))
                                   && (sb is null || string.Equals(r.Sube?.Trim(), sb, StringComparison.OrdinalIgnoreCase))
                                   && (state is null || r.OnayDurumu == state)).ToList();
         int? toDelete = k is null ? null : all.Count(r => RateMatrixService.DeletionCandidate(r, k));
         return TypedResults.Ok(new RateImportView(
-            F5Ortak.Sayfala(rows.Select(r => RateMatrixDto.From(r, null)).ToList(), ImportSort, sayfa, boyut, sirala),
+            F5Shared.Paginate(rows.Select(r => RateMatrixDto.From(r, null)).ToList(), ImportSort, sayfa, boyut, sirala),
             rows.Count(r => r.OnayDurumu == TariffApprovalStatus.Bekliyor), rows.Count(r => r.OnayDurumu == TariffApprovalStatus.Onayli),
             toDelete));
     }
@@ -55,12 +55,12 @@ internal static partial class PricingApi
             throw new ValidationException("Dosya okunamadı (biçim bozuk ya da desteklenmiyor).", "dosya");
         }
         if (rows.Count > 20_000) throw new ValidationException("Tek seferde en çok 20.000 satır aktarılabilir.", "dosya");
-        var r = await imp.ImportTarifelerAsync(rows, ct);
+        var r = await imp.ImportTariffsAsync(rows, ct);
         return TypedResults.Ok(new RateImportResult(r.Eklenen, r.Atlanan, r.Hatali, r.Hatalar.Take(20).ToList()));
     }
 
     /// <summary>Bir kanalın BEKLEYEN satırlarını toplu siler; durum sabit (onaylılar bu yolla silinemez).</summary>
     private static async Task<Ok<RateChannelDeleteResult>> DeleteChannel(RateChannelDeleteRequest r, RateMatrixService svc,
         CancellationToken ct)
-        => TypedResults.Ok(new RateChannelDeleteResult(await svc.DeleteByChannelAsync(F5Ortak.Nz(r.Kanal), TariffApprovalStatus.Bekliyor, ct)));
+        => TypedResults.Ok(new RateChannelDeleteResult(await svc.DeleteByChannelAsync(F5Shared.Nz(r.Kanal), TariffApprovalStatus.Bekliyor, ct)));
 }

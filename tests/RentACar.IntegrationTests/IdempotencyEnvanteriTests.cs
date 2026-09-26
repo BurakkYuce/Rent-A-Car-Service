@@ -33,7 +33,7 @@ namespace RentACar.IntegrationTests;
 ///
 /// <para><b>Bağımsız oracle (CLAUDE.md §3):</b> beklenen tutarlar senaryodan ELLE yazılır (ör. "250
 /// tahsilat → cari −250"); rapor/servis kodundan türetilmez. Bakiye DB'den doğrudan okunur
-/// (<see cref="Bakiye"/>: Borç +, Alacak −, baz para).</para>
+/// (<see cref="Balance"/>: Borç +, Alacak −, baz para).</para>
 ///
 /// <para><b>Test adı = envanter satır no.</b> Tabloyu değiştiren PR bu dosyayı da değiştirmek ZORUNDA.</para>
 /// </summary>
@@ -44,19 +44,19 @@ public sealed class IdempotencyEnvanteriTests(PostgresFixture fx)
     // yardımcılar
     // =====================================================================================
 
-    private static async Task<decimal> Bakiye(IServiceProvider sp, LedgerAccountType tip, Guid? referans = null, bool referansFiltresi = false)
+    private static async Task<decimal> Balance(IServiceProvider sp, LedgerAccountType tip, Guid? reference = null, bool referenceFilter = false)
     {
         var f = sp.GetRequiredService<IDbContextFactory<AppDbContext>>();
         await using var db = await f.CreateDbContextAsync();
         var q = db.AccountLedgerEntries.AsNoTracking().Where(e => e.AccountType == tip);
-        if (referansFiltresi || referans is not null) q = q.Where(e => e.AccountRef == referans);
+        if (referenceFilter || reference is not null) q = q.Where(e => e.AccountRef == reference);
         var rows = await q.Select(e => new { e.Direction, A = e.Amount.Amount, R = e.Amount.Rate }).ToListAsync();
         return rows.Sum(r => (r.Direction == LedgerDirection.Debit ? 1m : -1m) * r.A * r.R);
     }
 
-    private static Task<decimal> Cari(IServiceProvider sp, Guid cari) => Bakiye(sp, LedgerAccountType.Cari, cari);
+    private static Task<decimal> Account(IServiceProvider sp, Guid account) => Balance(sp, LedgerAccountType.Cari, account);
 
-    private static async Task<int> DefterSatir(IServiceProvider sp, string sourceType)
+    private static async Task<int> LedgerLine(IServiceProvider sp, string sourceType)
     {
         var f = sp.GetRequiredService<IDbContextFactory<AppDbContext>>();
         await using var db = await f.CreateDbContextAsync();
@@ -64,7 +64,7 @@ public sealed class IdempotencyEnvanteriTests(PostgresFixture fx)
     }
 
     /// <summary>Tüm defter DENGELİ mi (Σ borç == Σ alacak) — her testin sonunda.</summary>
-    private static async Task DengeAsync(IServiceProvider sp)
+    private static async Task BalanceCheckAsync(IServiceProvider sp)
     {
         var f = sp.GetRequiredService<IDbContextFactory<AppDbContext>>();
         await using var db = await f.CreateDbContextAsync();
@@ -81,30 +81,30 @@ public sealed class IdempotencyEnvanteriTests(PostgresFixture fx)
         return await q(db).CountAsync();
     }
 
-    private static Task<Guid> CariOlustur(IServiceProvider sp, string ad = "Idem") =>
-        sp.GetRequiredService<CustomerService>().CreateAsync(new CustomerInput { Tip = CustomerType.Bireysel, Ad = ad, Soyad = "Cari" });
+    private static Task<Guid> CreateCustomer(IServiceProvider sp, string name = "Idem") =>
+        sp.GetRequiredService<CustomerService>().CreateAsync(new CustomerInput { Tip = CustomerType.Bireysel, Ad = name, Soyad = "Cari" });
 
-    private static readonly DateTimeOffset KiraBas = new(2027, 1, 15, 10, 0, 0, TimeSpan.Zero);
+    private static readonly DateTimeOffset RentalStart = new(2027, 1, 15, 10, 0, 0, TimeSpan.Zero);
 
-    private static async Task<(Guid Kira, Guid Musteri, Guid Arac)> KiraOlustur(
-        IServiceProvider sp, string plaka, DateTimeOffset bas, int gun)
+    private static async Task<(Guid Kira, Guid Musteri, Guid Arac)> CreateRental(
+        IServiceProvider sp, string plate, DateTimeOffset start, int day)
     {
-        var v = await sp.GetRequiredService<VehicleService>().CreateAsync(new VehicleInput { Plaka = plaka });
-        var m = await CariOlustur(sp, "Kiraci");
+        var v = await sp.GetRequiredService<VehicleService>().CreateAsync(new VehicleInput { Plaka = plate });
+        var m = await CreateCustomer(sp, "Kiraci");
         var k = await sp.GetRequiredService<RentalService>().CreateDirectAsync(new BookingInput
-        { MusteriId = m, VehicleId = v, BasTar = bas, BitTar = bas.AddDays(gun), GunlukUcret = 100m });
+        { MusteriId = m, VehicleId = v, BasTar = start, BitTar = start.AddDays(day), GunlukUcret = 100m });
         return (k, m, v);
     }
 
     /// <summary>Eşzamanlı iki gönderim: ayrı scope (ayrı DbContext) + aynı kiracı.</summary>
-    private static async Task<(T? Deger, Exception? Hata)[]> IkiEsZamanli<T>(
-        TestHost host, Guid tenant, Func<IServiceProvider, Task<T>> islem)
+    private static async Task<(T? Deger, Exception? Hata)[]> TwoConcurrent<T>(
+        TestHost host, Guid tenant, Func<IServiceProvider, Task<T>> operation)
     {
         using var s1 = host.ScopeFor(tenant);
         using var s2 = host.ScopeFor(tenant);
         async Task<(T?, Exception?)> Sar(IServiceProvider sp)
         {
-            try { return (await islem(sp), null); }
+            try { return (await operation(sp), null); }
             catch (Exception ex) { return (default, ex); }
         }
         var t1 = Task.Run(() => Sar(s1.ServiceProvider));
@@ -122,18 +122,18 @@ public sealed class IdempotencyEnvanteriTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
         var sp = scope.ServiceProvider;
-        var kasa = sp.GetRequiredService<CashService>();
-        var cari = await CariOlustur(sp);
+        var cash = sp.GetRequiredService<CashService>();
+        var account = await CreateCustomer(sp);
         var k = Guid.NewGuid();
 
-        await kasa.CollectAsync(new CashInput { CariId = cari, Tutar = 250m, Hesap = LedgerAccountType.Kasa, IslemAnahtari = k });
+        await cash.CollectAsync(new CashInput { CariId = account, Tutar = 250m, Hesap = LedgerAccountType.Kasa, IslemAnahtari = k });
         await Assert.ThrowsAsync<DuplicateOperationException>(() =>
-            kasa.CollectAsync(new CashInput { CariId = cari, Tutar = 250m, Hesap = LedgerAccountType.Kasa, IslemAnahtari = k }));
+            cash.CollectAsync(new CashInput { CariId = account, Tutar = 250m, Hesap = LedgerAccountType.Kasa, IslemAnahtari = k }));
 
-        Assert.Equal(-250m, await Cari(sp, cari));                      // ELLE: tahsilat 250 → cari −250
-        Assert.Equal(250m, await Bakiye(sp, LedgerAccountType.Kasa));
+        Assert.Equal(-250m, await Account(sp, account));                      // ELLE: tahsilat 250 → cari −250
+        Assert.Equal(250m, await Balance(sp, LedgerAccountType.Kasa));
         Assert.Equal(1, await Say(sp, db => db.CashTransactions));
-        await DengeAsync(sp);
+        await BalanceCheckAsync(sp);
     }
 
     [Fact]
@@ -143,17 +143,17 @@ public sealed class IdempotencyEnvanteriTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(tenant);
         var sp = scope.ServiceProvider;
-        var cari = await CariOlustur(sp);
+        var account = await CreateCustomer(sp);
         var k = Guid.NewGuid();
 
-        var sonuc = await IkiEsZamanli(host, tenant, s => s.GetRequiredService<CashService>()
-            .CollectAsync(new CashInput { CariId = cari, Tutar = 250m, Hesap = LedgerAccountType.Kasa, IslemAnahtari = k }));
+        var result = await TwoConcurrent(host, tenant, s => s.GetRequiredService<CashService>()
+            .CollectAsync(new CashInput { CariId = account, Tutar = 250m, Hesap = LedgerAccountType.Kasa, IslemAnahtari = k }));
 
-        Assert.Single(sonuc, r => r.Hata is null);
-        Assert.IsType<DuplicateOperationException>(Assert.Single(sonuc, r => r.Hata is not null).Hata);
-        Assert.Equal(-250m, await Cari(sp, cari));
+        Assert.Single(result, r => r.Hata is null);
+        Assert.IsType<DuplicateOperationException>(Assert.Single(result, r => r.Hata is not null).Hata);
+        Assert.Equal(-250m, await Account(sp, account));
         Assert.Equal(1, await Say(sp, db => db.CashTransactions));
-        await DengeAsync(sp);
+        await BalanceCheckAsync(sp);
     }
 
     [Fact]
@@ -163,12 +163,12 @@ public sealed class IdempotencyEnvanteriTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
         var sp = scope.ServiceProvider;
-        var kasa = sp.GetRequiredService<CashService>();
-        var cari = await CariOlustur(sp);
+        var cash = sp.GetRequiredService<CashService>();
+        var account = await CreateCustomer(sp);
 
-        await kasa.CollectAsync(new CashInput { CariId = cari, Tutar = 100m, Hesap = LedgerAccountType.Kasa });
-        await kasa.CollectAsync(new CashInput { CariId = cari, Tutar = 100m, Hesap = LedgerAccountType.Kasa });
-        Assert.Equal(-200m, await Cari(sp, cari));
+        await cash.CollectAsync(new CashInput { CariId = account, Tutar = 100m, Hesap = LedgerAccountType.Kasa });
+        await cash.CollectAsync(new CashInput { CariId = account, Tutar = 100m, Hesap = LedgerAccountType.Kasa });
+        Assert.Equal(-200m, await Account(sp, account));
     }
 
     [Fact]
@@ -177,17 +177,17 @@ public sealed class IdempotencyEnvanteriTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
         var sp = scope.ServiceProvider;
-        var kasa = sp.GetRequiredService<CashService>();
-        var cari = await CariOlustur(sp);
+        var cash = sp.GetRequiredService<CashService>();
+        var account = await CreateCustomer(sp);
         var k = Guid.NewGuid();
 
-        await kasa.PayAsync(new CashInput { CariId = cari, Tutar = 400m, Hesap = LedgerAccountType.Banka, IslemAnahtari = k });
+        await cash.PayAsync(new CashInput { CariId = account, Tutar = 400m, Hesap = LedgerAccountType.Banka, IslemAnahtari = k });
         await Assert.ThrowsAsync<DuplicateOperationException>(() =>
-            kasa.PayAsync(new CashInput { CariId = cari, Tutar = 400m, Hesap = LedgerAccountType.Banka, IslemAnahtari = k }));
+            cash.PayAsync(new CashInput { CariId = account, Tutar = 400m, Hesap = LedgerAccountType.Banka, IslemAnahtari = k }));
 
-        Assert.Equal(400m, await Cari(sp, cari));                       // ELLE: ödeme 400 → cari +400
-        Assert.Equal(-400m, await Bakiye(sp, LedgerAccountType.Banka));
-        await DengeAsync(sp);
+        Assert.Equal(400m, await Account(sp, account));                       // ELLE: ödeme 400 → cari +400
+        Assert.Equal(-400m, await Balance(sp, LedgerAccountType.Banka));
+        await BalanceCheckAsync(sp);
     }
 
     [Fact]
@@ -196,27 +196,27 @@ public sealed class IdempotencyEnvanteriTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
         var sp = scope.ServiceProvider;
-        var kasa = sp.GetRequiredService<CashService>();
-        var a = await CariOlustur(sp, "A");
-        var b = await CariOlustur(sp, "B");
-        var tahsilatParti = Guid.NewGuid();
-        var odemeParti = Guid.NewGuid();
-        CashInput[] Satirlar() =>
+        var cash = sp.GetRequiredService<CashService>();
+        var a = await CreateCustomer(sp, "A");
+        var b = await CreateCustomer(sp, "B");
+        var collectionBatch = Guid.NewGuid();
+        var paymentBatch = Guid.NewGuid();
+        CashInput[] Rows() =>
         [
             new() { CariId = a, Tutar = 100m, Hesap = LedgerAccountType.Kasa },
             new() { CariId = b, Tutar = 200m, Hesap = LedgerAccountType.Kasa }
         ];
 
-        await kasa.BatchCollectAsync(Satirlar(), tahsilatParti);
-        await Assert.ThrowsAsync<DuplicateOperationException>(() => kasa.BatchCollectAsync(Satirlar(), tahsilatParti));
-        await kasa.BatchPayAsync(Satirlar(), odemeParti);
-        await Assert.ThrowsAsync<DuplicateOperationException>(() => kasa.BatchPayAsync(Satirlar(), odemeParti));
+        await cash.BatchCollectAsync(Rows(), collectionBatch);
+        await Assert.ThrowsAsync<DuplicateOperationException>(() => cash.BatchCollectAsync(Rows(), collectionBatch));
+        await cash.BatchPayAsync(Rows(), paymentBatch);
+        await Assert.ThrowsAsync<DuplicateOperationException>(() => cash.BatchPayAsync(Rows(), paymentBatch));
 
         // ELLE: tahsilat −100/−200 + ödeme +100/+200 → iki cari de 0; 4 belge (2+2), mükerrerler 0 satır.
-        Assert.Equal(0m, await Cari(sp, a));
-        Assert.Equal(0m, await Cari(sp, b));
+        Assert.Equal(0m, await Account(sp, a));
+        Assert.Equal(0m, await Account(sp, b));
         Assert.Equal(4, await Say(sp, db => db.CashTransactions));
-        await DengeAsync(sp);
+        await BalanceCheckAsync(sp);
     }
 
     [Fact]
@@ -227,20 +227,20 @@ public sealed class IdempotencyEnvanteriTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
         var sp = scope.ServiceProvider;
-        var kasa = sp.GetRequiredService<CashService>();
-        var cari = await CariOlustur(sp);
-        await kasa.PayAsync(new CashInput { CariId = cari, Tutar = 100m, Hesap = LedgerAccountType.Kasa });
-        var kalem = (await kasa.GetStatementAsync(cari)).Satirlar.Single(x => x.Direction == LedgerDirection.Debit).Id;
+        var cash = sp.GetRequiredService<CashService>();
+        var account = await CreateCustomer(sp);
+        await cash.PayAsync(new CashInput { CariId = account, Tutar = 100m, Hesap = LedgerAccountType.Kasa });
+        var item = (await cash.GetStatementAsync(account)).Satirlar.Single(x => x.Direction == LedgerDirection.Debit).Id;
         var k = Guid.NewGuid();
 
-        Assert.Equal(100m, await kasa.CloseSingleAccountBulkAsync(cari, [kalem], LedgerAccountType.Kasa, operationKey: k));
+        Assert.Equal(100m, await cash.CloseSingleAccountBulkAsync(account, [item], LedgerAccountType.Kasa, operationKey: k));
         var ex = await Assert.ThrowsAsync<DuplicateOperationException>(() =>
-            kasa.CloseSingleAccountBulkAsync(cari, [kalem], LedgerAccountType.Kasa, operationKey: k));
+            cash.CloseSingleAccountBulkAsync(account, [item], LedgerAccountType.Kasa, operationKey: k));
         Assert.Equal("Bu işlem zaten kaydedilmiş (çift gönderim / mükerrer).", ex.Message);
 
-        Assert.Equal(0m, await Cari(sp, cari));                          // ELLE: borç 100 − tahsilat 100
+        Assert.Equal(0m, await Account(sp, account));                          // ELLE: borç 100 − tahsilat 100
         Assert.Equal(1, await Say(sp, db => db.CashTransactions.Where(t => t.Tip == CashTransactionType.Tahsilat)));
-        await DengeAsync(sp);
+        await BalanceCheckAsync(sp);
     }
 
     [Fact]
@@ -249,19 +249,19 @@ public sealed class IdempotencyEnvanteriTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
         var sp = scope.ServiceProvider;
-        var kasa = sp.GetRequiredService<CashService>();
-        var cari = await CariOlustur(sp);
-        await kasa.PayAsync(new CashInput { CariId = cari, Tutar = 1000m, Hesap = LedgerAccountType.Kasa });
-        var kalem = (await kasa.GetStatementAsync(cari)).Satirlar.Single(x => x.Direction == LedgerDirection.Debit).Id;
+        var cash = sp.GetRequiredService<CashService>();
+        var account = await CreateCustomer(sp);
+        await cash.PayAsync(new CashInput { CariId = account, Tutar = 1000m, Hesap = LedgerAccountType.Kasa });
+        var item = (await cash.GetStatementAsync(account)).Satirlar.Single(x => x.Direction == LedgerDirection.Debit).Id;
         var k = Guid.NewGuid();
-        var secim = new Dictionary<Guid, decimal?> { [kalem] = 400m };
+        var selection = new Dictionary<Guid, decimal?> { [item] = 400m };
 
-        await kasa.CloseSingleAccountBulkAsync(cari, secim, LedgerAccountType.Kasa, operationKey: k);
+        await cash.CloseSingleAccountBulkAsync(account, selection, LedgerAccountType.Kasa, operationKey: k);
         await Assert.ThrowsAsync<DuplicateOperationException>(() =>
-            kasa.CloseSingleAccountBulkAsync(cari, secim, LedgerAccountType.Kasa, operationKey: k));
+            cash.CloseSingleAccountBulkAsync(account, selection, LedgerAccountType.Kasa, operationKey: k));
 
-        Assert.Equal(600m, await Cari(sp, cari));                        // ELLE: 1000 − 400
-        await DengeAsync(sp);
+        Assert.Equal(600m, await Account(sp, account));                        // ELLE: 1000 − 400
+        await BalanceCheckAsync(sp);
     }
 
     [Fact]
@@ -270,17 +270,17 @@ public sealed class IdempotencyEnvanteriTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
         var sp = scope.ServiceProvider;
-        var kasa = sp.GetRequiredService<CashService>();
+        var cash = sp.GetRequiredService<CashService>();
         var k = Guid.NewGuid();
 
-        await kasa.TransferAsync(LedgerAccountType.Kasa, LedgerAccountType.Banka, 500m, operationKey: k);
-        await kasa.TransferAsync(LedgerAccountType.Kasa, LedgerAccountType.Banka, 500m, operationKey: k); // istisna YOK
+        await cash.TransferAsync(LedgerAccountType.Kasa, LedgerAccountType.Banka, 500m, operationKey: k);
+        await cash.TransferAsync(LedgerAccountType.Kasa, LedgerAccountType.Banka, 500m, operationKey: k); // istisna YOK
 
-        Assert.Equal(-500m, await Bakiye(sp, LedgerAccountType.Kasa));   // ELLE: tek virman 500
-        Assert.Equal(500m, await Bakiye(sp, LedgerAccountType.Banka));
-        Assert.Equal(2, await DefterSatir(sp, "Virman"));
+        Assert.Equal(-500m, await Balance(sp, LedgerAccountType.Kasa));   // ELLE: tek virman 500
+        Assert.Equal(500m, await Balance(sp, LedgerAccountType.Banka));
+        Assert.Equal(2, await LedgerLine(sp, "Virman"));
         Assert.Equal(1, await Say(sp, db => db.Set<KasaVirmanBilgi>()));
-        await DengeAsync(sp);
+        await BalanceCheckAsync(sp);
     }
 
     [Fact]
@@ -289,18 +289,18 @@ public sealed class IdempotencyEnvanteriTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
         var sp = scope.ServiceProvider;
-        var kasa = sp.GetRequiredService<CashService>();
-        var kaynak = await CariOlustur(sp, "Kaynak");
-        var hedef = await CariOlustur(sp, "Hedef");
+        var cash = sp.GetRequiredService<CashService>();
+        var source = await CreateCustomer(sp, "Kaynak");
+        var target = await CreateCustomer(sp, "Hedef");
         var k = Guid.NewGuid();
 
-        await kasa.TransferBetweenAccountsAsync(kaynak, hedef, 300m, operationKey: k);
-        await kasa.TransferBetweenAccountsAsync(kaynak, hedef, 300m, operationKey: k);
+        await cash.TransferBetweenAccountsAsync(source, target, 300m, operationKey: k);
+        await cash.TransferBetweenAccountsAsync(source, target, 300m, operationKey: k);
 
-        Assert.Equal(300m, await Cari(sp, hedef));                        // ELLE: hedef Borç 300
-        Assert.Equal(-300m, await Cari(sp, kaynak));                      //       kaynak Alacak 300
+        Assert.Equal(300m, await Account(sp, target));                        // ELLE: hedef Borç 300
+        Assert.Equal(-300m, await Account(sp, source));                      //       kaynak Alacak 300
         Assert.Equal(1, await Say(sp, db => db.Set<CariVirmanBilgi>()));
-        await DengeAsync(sp);
+        await BalanceCheckAsync(sp);
     }
 
     [Fact]
@@ -309,17 +309,17 @@ public sealed class IdempotencyEnvanteriTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
         var sp = scope.ServiceProvider;
-        var kasa = sp.GetRequiredService<CashService>();
-        var cari = await CariOlustur(sp);
-        var id = await kasa.CollectAsync(new CashInput { CariId = cari, Tutar = 1000m, Hesap = LedgerAccountType.Kasa });
+        var cash = sp.GetRequiredService<CashService>();
+        var account = await CreateCustomer(sp);
+        var id = await cash.CollectAsync(new CashInput { CariId = account, Tutar = 1000m, Hesap = LedgerAccountType.Kasa });
 
-        await kasa.ReverseAsync(id);
-        var ex = await Assert.ThrowsAsync<DuplicateOperationException>(() => kasa.ReverseAsync(id));
+        await cash.ReverseAsync(id);
+        var ex = await Assert.ThrowsAsync<DuplicateOperationException>(() => cash.ReverseAsync(id));
         Assert.Equal("Bu işlem zaten ters kaydedilmiş.", ex.Message);
 
-        Assert.Equal(0m, await Cari(sp, cari));                           // ELLE: −1000 + 1000
+        Assert.Equal(0m, await Account(sp, account));                           // ELLE: −1000 + 1000
         Assert.Equal(1, await Say(sp, db => db.CashTransactions.Where(t => t.TersKayitMi)));
-        await DengeAsync(sp);
+        await BalanceCheckAsync(sp);
     }
 
     [Fact]
@@ -329,17 +329,17 @@ public sealed class IdempotencyEnvanteriTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(tenant);
         var sp = scope.ServiceProvider;
-        var cari = await CariOlustur(sp);
+        var account = await CreateCustomer(sp);
         var id = await sp.GetRequiredService<CashService>()
-            .CollectAsync(new CashInput { CariId = cari, Tutar = 1000m, Hesap = LedgerAccountType.Kasa });
+            .CollectAsync(new CashInput { CariId = account, Tutar = 1000m, Hesap = LedgerAccountType.Kasa });
 
-        var sonuc = await IkiEsZamanli(host, tenant, s => s.GetRequiredService<CashService>().ReverseAsync(id));
+        var result = await TwoConcurrent(host, tenant, s => s.GetRequiredService<CashService>().ReverseAsync(id));
 
-        Assert.Single(sonuc, r => r.Hata is null);
-        var hata = Assert.IsType<DuplicateOperationException>(Assert.Single(sonuc, r => r.Hata is not null).Hata);
+        Assert.Single(result, r => r.Hata is null);
+        var error = Assert.IsType<DuplicateOperationException>(Assert.Single(result, r => r.Hata is not null).Hata);
         // Yarışı ön-kontrolde de kaybetse kısıtta da kaybetse AYNI metin (zamanlamadan bağımsız).
-        Assert.Equal("Bu işlem zaten ters kaydedilmiş.", hata.Message);
-        Assert.Equal(0m, await Cari(sp, cari));
+        Assert.Equal("Bu işlem zaten ters kaydedilmiş.", error.Message);
+        Assert.Equal(0m, await Account(sp, account));
         Assert.Equal(1, await Say(sp, db => db.CashTransactions.Where(t => t.TersKayitMi)));
     }
 
@@ -354,17 +354,17 @@ public sealed class IdempotencyEnvanteriTests(PostgresFixture fx)
         using var scope = host.ScopeFor(Guid.NewGuid());
         var sp = scope.ServiceProvider;
         var dep = sp.GetRequiredService<DepositService>();
-        var cari = await CariOlustur(sp);
+        var account = await CreateCustomer(sp);
         var k = Guid.NewGuid();
 
-        var id1 = await dep.GetAsync(cari, 500m, LedgerAccountType.Kasa, operationKey: k);
-        var id2 = await dep.GetAsync(cari, 500m, LedgerAccountType.Kasa, operationKey: k);
+        var id1 = await dep.GetAsync(account, 500m, LedgerAccountType.Kasa, operationKey: k);
+        var id2 = await dep.GetAsync(account, 500m, LedgerAccountType.Kasa, operationKey: k);
 
         Assert.Equal(k, id1);
         Assert.Equal(k, id2);
-        Assert.Equal(500m, await dep.GetBalanceAsync(cari));               // ELLE: tek 500
-        Assert.Equal(500m, await Bakiye(sp, LedgerAccountType.Kasa));
-        await DengeAsync(sp);
+        Assert.Equal(500m, await dep.GetBalanceAsync(account));               // ELLE: tek 500
+        Assert.Equal(500m, await Balance(sp, LedgerAccountType.Kasa));
+        await BalanceCheckAsync(sp);
     }
 
     [Fact]
@@ -376,17 +376,17 @@ public sealed class IdempotencyEnvanteriTests(PostgresFixture fx)
         using var scope = host.ScopeFor(Guid.NewGuid());
         var sp = scope.ServiceProvider;
         var dep = sp.GetRequiredService<DepositService>();
-        var cari = await CariOlustur(sp);
-        await dep.GetAsync(cari, 500m, LedgerAccountType.Kasa);
+        var account = await CreateCustomer(sp);
+        await dep.GetAsync(account, 500m, LedgerAccountType.Kasa);
         var k = Guid.NewGuid();
 
-        await dep.RefundAsync(cari, 500m, LedgerAccountType.Kasa, operationKey: k);
-        await dep.RefundAsync(cari, 500m, LedgerAccountType.Kasa, operationKey: k);
+        await dep.RefundAsync(account, 500m, LedgerAccountType.Kasa, operationKey: k);
+        await dep.RefundAsync(account, 500m, LedgerAccountType.Kasa, operationKey: k);
 
-        Assert.Equal(0m, await dep.GetBalanceAsync(cari));                 // ELLE: 500 − 500
-        Assert.Equal(0m, await Bakiye(sp, LedgerAccountType.Kasa));
-        Assert.Equal(2, await DefterSatir(sp, "DepozitoIade"));
-        await DengeAsync(sp);
+        Assert.Equal(0m, await dep.GetBalanceAsync(account));                 // ELLE: 500 − 500
+        Assert.Equal(0m, await Balance(sp, LedgerAccountType.Kasa));
+        Assert.Equal(2, await LedgerLine(sp, "DepozitoIade"));
+        await BalanceCheckAsync(sp);
     }
 
     [Fact]
@@ -396,15 +396,15 @@ public sealed class IdempotencyEnvanteriTests(PostgresFixture fx)
         using var scope = host.ScopeFor(Guid.NewGuid());
         var sp = scope.ServiceProvider;
         var dep = sp.GetRequiredService<DepositService>();
-        var cari = await CariOlustur(sp);
-        await dep.GetAsync(cari, 500m, LedgerAccountType.Kasa);
+        var account = await CreateCustomer(sp);
+        await dep.GetAsync(account, 500m, LedgerAccountType.Kasa);
         var k = Guid.NewGuid();
 
-        await dep.RefundAsync(cari, 200m, LedgerAccountType.Kasa, operationKey: k);
-        await dep.RefundAsync(cari, 200m, LedgerAccountType.Kasa, operationKey: k);
+        await dep.RefundAsync(account, 200m, LedgerAccountType.Kasa, operationKey: k);
+        await dep.RefundAsync(account, 200m, LedgerAccountType.Kasa, operationKey: k);
 
-        Assert.Equal(300m, await dep.GetBalanceAsync(cari));               // ELLE: 500 − 200
-        await DengeAsync(sp);
+        Assert.Equal(300m, await dep.GetBalanceAsync(account));               // ELLE: 500 − 200
+        await BalanceCheckAsync(sp);
     }
 
     [Fact]
@@ -414,16 +414,16 @@ public sealed class IdempotencyEnvanteriTests(PostgresFixture fx)
         using var scope = host.ScopeFor(Guid.NewGuid());
         var sp = scope.ServiceProvider;
         var dep = sp.GetRequiredService<DepositService>();
-        var cari = await CariOlustur(sp);
-        await dep.GetAsync(cari, 300m, LedgerAccountType.Kasa);
+        var account = await CreateCustomer(sp);
+        await dep.GetAsync(account, 300m, LedgerAccountType.Kasa);
         var k = Guid.NewGuid();
 
-        await dep.OffsetAsync(cari, 300m, operationKey: k);
-        await dep.OffsetAsync(cari, 300m, operationKey: k);
+        await dep.OffsetAsync(account, 300m, operationKey: k);
+        await dep.OffsetAsync(account, 300m, operationKey: k);
 
-        Assert.Equal(0m, await dep.GetBalanceAsync(cari));
-        Assert.Equal(-300m, await Cari(sp, cari));                        // ELLE: Alacak Cari 300 (tek)
-        await DengeAsync(sp);
+        Assert.Equal(0m, await dep.GetBalanceAsync(account));
+        Assert.Equal(-300m, await Account(sp, account));                        // ELLE: Alacak Cari 300 (tek)
+        await BalanceCheckAsync(sp);
     }
 
     [Fact]
@@ -435,34 +435,34 @@ public sealed class IdempotencyEnvanteriTests(PostgresFixture fx)
         using var scope = host.ScopeFor(Guid.NewGuid());
         var sp = scope.ServiceProvider;
         var dep = sp.GetRequiredService<DepositService>();
-        var cari = await CariOlustur(sp);
+        var account = await CreateCustomer(sp);
         var k = Guid.NewGuid();
-        Assert.Equal(k, await dep.GetAsync(cari, 500m, LedgerAccountType.Kasa, operationKey: k));
+        Assert.Equal(k, await dep.GetAsync(account, 500m, LedgerAccountType.Kasa, operationKey: k));
 
-        var iade = await Assert.ThrowsAsync<DuplicateOperationException>(
-            () => dep.RefundAsync(cari, 100m, LedgerAccountType.Kasa, operationKey: k));
-        Assert.NotNull(iade.Existing);
-        Assert.Equal(k, iade.Existing!.Id);
-        Assert.Equal(500m, iade.Existing.Tutar);
-        Assert.Equal("TRY", iade.Existing.Doviz);
-        Assert.False(iade.Existing.AyniIcerik);
-        await Assert.ThrowsAsync<DuplicateOperationException>(() => dep.OffsetAsync(cari, 50m, operationKey: k));
-        await Assert.ThrowsAsync<DuplicateOperationException>(() => dep.ForfeitAsync(cari, 20m, operationKey: k));
+        var refund = await Assert.ThrowsAsync<DuplicateOperationException>(
+            () => dep.RefundAsync(account, 100m, LedgerAccountType.Kasa, operationKey: k));
+        Assert.NotNull(refund.Existing);
+        Assert.Equal(k, refund.Existing!.Id);
+        Assert.Equal(500m, refund.Existing.Tutar);
+        Assert.Equal("TRY", refund.Existing.Doviz);
+        Assert.False(refund.Existing.AyniIcerik);
+        await Assert.ThrowsAsync<DuplicateOperationException>(() => dep.OffsetAsync(account, 50m, operationKey: k));
+        await Assert.ThrowsAsync<DuplicateOperationException>(() => dep.ForfeitAsync(account, 20m, operationKey: k));
 
-        Assert.Equal(500m, await dep.GetBalanceAsync(cari));               // ELLE: yalnız al 500
-        Assert.Equal(2, await DefterSatir(sp, "DepozitoAl"));
-        Assert.Equal(0, await DefterSatir(sp, "DepozitoIade"));
-        Assert.Equal(0, await DefterSatir(sp, "DepozitoMahsup"));
-        Assert.Equal(0, await DefterSatir(sp, "DepozitoIrat"));
+        Assert.Equal(500m, await dep.GetBalanceAsync(account));               // ELLE: yalnız al 500
+        Assert.Equal(2, await LedgerLine(sp, "DepozitoAl"));
+        Assert.Equal(0, await LedgerLine(sp, "DepozitoIade"));
+        Assert.Equal(0, await LedgerLine(sp, "DepozitoMahsup"));
+        Assert.Equal(0, await LedgerLine(sp, "DepozitoIrat"));
         Assert.Equal(0, await Say(sp, db => db.DepozitoIratlar));
 
         // Ters yön: mahsup anahtarıyla al → 409; mahsubun birebir tekrarı sessiz.
         var m = Guid.NewGuid();
-        await dep.OffsetAsync(cari, 100m, operationKey: m);
-        await Assert.ThrowsAsync<DuplicateOperationException>(() => dep.GetAsync(cari, 100m, LedgerAccountType.Kasa, operationKey: m));
-        await dep.OffsetAsync(cari, 100m, operationKey: m);
-        Assert.Equal(400m, await dep.GetBalanceAsync(cari));               // ELLE: 500 − 100
-        await DengeAsync(sp);
+        await dep.OffsetAsync(account, 100m, operationKey: m);
+        await Assert.ThrowsAsync<DuplicateOperationException>(() => dep.GetAsync(account, 100m, LedgerAccountType.Kasa, operationKey: m));
+        await dep.OffsetAsync(account, 100m, operationKey: m);
+        Assert.Equal(400m, await dep.GetBalanceAsync(account));               // ELLE: 500 − 100
+        await BalanceCheckAsync(sp);
     }
 
     [Fact]
@@ -476,22 +476,22 @@ public sealed class IdempotencyEnvanteriTests(PostgresFixture fx)
         {
             var sp0 = other.ServiceProvider;
             var dep0 = sp0.GetRequiredService<DepositService>();
-            var cari0 = await CariOlustur(sp0);
-            await dep0.GetAsync(cari0, 50m, LedgerAccountType.Kasa);
-            Assert.Equal(k, await dep0.ForfeitAsync(cari0, 5m, operationKey: k));
+            var account0 = await CreateCustomer(sp0);
+            await dep0.GetAsync(account0, 50m, LedgerAccountType.Kasa);
+            Assert.Equal(k, await dep0.ForfeitAsync(account0, 5m, operationKey: k));
         }
         using var scope = host.ScopeFor(Guid.NewGuid());
         var sp = scope.ServiceProvider;
         var dep = sp.GetRequiredService<DepositService>();
-        var cari = await CariOlustur(sp);
-        await dep.GetAsync(cari, 50m, LedgerAccountType.Kasa);
+        var account = await CreateCustomer(sp);
+        await dep.GetAsync(account, 50m, LedgerAccountType.Kasa);
 
-        var ex = await Assert.ThrowsAsync<ValidationException>(() => dep.ForfeitAsync(cari, 5m, operationKey: k));
+        var ex = await Assert.ThrowsAsync<ValidationException>(() => dep.ForfeitAsync(account, 5m, operationKey: k));
         Assert.IsNotType<DuplicateOperationException>(ex);
-        Assert.Equal(50m, await dep.GetBalanceAsync(cari));                // ELLE: irat yazılmadı
-        Assert.Equal(0, await DefterSatir(sp, "DepozitoIrat"));
+        Assert.Equal(50m, await dep.GetBalanceAsync(account));                // ELLE: irat yazılmadı
+        Assert.Equal(0, await LedgerLine(sp, "DepozitoIrat"));
         Assert.Equal(0, await Say(sp, db => db.DepozitoIratlar));
-        await DengeAsync(sp);
+        await BalanceCheckAsync(sp);
     }
 
     [Fact]
@@ -501,17 +501,17 @@ public sealed class IdempotencyEnvanteriTests(PostgresFixture fx)
         using var scope = host.ScopeFor(Guid.NewGuid());
         var sp = scope.ServiceProvider;
         var dep = sp.GetRequiredService<DepositService>();
-        var cari = await CariOlustur(sp);
-        await dep.GetAsync(cari, 400m, LedgerAccountType.Kasa);
+        var account = await CreateCustomer(sp);
+        await dep.GetAsync(account, 400m, LedgerAccountType.Kasa);
         var k = Guid.NewGuid();
 
-        Assert.Equal(k, await dep.ForfeitAsync(cari, 400m, operationKey: k));
-        Assert.Equal(k, await dep.ForfeitAsync(cari, 400m, operationKey: k));
+        Assert.Equal(k, await dep.ForfeitAsync(account, 400m, operationKey: k));
+        Assert.Equal(k, await dep.ForfeitAsync(account, 400m, operationKey: k));
 
-        Assert.Equal(0m, await dep.GetBalanceAsync(cari));
-        Assert.Equal(-400m, await Bakiye(sp, LedgerAccountType.Gelir));   // ELLE: gelir 400 (Alacak)
+        Assert.Equal(0m, await dep.GetBalanceAsync(account));
+        Assert.Equal(-400m, await Balance(sp, LedgerAccountType.Gelir));   // ELLE: gelir 400 (Alacak)
         Assert.Equal(1, await Say(sp, db => db.DepozitoIratlar));
-        await DengeAsync(sp);
+        await BalanceCheckAsync(sp);
     }
 
     // =====================================================================================
@@ -525,15 +525,15 @@ public sealed class IdempotencyEnvanteriTests(PostgresFixture fx)
         using var scope = host.ScopeFor(Guid.NewGuid());
         var sp = scope.ServiceProvider;
         var svc = sp.GetRequiredService<BalanceAdjustmentService>();
-        var cari = await CariOlustur(sp);
+        var account = await CreateCustomer(sp);
         var k = Guid.NewGuid();
-        BakiyeDuzeltmeInput Girdi() => new() { CariId = cari, Tutar = 150m, Yon = BalanceAdjustmentDirection.Borclandir, IslemAnahtari = k };
+        BakiyeDuzeltmeInput Input() => new() { CariId = account, Tutar = 150m, Yon = BalanceAdjustmentDirection.Borclandir, IslemAnahtari = k };
 
-        Assert.Equal(k, await svc.AdjustAsync(Girdi()));
-        Assert.Equal(k, await svc.AdjustAsync(Girdi()));
+        Assert.Equal(k, await svc.AdjustAsync(Input()));
+        Assert.Equal(k, await svc.AdjustAsync(Input()));
 
-        Assert.Equal(150m, await Cari(sp, cari));                          // ELLE: borçlandırma 150 (tek)
-        await DengeAsync(sp);
+        Assert.Equal(150m, await Account(sp, account));                          // ELLE: borçlandırma 150 (tek)
+        await BalanceCheckAsync(sp);
     }
 
     // =====================================================================================
@@ -547,16 +547,16 @@ public sealed class IdempotencyEnvanteriTests(PostgresFixture fx)
         using var scope = host.ScopeFor(Guid.NewGuid());
         var sp = scope.ServiceProvider;
         var fat = sp.GetRequiredService<InvoiceService>();
-        var cari = await CariOlustur(sp);
+        var account = await CreateCustomer(sp);
         var k = Guid.NewGuid();
-        ManualInvoiceInput Girdi() => new() { CariId = cari, NetTutar = 1000m, KdvOrani = 0.20m, IslemAnahtari = k };
+        ManualInvoiceInput Input() => new() { CariId = account, NetTutar = 1000m, KdvOrani = 0.20m, IslemAnahtari = k };
 
-        Assert.Equal(k, await fat.CreateManualAsync(Girdi()));
-        Assert.Equal(k, await fat.CreateManualAsync(Girdi()));
+        Assert.Equal(k, await fat.CreateManualAsync(Input()));
+        Assert.Equal(k, await fat.CreateManualAsync(Input()));
 
-        Assert.Equal(1200m, await Cari(sp, cari));                         // ELLE: 1000 + %20 = 1200
+        Assert.Equal(1200m, await Account(sp, account));                         // ELLE: 1000 + %20 = 1200
         Assert.Equal(1, await Say(sp, db => db.Invoices));
-        await DengeAsync(sp);
+        await BalanceCheckAsync(sp);
     }
 
     [Fact]
@@ -567,17 +567,17 @@ public sealed class IdempotencyEnvanteriTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(tenant);
         var sp = scope.ServiceProvider;
-        var cari = await CariOlustur(sp);
+        var account = await CreateCustomer(sp);
         var k = Guid.NewGuid();
 
-        var sonuc = await IkiEsZamanli(host, tenant, s => s.GetRequiredService<InvoiceService>()
-            .CreateManualAsync(new ManualInvoiceInput { CariId = cari, NetTutar = 1000m, KdvOrani = 0.20m, IslemAnahtari = k }));
+        var result = await TwoConcurrent(host, tenant, s => s.GetRequiredService<InvoiceService>()
+            .CreateManualAsync(new ManualInvoiceInput { CariId = account, NetTutar = 1000m, KdvOrani = 0.20m, IslemAnahtari = k }));
 
-        Assert.All(sonuc, r => Assert.Null(r.Hata));
-        Assert.All(sonuc, r => Assert.Equal(k, r.Deger));
-        Assert.Equal(1200m, await Cari(sp, cari));
+        Assert.All(result, r => Assert.Null(r.Hata));
+        Assert.All(result, r => Assert.Equal(k, r.Deger));
+        Assert.Equal(1200m, await Account(sp, account));
         Assert.Equal(1, await Say(sp, db => db.Invoices));
-        await DengeAsync(sp);
+        await BalanceCheckAsync(sp);
     }
 
     [Fact]
@@ -587,15 +587,15 @@ public sealed class IdempotencyEnvanteriTests(PostgresFixture fx)
         using var scope = host.ScopeFor(Guid.NewGuid());
         var sp = scope.ServiceProvider;
         var fat = sp.GetRequiredService<InvoiceService>();
-        var (kira, musteri, _) = await KiraOlustur(sp, "34 ID 15", KiraBas, 3);
+        var (rental, customer, _) = await CreateRental(sp, "34 ID 15", RentalStart, 3);
 
-        await fat.CreateFromRentalAsync(kira);
-        var ex = await Assert.ThrowsAsync<ValidationException>(() => fat.CreateFromRentalAsync(kira));
+        await fat.CreateFromRentalAsync(rental);
+        var ex = await Assert.ThrowsAsync<ValidationException>(() => fat.CreateFromRentalAsync(rental));
         Assert.Equal("Kira zaten tam faturalanmış (yeni ek bedel yok).", ex.Message);
 
-        Assert.Equal(300m, await Cari(sp, musteri));                       // ELLE: 3 gün × 100 = 300 brüt
+        Assert.Equal(300m, await Account(sp, customer));                       // ELLE: 3 gün × 100 = 300 brüt
         Assert.Equal(1, await Say(sp, db => db.Invoices));
-        await DengeAsync(sp);
+        await BalanceCheckAsync(sp);
     }
 
     [Fact]
@@ -605,14 +605,14 @@ public sealed class IdempotencyEnvanteriTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(tenant);
         var sp = scope.ServiceProvider;
-        var (kira, musteri, _) = await KiraOlustur(sp, "34 ID 16", KiraBas, 3);
+        var (rental, customer, _) = await CreateRental(sp, "34 ID 16", RentalStart, 3);
 
-        var sonuc = await IkiEsZamanli(host, tenant, s => s.GetRequiredService<InvoiceService>().CreateFromRentalAsync(kira));
+        var result = await TwoConcurrent(host, tenant, s => s.GetRequiredService<InvoiceService>().CreateFromRentalAsync(rental));
 
-        Assert.Single(sonuc, r => r.Hata is null);
+        Assert.Single(result, r => r.Hata is null);
         // Tip TAM ValidationException (mükerrer değil): kira-fatura kısıtı iş kuralıdır, idempotency kısıtı değil.
-        Assert.Equal(typeof(ValidationException), Assert.Single(sonuc, r => r.Hata is not null).Hata!.GetType());
-        Assert.Equal(300m, await Cari(sp, musteri));
+        Assert.Equal(typeof(ValidationException), Assert.Single(result, r => r.Hata is not null).Hata!.GetType());
+        Assert.Equal(300m, await Account(sp, customer));
         Assert.Equal(1, await Say(sp, db => db.Invoices));
     }
 
@@ -623,20 +623,20 @@ public sealed class IdempotencyEnvanteriTests(PostgresFixture fx)
         using var scope = host.ScopeFor(Guid.NewGuid());
         var sp = scope.ServiceProvider;
         var fat = sp.GetRequiredService<InvoiceService>();
-        var (k1, m1, _) = await KiraOlustur(sp, "34 ID 17", KiraBas, 3);
-        var (k2, m2, _) = await KiraOlustur(sp, "34 ID 18", KiraBas, 2);
+        var (k1, m1, _) = await CreateRental(sp, "34 ID 17", RentalStart, 3);
+        var (k2, m2, _) = await CreateRental(sp, "34 ID 18", RentalStart, 2);
 
-        var ilk = await fat.BatchCreateFromRentalsAsync([k1, k2]);
-        var ikinci = await fat.BatchCreateFromRentalsAsync([k1, k2]);
+        var first = await fat.BatchCreateFromRentalsAsync([k1, k2]);
+        var second = await fat.BatchCreateFromRentalsAsync([k1, k2]);
 
-        Assert.Equal(2, ilk.Kesilen.Count);
-        Assert.Empty(ikinci.Kesilen);
-        Assert.Equal(2, ikinci.Atlananlar.Count);
-        Assert.All(ikinci.Atlananlar, a => Assert.Contains("tam faturalanmış", a));
-        Assert.Equal(300m, await Cari(sp, m1));                            // ELLE: 3 × 100
-        Assert.Equal(200m, await Cari(sp, m2));                            // ELLE: 2 × 100
+        Assert.Equal(2, first.Kesilen.Count);
+        Assert.Empty(second.Kesilen);
+        Assert.Equal(2, second.Atlananlar.Count);
+        Assert.All(second.Atlananlar, a => Assert.Contains("tam faturalanmış", a));
+        Assert.Equal(300m, await Account(sp, m1));                            // ELLE: 3 × 100
+        Assert.Equal(200m, await Account(sp, m2));                            // ELLE: 2 × 100
         Assert.Equal(2, await Say(sp, db => db.Invoices));
-        await DengeAsync(sp);
+        await BalanceCheckAsync(sp);
     }
 
     [Fact]
@@ -646,16 +646,16 @@ public sealed class IdempotencyEnvanteriTests(PostgresFixture fx)
         using var scope = host.ScopeFor(Guid.NewGuid());
         var sp = scope.ServiceProvider;
         var fat = sp.GetRequiredService<InvoiceService>();
-        var cari = await CariOlustur(sp);
-        var kaynak = await fat.CreateManualAsync(new ManualInvoiceInput { CariId = cari, NetTutar = 1000m, KdvOrani = 0.20m });
+        var account = await CreateCustomer(sp);
+        var source = await fat.CreateManualAsync(new ManualInvoiceInput { CariId = account, NetTutar = 1000m, KdvOrani = 0.20m });
 
-        await fat.CreateRefundAsync(kaynak);
-        var ex = await Assert.ThrowsAsync<ValidationException>(() => fat.CreateRefundAsync(kaynak));
+        await fat.CreateRefundAsync(source);
+        var ex = await Assert.ThrowsAsync<ValidationException>(() => fat.CreateRefundAsync(source));
         Assert.Equal("Bu fatura zaten iade edilmiş.", ex.Message);
 
-        Assert.Equal(0m, await Cari(sp, cari));                            // ELLE: +1200 − 1200
+        Assert.Equal(0m, await Account(sp, account));                            // ELLE: +1200 − 1200
         Assert.Equal(1, await Say(sp, db => db.Invoices.Where(i => i.IadeMi)));
-        await DengeAsync(sp);
+        await BalanceCheckAsync(sp);
     }
 
     [Fact]
@@ -665,14 +665,14 @@ public sealed class IdempotencyEnvanteriTests(PostgresFixture fx)
         using var scope = host.ScopeFor(Guid.NewGuid());
         var sp = scope.ServiceProvider;
         var fat = sp.GetRequiredService<InvoiceService>();
-        var (kira, musteri, _) = await KiraOlustur(sp, "34 ID 19", KiraBas, 90);
+        var (rental, customer, _) = await CreateRental(sp, "34 ID 19", RentalStart, 90);
 
-        var f1 = await fat.CreatePeriodInvoiceAsync(kira, 1);
-        Assert.Equal(f1, await fat.CreatePeriodInvoiceAsync(kira, 1));
+        var f1 = await fat.CreatePeriodInvoiceAsync(rental, 1);
+        Assert.Equal(f1, await fat.CreatePeriodInvoiceAsync(rental, 1));
 
-        Assert.Equal(3100m, await Cari(sp, musteri));                      // ELLE: D1 = 31 gün × 100
+        Assert.Equal(3100m, await Account(sp, customer));                      // ELLE: D1 = 31 gün × 100
         Assert.Equal(1, await Say(sp, db => db.Invoices));
-        await DengeAsync(sp);
+        await BalanceCheckAsync(sp);
     }
 
     [Fact]
@@ -684,16 +684,16 @@ public sealed class IdempotencyEnvanteriTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(tenant);
         var sp = scope.ServiceProvider;
-        var (kira, musteri, _) = await KiraOlustur(sp, "34 ID 20", KiraBas, 90);
+        var (rental, customer, _) = await CreateRental(sp, "34 ID 20", RentalStart, 90);
 
-        var sonuc = await IkiEsZamanli(host, tenant, s => s.GetRequiredService<InvoiceService>().CreatePeriodInvoiceAsync(kira, 1));
+        var result = await TwoConcurrent(host, tenant, s => s.GetRequiredService<InvoiceService>().CreatePeriodInvoiceAsync(rental, 1));
 
-        Assert.All(sonuc, r => Assert.Null(r.Hata));
-        Assert.Equal(sonuc[0].Deger, sonuc[1].Deger);
-        Assert.Equal(3100m, await Cari(sp, musteri));
+        Assert.All(result, r => Assert.Null(r.Hata));
+        Assert.Equal(result[0].Deger, result[1].Deger);
+        Assert.Equal(3100m, await Account(sp, customer));
         Assert.Equal(1, await Say(sp, db => db.Invoices));
-        var donem = (await sp.GetRequiredService<IInvoicePeriodRepository>().ListForRentalAsync(kira)).Single(d => d.DonemSira == 1);
-        Assert.Equal(InvoicePeriodStatus.Kesildi, donem.Durum);                // Atlandi'ye DÜŞMEDİ
+        var period = (await sp.GetRequiredService<IInvoicePeriodRepository>().ListForRentalAsync(rental)).Single(d => d.DonemSira == 1);
+        Assert.Equal(InvoicePeriodStatus.Kesildi, period.Durum);                // Atlandi'ye DÜŞMEDİ
     }
 
     [Fact]
@@ -703,18 +703,18 @@ public sealed class IdempotencyEnvanteriTests(PostgresFixture fx)
         using var scope = host.ScopeFor(Guid.NewGuid());
         var sp = scope.ServiceProvider;
         var svc = sp.GetRequiredService<PeriodCollectionService>();
-        var (kira, musteri, _) = await KiraOlustur(sp, "34 ID 21", KiraBas, 90);
+        var (rental, customer, _) = await CreateRental(sp, "34 ID 21", RentalStart, 90);
 
-        var ilk = await svc.IssueAndCollectDetailAsync(kira, 1, true, LedgerAccountType.Kasa);
-        var ikinci = await svc.IssueAndCollectDetailAsync(kira, 1, true, LedgerAccountType.Kasa);
+        var first = await svc.IssueAndCollectDetailAsync(rental, 1, true, LedgerAccountType.Kasa);
+        var second = await svc.IssueAndCollectDetailAsync(rental, 1, true, LedgerAccountType.Kasa);
 
-        Assert.True(ilk.TahsilatYazildi);
-        Assert.False(ikinci.TahsilatYazildi);
-        Assert.Equal(ilk.InvoiceId, ikinci.InvoiceId);
-        Assert.Equal(0m, await Cari(sp, musteri));                          // ELLE: fatura 3100 − tahsilat 3100
-        Assert.Equal(3100m, await Bakiye(sp, LedgerAccountType.Kasa));
+        Assert.True(first.TahsilatYazildi);
+        Assert.False(second.TahsilatYazildi);
+        Assert.Equal(first.InvoiceId, second.InvoiceId);
+        Assert.Equal(0m, await Account(sp, customer));                          // ELLE: fatura 3100 − tahsilat 3100
+        Assert.Equal(3100m, await Balance(sp, LedgerAccountType.Kasa));
         Assert.Equal(1, await Say(sp, db => db.CashTransactions));
-        await DengeAsync(sp);
+        await BalanceCheckAsync(sp);
     }
 
     [Fact]
@@ -724,31 +724,31 @@ public sealed class IdempotencyEnvanteriTests(PostgresFixture fx)
         using var scope = host.ScopeFor(Guid.NewGuid());
         var sp = scope.ServiceProvider;
         var svc = sp.GetRequiredService<AutoCollectionService>();
-        var bas = new DateTimeOffset(DateTime.UtcNow.Date, TimeSpan.Zero).AddDays(-65);
+        var start = new DateTimeOffset(DateTime.UtcNow.Date, TimeSpan.Zero).AddDays(-65);
         var v = await sp.GetRequiredService<VehicleService>().CreateAsync(new VehicleInput { Plaka = "34 ID 22" });
-        var m = await CariOlustur(sp, "Oto");
+        var m = await CreateCustomer(sp, "Oto");
         await sp.GetRequiredService<RentalService>().CreateDirectAsync(new BookingInput
-        { MusteriId = m, VehicleId = v, BasTar = bas, BitTar = bas.AddDays(90), GunlukUcret = 100m, DonemselFaturalama = true });
+        { MusteriId = m, VehicleId = v, BasTar = start, BitTar = start.AddDays(90), GunlukUcret = 100m, DonemselFaturalama = true });
 
-        var secim = (await svc.CandidatesAsync()).Select(a => (a.RentalId, a.DonemSira)).ToList();
-        Assert.Equal(2, secim.Count);                                       // ELLE: 65 gün → 2 dönem vadeli
-        var ilk = await svc.RunAsync(secim, doCollection: true, LedgerAccountType.Kasa);
-        var cariSonra = await Cari(sp, m);
-        var kasaSonra = await Bakiye(sp, LedgerAccountType.Kasa);
+        var selection = (await svc.CandidatesAsync()).Select(a => (a.RentalId, a.DonemSira)).ToList();
+        Assert.Equal(2, selection.Count);                                       // ELLE: 65 gün → 2 dönem vadeli
+        var first = await svc.RunAsync(selection, doCollection: true, LedgerAccountType.Kasa);
+        var accountAfter = await Account(sp, m);
+        var cashAfter = await Balance(sp, LedgerAccountType.Kasa);
 
-        var ikinci = await svc.RunAsync(secim, doCollection: true, LedgerAccountType.Kasa);
+        var second = await svc.RunAsync(selection, doCollection: true, LedgerAccountType.Kasa);
 
-        Assert.Equal(2, ilk.Kesilen);
-        Assert.Equal(2, ilk.Tahsilat);
-        Assert.Equal(0, ikinci.Kesilen);
-        Assert.Equal(0, ikinci.Tahsilat);
-        Assert.Equal(2, ikinci.Atlananlar.Count);
-        Assert.Equal(0m, cariSonra);                                        // ELLE: kesilen = tahsil edilen
-        Assert.Equal(cariSonra, await Cari(sp, m));                          // çift çalıştırma bakiyeyi DEĞİŞTİRMEDİ
-        Assert.Equal(kasaSonra, await Bakiye(sp, LedgerAccountType.Kasa));
+        Assert.Equal(2, first.Kesilen);
+        Assert.Equal(2, first.Tahsilat);
+        Assert.Equal(0, second.Kesilen);
+        Assert.Equal(0, second.Tahsilat);
+        Assert.Equal(2, second.Atlananlar.Count);
+        Assert.Equal(0m, accountAfter);                                        // ELLE: kesilen = tahsil edilen
+        Assert.Equal(accountAfter, await Account(sp, m));                          // çift çalıştırma bakiyeyi DEĞİŞTİRMEDİ
+        Assert.Equal(cashAfter, await Balance(sp, LedgerAccountType.Kasa));
         Assert.Equal(2, await Say(sp, db => db.Invoices));
         Assert.Equal(2, await Say(sp, db => db.CashTransactions));
-        await DengeAsync(sp);
+        await BalanceCheckAsync(sp);
     }
 
     // =====================================================================================
@@ -764,17 +764,17 @@ public sealed class IdempotencyEnvanteriTests(PostgresFixture fx)
         var sp = scope.ServiceProvider;
         var gid = sp.GetRequiredService<ExpenseService>();
         var k = Guid.NewGuid();
-        ExpenseInput Girdi() => new()
+        ExpenseInput Input() => new()
         { Tip = ExpenseType.Genel, NetTutar = 1000m, KdvOrani = 0m, OdemeYontemi = PaymentMethod.Nakit, IslemAnahtari = k };
 
-        await gid.CreateAsync(Girdi());
-        var ex = await Assert.ThrowsAsync<DuplicateOperationException>(() => gid.CreateAsync(Girdi()));
+        await gid.CreateAsync(Input());
+        var ex = await Assert.ThrowsAsync<DuplicateOperationException>(() => gid.CreateAsync(Input()));
         Assert.Equal("Bu gider zaten kaydedilmiş (çift gönderim).", ex.Message);
 
-        Assert.Equal(1000m, await Bakiye(sp, LedgerAccountType.Gider));      // ELLE: tek gider 1000
-        Assert.Equal(-1000m, await Bakiye(sp, LedgerAccountType.Kasa));
+        Assert.Equal(1000m, await Balance(sp, LedgerAccountType.Gider));      // ELLE: tek gider 1000
+        Assert.Equal(-1000m, await Balance(sp, LedgerAccountType.Kasa));
         Assert.Equal(1, await Say(sp, db => db.Expenses));
-        await DengeAsync(sp);
+        await BalanceCheckAsync(sp);
     }
 
     [Fact]
@@ -784,11 +784,11 @@ public sealed class IdempotencyEnvanteriTests(PostgresFixture fx)
         using var scope = host.ScopeFor(Guid.NewGuid());
         var sp = scope.ServiceProvider;
         var gid = sp.GetRequiredService<ExpenseService>();
-        ExpenseInput Girdi() => new() { Tip = ExpenseType.Genel, NetTutar = 100m, KdvOrani = 0m, OdemeYontemi = PaymentMethod.Nakit };
+        ExpenseInput Input() => new() { Tip = ExpenseType.Genel, NetTutar = 100m, KdvOrani = 0m, OdemeYontemi = PaymentMethod.Nakit };
 
-        await gid.CreateAsync(Girdi());
-        await gid.CreateAsync(Girdi());
-        Assert.Equal(200m, await Bakiye(sp, LedgerAccountType.Gider));
+        await gid.CreateAsync(Input());
+        await gid.CreateAsync(Input());
+        Assert.Equal(200m, await Balance(sp, LedgerAccountType.Gider));
     }
 
     [Fact]
@@ -798,19 +798,19 @@ public sealed class IdempotencyEnvanteriTests(PostgresFixture fx)
         using var scope = host.ScopeFor(Guid.NewGuid());
         var sp = scope.ServiceProvider;
         var gid = sp.GetRequiredService<ExpenseService>();
-        var parti = Guid.NewGuid();
-        ExpenseInput[] Kalemler() =>
+        var batch = Guid.NewGuid();
+        ExpenseInput[] Items() =>
         [
             new() { Tip = ExpenseType.Genel, NetTutar = 300m, KdvOrani = 0m },
             new() { Tip = ExpenseType.Genel, NetTutar = 200m, KdvOrani = 0m }
         ];
 
-        await gid.BatchCreateAsync(Kalemler(), parti);
-        await Assert.ThrowsAsync<DuplicateOperationException>(() => gid.BatchCreateAsync(Kalemler(), parti));
+        await gid.BatchCreateAsync(Items(), batch);
+        await Assert.ThrowsAsync<DuplicateOperationException>(() => gid.BatchCreateAsync(Items(), batch));
 
-        Assert.Equal(500m, await Bakiye(sp, LedgerAccountType.Gider));       // ELLE: 300 + 200
+        Assert.Equal(500m, await Balance(sp, LedgerAccountType.Gider));       // ELLE: 300 + 200
         Assert.Equal(2, await Say(sp, db => db.Expenses));
-        await DengeAsync(sp);
+        await BalanceCheckAsync(sp);
     }
 
     [Fact]
@@ -821,17 +821,17 @@ public sealed class IdempotencyEnvanteriTests(PostgresFixture fx)
         using var scope = host.ScopeFor(Guid.NewGuid());
         var sp = scope.ServiceProvider;
         var gid = sp.GetRequiredService<ExpenseService>();
-        var tedarikci = await CariOlustur(sp, "Tedarikci");
-        var giderId = await gid.CreateAsync(new ExpenseInput
-        { Tip = ExpenseType.Genel, NetTutar = 1000m, KdvOrani = 0.20m, OdemeYontemi = PaymentMethod.AcikHesap, CariId = tedarikci });
+        var supplier = await CreateCustomer(sp, "Tedarikci");
+        var expenseId = await gid.CreateAsync(new ExpenseInput
+        { Tip = ExpenseType.Genel, NetTutar = 1000m, KdvOrani = 0.20m, OdemeYontemi = PaymentMethod.AcikHesap, CariId = supplier });
         var k = Guid.NewGuid();
 
-        Assert.NotNull(await gid.AddPaymentAsync(new GiderOdemeInput { ExpenseId = giderId, IslemAnahtari = k }));
-        Assert.Null(await gid.AddPaymentAsync(new GiderOdemeInput { ExpenseId = giderId, IslemAnahtari = k }));
+        Assert.NotNull(await gid.AddPaymentAsync(new GiderOdemeInput { ExpenseId = expenseId, IslemAnahtari = k }));
+        Assert.Null(await gid.AddPaymentAsync(new GiderOdemeInput { ExpenseId = expenseId, IslemAnahtari = k }));
 
-        var durum = (await gid.PaymentStatusesAsync(await gid.ListAsync()))[giderId];
-        Assert.Equal(1200m, durum.Odenen);                                  // ELLE: 1000 + %20, tek ödeme
-        Assert.Equal(0m, durum.Kalan);
+        var status = (await gid.PaymentStatusesAsync(await gid.ListAsync()))[expenseId];
+        Assert.Equal(1200m, status.Odenen);                                  // ELLE: 1000 + %20, tek ödeme
+        Assert.Equal(0m, status.Kalan);
         Assert.Equal(1, await Say(sp, db => db.Set<GiderOdeme>()));
     }
 
@@ -842,15 +842,15 @@ public sealed class IdempotencyEnvanteriTests(PostgresFixture fx)
         using var scope = host.ScopeFor(Guid.NewGuid());
         var sp = scope.ServiceProvider;
         var gid = sp.GetRequiredService<ExpenseService>();
-        var tedarikci = await CariOlustur(sp, "Tedarikci");
-        var giderId = await gid.CreateAsync(new ExpenseInput
-        { Tip = ExpenseType.Genel, NetTutar = 1000m, KdvOrani = 0.20m, OdemeYontemi = PaymentMethod.AcikHesap, CariId = tedarikci });
+        var supplier = await CreateCustomer(sp, "Tedarikci");
+        var expenseId = await gid.CreateAsync(new ExpenseInput
+        { Tip = ExpenseType.Genel, NetTutar = 1000m, KdvOrani = 0.20m, OdemeYontemi = PaymentMethod.AcikHesap, CariId = supplier });
         var k = Guid.NewGuid();
 
-        Assert.NotNull(await gid.AddPaymentAsync(new GiderOdemeInput { ExpenseId = giderId, Tutar = 400m, IslemAnahtari = k }));
-        Assert.Null(await gid.AddPaymentAsync(new GiderOdemeInput { ExpenseId = giderId, Tutar = 400m, IslemAnahtari = k }));
+        Assert.NotNull(await gid.AddPaymentAsync(new GiderOdemeInput { ExpenseId = expenseId, Tutar = 400m, IslemAnahtari = k }));
+        Assert.Null(await gid.AddPaymentAsync(new GiderOdemeInput { ExpenseId = expenseId, Tutar = 400m, IslemAnahtari = k }));
 
-        Assert.Equal(800m, (await gid.PaymentStatusesAsync(await gid.ListAsync()))[giderId].Kalan); // ELLE: 1200 − 400
+        Assert.Equal(800m, (await gid.PaymentStatusesAsync(await gid.ListAsync()))[expenseId].Kalan); // ELLE: 1200 − 400
     }
 
     [Fact]
@@ -872,9 +872,9 @@ public sealed class IdempotencyEnvanteriTests(PostgresFixture fx)
         await Assert.ThrowsAsync<DuplicateOperationException>(() =>
             svc.ConvertToExpenseAsync(new GelenEFaturaGiderInput { Id = id, OdemeYontemi = PaymentMethod.Nakit }));
 
-        Assert.Equal(-1200m, await Bakiye(sp, LedgerAccountType.Kasa));     // ELLE: tek çıkış 1200
+        Assert.Equal(-1200m, await Balance(sp, LedgerAccountType.Kasa));     // ELLE: tek çıkış 1200
         Assert.Equal(1, await Say(sp, db => db.Expenses));
-        await DengeAsync(sp);
+        await BalanceCheckAsync(sp);
     }
 
     // =====================================================================================
@@ -888,14 +888,14 @@ public sealed class IdempotencyEnvanteriTests(PostgresFixture fx)
         using var scope = host.ScopeFor(Guid.NewGuid());
         var sp = scope.ServiceProvider;
         var svc = sp.GetRequiredService<PenaltyService>();
-        var cari = Guid.NewGuid();
-        var id = await svc.CreateAsync(new PenaltyInput { CezaTuru = "Hız", CariId = cari, Tutar = 300m });
+        var account = Guid.NewGuid();
+        var id = await svc.CreateAsync(new PenaltyInput { CezaTuru = "Hız", CariId = account, Tutar = 300m });
 
         Assert.True(await svc.ReflectAsync(id));
         var ex = await Assert.ThrowsAsync<ValidationException>(() => svc.ReflectAsync(id));
         Assert.Equal("Yalnız 'Yeni' durumundaki ceza yansıtılabilir.", ex.Message);
-        Assert.Equal(300m, await Cari(sp, cari));
-        Assert.Equal(2, await DefterSatir(sp, "Ceza"));
+        Assert.Equal(300m, await Account(sp, account));
+        Assert.Equal(2, await LedgerLine(sp, "Ceza"));
     }
 
     [Fact]
@@ -905,21 +905,21 @@ public sealed class IdempotencyEnvanteriTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(tenant);
         var sp = scope.ServiceProvider;
-        var cari = Guid.NewGuid();
-        var id = await sp.GetRequiredService<PenaltyService>().CreateAsync(new PenaltyInput { CezaTuru = "Hız", CariId = cari, Tutar = 300m });
+        var account = Guid.NewGuid();
+        var id = await sp.GetRequiredService<PenaltyService>().CreateAsync(new PenaltyInput { CezaTuru = "Hız", CariId = account, Tutar = 300m });
 
-        var sonuc = await IkiEsZamanli(host, tenant, s => s.GetRequiredService<PenaltyService>().ReflectAsync(id));
+        var result = await TwoConcurrent(host, tenant, s => s.GetRequiredService<PenaltyService>().ReflectAsync(id));
 
-        Assert.Single(sonuc, r => r.Hata is null && r.Deger);
-        Assert.Equal(typeof(ValidationException), Assert.Single(sonuc, r => r.Hata is not null).Hata!.GetType());
-        Assert.Equal(300m, await Cari(sp, cari));
-        Assert.Equal(2, await DefterSatir(sp, "Ceza"));
+        Assert.Single(result, r => r.Hata is null && r.Deger);
+        Assert.Equal(typeof(ValidationException), Assert.Single(result, r => r.Hata is not null).Hata!.GetType());
+        Assert.Equal(300m, await Account(sp, account));
+        Assert.Equal(2, await LedgerLine(sp, "Ceza"));
     }
 
-    private static async Task<(Guid Ceza, Guid Satir)> CezaKalemi(IServiceProvider sp, decimal tutar)
+    private static async Task<(Guid Ceza, Guid Satir)> PenaltyItem(IServiceProvider sp, decimal amount)
     {
         var svc = sp.GetRequiredService<PenaltyService>();
-        var id = await svc.CreateAsync(new PenaltyInput { CezaTuru = "Hız", Satirlar = [new PenaltySatirInput { Tutar = tutar, Sebep = "Hız" }] });
+        var id = await svc.CreateAsync(new PenaltyInput { CezaTuru = "Hız", Satirlar = [new PenaltySatirInput { Tutar = amount, Sebep = "Hız" }] });
         return (id, (await svc.ListLinesAsync(id)).Single().Id);
     }
 
@@ -931,15 +931,15 @@ public sealed class IdempotencyEnvanteriTests(PostgresFixture fx)
         using var scope = host.ScopeFor(Guid.NewGuid());
         var sp = scope.ServiceProvider;
         var svc = sp.GetRequiredService<PenaltyService>();
-        var (ceza, satir) = await CezaKalemi(sp, 500m);
+        var (penalty, row) = await PenaltyItem(sp, 500m);
         var k = Guid.NewGuid();
 
-        await svc.PayPartialAsync(ceza, new CezaOdemeInput { SatirId = satir, IslemAnahtari = k });
-        await Assert.ThrowsAsync<DuplicateOperationException>(() => svc.PayPartialAsync(ceza, new CezaOdemeInput { SatirId = satir, IslemAnahtari = k }));
+        await svc.PayPartialAsync(penalty, new CezaOdemeInput { SatirId = row, IslemAnahtari = k });
+        await Assert.ThrowsAsync<DuplicateOperationException>(() => svc.PayPartialAsync(penalty, new CezaOdemeInput { SatirId = row, IslemAnahtari = k }));
 
-        Assert.Equal(-500m, await Bakiye(sp, LedgerAccountType.Kasa));      // ELLE: tek ödeme 500
-        Assert.Equal(1, (await svc.ListPaymentsAsync(ceza)).Count);
-        await DengeAsync(sp);
+        Assert.Equal(-500m, await Balance(sp, LedgerAccountType.Kasa));      // ELLE: tek ödeme 500
+        Assert.Equal(1, (await svc.ListPaymentsAsync(penalty)).Count);
+        await BalanceCheckAsync(sp);
     }
 
     [Fact]
@@ -949,24 +949,24 @@ public sealed class IdempotencyEnvanteriTests(PostgresFixture fx)
         using var scope = host.ScopeFor(Guid.NewGuid());
         var sp = scope.ServiceProvider;
         var svc = sp.GetRequiredService<PenaltyService>();
-        var (ceza, satir) = await CezaKalemi(sp, 500m);
+        var (penalty, row) = await PenaltyItem(sp, 500m);
         var k = Guid.NewGuid();
 
-        await svc.PayPartialAsync(ceza, new CezaOdemeInput { SatirId = satir, Tutar = 200m, IslemAnahtari = k });
+        await svc.PayPartialAsync(penalty, new CezaOdemeInput { SatirId = row, Tutar = 200m, IslemAnahtari = k });
         await Assert.ThrowsAsync<DuplicateOperationException>(() =>
-            svc.PayPartialAsync(ceza, new CezaOdemeInput { SatirId = satir, Tutar = 200m, IslemAnahtari = k }));
+            svc.PayPartialAsync(penalty, new CezaOdemeInput { SatirId = row, Tutar = 200m, IslemAnahtari = k }));
 
-        Assert.Equal(300m, (await svc.GetAsync(ceza))!.Kalan);             // ELLE: 500 − 200
-        await DengeAsync(sp);
+        Assert.Equal(300m, (await svc.GetAsync(penalty))!.Kalan);             // ELLE: 500 − 200
+        await BalanceCheckAsync(sp);
     }
 
     // =====================================================================================
     // MTV / Muayene / Sigorta
     // =====================================================================================
 
-    private static async Task<(RegulationService Reg, Guid Arac)> Regulasyon(IServiceProvider sp, string plaka)
+    private static async Task<(RegulationService Reg, Guid Arac)> Regulation(IServiceProvider sp, string plate)
     {
-        var v = await sp.GetRequiredService<VehicleService>().CreateAsync(new VehicleInput { Plaka = plaka, Durum = VehicleStatus.Musait });
+        var v = await sp.GetRequiredService<VehicleService>().CreateAsync(new VehicleInput { Plaka = plate, Durum = VehicleStatus.Musait });
         return (sp.GetRequiredService<RegulationService>(), v);
     }
 
@@ -977,7 +977,7 @@ public sealed class IdempotencyEnvanteriTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
         var sp = scope.ServiceProvider;
-        var (reg, v) = await Regulasyon(sp, "34 ID 27");
+        var (reg, v) = await Regulation(sp, "34 ID 27");
         var mtv = await reg.AddMtvAsync(v, "2026/1", 1000m, new DateTimeOffset(2026, 1, 31, 0, 0, 0, TimeSpan.Zero));
         var k = Guid.NewGuid();
 
@@ -985,9 +985,9 @@ public sealed class IdempotencyEnvanteriTests(PostgresFixture fx)
         await Assert.ThrowsAsync<DuplicateOperationException>(() =>
             reg.PayMtvAsync(mtv, LedgerAccountType.Kasa, payment: new RegulasyonOdemeInput { IslemAnahtari = k }));
 
-        Assert.Equal(1000m, await Bakiye(sp, LedgerAccountType.Gider, v));  // ELLE: tek ödeme 1000
-        Assert.Equal(2, await DefterSatir(sp, "MtvOdeme"));
-        await DengeAsync(sp);
+        Assert.Equal(1000m, await Balance(sp, LedgerAccountType.Gider, v));  // ELLE: tek ödeme 1000
+        Assert.Equal(2, await LedgerLine(sp, "MtvOdeme"));
+        await BalanceCheckAsync(sp);
     }
 
     [Fact]
@@ -996,13 +996,13 @@ public sealed class IdempotencyEnvanteriTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
         var sp = scope.ServiceProvider;
-        var (reg, v) = await Regulasyon(sp, "34 ID 28");
+        var (reg, v) = await Regulation(sp, "34 ID 28");
         var mtv = await reg.AddMtvAsync(v, "2026/1", 1000m, new DateTimeOffset(2026, 1, 31, 0, 0, 0, TimeSpan.Zero));
 
         await reg.PayMtvAsync(mtv, LedgerAccountType.Kasa);
         var ex = await Assert.ThrowsAsync<ValidationException>(() => reg.PayMtvAsync(mtv, LedgerAccountType.Kasa));
         Assert.Equal("MTV zaten ödendi.", ex.Message);
-        Assert.Equal(1000m, await Bakiye(sp, LedgerAccountType.Gider, v));
+        Assert.Equal(1000m, await Balance(sp, LedgerAccountType.Gider, v));
     }
 
     [Fact]
@@ -1011,7 +1011,7 @@ public sealed class IdempotencyEnvanteriTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
         var sp = scope.ServiceProvider;
-        var (reg, v) = await Regulasyon(sp, "34 ID 29");
+        var (reg, v) = await Regulation(sp, "34 ID 29");
         var mtv = await reg.AddMtvAsync(v, "2026/1", 1000m, new DateTimeOffset(2026, 1, 31, 0, 0, 0, TimeSpan.Zero));
         var k = Guid.NewGuid();
 
@@ -1019,8 +1019,8 @@ public sealed class IdempotencyEnvanteriTests(PostgresFixture fx)
         await Assert.ThrowsAsync<DuplicateOperationException>(() =>
             reg.PayMtvAsync(mtv, LedgerAccountType.Kasa, payment: new RegulasyonOdemeInput { Tutar = 400m, IslemAnahtari = k }));
 
-        Assert.Equal(400m, await Bakiye(sp, LedgerAccountType.Gider, v));   // ELLE: tek 400
-        await DengeAsync(sp);
+        Assert.Equal(400m, await Balance(sp, LedgerAccountType.Gider, v));   // ELLE: tek 400
+        await BalanceCheckAsync(sp);
     }
 
     [Fact]
@@ -1029,7 +1029,7 @@ public sealed class IdempotencyEnvanteriTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
         var sp = scope.ServiceProvider;
-        var (reg, v) = await Regulasyon(sp, "34 ID 30");
+        var (reg, v) = await Regulation(sp, "34 ID 30");
         var insp = await reg.AddInspectionAsync(v, new DateTimeOffset(2026, 3, 1, 0, 0, 0, TimeSpan.Zero),
             new DateTimeOffset(2028, 3, 1, 0, 0, 0, TimeSpan.Zero), 800m);
         var k = Guid.NewGuid();
@@ -1038,9 +1038,9 @@ public sealed class IdempotencyEnvanteriTests(PostgresFixture fx)
         await Assert.ThrowsAsync<DuplicateOperationException>(() =>
             reg.PayInspectionAsync(insp, LedgerAccountType.Kasa, payment: new RegulasyonOdemeInput { IslemAnahtari = k }));
 
-        Assert.Equal(800m, await Bakiye(sp, LedgerAccountType.Gider, v));   // ELLE: tek 800
-        Assert.Equal(2, await DefterSatir(sp, "MuayeneOdeme"));
-        await DengeAsync(sp);
+        Assert.Equal(800m, await Balance(sp, LedgerAccountType.Gider, v));   // ELLE: tek 800
+        Assert.Equal(2, await LedgerLine(sp, "MuayeneOdeme"));
+        await BalanceCheckAsync(sp);
     }
 
     [Fact]
@@ -1049,7 +1049,7 @@ public sealed class IdempotencyEnvanteriTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
         var sp = scope.ServiceProvider;
-        var (reg, v) = await Regulasyon(sp, "34 ID 31");
+        var (reg, v) = await Regulation(sp, "34 ID 31");
         var pol = await reg.AddInsuranceAsync(v, InsuranceType.Kasko,
             new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero), new DateTimeOffset(2027, 1, 1, 0, 0, 0, TimeSpan.Zero),
             1200m, "POL-IDEM", "Firma", null);
@@ -1058,8 +1058,8 @@ public sealed class IdempotencyEnvanteriTests(PostgresFixture fx)
         var ex = await Assert.ThrowsAsync<ValidationException>(() => reg.PayInsuranceAsync(pol, LedgerAccountType.Kasa));
         Assert.Equal("Sigorta zaten ödendi.", ex.Message);
 
-        Assert.Equal(1200m, await Bakiye(sp, LedgerAccountType.Gider, v));  // ELLE: prim 1200 (tek)
-        await DengeAsync(sp);
+        Assert.Equal(1200m, await Balance(sp, LedgerAccountType.Gider, v));  // ELLE: prim 1200 (tek)
+        await BalanceCheckAsync(sp);
     }
 
     // =====================================================================================
@@ -1073,7 +1073,7 @@ public sealed class IdempotencyEnvanteriTests(PostgresFixture fx)
         using var scope = host.ScopeFor(Guid.NewGuid());
         var sp = scope.ServiceProvider;
         var v = await sp.GetRequiredService<VehicleService>().CreateAsync(new VehicleInput { Plaka = "34 ID 32", Durum = VehicleStatus.Musait });
-        var cari = await CariOlustur(sp, "Rucu");
+        var account = await CreateCustomer(sp, "Rucu");
         var svc = sp.GetRequiredService<ServiceRecordService>();
         var id = await svc.CreateAsync(new ServiceRecordInput
         {
@@ -1083,16 +1083,16 @@ public sealed class IdempotencyEnvanteriTests(PostgresFixture fx)
         await svc.StartAsync(id);
         await svc.CompleteAsync(id, pickupKm: 100);
 
-        await svc.ReflectAsync(id, cari);
-        var ex = await Assert.ThrowsAsync<ValidationException>(() => svc.ReflectAsync(id, cari));
+        await svc.ReflectAsync(id, account);
+        var ex = await Assert.ThrowsAsync<ValidationException>(() => svc.ReflectAsync(id, account));
         Assert.Equal("Servis maliyeti zaten yansıtıldı.", ex.Message);
-        Assert.Equal(500m, await Cari(sp, cari));                           // ELLE: 1000 × 0,5
+        Assert.Equal(500m, await Account(sp, account));                           // ELLE: 1000 × 0,5
     }
 
-    private sealed class SahteHgs(IReadOnlyList<TollCrossing> gecisler) : IHgsService
+    private sealed class HgsFake(IReadOnlyList<TollCrossing> passages) : IHgsService
     {
-        public Task<IReadOnlyList<TollCrossing>> GetCrossingsAsync(string plaka, DateTimeOffset from, DateTimeOffset to, CancellationToken ct = default)
-            => Task.FromResult(gecisler);
+        public Task<IReadOnlyList<TollCrossing>> GetCrossingsAsync(string plate, DateTimeOffset from, DateTimeOffset to, CancellationToken ct = default)
+            => Task.FromResult(passages);
     }
 
     [Fact]
@@ -1101,18 +1101,18 @@ public sealed class IdempotencyEnvanteriTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
         var sp = scope.ServiceProvider;
-        var cari = Guid.NewGuid();
+        var account = Guid.NewGuid();
         var t = new DateTimeOffset(2026, 2, 1, 0, 0, 0, TimeSpan.Zero);
-        var hgs = new HgsReflectionService(new SahteHgs([new TollCrossing(t, "Köprü", 100m)]),
+        var hgs = new HgsReflectionService(new HgsFake([new TollCrossing(t, "Köprü", 100m)]),
             sp.GetRequiredService<ILedgerPoster>(), sp.GetRequiredService<IPeriodLockGuard>(), sp.GetRequiredService<ICurrentUser>());
 
-        var r1 = await hgs.ReflectAsync(cari, "34ID33", t, t.AddDays(1));
-        var r2 = await hgs.ReflectAsync(cari, "34ID33", t, t.AddDays(1));
+        var r1 = await hgs.ReflectAsync(account, "34ID33", t, t.AddDays(1));
+        var r2 = await hgs.ReflectAsync(account, "34ID33", t, t.AddDays(1));
 
         Assert.Equal(103m, r1.YansitilanTutar);
         Assert.Equal(103m, r2.YansitilanTutar);                              // sessiz: aynı sonuç, ikinci yazım yok
-        Assert.Equal(103m, await Cari(sp, cari));                            // ELLE: 100 × 1,03 (tek)
-        Assert.Equal(2, await DefterSatir(sp, "Hgs"));
+        Assert.Equal(103m, await Account(sp, account));                            // ELLE: 100 × 1,03 (tek)
+        Assert.Equal(2, await LedgerLine(sp, "Hgs"));
     }
 
     [Fact]
@@ -1122,16 +1122,16 @@ public sealed class IdempotencyEnvanteriTests(PostgresFixture fx)
         using var scope = host.ScopeFor(Guid.NewGuid());
         var sp = scope.ServiceProvider;
         var svc = sp.GetRequiredService<VehicleLoanService>();
-        var kredi = await svc.CreateAsync(new AracKrediInput { BankaAdi = "Banka", KrediTutari = 12000m, FaizOran = 0m, TaksitSayisi = 12 });
+        var loan = await svc.CreateAsync(new AracKrediInput { BankaAdi = "Banka", KrediTutari = 12000m, FaizOran = 0m, TaksitSayisi = 12 });
         var k = Guid.NewGuid();
 
-        Assert.True(await svc.PayInstallmentAsync(kredi, operationKey: k));
-        var ex = await Assert.ThrowsAsync<DuplicateOperationException>(() => svc.PayInstallmentAsync(kredi, operationKey: k));
+        Assert.True(await svc.PayInstallmentAsync(loan, operationKey: k));
+        var ex = await Assert.ThrowsAsync<DuplicateOperationException>(() => svc.PayInstallmentAsync(loan, operationKey: k));
         Assert.Equal("Bu taksit ödemesi zaten kaydedilmiş (çift gönderim).", ex.Message);
 
-        Assert.Equal(1, (await svc.GetAsync(kredi))!.OdenenTaksit);
-        Assert.Equal(1000m, await Bakiye(sp, LedgerAccountType.Gider));      // ELLE: 12000 / 12, faizsiz
-        await DengeAsync(sp);
+        Assert.Equal(1, (await svc.GetAsync(loan))!.OdenenTaksit);
+        Assert.Equal(1000m, await Balance(sp, LedgerAccountType.Gider));      // ELLE: 12000 / 12, faizsiz
+        await BalanceCheckAsync(sp);
     }
 
     [Fact]
@@ -1143,23 +1143,23 @@ public sealed class IdempotencyEnvanteriTests(PostgresFixture fx)
         using var scope = host.ScopeFor(Guid.NewGuid());
         var sp = scope.ServiceProvider;
         var svc = sp.GetRequiredService<VehicleLoanService>();
-        var kredi = await svc.CreateAsync(new AracKrediInput { BankaAdi = "Banka", KrediTutari = 1000m, FaizOran = 0m, TaksitSayisi = 1 });
+        var loan = await svc.CreateAsync(new AracKrediInput { BankaAdi = "Banka", KrediTutari = 1000m, FaizOran = 0m, TaksitSayisi = 1 });
         var k = Guid.NewGuid();
 
-        Assert.True(await svc.PayInstallmentAsync(kredi, operationKey: k));
-        await Assert.ThrowsAsync<DuplicateOperationException>(() => svc.PayInstallmentAsync(kredi, operationKey: k));
+        Assert.True(await svc.PayInstallmentAsync(loan, operationKey: k));
+        await Assert.ThrowsAsync<DuplicateOperationException>(() => svc.PayInstallmentAsync(loan, operationKey: k));
         // Anahtarsız tekrar: bugünkü sözleşme (tüm taksitler ödendi → false, yazım yok).
-        Assert.False(await svc.PayInstallmentAsync(kredi));
+        Assert.False(await svc.PayInstallmentAsync(loan));
 
-        Assert.Equal(1000m, await Bakiye(sp, LedgerAccountType.Gider));      // ELLE: tek taksit 1000
-        await DengeAsync(sp);
+        Assert.Equal(1000m, await Balance(sp, LedgerAccountType.Gider));      // ELLE: tek taksit 1000
+        await BalanceCheckAsync(sp);
     }
 
-    private static async Task<(Guid Kira, Guid Tedarikci)> DisHizmetKur(IServiceProvider sp, string plaka)
+    private static async Task<(Guid Kira, Guid Tedarikci)> SetupOutsourcedService(IServiceProvider sp, string plate)
     {
-        var (kira, _, _) = await KiraOlustur(sp, plaka, KiraBas, 3);
+        var (rental, _, _) = await CreateRental(sp, plate, RentalStart, 3);
         var t = await sp.GetRequiredService<CustomerService>().CreateAsync(new CustomerInput { Tip = CustomerType.Kurumsal, Unvan = "Tedarikçi AŞ" });
-        return (kira, t);
+        return (rental, t);
     }
 
     [Fact]
@@ -1169,20 +1169,20 @@ public sealed class IdempotencyEnvanteriTests(PostgresFixture fx)
         using var scope = host.ScopeFor(Guid.NewGuid());
         var sp = scope.ServiceProvider;
         var svc = sp.GetRequiredService<OutsourcedServiceService>();
-        var (kira, tedarikci) = await DisHizmetKur(sp, "34 ID 34");
+        var (rental, supplier) = await SetupOutsourcedService(sp, "34 ID 34");
         var k = Guid.NewGuid();
-        DisHizmetInput Girdi() => new()
+        DisHizmetInput Input() => new()
         {
-            RentalId = kira, FaturaKesilecekCariId = tedarikci, AlinanHizmet = "Transfer",
+            RentalId = rental, FaturaKesilecekCariId = supplier, AlinanHizmet = "Transfer",
             HizmetBedeli = 1000m, TedarikciKomisyonOran = 10m, IslemAnahtari = k
         };
 
-        await svc.CreateAsync(Girdi());
-        await Assert.ThrowsAsync<DuplicateOperationException>(() => svc.CreateAsync(Girdi()));
+        await svc.CreateAsync(Input());
+        await Assert.ThrowsAsync<DuplicateOperationException>(() => svc.CreateAsync(Input()));
 
-        Assert.Equal(-900m, await Cari(sp, tedarikci));                     // ELLE: alacak 1000 − komisyon 100
-        Assert.Single(await svc.ListForRentalAsync(kira));
-        await DengeAsync(sp);
+        Assert.Equal(-900m, await Account(sp, supplier));                     // ELLE: alacak 1000 − komisyon 100
+        Assert.Single(await svc.ListForRentalAsync(rental));
+        await BalanceCheckAsync(sp);
     }
 
     [Fact]
@@ -1192,16 +1192,16 @@ public sealed class IdempotencyEnvanteriTests(PostgresFixture fx)
         using var scope = host.ScopeFor(Guid.NewGuid());
         var sp = scope.ServiceProvider;
         var svc = sp.GetRequiredService<OutsourcedServiceService>();
-        var (kira, tedarikci) = await DisHizmetKur(sp, "34 ID 35");
+        var (rental, supplier) = await SetupOutsourcedService(sp, "34 ID 35");
         var id = await svc.CreateAsync(new DisHizmetInput
-        { RentalId = kira, FaturaKesilecekCariId = tedarikci, AlinanHizmet = "Transfer", HizmetBedeli = 1000m, TedarikciKomisyonOran = 10m });
+        { RentalId = rental, FaturaKesilecekCariId = supplier, AlinanHizmet = "Transfer", HizmetBedeli = 1000m, TedarikciKomisyonOran = 10m });
 
         await svc.CancelAsync(id);
         var ex = await Assert.ThrowsAsync<ValidationException>(() => svc.CancelAsync(id));
         Assert.Equal("Kayıt zaten iptal edilmiş.", ex.Message);
 
-        Assert.Equal(0m, await Cari(sp, tedarikci));                        // ELLE: −900 + 900
-        await DengeAsync(sp);
+        Assert.Equal(0m, await Account(sp, supplier));                        // ELLE: −900 + 900
+        await BalanceCheckAsync(sp);
     }
 
     [Fact]
@@ -1210,17 +1210,17 @@ public sealed class IdempotencyEnvanteriTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
         var sp = scope.ServiceProvider;
-        var satis = sp.GetRequiredService<VehicleSaleService>();
+        var sale = sp.GetRequiredService<VehicleSaleService>();
         var v = await sp.GetRequiredService<VehicleService>().CreateAsync(new VehicleInput { Plaka = "34 ID 36" });
-        var alici = await CariOlustur(sp, "Alici");
-        VehicleSaleInput Girdi() => new() { VehicleId = v, AliciCariId = alici, SatisNet = 1000m, KdvOrani = 0.20m };
+        var recipient = await CreateCustomer(sp, "Alici");
+        VehicleSaleInput Input() => new() { VehicleId = v, AliciCariId = recipient, SatisNet = 1000m, KdvOrani = 0.20m };
 
-        await satis.CreateAsync(Girdi());
-        var ex = await Assert.ThrowsAsync<ValidationException>(() => satis.CreateAsync(Girdi()));
+        await sale.CreateAsync(Input());
+        var ex = await Assert.ThrowsAsync<ValidationException>(() => sale.CreateAsync(Input()));
         Assert.Equal("Araç zaten satılmış.", ex.Message);
 
-        Assert.Equal(1200m, await Cari(sp, alici));                         // ELLE: 1000 + %20
-        await DengeAsync(sp);
+        Assert.Equal(1200m, await Account(sp, recipient));                         // ELLE: 1000 + %20
+        await BalanceCheckAsync(sp);
     }
 
     [Fact]
@@ -1229,20 +1229,20 @@ public sealed class IdempotencyEnvanteriTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
         var sp = scope.ServiceProvider;
-        var isTarih = new DateTimeOffset(2026, 6, 10, 9, 0, 0, TimeSpan.Zero);
-        var kapanis = new DateTimeOffset(2026, 6, 30, 0, 0, 0, TimeSpan.Zero);
-        var cari = await CariOlustur(sp);
+        var businessDate = new DateTimeOffset(2026, 6, 10, 9, 0, 0, TimeSpan.Zero);
+        var closing = new DateTimeOffset(2026, 6, 30, 0, 0, 0, TimeSpan.Zero);
+        var account = await CreateCustomer(sp);
         await sp.GetRequiredService<InvoiceService>().CreateManualAsync(new ManualInvoiceInput
-        { CariId = cari, NetTutar = 1000m, KdvOrani = 0m, Tarih = isTarih });
+        { CariId = account, NetTutar = 1000m, KdvOrani = 0m, Tarih = businessDate });
         var svc = sp.GetRequiredService<PeriodClosingVoucherService>();
 
-        await svc.CloseAsync(kapanis);
-        var ex = await Assert.ThrowsAsync<ValidationException>(() => svc.CloseAsync(kapanis));
+        await svc.CloseAsync(closing);
+        var ex = await Assert.ThrowsAsync<ValidationException>(() => svc.CloseAsync(closing));
         Assert.StartsWith("Dönem zaten 2026-06-30 tarihine kapalı.", ex.Message);
 
-        Assert.Equal(0m, await Bakiye(sp, LedgerAccountType.Gelir));        // ELLE: gelir 1000 kapatıldı (tek fiş)
-        Assert.Equal(-1000m, await Bakiye(sp, LedgerAccountType.DonemSonucu));
-        await DengeAsync(sp);
+        Assert.Equal(0m, await Balance(sp, LedgerAccountType.Gelir));        // ELLE: gelir 1000 kapatıldı (tek fiş)
+        Assert.Equal(-1000m, await Balance(sp, LedgerAccountType.DonemSonucu));
+        await BalanceCheckAsync(sp);
     }
 
     // =====================================================================================
@@ -1254,46 +1254,46 @@ public sealed class IdempotencyEnvanteriTests(PostgresFixture fx)
     {
         var tenant = Guid.NewGuid();
         using var host = new TestHost(fx.AppConnectionString);
-        const string baslik = "ortak-istemci-anahtari-0001";
+        const string title = "ortak-istemci-anahtari-0001";
         var ali = Guid.NewGuid();
         var ayse = Guid.NewGuid();
         using var s1 = host.ScopeFor(tenant, ali);
         using var s2 = host.ScopeFor(tenant, ayse);
-        var cari = await CariOlustur(s1.ServiceProvider);
+        var account = await CreateCustomer(s1.ServiceProvider);
 
         await s1.ServiceProvider.GetRequiredService<CashService>().CollectAsync(new CashInput
-        { CariId = cari, Tutar = 100m, Hesap = LedgerAccountType.Kasa, IslemAnahtari = OperationKeyDeriver.Derive(tenant, ali, baslik) });
+        { CariId = account, Tutar = 100m, Hesap = LedgerAccountType.Kasa, IslemAnahtari = OperationKeyDeriver.Derive(tenant, ali, title) });
         await s2.ServiceProvider.GetRequiredService<CashService>().CollectAsync(new CashInput
-        { CariId = cari, Tutar = 100m, Hesap = LedgerAccountType.Kasa, IslemAnahtari = OperationKeyDeriver.Derive(tenant, ayse, baslik) });
+        { CariId = account, Tutar = 100m, Hesap = LedgerAccountType.Kasa, IslemAnahtari = OperationKeyDeriver.Derive(tenant, ayse, title) });
 
-        Assert.Equal(-200m, await Cari(s1.ServiceProvider, cari));          // ELLE: iki MEŞRU tahsilat
+        Assert.Equal(-200m, await Account(s1.ServiceProvider, account));          // ELLE: iki MEŞRU tahsilat
     }
 
     [Fact]
     public async Task A2_Iki_kiraci_ayni_kullanici_id_ve_baslik_CAKISMAZ()
     {
         using var host = new TestHost(fx.AppConnectionString);
-        const string baslik = "ortak-istemci-anahtari-0002";
+        const string title = "ortak-istemci-anahtari-0002";
         var user = Guid.NewGuid();
         var t1 = Guid.NewGuid();
         var t2 = Guid.NewGuid();
         using var s1 = host.ScopeFor(t1, user);
         using var s2 = host.ScopeFor(t2, user);
-        var c1 = await CariOlustur(s1.ServiceProvider);
-        var c2 = await CariOlustur(s2.ServiceProvider);
+        var c1 = await CreateCustomer(s1.ServiceProvider);
+        var c2 = await CreateCustomer(s2.ServiceProvider);
 
         // Manuel fatura: anahtar = faturanın PK'si (kiracı-GLOBAL). Ham başlık PK olsaydı ikinci kiracı
         // birincinin faturasına çarpardı; türetilmiş anahtar kiracıyı içerdiği için çarpmaz.
-        var k1 = OperationKeyDeriver.Derive(t1, user, baslik);
-        var k2 = OperationKeyDeriver.Derive(t2, user, baslik);
+        var k1 = OperationKeyDeriver.Derive(t1, user, title);
+        var k2 = OperationKeyDeriver.Derive(t2, user, title);
         Assert.NotEqual(k1, k2);
         Assert.Equal(k1, await s1.ServiceProvider.GetRequiredService<InvoiceService>()
             .CreateManualAsync(new ManualInvoiceInput { CariId = c1, NetTutar = 100m, KdvOrani = 0m, IslemAnahtari = k1 }));
         Assert.Equal(k2, await s2.ServiceProvider.GetRequiredService<InvoiceService>()
             .CreateManualAsync(new ManualInvoiceInput { CariId = c2, NetTutar = 100m, KdvOrani = 0m, IslemAnahtari = k2 }));
 
-        Assert.Equal(100m, await Cari(s1.ServiceProvider, c1));
-        Assert.Equal(100m, await Cari(s2.ServiceProvider, c2));
+        Assert.Equal(100m, await Account(s1.ServiceProvider, c1));
+        Assert.Equal(100m, await Account(s2.ServiceProvider, c2));
     }
 
     [Fact]
@@ -1305,16 +1305,16 @@ public sealed class IdempotencyEnvanteriTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var s1 = host.ScopeFor(Guid.NewGuid());
         using var s2 = host.ScopeFor(Guid.NewGuid());
-        var c1 = await CariOlustur(s1.ServiceProvider);
-        var c2 = await CariOlustur(s2.ServiceProvider);
-        var yabanci = await s1.ServiceProvider.GetRequiredService<InvoiceService>()
+        var c1 = await CreateCustomer(s1.ServiceProvider);
+        var c2 = await CreateCustomer(s2.ServiceProvider);
+        var foreign = await s1.ServiceProvider.GetRequiredService<InvoiceService>()
             .CreateManualAsync(new ManualInvoiceInput { CariId = c1, NetTutar = 100m, KdvOrani = 0m });
 
         var ex = await Assert.ThrowsAsync<ValidationException>(() => s2.ServiceProvider.GetRequiredService<InvoiceService>()
-            .CreateManualAsync(new ManualInvoiceInput { CariId = c2, NetTutar = 500m, KdvOrani = 0m, IslemAnahtari = yabanci }));
+            .CreateManualAsync(new ManualInvoiceInput { CariId = c2, NetTutar = 500m, KdvOrani = 0m, IslemAnahtari = foreign }));
         Assert.Contains("başka bir kayıtla çakıştı", ex.Message);
-        Assert.Equal(0m, await Cari(s2.ServiceProvider, c2));
-        Assert.Equal(100m, await Cari(s1.ServiceProvider, c1));             // diğer kiracıya DOKUNULMADI
+        Assert.Equal(0m, await Account(s2.ServiceProvider, c2));
+        Assert.Equal(100m, await Account(s1.ServiceProvider, c1));             // diğer kiracıya DOKUNULMADI
     }
 
     [Fact]
@@ -1331,19 +1331,19 @@ public sealed class IdempotencyEnvanteriTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(tenant, user);
         var sp = scope.ServiceProvider;
-        var kasa = sp.GetRequiredService<CashService>();
-        var cari = await CariOlustur(sp);
+        var cash = sp.GetRequiredService<CashService>();
+        var account = await CreateCustomer(sp);
         var k = OperationKeyDeriver.Derive(tenant, user, "yeniden-kullanilan-anahtar");
 
-        await kasa.CollectAsync(new CashInput { CariId = cari, Tutar = 100m, Hesap = LedgerAccountType.Kasa, IslemAnahtari = k });
+        await cash.CollectAsync(new CashInput { CariId = account, Tutar = 100m, Hesap = LedgerAccountType.Kasa, IslemAnahtari = k });
         await Assert.ThrowsAsync<DuplicateOperationException>(() =>
-            kasa.PayAsync(new CashInput { CariId = cari, Tutar = 70m, Hesap = LedgerAccountType.Kasa, IslemAnahtari = k }));
-        await sp.GetRequiredService<DepositService>().GetAsync(cari, 50m, LedgerAccountType.Kasa, operationKey: k);
+            cash.PayAsync(new CashInput { CariId = account, Tutar = 70m, Hesap = LedgerAccountType.Kasa, IslemAnahtari = k }));
+        await sp.GetRequiredService<DepositService>().GetAsync(account, 50m, LedgerAccountType.Kasa, operationKey: k);
 
-        Assert.Equal(-100m, await Cari(sp, cari));                          // ELLE: yalnız tahsilat
-        Assert.Equal(50m, await sp.GetRequiredService<DepositService>().GetBalanceAsync(cari));
-        Assert.Equal(150m, await Bakiye(sp, LedgerAccountType.Kasa));        // ELLE: 100 + 50
-        await DengeAsync(sp);
+        Assert.Equal(-100m, await Account(sp, account));                          // ELLE: yalnız tahsilat
+        Assert.Equal(50m, await sp.GetRequiredService<DepositService>().GetBalanceAsync(account));
+        Assert.Equal(150m, await Balance(sp, LedgerAccountType.Kasa));        // ELLE: 100 + 50
+        await BalanceCheckAsync(sp);
     }
 
     [Fact]
@@ -1356,20 +1356,20 @@ public sealed class IdempotencyEnvanteriTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(tenant, user);
         var sp = scope.ServiceProvider;
-        var (kira, musteri, _) = await KiraOlustur(sp, "34 ID 40", KiraBas, 3);
-        var kasa = sp.GetRequiredService<CashService>();
-        var panelAnahtari = RentACar.Web.Finance.TahsilatAnahtar.Uret(kira, 300m, 0);
+        var (rental, customer, _) = await CreateRental(sp, "34 ID 40", RentalStart, 3);
+        var cash = sp.GetRequiredService<CashService>();
+        var panelKey = RentACar.Web.Finance.CollectionKey.Generate(rental, 300m, 0);
 
-        var sekme1 = OperationKeyDeriver.Select(panelAnahtari, OperationKeyDeriver.Derive(tenant, user, "sekme-1-rastgele-anahtar"));
-        var sekme2 = OperationKeyDeriver.Select(panelAnahtari, OperationKeyDeriver.Derive(tenant, user, "sekme-2-rastgele-anahtar"));
-        Assert.Equal(panelAnahtari, sekme1);
-        Assert.Equal(panelAnahtari, sekme2);
+        var tab1 = OperationKeyDeriver.Select(panelKey, OperationKeyDeriver.Derive(tenant, user, "sekme-1-rastgele-anahtar"));
+        var tab2 = OperationKeyDeriver.Select(panelKey, OperationKeyDeriver.Derive(tenant, user, "sekme-2-rastgele-anahtar"));
+        Assert.Equal(panelKey, tab1);
+        Assert.Equal(panelKey, tab2);
 
-        await kasa.CollectAsync(new CashInput { CariId = musteri, RentalId = kira, Tutar = 300m, Hesap = LedgerAccountType.Kasa, IslemAnahtari = sekme1 });
+        await cash.CollectAsync(new CashInput { CariId = customer, RentalId = rental, Tutar = 300m, Hesap = LedgerAccountType.Kasa, IslemAnahtari = tab1 });
         await Assert.ThrowsAsync<DuplicateOperationException>(() =>
-            kasa.CollectAsync(new CashInput { CariId = musteri, RentalId = kira, Tutar = 300m, Hesap = LedgerAccountType.Kasa, IslemAnahtari = sekme2 }));
+            cash.CollectAsync(new CashInput { CariId = customer, RentalId = rental, Tutar = 300m, Hesap = LedgerAccountType.Kasa, IslemAnahtari = tab2 }));
 
-        Assert.Equal(-300m, await Cari(sp, musteri));                       // ELLE: tek tahsilat 300
+        Assert.Equal(-300m, await Account(sp, customer));                       // ELLE: tek tahsilat 300
         Assert.Equal(1, await Say(sp, db => db.CashTransactions));
     }
 
@@ -1382,26 +1382,26 @@ public sealed class IdempotencyEnvanteriTests(PostgresFixture fx)
         using var scope = host.ScopeFor(Guid.NewGuid());
         var sp = scope.ServiceProvider;
         var dep = sp.GetRequiredService<DepositService>();
-        var kasa = sp.GetRequiredService<CashService>();
-        var cari = await CariOlustur(sp);
+        var cash = sp.GetRequiredService<CashService>();
+        var account = await CreateCustomer(sp);
         var k = Guid.NewGuid();
 
         // (a) Depozito: tutulan yokken iade → bakiye çiti (kilidin arkasında) reddeder, hiçbir şey yazılmaz.
-        await Assert.ThrowsAsync<ValidationException>(() => dep.RefundAsync(cari, 200m, LedgerAccountType.Kasa, operationKey: k));
-        await dep.GetAsync(cari, 500m, LedgerAccountType.Kasa);
-        await dep.RefundAsync(cari, 200m, LedgerAccountType.Kasa, operationKey: k);   // AYNI anahtar → yazılır
-        Assert.Equal(300m, await dep.GetBalanceAsync(cari));                         // ELLE: 500 − 200
+        await Assert.ThrowsAsync<ValidationException>(() => dep.RefundAsync(account, 200m, LedgerAccountType.Kasa, operationKey: k));
+        await dep.GetAsync(account, 500m, LedgerAccountType.Kasa);
+        await dep.RefundAsync(account, 200m, LedgerAccountType.Kasa, operationKey: k);   // AYNI anahtar → yazılır
+        Assert.Equal(300m, await dep.GetBalanceAsync(account));                         // ELLE: 500 − 200
 
         // (b) Tek-cari kapatma: borç yokken → red; borç oluşunca AYNI anahtarla → yazılır.
         var k2 = Guid.NewGuid();
-        var baska = await CariOlustur(sp, "Borclu");
-        await kasa.PayAsync(new CashInput { CariId = baska, Tutar = 100m, Hesap = LedgerAccountType.Kasa });
-        var kalem = (await kasa.GetStatementAsync(baska)).Satirlar.Single(x => x.Direction == LedgerDirection.Debit).Id;
+        var other = await CreateCustomer(sp, "Borclu");
+        await cash.PayAsync(new CashInput { CariId = other, Tutar = 100m, Hesap = LedgerAccountType.Kasa });
+        var item = (await cash.GetStatementAsync(other)).Satirlar.Single(x => x.Direction == LedgerDirection.Debit).Id;
         await Assert.ThrowsAsync<ValidationException>(() =>
-            kasa.CloseSingleAccountBulkAsync(baska, new Dictionary<Guid, decimal?> { [kalem] = 150m }, LedgerAccountType.Kasa, operationKey: k2));
-        Assert.Equal(100m, await kasa.CloseSingleAccountBulkAsync(baska, [kalem], LedgerAccountType.Kasa, operationKey: k2));
-        Assert.Equal(0m, await Cari(sp, baska));
-        await DengeAsync(sp);
+            cash.CloseSingleAccountBulkAsync(other, new Dictionary<Guid, decimal?> { [item] = 150m }, LedgerAccountType.Kasa, operationKey: k2));
+        Assert.Equal(100m, await cash.CloseSingleAccountBulkAsync(other, [item], LedgerAccountType.Kasa, operationKey: k2));
+        Assert.Equal(0m, await Account(sp, other));
+        await BalanceCheckAsync(sp);
     }
 
     // =====================================================================================
@@ -1415,8 +1415,8 @@ public sealed class IdempotencyEnvanteriTests(PostgresFixture fx)
         using var scope = host.ScopeFor(Guid.NewGuid());
         var sp = scope.ServiceProvider;
         var fat = sp.GetRequiredService<InvoiceService>();
-        var a = await CariOlustur(sp, "A");
-        var b = await CariOlustur(sp, "B");
+        var a = await CreateCustomer(sp, "A");
+        var b = await CreateCustomer(sp, "B");
         var k = Guid.NewGuid();
 
         Assert.Equal(k, await fat.CreateManualAsync(new ManualInvoiceInput { CariId = a, NetTutar = 1000m, KdvOrani = 0m, IslemAnahtari = k }));
@@ -1430,10 +1430,10 @@ public sealed class IdempotencyEnvanteriTests(PostgresFixture fx)
         // Birebir aynı tekrar → sessiz, aynı id.
         Assert.Equal(k, await fat.CreateManualAsync(new ManualInvoiceInput { CariId = a, NetTutar = 1000m, KdvOrani = 0m, IslemAnahtari = k }));
 
-        Assert.Equal(1000m, await Cari(sp, a));                             // ELLE: tek fatura 1000 (KDV 0)
-        Assert.Equal(0m, await Cari(sp, b));                                // B'ye hiçbir şey yazılmadı
+        Assert.Equal(1000m, await Account(sp, a));                             // ELLE: tek fatura 1000 (KDV 0)
+        Assert.Equal(0m, await Account(sp, b));                                // B'ye hiçbir şey yazılmadı
         Assert.Equal(1, await Say(sp, db => db.Invoices));
-        await DengeAsync(sp);
+        await BalanceCheckAsync(sp);
     }
 
     [Fact]
@@ -1443,25 +1443,25 @@ public sealed class IdempotencyEnvanteriTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(tenant);
         var sp = scope.ServiceProvider;
-        var a = await CariOlustur(sp, "A");
-        var b = await CariOlustur(sp, "B");
+        var a = await CreateCustomer(sp, "A");
+        var b = await CreateCustomer(sp, "B");
         var k = Guid.NewGuid();
-        var sira = 0;
+        var order = 0;
 
         // Yarış yolu (PK_Invoices dalı) da içerik karşılaştırır.
-        var sonuc = await IkiEsZamanli(host, tenant, s => s.GetRequiredService<InvoiceService>().CreateManualAsync(
-            Interlocked.Increment(ref sira) == 1
+        var result = await TwoConcurrent(host, tenant, s => s.GetRequiredService<InvoiceService>().CreateManualAsync(
+            Interlocked.Increment(ref order) == 1
                 ? new ManualInvoiceInput { CariId = a, NetTutar = 1000m, KdvOrani = 0m, IslemAnahtari = k }
                 : new ManualInvoiceInput { CariId = b, NetTutar = 5000m, KdvOrani = 0m, IslemAnahtari = k }));
 
-        Assert.Single(sonuc, r => r.Hata is null);
-        var hata = Assert.IsType<DuplicateOperationException>(Assert.Single(sonuc, r => r.Hata is not null).Hata);
-        Assert.Equal(DuplicateOperationException.DifferentContentMessage, hata.Message);
+        Assert.Single(result, r => r.Hata is null);
+        var error = Assert.IsType<DuplicateOperationException>(Assert.Single(result, r => r.Hata is not null).Hata);
+        Assert.Equal(DuplicateOperationException.DifferentContentMessage, error.Message);
         Assert.Equal(1, await Say(sp, db => db.Invoices));
         // ELLE: kazanan hangisiyse yalnız onun tutarı yazıldı (A 1000 ya da B 5000), diğeri 0.
-        var (ba, bb) = (await Cari(sp, a), await Cari(sp, b));
+        var (ba, bb) = (await Account(sp, a), await Account(sp, b));
         Assert.True((ba == 1000m && bb == 0m) || (ba == 0m && bb == 5000m), $"A={ba} B={bb}");
-        await DengeAsync(sp);
+        await BalanceCheckAsync(sp);
     }
 
     [Fact]
@@ -1471,8 +1471,8 @@ public sealed class IdempotencyEnvanteriTests(PostgresFixture fx)
         using var scope = host.ScopeFor(Guid.NewGuid());
         var sp = scope.ServiceProvider;
         var dep = sp.GetRequiredService<DepositService>();
-        var a = await CariOlustur(sp, "A");
-        var b = await CariOlustur(sp, "B");
+        var a = await CreateCustomer(sp, "A");
+        var b = await CreateCustomer(sp, "B");
         await dep.GetAsync(a, 500m, LedgerAccountType.Kasa);
         await dep.GetAsync(b, 100m, LedgerAccountType.Kasa);
         var k = Guid.NewGuid();
@@ -1489,9 +1489,9 @@ public sealed class IdempotencyEnvanteriTests(PostgresFixture fx)
 
         Assert.Equal(300m, await dep.GetBalanceAsync(a));                    // ELLE: 500 − 200 (tek)
         Assert.Equal(100m, await dep.GetBalanceAsync(b));                    // ELLE: dokunulmadı
-        Assert.Equal(400m, await Bakiye(sp, LedgerAccountType.Kasa));       // ELLE: 500 + 100 − 200
-        Assert.Equal(0m, await Bakiye(sp, LedgerAccountType.Banka));
-        await DengeAsync(sp);
+        Assert.Equal(400m, await Balance(sp, LedgerAccountType.Kasa));       // ELLE: 500 + 100 − 200
+        Assert.Equal(0m, await Balance(sp, LedgerAccountType.Banka));
+        await BalanceCheckAsync(sp);
     }
 
     [Fact]
@@ -1503,24 +1503,24 @@ public sealed class IdempotencyEnvanteriTests(PostgresFixture fx)
         using var scope = host.ScopeFor(tenant);
         var sp = scope.ServiceProvider;
         var dep = sp.GetRequiredService<DepositService>();
-        var a = await CariOlustur(sp, "A");
-        var b = await CariOlustur(sp, "B");
+        var a = await CreateCustomer(sp, "A");
+        var b = await CreateCustomer(sp, "B");
         await dep.GetAsync(a, 500m, LedgerAccountType.Kasa);
         await dep.GetAsync(b, 100m, LedgerAccountType.Kasa);
         var k = Guid.NewGuid();
-        var sira = 0;
+        var order = 0;
 
-        var sonuc = await IkiEsZamanli(host, tenant, s => Interlocked.Increment(ref sira) == 1
+        var result = await TwoConcurrent(host, tenant, s => Interlocked.Increment(ref order) == 1
             ? s.GetRequiredService<DepositService>().RefundAsync(a, 200m, LedgerAccountType.Kasa, operationKey: k)
             : s.GetRequiredService<DepositService>().RefundAsync(b, 50m, LedgerAccountType.Kasa, operationKey: k));
 
-        Assert.Single(sonuc, r => r.Hata is null);
-        Assert.IsType<DuplicateOperationException>(Assert.Single(sonuc, r => r.Hata is not null).Hata);
+        Assert.Single(result, r => r.Hata is null);
+        Assert.IsType<DuplicateOperationException>(Assert.Single(result, r => r.Hata is not null).Hata);
         // ELLE: ya A 500→300 (B 100) ya B 100→50 (A 500).
         var (da, db2) = (await dep.GetBalanceAsync(a), await dep.GetBalanceAsync(b));
         Assert.True((da == 300m && db2 == 100m) || (da == 500m && db2 == 50m), $"A={da} B={db2}");
-        Assert.Equal(2, await DefterSatir(sp, "DepozitoIade"));
-        await DengeAsync(sp);
+        Assert.Equal(2, await LedgerLine(sp, "DepozitoIade"));
+        await BalanceCheckAsync(sp);
     }
 
     [Fact]
@@ -1530,7 +1530,7 @@ public sealed class IdempotencyEnvanteriTests(PostgresFixture fx)
         using var scope = host.ScopeFor(Guid.NewGuid());
         var sp = scope.ServiceProvider;
         var gid = sp.GetRequiredService<ExpenseService>();
-        var ted = await CariOlustur(sp, "Tedarikci");
+        var ted = await CreateCustomer(sp, "Tedarikci");
         var x = await gid.CreateAsync(new ExpenseInput
         { Tip = ExpenseType.Genel, NetTutar = 1000m, KdvOrani = 0.20m, OdemeYontemi = PaymentMethod.AcikHesap, CariId = ted });
         var y = await gid.CreateAsync(new ExpenseInput
@@ -1548,9 +1548,9 @@ public sealed class IdempotencyEnvanteriTests(PostgresFixture fx)
         // Birebir aynı tekrar → sessiz null.
         Assert.Null(await gid.AddPaymentAsync(new GiderOdemeInput { ExpenseId = x, Tutar = 400m, IslemAnahtari = k }));
 
-        var durum = await gid.PaymentStatusesAsync(await gid.ListAsync());
-        Assert.Equal(800m, durum[x].Kalan);                                 // ELLE: 1200 − 400 (tek)
-        Assert.Equal(300m, durum[y].Kalan);                                 // ELLE: dokunulmadı
+        var status = await gid.PaymentStatusesAsync(await gid.ListAsync());
+        Assert.Equal(800m, status[x].Kalan);                                 // ELLE: 1200 − 400 (tek)
+        Assert.Equal(300m, status[y].Kalan);                                 // ELLE: dokunulmadı
         Assert.Equal(1, await Say(sp, db => db.Set<GiderOdeme>()));
     }
 
@@ -1562,20 +1562,20 @@ public sealed class IdempotencyEnvanteriTests(PostgresFixture fx)
         using var scope = host.ScopeFor(tenant);
         var sp = scope.ServiceProvider;
         var gid = sp.GetRequiredService<ExpenseService>();
-        var ted = await CariOlustur(sp, "Tedarikci");
+        var ted = await CreateCustomer(sp, "Tedarikci");
         var x = await gid.CreateAsync(new ExpenseInput
         { Tip = ExpenseType.Genel, NetTutar = 1000m, KdvOrani = 0m, OdemeYontemi = PaymentMethod.AcikHesap, CariId = ted });
         var y = await gid.CreateAsync(new ExpenseInput
         { Tip = ExpenseType.Genel, NetTutar = 300m, KdvOrani = 0m, OdemeYontemi = PaymentMethod.AcikHesap, CariId = ted });
         var k = Guid.NewGuid();
-        var sira = 0;
+        var order = 0;
 
-        var sonuc = await IkiEsZamanli(host, tenant, s => Interlocked.Increment(ref sira) == 1
+        var result = await TwoConcurrent(host, tenant, s => Interlocked.Increment(ref order) == 1
             ? s.GetRequiredService<ExpenseService>().AddPaymentAsync(new GiderOdemeInput { ExpenseId = x, Tutar = 400m, IslemAnahtari = k })
             : s.GetRequiredService<ExpenseService>().AddPaymentAsync(new GiderOdemeInput { ExpenseId = y, Tutar = 100m, IslemAnahtari = k }));
 
-        Assert.Single(sonuc, r => r.Hata is null && r.Deger is not null);
-        Assert.IsType<DuplicateOperationException>(Assert.Single(sonuc, r => r.Hata is not null).Hata);
+        Assert.Single(result, r => r.Hata is null && r.Deger is not null);
+        Assert.IsType<DuplicateOperationException>(Assert.Single(result, r => r.Hata is not null).Hata);
         Assert.Equal(1, await Say(sp, db => db.Set<GiderOdeme>()));
     }
 
@@ -1586,22 +1586,22 @@ public sealed class IdempotencyEnvanteriTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
         var sp = scope.ServiceProvider;
-        var kasa = sp.GetRequiredService<CashService>();
+        var cash = sp.GetRequiredService<CashService>();
         var duz = sp.GetRequiredService<BalanceAdjustmentService>();
-        var a = await CariOlustur(sp, "A");
-        var b = await CariOlustur(sp, "B");
-        var c = await CariOlustur(sp, "C");
+        var a = await CreateCustomer(sp, "A");
+        var b = await CreateCustomer(sp, "B");
+        var c = await CreateCustomer(sp, "C");
 
         var kv = Guid.NewGuid();
-        await kasa.TransferAsync(LedgerAccountType.Kasa, LedgerAccountType.Banka, 500m, operationKey: kv);
-        await Assert.ThrowsAsync<DuplicateOperationException>(() => kasa.TransferAsync(LedgerAccountType.Kasa, LedgerAccountType.Banka, 700m, operationKey: kv));
-        await Assert.ThrowsAsync<DuplicateOperationException>(() => kasa.TransferAsync(LedgerAccountType.Banka, LedgerAccountType.Kasa, 500m, operationKey: kv));
-        await kasa.TransferAsync(LedgerAccountType.Kasa, LedgerAccountType.Banka, 500m, operationKey: kv); // aynı → sessiz
+        await cash.TransferAsync(LedgerAccountType.Kasa, LedgerAccountType.Banka, 500m, operationKey: kv);
+        await Assert.ThrowsAsync<DuplicateOperationException>(() => cash.TransferAsync(LedgerAccountType.Kasa, LedgerAccountType.Banka, 700m, operationKey: kv));
+        await Assert.ThrowsAsync<DuplicateOperationException>(() => cash.TransferAsync(LedgerAccountType.Banka, LedgerAccountType.Kasa, 500m, operationKey: kv));
+        await cash.TransferAsync(LedgerAccountType.Kasa, LedgerAccountType.Banka, 500m, operationKey: kv); // aynı → sessiz
 
         var kc = Guid.NewGuid();
-        await kasa.TransferBetweenAccountsAsync(a, b, 300m, operationKey: kc);
-        await Assert.ThrowsAsync<DuplicateOperationException>(() => kasa.TransferBetweenAccountsAsync(a, c, 300m, operationKey: kc));
-        await Assert.ThrowsAsync<DuplicateOperationException>(() => kasa.TransferBetweenAccountsAsync(a, b, 301m, operationKey: kc));
+        await cash.TransferBetweenAccountsAsync(a, b, 300m, operationKey: kc);
+        await Assert.ThrowsAsync<DuplicateOperationException>(() => cash.TransferBetweenAccountsAsync(a, c, 300m, operationKey: kc));
+        await Assert.ThrowsAsync<DuplicateOperationException>(() => cash.TransferBetweenAccountsAsync(a, b, 301m, operationKey: kc));
 
         var kd = Guid.NewGuid();
         await duz.AdjustAsync(new BakiyeDuzeltmeInput { CariId = c, Tutar = 150m, Yon = BalanceAdjustmentDirection.Borclandir, IslemAnahtari = kd });
@@ -1610,12 +1610,12 @@ public sealed class IdempotencyEnvanteriTests(PostgresFixture fx)
         await Assert.ThrowsAsync<DuplicateOperationException>(() =>
             duz.AdjustAsync(new BakiyeDuzeltmeInput { CariId = c, Tutar = 150m, Yon = BalanceAdjustmentDirection.Alacaklandir, IslemAnahtari = kd }));
 
-        Assert.Equal(-500m, await Bakiye(sp, LedgerAccountType.Kasa));      // ELLE: tek virman 500
-        Assert.Equal(500m, await Bakiye(sp, LedgerAccountType.Banka));
-        Assert.Equal(-300m, await Cari(sp, a));                              // ELLE: yalnız a→b 300
-        Assert.Equal(300m, await Cari(sp, b));
-        Assert.Equal(150m, await Cari(sp, c));                               // ELLE: yalnız düzeltme 150
-        await DengeAsync(sp);
+        Assert.Equal(-500m, await Balance(sp, LedgerAccountType.Kasa));      // ELLE: tek virman 500
+        Assert.Equal(500m, await Balance(sp, LedgerAccountType.Banka));
+        Assert.Equal(-300m, await Account(sp, a));                              // ELLE: yalnız a→b 300
+        Assert.Equal(300m, await Account(sp, b));
+        Assert.Equal(150m, await Account(sp, c));                               // ELLE: yalnız düzeltme 150
+        await BalanceCheckAsync(sp);
     }
 
     [Fact]
@@ -1624,18 +1624,18 @@ public sealed class IdempotencyEnvanteriTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
         var sp = scope.ServiceProvider;
-        var cari = Guid.NewGuid();
+        var account = Guid.NewGuid();
         var t = new DateTimeOffset(2026, 2, 1, 0, 0, 0, TimeSpan.Zero);
-        HgsReflectionService Hgs(decimal tutar) => new(new SahteHgs([new TollCrossing(t, "Köprü", tutar)]),
+        HgsReflectionService Hgs(decimal amount) => new(new HgsFake([new TollCrossing(t, "Köprü", amount)]),
             sp.GetRequiredService<ILedgerPoster>(), sp.GetRequiredService<IPeriodLockGuard>(), sp.GetRequiredService<ICurrentUser>());
 
-        await Hgs(100m).ReflectAsync(cari, "34ID50", t, t.AddDays(1));
+        await Hgs(100m).ReflectAsync(account, "34ID50", t, t.AddDays(1));
         // Aynı (cari, plaka, dönem) → aynı deterministik anahtar; geçiş tutarı değişmişse eskiden sessizce
         // yutuluyordu (fark hiç borçlandırılmıyordu, sonuç "yansıtıldı 206" diyordu).
-        await Assert.ThrowsAsync<DuplicateOperationException>(() => Hgs(200m).ReflectAsync(cari, "34ID50", t, t.AddDays(1)));
-        await Hgs(100m).ReflectAsync(cari, "34ID50", t, t.AddDays(1));   // aynı → sessiz
+        await Assert.ThrowsAsync<DuplicateOperationException>(() => Hgs(200m).ReflectAsync(account, "34ID50", t, t.AddDays(1)));
+        await Hgs(100m).ReflectAsync(account, "34ID50", t, t.AddDays(1));   // aynı → sessiz
 
-        Assert.Equal(103m, await Cari(sp, cari));                          // ELLE: 100 × 1,03 (tek)
+        Assert.Equal(103m, await Account(sp, account));                          // ELLE: 100 × 1,03 (tek)
     }
 
     [Fact]
@@ -1645,16 +1645,16 @@ public sealed class IdempotencyEnvanteriTests(PostgresFixture fx)
         using var scope = host.ScopeFor(Guid.NewGuid());
         var sp = scope.ServiceProvider;
         var dep = sp.GetRequiredService<DepositService>();
-        var (kira, musteri, _) = await KiraOlustur(sp, "34 ID 51", KiraBas, 3);
-        await dep.GetAsync(musteri, 400m, LedgerAccountType.Kasa);
+        var (rental, customer, _) = await CreateRental(sp, "34 ID 51", RentalStart, 3);
+        await dep.GetAsync(customer, 400m, LedgerAccountType.Kasa);
         var k = Guid.NewGuid();
 
-        await dep.ForfeitAsync(musteri, 100m, operationKey: k);
+        await dep.ForfeitAsync(customer, 100m, operationKey: k);
         // Aynı cari/tutar ama gelir başka araca (kiraya) atfediliyor → farklı işlem → 409.
-        await Assert.ThrowsAsync<DuplicateOperationException>(() => dep.ForfeitAsync(musteri, 100m, rentalId: kira, operationKey: k));
-        Assert.Equal(k, await dep.ForfeitAsync(musteri, 100m, operationKey: k));   // aynı → sessiz
+        await Assert.ThrowsAsync<DuplicateOperationException>(() => dep.ForfeitAsync(customer, 100m, rentalId: rental, operationKey: k));
+        Assert.Equal(k, await dep.ForfeitAsync(customer, 100m, operationKey: k));   // aynı → sessiz
 
-        Assert.Equal(300m, await dep.GetBalanceAsync(musteri));               // ELLE: 400 − 100
+        Assert.Equal(300m, await dep.GetBalanceAsync(customer));               // ELLE: 400 − 100
         Assert.Equal(1, await Say(sp, db => db.DepozitoIratlar));
     }
 
@@ -1665,14 +1665,14 @@ public sealed class IdempotencyEnvanteriTests(PostgresFixture fx)
         using var scope = host.ScopeFor(Guid.NewGuid());
         var sp = scope.ServiceProvider;
         var fat = sp.GetRequiredService<InvoiceService>();
-        var (kira, musteri, _) = await KiraOlustur(sp, "34 ID 52", KiraBas, 90);
+        var (rental, customer, _) = await CreateRental(sp, "34 ID 52", RentalStart, 90);
 
-        var f1 = await fat.CreatePeriodInvoiceAsync(kira, 1, vatRate: 0.20m);
-        await Assert.ThrowsAsync<DuplicateOperationException>(() => fat.CreatePeriodInvoiceAsync(kira, 1, vatRate: 0.10m));
-        Assert.Equal(f1, await fat.CreatePeriodInvoiceAsync(kira, 1, vatRate: 0.20m));   // aynı oran → sessiz
-        Assert.Equal(f1, await fat.CreatePeriodInvoiceAsync(kira, 1));                    // oran verilmedi → sessiz
+        var f1 = await fat.CreatePeriodInvoiceAsync(rental, 1, vatRate: 0.20m);
+        await Assert.ThrowsAsync<DuplicateOperationException>(() => fat.CreatePeriodInvoiceAsync(rental, 1, vatRate: 0.10m));
+        Assert.Equal(f1, await fat.CreatePeriodInvoiceAsync(rental, 1, vatRate: 0.20m));   // aynı oran → sessiz
+        Assert.Equal(f1, await fat.CreatePeriodInvoiceAsync(rental, 1));                    // oran verilmedi → sessiz
 
-        Assert.Equal(3100m, await Cari(sp, musteri));                        // ELLE: D1 31 × 100 (tek)
+        Assert.Equal(3100m, await Account(sp, customer));                        // ELLE: D1 31 × 100 (tek)
         Assert.Equal(1, await Say(sp, db => db.Invoices));
     }
 }

@@ -12,9 +12,9 @@
 @* Tenant renk kodları CSS özel değişkeni olarak basılır; CSS tarafı var(--x, eski-sabit) ile
    okuduğu için renk seçilmemişse görünüm DEĞİŞMEZ. Değerler servis katmanında #rrggbb olarak
    doğrulanıyor (serbest metin CSS'e sızamaz). *@
-@if (_renkler.Length > 0)
+@if (_colors.Length > 0)
 {
-    <style>:root { @((MarkupString)_renkler) }</style>
+    <style>:root { @((MarkupString)_colors) }</style>
 }
 
 <AuthorizeView>
@@ -41,30 +41,30 @@
                     <div class="sb-quick">
                         @foreach (var o in _menu.Hizli)
                         {
-                            <a href="@Adres(o)" data-enhance-nav="@EnhanceNav(o)"><span class="ic"></span> @o.Etiket</a>
+                            <a href="@Address(o)" data-enhance-nav="@EnhanceNav(o)"><span class="ic"></span> @o.Etiket</a>
                         }
                     </div>
                 }
 
                 <nav class="sb-nav">
-                    @foreach (var blok in _menu.Bloklar)
+                    @foreach (var block in _menu.Bloklar)
                     {
-                        if (blok.Grup.Length == 0)
+                        if (block.Grup.Length == 0)
                         {
-                            var o = blok.Ogeler[0];
-                            <a class="nav-solo" href="@Adres(o)" data-enhance-nav="@EnhanceNav(o)" style="display:flex;align-items:center;gap:.4rem;padding:.6rem 1rem;color:var(--tr-sidebar-tx);text-decoration:none;">
+                            var o = block.Ogeler[0];
+                            <a class="nav-solo" href="@Address(o)" data-enhance-nav="@EnhanceNav(o)" style="display:flex;align-items:center;gap:.4rem;padding:.6rem 1rem;color:var(--tr-sidebar-tx);text-decoration:none;">
                                 <span class="ic" style="width:1.2rem;display:inline-block;text-align:center;"></span> @o.Etiket
-                                @if (Rozet(o) is > 0 and var n) { <span class="badge-unread">@n</span> }
+                                @if (Badge(o) is > 0 and var n) { <span class="badge-unread">@n</span> }
                             </a>
                         }
                         else
                         {
-                            <details class="nav-group" open="@GrupAcik(blok)">
-                                <summary><span class="ic"></span> @blok.Grup <span class="chev"></span></summary>
+                            <details class="nav-group" open="@IsGroupOpen(block)">
+                                <summary><span class="ic"></span> @block.Grup <span class="chev"></span></summary>
                                 <div class="sub">
-                                    @foreach (var o in blok.Ogeler)
+                                    @foreach (var o in block.Ogeler)
                                     {
-                                        <a href="@Adres(o)" data-enhance-nav="@EnhanceNav(o)">@o.Etiket @if (Rozet(o) is > 0 and var n) { <span class="badge warn">@n</span> }</a>
+                                        <a href="@Address(o)" data-enhance-nav="@EnhanceNav(o)">@o.Etiket @if (Badge(o) is > 0 and var n) { <span class="badge warn">@n</span> }</a>
                                     }
                                 </div>
                             </details>
@@ -125,9 +125,9 @@
    `position: fixed` (app.css) → sayfa akışına yükseklik EKLEMEZ; aksi halde her POST sonrası
    içerik bir şerit kadar aşağı kayardı. rc-bildirim.js 5 sn sonra kapatır ve `bilgi`
    parametresini URL'den düşürür (F5'te mesaj tekrar çıkmasın). *@
-@if (_bilgi is not null)
+@if (_info is not null)
 {
-    <div id="rc-bildirim" class="ok" role="status" aria-live="polite" data-rc-bildirim>@_bilgi</div>
+    <div id="rc-bildirim" class="ok" role="status" aria-live="polite" data-rc-bildirim>@_info</div>
 }
 
 <div id="blazor-error-ui" data-nosnippet>
@@ -140,16 +140,16 @@
 
 @code {
     /// <summary>":root" içine basılacak --tr-renk-* bildirimleri (boşsa hiç style basılmaz).</summary>
-    private string _renkler = string.Empty;
+    private string _colors = string.Empty;
 
-    private int _okunmamis;
+    private int _unread;
     private string _path = "";
     /// <summary>`?bilgi=` ile taşınan işlem-sonucu mesajı (yoksa şerit hiç render edilmez).</summary>
-    private string? _bilgi;
-    private bool _webSitesiModulu; // PR-12
-    private int _yeniTalep;        // PR-17 cevaplanmamış site talebi sayacı
+    private string? _info;
+    private bool _websiteModule; // PR-12
+    private int _newRequests;        // PR-17 cevaplanmamış site talebi sayacı
     private bool _pilot;           // F4.6: yeni arayüz pilotu (spa menü öğeleri /app'i açar)
-    private MenuGorunumu _menu = MenuGorunumu.Bos;
+    private MenuGorunumu _menu = MenuGorunumu.Empty;
 
     [CascadingParameter] private Task<AuthenticationState>? AuthState { get; set; }
 
@@ -157,48 +157,48 @@
     private sealed record MenuBlogu(string Grup, List<RentACar.Web.Api.Menu.MenuOgesi> Ogeler);
     private sealed record MenuGorunumu(IReadOnlyList<RentACar.Web.Api.Menu.MenuOgesi> Hizli, IReadOnlyList<MenuBlogu> Bloklar)
     {
-        public static readonly MenuGorunumu Bos = new([], []);
+        public static readonly MenuGorunumu Empty = new([], []);
 
-        public static MenuGorunumu Kur(IEnumerable<RentACar.Web.Api.Menu.MenuOgesi> gorunur)
+        public static MenuGorunumu Setup(IEnumerable<RentACar.Web.Api.Menu.MenuOgesi> visible)
         {
-            var sirali = gorunur.OrderBy(o => o.Sira).ToList();
-            var bloklar = new List<MenuBlogu>();
-            var gruplar = new Dictionary<string, MenuBlogu>(StringComparer.Ordinal);
-            foreach (var o in sirali.Where(o => !o.HizliBaglanti))
+            var sorted = visible.OrderBy(o => o.Sira).ToList();
+            var blocks = new List<MenuBlogu>();
+            var groups = new Dictionary<string, MenuBlogu>(StringComparer.Ordinal);
+            foreach (var o in sorted.Where(o => !o.HizliBaglanti))
             {
-                if (o.Grup.Length == 0) { bloklar.Add(new MenuBlogu("", [o])); continue; }
-                if (!gruplar.TryGetValue(o.Grup, out var g))
+                if (o.Grup.Length == 0) { blocks.Add(new MenuBlogu("", [o])); continue; }
+                if (!groups.TryGetValue(o.Grup, out var g))
                 {
                     g = new MenuBlogu(o.Grup, []);
-                    gruplar[o.Grup] = g;
-                    bloklar.Add(g);
+                    groups[o.Grup] = g;
+                    blocks.Add(g);
                 }
                 g.Ogeler.Add(o);
             }
-            return new MenuGorunumu(sirali.Where(o => o.HizliBaglanti).ToList(), bloklar);
+            return new MenuGorunumu(sorted.Where(o => o.HizliBaglanti).ToList(), blocks);
         }
     }
 
     /// <summary>Öğenin açacağı adres: `spa` öğesi pilot firmada /app rotası, pilot olmayanda Blazor karşılığı.</summary>
-    private string Adres(RentACar.Web.Api.Menu.MenuOgesi o)
-        => o.Sahip == RentACar.Web.Api.Menu.MenuKaydi.Spa && !_pilot
-            ? RentACar.Web.Spa.IlkKesis.BlazorKarsiligi(o.Rota) ?? o.Rota
+    private string Address(RentACar.Web.Api.Menu.MenuOgesi o)
+        => o.Sahip == RentACar.Web.Api.Menu.MenuRegistry.Spa && !_pilot
+            ? RentACar.Web.Spa.Cutover.BlazorEquivalent(o.Rota) ?? o.Rota
             : o.Rota;
 
     /// <summary>/app bağlantısı Blazor enhanced navigation'a girmez (tam sayfa geçiş; SPA kendi kabuğunu yükler).</summary>
     private string? EnhanceNav(RentACar.Web.Api.Menu.MenuOgesi o)
-        => RentACar.Web.Spa.IlkKesis.SpaYoluMu(Adres(o)) ? "false" : null;
+        => RentACar.Web.Spa.Cutover.IsSpaPath(Address(o)) ? "false" : null;
 
-    private int Rozet(RentACar.Web.Api.Menu.MenuOgesi o) => o.RozetKodu switch
+    private int Badge(RentACar.Web.Api.Menu.MenuOgesi o) => o.RozetKodu switch
     {
-        RentACar.Web.Api.Menu.MenuKaydi.RozetOkunmamisBildirim => _okunmamis,
-        RentACar.Web.Api.Menu.MenuKaydi.RozetYeniTalep => _yeniTalep,
+        RentACar.Web.Api.Menu.MenuRegistry.BadgeUnreadNotification => _unread,
+        RentACar.Web.Api.Menu.MenuRegistry.BadgeNewRequest => _newRequests,
         _ => 0,
     };
 
     /// <summary>Grup, mevcut sayfa öğelerinden birinin altındaysa AÇIK (Raporlar: tüm /raporlar/* — drill-down dahil).</summary>
-    private bool GrupAcik(MenuBlogu blok)
-        => Acik(blok.Ogeler.Select(Adres).Concat(blok.Grup == "Raporlar" ? new[] { "/raporlar" } : Array.Empty<string>()).ToArray());
+    private bool IsGroupOpen(MenuBlogu block)
+        => IsOpen(block.Ogeler.Select(Address).Concat(block.Grup == "Raporlar" ? new[] { "/raporlar" } : Array.Empty<string>()).ToArray());
 
     protected override async Task OnInitializedAsync()
     {
@@ -212,42 +212,42 @@
             if (q.TryGetValue("bilgi", out var v))
             {
                 var m = v.ToString();
-                if (!string.IsNullOrWhiteSpace(m)) _bilgi = m.Length > 300 ? m[..300] : m;
+                if (!string.IsNullOrWhiteSpace(m)) _info = m.Length > 300 ? m[..300] : m;
             }
         }
-        catch { _bilgi = null; }
-        try { _okunmamis = await Bildirimler.UnreadCountAsync(); }
-        catch { _okunmamis = 0; }
+        catch { _info = null; }
+        try { _unread = await Bildirimler.UnreadCountAsync(); }
+        catch { _unread = 0; }
         // 60 sn cache'li tek okuma; platformdan açılınca en geç o kadar sonra menüde belirir.
-        try { _webSitesiModulu = Tenant.TenantId is { } id && await TenantDurum.WebsiteModuleAsync(id); }
-        catch { _webSitesiModulu = false; } // menü hiçbir koşulda sayfayı düşürmemeli
+        try { _websiteModule = Tenant.TenantId is { } id && await TenantDurum.WebsiteModuleAsync(id); }
+        catch { _websiteModule = false; } // menü hiçbir koşulda sayfayı düşürmemeli
         // PR-17: yalnız modül açıkken sorulur (kapalıysa menü de yok). Yetkisiz rolde guard atar →
         // sayaç 0 gösterilir; menü hiçbir koşulda sayfayı düşürmemeli.
-        if (_webSitesiModulu)
+        if (_websiteModule)
         {
-            try { _yeniTalep = (await Talepler.SummaryAsync()).Yeni; }
-            catch { _yeniTalep = 0; }
+            try { _newRequests = (await Talepler.SummaryAsync()).Yeni; }
+            catch { _newRequests = 0; }
         }
 
         // FAZ-81: tenant renk kodları. Hata hiçbir koşulda layout'u düşürmemeli → boş bırakılır,
         // CSS fallback zinciri eski sabit renkleri kullanır. F4.6: aynı satırdan pilot bayrağı (menü adresleri).
         try
         {
-            var ayar = Tenant.TenantId is null ? null : await AyarRepo.GetAsync();
-            _renkler = RenkBildirimleri(ayar);
-            _pilot = ayar?.YeniArayuzPilot == true;
+            var setting = Tenant.TenantId is null ? null : await AyarRepo.GetAsync();
+            _colors = ColorNotifications(setting);
+            _pilot = setting?.YeniArayuzPilot == true;
         }
-        catch { _renkler = ""; _pilot = false; }
+        catch { _colors = ""; _pilot = false; }
 
         // F4.6: menü kayıttan, etkin izne + modüle göre (yeni arayüzün GET /api/ui/v1/menu'süyle AYNI süzgeç).
         try
         {
             var user = AuthState is null ? null : (await AuthState).User;
             _menu = user?.Identity?.IsAuthenticated == true
-                ? MenuGorunumu.Kur(RentACar.Web.Api.Menu.MenuApi.Gorunur(user, _webSitesiModulu))
-                : MenuGorunumu.Bos;
+                ? MenuGorunumu.Setup(RentACar.Web.Api.Menu.MenuApi.Visible(user, _websiteModule))
+                : MenuGorunumu.Empty;
         }
-        catch { _menu = MenuGorunumu.Bos; }
+        catch { _menu = MenuGorunumu.Empty; }
     }
 
     /// <summary>
@@ -261,33 +261,33 @@
     /// <para>Değerler servis katmanında <c>#rrggbb</c> olarak DOĞRULANIYOR; burada ikinci bir
     /// savunma olarak biçim yeniden sınanır — bu metin doğrudan &lt;style&gt; içine yazılıyor.</para>
     /// </summary>
-    private static string RenkBildirimleri(RentACar.Domain.Entities.TenantSettings? a)
+    private static string ColorNotifications(RentACar.Domain.Entities.TenantSettings? a)
     {
         if (a is null) return "";
         var sb = new System.Text.StringBuilder();
-        void Ekle(string ad, string? renk)
+        void Add(string name, string? renk)
         {
             if (renk is null || !System.Text.RegularExpressions.Regex.IsMatch(renk, "^#[0-9a-fA-F]{6}$")) return;
-            sb.Append("--tr-renk-").Append(ad).Append(':').Append(renk).Append(';');
-            sb.Append("--tr-renk-").Append(ad).Append("-soft:color-mix(in srgb,")
+            sb.Append("--tr-renk-").Append(name).Append(':').Append(renk).Append(';');
+            sb.Append("--tr-renk-").Append(name).Append("-soft:color-mix(in srgb,")
               .Append(renk).Append(" 12%, var(--surface));");
             // Rengin ZEMİN olarak kullanıldığı yerde (acil "Gecikmiş" çipi) üstüne yazılacak metin:
             // sabit beyaz, açık renk seçen tenant'ta okunmuyordu (RenkKontrast).
-            if (RenkKontrast.UzerindekiMetin(renk) is { } uzerinde)
-                sb.Append("--tr-renk-").Append(ad).Append("-on:").Append(uzerinde).Append(';');
+            if (ColorContrast.TextOn(renk) is { } onTop)
+                sb.Append("--tr-renk-").Append(name).Append("-on:").Append(onTop).Append(';');
         }
-        Ekle("gecikenler", a.RenkGecikenler);
-        Ekle("bugun-donecekler", a.RenkBugunDonecekler);
-        Ekle("bugun-cikacaklar", a.RenkBugunCikacaklar);
-        Ekle("opsiyonlu", a.RenkOpsiyonlu);
-        Ekle("limit-bakiye", a.RenkLimitBakiye);
-        Ekle("alacakli", a.RenkAlacakli);
-        Ekle("rez-atanan-plaka", a.RenkRezAtananPlaka);
-        Ekle("kiralanmayan", a.RenkKiralanmayan);
+        Add("gecikenler", a.RenkGecikenler);
+        Add("bugun-donecekler", a.RenkBugunDonecekler);
+        Add("bugun-cikacaklar", a.RenkBugunCikacaklar);
+        Add("opsiyonlu", a.RenkOpsiyonlu);
+        Add("limit-bakiye", a.RenkLimitBakiye);
+        Add("alacakli", a.RenkAlacakli);
+        Add("rez-atanan-plaka", a.RenkRezAtananPlaka);
+        Add("kiralanmayan", a.RenkKiralanmayan);
         return sb.ToString();
     }
 
     // Mevcut sayfa bu modülün altındaysa grubu AÇIK render et (JS'siz oryantasyon).
-    private bool Acik(params string[] prefixler)
-        => prefixler.Any(p => _path == p || _path.StartsWith(p + "/", StringComparison.OrdinalIgnoreCase));
+    private bool IsOpen(params string[] prefixes)
+        => prefixes.Any(p => _path == p || _path.StartsWith(p + "/", StringComparison.OrdinalIgnoreCase));
 }

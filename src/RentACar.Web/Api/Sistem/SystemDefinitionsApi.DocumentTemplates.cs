@@ -32,22 +32,22 @@ public static partial class SystemDefinitionsApi
         {
             var kind = EnumName<BelgeTuru>(tur, "tur");
             var rows = kind is { } k ? await s.ListByTypeAsync(k, ct) : await s.ListAsync(ct);
-            return TypedResults.Ok(F5Ortak.Sayfala(rows.Select(x => DocumentTemplateDto.From(x, null)).ToList(), TemplateSort, sayfa, boyut, sirala));
-        }).AlanlariEsle(F5Ortak.SiralamaKurallari);
+            return TypedResults.Ok(F5Shared.Paginate(rows.Select(x => DocumentTemplateDto.From(x, null)).ToList(), TemplateSort, sayfa, boyut, sirala));
+        }).MapFields(F5Shared.SortRules);
         g.MapGet("/{id:guid}", async Task<Results<Ok<DocumentTemplateDto>, ProblemHttpResult>> (Guid id, DocumentTemplateService s, CancellationToken ct)
             => await TemplateAsync(id, s, ct) is { } d ? TypedResults.Ok(d) : SystemApiCommon.NotFound());
         g.MapPost("", async Task<Results<Created<DocumentTemplateDto>, ProblemHttpResult>> (DocumentTemplateRequest i, DocumentTemplateService s, CancellationToken ct) =>
         {
             var id = await s.CreateAsync(TemplateInput(i), ct);
             return await TemplateAsync(id, s, ct) is { } d ? TypedResults.Created($"{UiApiExtensions.V1}/belge-sablonlari/{id}", d) : SystemApiCommon.NotFound();
-        }).AlanlariEsle(TemplateRules);
+        }).MapFields(TemplateRules);
         g.MapPut("/{id:guid}", async Task<Results<Ok<DocumentTemplateDto>, ProblemHttpResult>> (Guid id, DocumentTemplateRequest i, DocumentTemplateService s, CancellationToken ct) =>
         {
             if (await s.GetAsync(id, ct) is null) return SystemApiCommon.NotFound();
             SystemApiCommon.RequireVersion(i.Surum);
             if (!await s.UpdateAsync(id, TemplateInput(i), i.Surum, ct)) return SystemApiCommon.NotFound();
             return await TemplateAsync(id, s, ct) is { } d ? TypedResults.Ok(d) : SystemApiCommon.NotFound();
-        }).AlanlariEsle(TemplateRules);
+        }).MapFields(TemplateRules);
         g.MapDelete("/{id:guid}", async Task<Results<NoContent, ProblemHttpResult>> (Guid id, DocumentTemplateService s, CancellationToken ct)
             => await s.DeleteAsync(id, ct) ? TypedResults.NoContent() : SystemApiCommon.NotFound());
     }

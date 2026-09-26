@@ -11,18 +11,18 @@ public sealed partial class UiTanimTests
         string RawCode = " ab1 ", string Code = "AB1", string RawCode2 = "zz9", string Code2 = "ZZ9", int CodeMax = 32,
         int NameMax = 128);
 
-    private static object KodAd(string kod, string ad, bool aktif, string? surum) => new { kod, ad, aktif, surum };
+    private static object CodeName(string code, string name, bool active, string? version) => new { kod = code, ad = name, aktif = active, surum = version };
 
     /// <summary>Table of definitions covered by the shared test (F11.1a first half).</summary>
     private static readonly Dictionary<string, DefinitionCase> Cases = new()
     {
-        ["markalar"] = new("/markalar", KodAd),
-        ["iptal-sebepleri"] = new("/iptal-sebepleri", KodAd),
-        ["ulkeler"] = new("/ulkeler", KodAd),
-        ["musteri-gruplari"] = new("/musteri-gruplari", KodAd),
-        ["departmanlar"] = new("/departmanlar", KodAd),
+        ["markalar"] = new("/markalar", CodeName),
+        ["iptal-sebepleri"] = new("/iptal-sebepleri", CodeName),
+        ["ulkeler"] = new("/ulkeler", CodeName),
+        ["musteri-gruplari"] = new("/musteri-gruplari", CodeName),
+        ["departmanlar"] = new("/departmanlar", CodeName),
         ["aksesuarlar"] = new("/aksesuarlar", (k, a, ak, s) => new { kod = k, ad = a, aciklama = "Açıklama", aktif = ak, surum = s }),
-        ["bankalar"] = new("/bankalar", KodAd),
+        ["bankalar"] = new("/bankalar", CodeName),
         ["dovizler"] = new("/dovizler", (k, a, ak, s) => new { kod = k, ad = a, sembol = "$", ulke = "ABD", aktif = ak, surum = s },
             RawCode: " usd ", Code: "USD", RawCode2: "zzz", Code2: "ZZZ", CodeMax: 3),
         ["ozel-kodlar"] = new("/ozel-kodlar", (k, a, ak, s) => new { kod = k, ad = a, aciklama = "Not", turu = "Sınıf", aktif = ak, surum = s }),

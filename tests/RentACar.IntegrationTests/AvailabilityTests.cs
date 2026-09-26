@@ -56,8 +56,8 @@ public sealed class AvailabilityTests(PostgresFixture fx)
             .FindAvailableAsync(WinFrom, WinTo);
 
         // V1 (boş) + V4 (kira pencereden önce biter) + V7 (boş, farklı grup). V2/V3 çakışır, V5 pasif.
-        var plakalar = available.Select(v => v.Plaka).OrderBy(p => p).ToArray();
-        Assert.Equal(new[] { "34A001", "34A004", "34B007" }, plakalar);
+        var plates = available.Select(v => v.Plaka).OrderBy(p => p).ToArray();
+        Assert.Equal(new[] { "34A001", "34A004", "34B007" }, plates);
     }
 
     [Fact]
@@ -68,9 +68,9 @@ public sealed class AvailabilityTests(PostgresFixture fx)
         using var scope = host.ScopeFor(tenant);
         await SeedAsync(scope);
 
-        var grupA = await scope.ServiceProvider.GetRequiredService<AvailabilityService>()
+        var groupA = await scope.ServiceProvider.GetRequiredService<AvailabilityService>()
             .FindAvailableAsync(WinFrom, WinTo, group: "A");
-        Assert.Equal(new[] { "34A001", "34A004" }, grupA.Select(v => v.Plaka).OrderBy(p => p).ToArray());
+        Assert.Equal(new[] { "34A001", "34A004" }, groupA.Select(v => v.Plaka).OrderBy(p => p).ToArray());
     }
 
     [Fact]

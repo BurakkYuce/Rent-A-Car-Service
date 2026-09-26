@@ -38,7 +38,7 @@ public sealed partial class UiSystemSecurityTests
         var admin = await _kit.LoginAsync(e, Who.Admin);
         await Json(await Send(admin, HttpMethod.Put, $"{Users}/{e.UserIds[Who.Manager]}/istisnalar/ManageUsers", new { ver = true }));
         var manager = await _kit.LoginAsync(e, Who.Manager);
-        var pw = WebFixture.RastgeleParola();
+        var pw = WebFixture.RandomPassword();
         var before = await _kit.ReadAsync(e.TenantId, db => db.Users.AsNoTracking().CountAsync(u => u.TenantId == e.TenantId));
 
         await Problem(await Send(manager, HttpMethod.Post, Users, new { kullaniciAdi = Random("adm"), rol = "Admin", sifre = pw }),
@@ -69,12 +69,12 @@ public sealed partial class UiSystemSecurityTests
     {
         var e = await _kit.SetupAsync();
         var admin = await _kit.LoginAsync(e, Who.Admin);
-        var pw = WebFixture.RastgeleParola();
+        var pw = WebFixture.RandomPassword();
         var name = Random("yeni");
         var created = await Json(await Send(admin, HttpMethod.Post, Users, new { kullaniciAdi = name, rol = "Operator", sifre = pw }),
             HttpStatusCode.Created);
         var id = created.GetProperty("id").GetGuid();
-        var reset = WebFixture.RastgeleParola();
+        var reset = WebFixture.RandomPassword();
         Assert.Equal(HttpStatusCode.NoContent, (await Send(admin, HttpMethod.Post, $"{Users}/{id}/sifre", new { sifre = reset })).StatusCode);
         await Json(await Send(admin, HttpMethod.Post, $"{Users}/{id}/aktif", new { aktif = false }));
         await Json(await Send(admin, HttpMethod.Put, $"{Users}/{id}/istisnalar/ViewReports", new { ver = true }));

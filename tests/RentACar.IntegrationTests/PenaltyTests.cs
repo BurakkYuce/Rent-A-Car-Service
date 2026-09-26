@@ -20,7 +20,7 @@ public sealed class PenaltyTests(PostgresFixture fx)
     private sealed class FakeHgsService(IReadOnlyList<TollCrossing> crossings) : IHgsService
     {
         public Task<IReadOnlyList<TollCrossing>> GetCrossingsAsync(
-            string plaka, DateTimeOffset from, DateTimeOffset to, CancellationToken ct = default)
+            string plate, DateTimeOffset from, DateTimeOffset to, CancellationToken ct = default)
             => Task.FromResult(crossings);
     }
 
@@ -31,20 +31,20 @@ public sealed class PenaltyTests(PostgresFixture fx)
         using var scope = host.ScopeFor(Guid.NewGuid());
         var svc = scope.ServiceProvider.GetRequiredService<PenaltyService>();
 
-        var teblig = new DateTimeOffset(2026, 1, 10, 0, 0, 0, TimeSpan.Zero);
+        var notification = new DateTimeOffset(2026, 1, 10, 0, 0, 0, TimeSpan.Zero);
         var id = await svc.CreateAsync(new PenaltyInput
         {
-            CezaTuru = "Hız", TebligTarihi = teblig, VadeGun = 15, Tutar = 500m
+            CezaTuru = "Hız", TebligTarihi = notification, VadeGun = 15, Tutar = 500m
         });
 
         var p = await svc.GetAsync(id);
-        BelgeNoOracle.BeklenenlerdenBiri(8, 1, p!.No);
-        Assert.Equal(teblig.AddDays(15), p.VadeTarihi);
+        DocumentNoOracle.OneOfExpected(8, 1, p!.No);
+        Assert.Equal(notification.AddDays(15), p.VadeTarihi);
         Assert.Equal(PenaltyStatus.Yeni, p.Durum);
 
         // İkinci ceza boşluksuz devam eder.
         var id2 = await svc.CreateAsync(new PenaltyInput { CezaTuru = "Park", Tutar = 100m });
-        BelgeNoOracle.BeklenenlerdenBiri(8, 2, (await svc.GetAsync(id2))!.No);
+        DocumentNoOracle.OneOfExpected(8, 2, (await svc.GetAsync(id2))!.No);
     }
 
     [Fact]
@@ -54,14 +54,14 @@ public sealed class PenaltyTests(PostgresFixture fx)
         using var scope = host.ScopeFor(Guid.NewGuid());
         var svc = scope.ServiceProvider.GetRequiredService<PenaltyService>();
         var cash = scope.ServiceProvider.GetRequiredService<CashService>();
-        var cari = Guid.NewGuid();
+        var account = Guid.NewGuid();
 
-        var id = await svc.CreateAsync(new PenaltyInput { CezaTuru = "Hız", CariId = cari, Tutar = 750m });
+        var id = await svc.CreateAsync(new PenaltyInput { CezaTuru = "Hız", CariId = account, Tutar = 750m });
         Assert.True(await svc.ReflectAsync(id));
 
         Assert.Equal(PenaltyStatus.Yansitildi, (await svc.GetAsync(id))!.Durum);
         // Borç Cari 750 → müşteri borçlu (+750).
-        Assert.Equal(750m, await cash.GetAccountBalanceAsync(cari));
+        Assert.Equal(750m, await cash.GetAccountBalanceAsync(account));
 
         var factory = scope.ServiceProvider.GetRequiredService<IDbContextFactory<AppDbContext>>();
         await using var db = await factory.CreateDbContextAsync();
@@ -81,15 +81,15 @@ public sealed class PenaltyTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
         var svc = scope.ServiceProvider.GetRequiredService<PenaltyService>();
-        var cari = Guid.NewGuid();
+        var account = Guid.NewGuid();
 
-        var id = await svc.CreateAsync(new PenaltyInput { CezaTuru = "Hız", CariId = cari, Tutar = 300m });
+        var id = await svc.CreateAsync(new PenaltyInput { CezaTuru = "Hız", CariId = account, Tutar = 300m });
         Assert.True(await svc.ReflectAsync(id));
         // İkinci yansıtma → zaten Yansitildi → ValidationException (servis guard'ı).
         await Assert.ThrowsAsync<ValidationException>(() => svc.ReflectAsync(id));
 
         var cash = scope.ServiceProvider.GetRequiredService<CashService>();
-        Assert.Equal(300m, await cash.GetAccountBalanceAsync(cari)); // çift borçlanma yok
+        Assert.Equal(300m, await cash.GetAccountBalanceAsync(account)); // çift borçlanma yok
 
         var factory = scope.ServiceProvider.GetRequiredService<IDbContextFactory<AppDbContext>>();
         await using var db = await factory.CreateDbContextAsync();
@@ -103,8 +103,8 @@ public sealed class PenaltyTests(PostgresFixture fx)
         using var scope = host.ScopeFor(Guid.NewGuid());
         var svc = scope.ServiceProvider.GetRequiredService<PenaltyService>();
 
-        var noCari = await svc.CreateAsync(new PenaltyInput { CezaTuru = "Hız", Tutar = 100m });
-        await Assert.ThrowsAsync<ValidationException>(() => svc.ReflectAsync(noCari));
+        var noCustomer = await svc.CreateAsync(new PenaltyInput { CezaTuru = "Hız", Tutar = 100m });
+        await Assert.ThrowsAsync<ValidationException>(() => svc.ReflectAsync(noCustomer));
 
         var paid = await svc.CreateAsync(new PenaltyInput { CezaTuru = "Hız", CariId = Guid.NewGuid(), Tutar = 100m });
         await svc.PayAsync(paid);
@@ -118,7 +118,7 @@ public sealed class PenaltyTests(PostgresFixture fx)
         using var scope = host.ScopeFor(Guid.NewGuid());
         var poster = scope.ServiceProvider.GetRequiredService<ILedgerPoster>();
         var cash = scope.ServiceProvider.GetRequiredService<CashService>();
-        var cari = Guid.NewGuid();
+        var account = Guid.NewGuid();
 
         var t = new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero);
         var fake = new FakeHgsService([
@@ -128,11 +128,11 @@ public sealed class PenaltyTests(PostgresFixture fx)
         var hgs = new HgsReflectionService(fake, poster, scope.ServiceProvider.GetRequiredService<IPeriodLockGuard>(), scope.ServiceProvider.GetRequiredService<RentACar.Domain.Common.ICurrentUser>());
 
         // toplam 150 * 1.03 = 154.50 → cari borçlanır.
-        var result = await hgs.ReflectAsync(cari, "34ABC34", t, t.AddDays(1));
+        var result = await hgs.ReflectAsync(account, "34ABC34", t, t.AddDays(1));
         Assert.Equal(2, result.GecisSayisi);
         Assert.Equal(150m, result.ToplamGecis);
         Assert.Equal(154.50m, result.YansitilanTutar);
-        Assert.Equal(154.50m, await cash.GetAccountBalanceAsync(cari));
+        Assert.Equal(154.50m, await cash.GetAccountBalanceAsync(account));
 
         var factory = scope.ServiceProvider.GetRequiredService<IDbContextFactory<AppDbContext>>();
         await using var db = await factory.CreateDbContextAsync();
@@ -150,18 +150,18 @@ public sealed class PenaltyTests(PostgresFixture fx)
         using var scope = host.ScopeFor(Guid.NewGuid());
         var poster = scope.ServiceProvider.GetRequiredService<ILedgerPoster>();
         var cash = scope.ServiceProvider.GetRequiredService<CashService>();
-        var cari = Guid.NewGuid();
+        var account = Guid.NewGuid();
 
         var t = new DateTimeOffset(2026, 2, 1, 0, 0, 0, TimeSpan.Zero);
         var fake = new FakeHgsService([new TollCrossing(t, "Köprü", 100m)]);
         var hgs = new HgsReflectionService(fake, poster, scope.ServiceProvider.GetRequiredService<IPeriodLockGuard>(), scope.ServiceProvider.GetRequiredService<RentACar.Domain.Common.ICurrentUser>());
 
         // Aynı (cari, plaka, dönem) iki kez yansıt → DETERMİNİSTİK SourceId → ikinci no-op.
-        await hgs.ReflectAsync(cari, "34ABC34", t, t.AddDays(1));
-        await hgs.ReflectAsync(cari, "34ABC34", t, t.AddDays(1));
+        await hgs.ReflectAsync(account, "34ABC34", t, t.AddDays(1));
+        await hgs.ReflectAsync(account, "34ABC34", t, t.AddDays(1));
 
         // 103.00 yalnız BİR kez borçlanmalı (çift faturalama yok).
-        Assert.Equal(103m, await cash.GetAccountBalanceAsync(cari));
+        Assert.Equal(103m, await cash.GetAccountBalanceAsync(account));
 
         var factory = scope.ServiceProvider.GetRequiredService<IDbContextFactory<AppDbContext>>();
         await using var db = await factory.CreateDbContextAsync();
@@ -175,16 +175,16 @@ public sealed class PenaltyTests(PostgresFixture fx)
         using var scope = host.ScopeFor(Guid.NewGuid());
         var poster = scope.ServiceProvider.GetRequiredService<ILedgerPoster>();
         var cash = scope.ServiceProvider.GetRequiredService<CashService>();
-        var cari = Guid.NewGuid();
+        var account = Guid.NewGuid();
 
         var t1 = new DateTimeOffset(2026, 2, 1, 0, 0, 0, TimeSpan.Zero);
         var t2 = new DateTimeOffset(2026, 3, 1, 0, 0, 0, TimeSpan.Zero);
         var hgs = new HgsReflectionService(new FakeHgsService([new TollCrossing(t1, "Köprü", 100m)]), poster, scope.ServiceProvider.GetRequiredService<IPeriodLockGuard>(), scope.ServiceProvider.GetRequiredService<RentACar.Domain.Common.ICurrentUser>());
 
-        await hgs.ReflectAsync(cari, "34ABC34", t1, t1.AddDays(1)); // Şubat dönemi
-        await hgs.ReflectAsync(cari, "34ABC34", t2, t2.AddDays(1)); // Mart dönemi → ayrı
+        await hgs.ReflectAsync(account, "34ABC34", t1, t1.AddDays(1)); // Şubat dönemi
+        await hgs.ReflectAsync(account, "34ABC34", t2, t2.AddDays(1)); // Mart dönemi → ayrı
 
-        Assert.Equal(206m, await cash.GetAccountBalanceAsync(cari)); // 103 + 103, meşru iki dönem
+        Assert.Equal(206m, await cash.GetAccountBalanceAsync(account)); // 103 + 103, meşru iki dönem
     }
 
     [Fact]
@@ -225,9 +225,9 @@ public sealed class PenaltyTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid(), Guid.NewGuid(), "memur");
         var svc = scope.ServiceProvider.GetRequiredService<PenaltyService>();
-        var cari = Guid.NewGuid();
+        var account = Guid.NewGuid();
 
-        var id = await svc.CreateAsync(new PenaltyInput { CezaTuru = "Hız", CariId = cari, Tutar = 200m });
+        var id = await svc.CreateAsync(new PenaltyInput { CezaTuru = "Hız", CariId = account, Tutar = 200m });
         await svc.ReflectAsync(id);          // başlık güncellenir (Yeni → Yansitildi)
         Assert.True(await svc.PayAsync(id)); // başlık tekrar güncellenir (→ Odendi)
 

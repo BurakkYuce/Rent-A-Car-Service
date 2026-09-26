@@ -30,7 +30,7 @@ public static partial class InvoiceUiApi
         ManualInvoiceRequest req, HttpContext http, InvoiceService invoices, ICurrentUser user,
         IDbContextFactory<AppDbContext> dbf, CancellationToken ct)
     {
-        var key = IdempotencyBasligi.ZorunluAnahtar(http);
+        var key = IdempotencyHeader.RequiredKey(http);
         if (req.CariId == Guid.Empty) throw new ValidationException("Cari seçilmelidir.", "cariId");
         Amount(req.NetTutar, "netTutar");
         var rate = req.KdvOrani ?? 0.20m;
@@ -54,10 +54,10 @@ public static partial class InvoiceUiApi
             await RequireCustomerAsync(db, req.CariId, "cariId", ct);
             if (await db.Invoices.AsNoTracking().FirstOrDefaultAsync(i => i.Id == key, ct) is { } existing)
             {
-                var (kdv, _) = VatMath.FromNet(req.NetTutar, rate);
+                var (vat, _) = VatMath.FromNet(req.NetTutar, rate);
                 var same = existing.ManuelMi && !existing.IadeMi && existing.RentalId is null && existing.KaynakKiraId is null
                            && existing.CariId == req.CariId && existing.NetTutar == VatMath.RoundGross(req.NetTutar)
-                           && existing.KdvTutar == kdv;
+                           && existing.KdvTutar == vat;
                 var amount = existing.GenelToplam.ToString("N2", Tr);
                 throw new DuplicateOperationException(
                     string.Format(Tr, same ? ManualAlreadySaved : ManualOtherSaved, existing.No, amount, existing.Currency),
@@ -68,7 +68,7 @@ public static partial class InvoiceUiApi
         var id = await invoices.CreateManualAsync(new ManualInvoiceInput
         {
             CariId = req.CariId, NetTutar = req.NetTutar, KdvOrani = rate, Aciklama = Trimmed(req.Aciklama),
-            Tarih = F5Ortak.Utc(req.Tarih), VadeTarihi = F5Ortak.Utc(req.VadeTarihi), IslemAnahtari = key,
+            Tarih = F5Shared.Utc(req.Tarih), VadeTarihi = F5Shared.Utc(req.VadeTarihi), IslemAnahtari = key,
             IslemSube = Trimmed(req.IslemSube), EvrakNo = Trimmed(req.EvrakNo), FaturaOzelKod = Trimmed(req.FaturaOzelKod),
             OdemeTuru = Trimmed(req.OdemeTuru), GonderimSekli = Trimmed(req.GonderimSekli),
             KdvSifirSebep = Trimmed(req.KdvSifirSebep),
@@ -83,7 +83,7 @@ public static partial class InvoiceUiApi
         Guid id, InvoiceService invoices, ICurrentUser user, IDbContextFactory<AppDbContext> dbf, CancellationToken ct)
     {
         var inv = await invoices.GetAsync(id, ct);
-        if (inv is null) return F5Ortak.Bulunamadi("Fatura bulunamadı.");
+        if (inv is null) return F5Shared.NotFound("Fatura bulunamadı.");
         await using (var db = await dbf.CreateDbContextAsync(ct))
             RequireInScope(user, (await InvoiceBranchesAsync(db, [inv], ct))[inv.Id]);
         var refundId = await invoices.CreateRefundAsync(id, ct: ct);
@@ -100,8 +100,8 @@ public static partial class InvoiceUiApi
         if (ids.Count > InvoiceService.MaxBulkSelection)
             throw new ValidationException($"Tek seferde en çok {InvoiceService.MaxBulkSelection} kira faturalanabilir.", "kiraIds");
         VatRate(req.KdvOrani, "kdvOrani");
-        foreach (var kira in ids)
-            _ = await rentals.GetAsync(kira, ct); // şube kapsamı dışı → 403 (bulunamayan servis çıktısında "atlandı")
+        foreach (var rental in ids)
+            _ = await rentals.GetAsync(rental, ct); // şube kapsamı dışı → 403 (bulunamayan servis çıktısında "atlandı")
 
         var result = await invoices.BatchCreateFromRentalsAsync(ids, req.KdvOrani, ct);
         var cut = new List<DocumentResult>(result.Kesilen.Count);

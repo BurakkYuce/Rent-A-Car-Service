@@ -75,7 +75,7 @@ public sealed class PlatformAdminTests(PostgresFixture fx)
         var c2 = UniqCode();
         await svc.CreateTenantAsync(c1, "A", "admin", "sifre123", "op");
         await svc.CreateTenantAsync(c2, "B", "admin", "sifre123", "op");
-        await EkKullaniciAsync(c1); // c1'e 2. kullanıcı → sayı 2 olmalı
+        await AddUserAsync(c1); // c1'e 2. kullanıcı → sayı 2 olmalı
 
         var rows = await svc.ListTenantsAsync();
         Assert.Contains(rows, r => r.Code == c1); // owner cross-tenant tümünü görür
@@ -96,7 +96,7 @@ public sealed class PlatformAdminTests(PostgresFixture fx)
             () => svc.CreateTenantAsync(UniqCode(), "B", "admin", "123", "op"));   // parola < 6
     }
 
-    private async Task EkKullaniciAsync(string code)
+    private async Task AddUserAsync(string code)
     {
         var options = new DbContextOptionsBuilder<AppDbContext>().UseNpgsql(fx.OwnerConnectionString).Options;
         await using var db = new AppDbContext(options, NullTenantContext.Instance, NullCurrentUser.Instance);

@@ -17,20 +17,20 @@ public sealed class KdvRaporuTests(PostgresFixture fx)
 {
     private static DateTimeOffset D(int y, int m, int d) => new(y, m, d, 0, 0, 0, TimeSpan.Zero);
 
-    private static Invoice Inv(Guid cariId, string no, DateTimeOffset tarih, InvoiceStatus durum, decimal kur, params (decimal oran, decimal net, decimal kdv)[] lines)
+    private static Invoice Inv(Guid customerId, string no, DateTimeOffset date, InvoiceStatus status, decimal exchangeRate, params (decimal oran, decimal net, decimal kdv)[] lines)
     {
         var inv = new Invoice
         {
-            No = no, Durum = durum, CariId = cariId, Tarih = tarih,
-            Currency = kur == 1m ? "TRY" : "USD", Kur = kur,
+            No = no, Durum = status, CariId = customerId, Tarih = date,
+            Currency = exchangeRate == 1m ? "TRY" : "USD", Kur = exchangeRate,
             NetTutar = lines.Sum(l => l.net), KdvTutar = lines.Sum(l => l.kdv),
             GenelToplam = lines.Sum(l => l.net + l.kdv)
         };
-        foreach (var (oran, net, kdv) in lines)
+        foreach (var (rate, net, vat) in lines)
             inv.Lines.Add(new InvoiceLine
             {
                 InvoiceId = inv.Id, Aciklama = "kalem", Miktar = 1m, BirimNetFiyat = net,
-                KdvOrani = oran, SatirNet = net, SatirKdv = kdv, SatirToplam = net + kdv
+                KdvOrani = rate, SatirNet = net, SatirKdv = vat, SatirToplam = net + vat
             });
         return inv;
     }
@@ -57,24 +57,24 @@ public sealed class KdvRaporuTests(PostgresFixture fx)
         }
 
         var svc = scope.ServiceProvider.GetRequiredService<ReportService>();
-        var rapor = await svc.GetVatListAsync(D(2026, 6, 1), D(2026, 6, 30).AddDays(1).AddTicks(-1));
+        var report = await svc.GetVatListAsync(D(2026, 6, 1), D(2026, 6, 30).AddDays(1).AddTicks(-1));
 
-        Assert.Equal(2, rapor.Satirlar.Count); // %10 ve %20
-        var y20 = rapor.Satirlar.Single(s => s.Oran == 0.20m);
+        Assert.Equal(2, report.Satirlar.Count); // %10 ve %20
+        var y20 = report.Satirlar.Single(s => s.Oran == 0.20m);
         Assert.Equal(300m, y20.Net);   // 100 + 200
         Assert.Equal(60m, y20.Kdv);    // 20 + 40
         Assert.Equal(360m, y20.Brut);
         Assert.Equal(2, y20.FaturaAdet); // A + B
 
-        var y10 = rapor.Satirlar.Single(s => s.Oran == 0.10m);
+        var y10 = report.Satirlar.Single(s => s.Oran == 0.10m);
         Assert.Equal(50m, y10.Net);
         Assert.Equal(5m, y10.Kdv);
         Assert.Equal(1, y10.FaturaAdet); // yalnız A
 
-        Assert.Equal(350m, rapor.ToplamNet);   // 300 + 50
-        Assert.Equal(65m, rapor.ToplamKdv);    // 60 + 5
-        Assert.Equal(415m, rapor.ToplamBrut);
-        Assert.Equal(2, rapor.FaturaAdet);     // distinct A, B (C/D hariç)
+        Assert.Equal(350m, report.ToplamNet);   // 300 + 50
+        Assert.Equal(65m, report.ToplamKdv);    // 60 + 5
+        Assert.Equal(415m, report.ToplamBrut);
+        Assert.Equal(2, report.FaturaAdet);     // distinct A, B (C/D hariç)
     }
 
     [Fact]
@@ -93,9 +93,9 @@ public sealed class KdvRaporuTests(PostgresFixture fx)
         }
 
         var svc = scope.ServiceProvider.GetRequiredService<ReportService>();
-        var rapor = await svc.GetVatListAsync(D(2026, 6, 1), D(2026, 6, 30).AddDays(1).AddTicks(-1));
+        var report = await svc.GetVatListAsync(D(2026, 6, 1), D(2026, 6, 30).AddDays(1).AddTicks(-1));
 
-        var y20 = Assert.Single(rapor.Satirlar);
+        var y20 = Assert.Single(report.Satirlar);
         Assert.Equal(0.20m, y20.Oran);
         Assert.Equal(300m, y20.Net);  // 10 × 30
         Assert.Equal(60m, y20.Kdv);   // 2 × 30
@@ -117,9 +117,9 @@ public sealed class KdvRaporuTests(PostgresFixture fx)
         }
 
         using var s2 = host.ScopeFor(Guid.NewGuid());
-        var rapor = await s2.ServiceProvider.GetRequiredService<ReportService>()
+        var report = await s2.ServiceProvider.GetRequiredService<ReportService>()
             .GetVatListAsync(D(2026, 6, 1), D(2026, 6, 30));
-        Assert.Empty(rapor.Satirlar);
-        Assert.Equal(0, rapor.FaturaAdet);
+        Assert.Empty(report.Satirlar);
+        Assert.Equal(0, report.FaturaAdet);
     }
 }

@@ -53,29 +53,29 @@ public sealed class IntegrationStubTests
         using var sp = Build();
         var pos = sp.GetRequiredService<IPosService>();
 
-        var baslat = await pos.StartAsync(new PosOdemeIstegi(
+        var start = await pos.StartAsync(new PosOdemeIstegi(
             500m, "TRY", "RZ-1", "https://ornek/donus",
             new PosAlici("M1", "Ahmet", "Yılmaz", "a@b.c", "+905000000000", "11111111110",
                 "Adres", "İstanbul", "Turkey", "1.2.3.4"),
             "Depozito", Provizyon: true));
-        Assert.False(baslat.Ok);
-        Assert.Null(baslat.Token);
-        Assert.Null(baslat.OdemeSayfasiUrl);
-        Assert.False(string.IsNullOrWhiteSpace(baslat.Hata));
+        Assert.False(start.Ok);
+        Assert.Null(start.Token);
+        Assert.Null(start.OdemeSayfasiUrl);
+        Assert.False(string.IsNullOrWhiteSpace(start.Hata));
 
-        var durum = await pos.ResultAsync("herhangi-token");
-        Assert.False(durum.Ok);
-        Assert.Null(durum.OdemeId);
+        var status = await pos.ResultAsync("herhangi-token");
+        Assert.False(status.Ok);
+        Assert.Null(status.OdemeId);
 
-        foreach (var sonuc in new[]
+        foreach (var result in new[]
         {
             await pos.CloseAsync("1", 10m, "1.2.3.4"),
             await pos.CancelAsync("1", "1.2.3.4"),
             await pos.RefundAsync("1", 10m, "1.2.3.4"),
         })
         {
-            Assert.False(sonuc.Success);
-            Assert.Null(sonuc.TxRef);
+            Assert.False(result.Success);
+            Assert.Null(result.TxRef);
         }
     }
 
@@ -102,11 +102,11 @@ public sealed class IntegrationStubTests
     public async Task Eposta_noop_gonderici_hata_dondurur()
     {
         using var sp = Build();
-        var sonuc = await sp.GetRequiredService<IEmailSender>().SendAsync(
+        var result = await sp.GetRequiredService<IEmailSender>().SendAsync(
             new SmtpAyar("mail.ornek.com", 587, true, null, null, "a@ornek.com", null),
             new EpostaMesaj("b@ornek.com", "konu", "<p>gövde</p>"));
-        Assert.False(sonuc.Ok);
-        Assert.False(string.IsNullOrWhiteSpace(sonuc.Hata));
+        Assert.False(result.Ok);
+        Assert.False(string.IsNullOrWhiteSpace(result.Hata));
     }
 
     [Fact]
@@ -114,8 +114,8 @@ public sealed class IntegrationStubTests
     {
         // Boş liste DÜRÜSTTÜR: "veri yok" ≠ "başarı". Yansıtma mantığı no-op çalışır, yanlış kayıt yazmaz.
         using var sp = Build();
-        var gecisler = await sp.GetRequiredService<IHgsService>().GetCrossingsAsync(
+        var passages = await sp.GetRequiredService<IHgsService>().GetCrossingsAsync(
             "34ABC123", DateTimeOffset.UtcNow.AddDays(-7), DateTimeOffset.UtcNow);
-        Assert.Empty(gecisler);
+        Assert.Empty(passages);
     }
 }

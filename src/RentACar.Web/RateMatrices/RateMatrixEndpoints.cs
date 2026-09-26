@@ -83,9 +83,9 @@ public static class RateMatrixEndpoints
     private static T? ParseEnum<T>(string? s) where T : struct, Enum
         => Enum.TryParse<T>((s ?? string.Empty).Trim(), out var v) ? v : null;
 
-    private static async Task<IResult> Run(Func<Task> action, string mesaj)
+    private static async Task<IResult> Run(Func<Task> action, string message)
     {
-        try { await action(); return Sonuc.Tamam("/tarife-matris", mesaj); }
+        try { await action(); return Result.Ok("/tarife-matris", message); }
         catch (ValidationException ex) { return Results.Redirect($"/tarife-matris?hata={Uri.EscapeDataString(ex.Message)}"); }
     }
 }

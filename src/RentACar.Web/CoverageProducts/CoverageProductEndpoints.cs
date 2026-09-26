@@ -47,9 +47,9 @@ public static class CoverageProductEndpoints
     private static T? ParseEnum<T>(string? s) where T : struct, Enum
         => Enum.TryParse<T>((s ?? string.Empty).Trim(), out var v) ? v : null;
 
-    private static async Task<IResult> Run(Func<Task> action, string mesaj)
+    private static async Task<IResult> Run(Func<Task> action, string message)
     {
-        try { await action(); return Sonuc.Tamam("/sigorta-urunleri", mesaj); }
+        try { await action(); return Result.Ok("/sigorta-urunleri", message); }
         catch (ValidationException ex) { return Results.Redirect($"/sigorta-urunleri?hata={Uri.EscapeDataString(ex.Message)}"); }
     }
 }

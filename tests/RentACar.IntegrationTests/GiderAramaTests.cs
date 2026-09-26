@@ -22,12 +22,12 @@ namespace RentACar.IntegrationTests;
 [Collection("postgres")]
 public sealed class GiderAramaTests(PostgresFixture fx)
 {
-    private static readonly DateTimeOffset Taban = TestZaman.Simdi().AddDays(-30);
+    private static readonly DateTimeOffset Base = TestZaman.Now().AddDays(-30);
 
     private sealed record Senaryo(Guid A, Guid B, Guid C, Guid Tedarikci1, Guid Tedarikci2);
 
     /// <summary>3 gider: A (34 AA 01 / Merkez / Arac), B (06 BB 02 / Şube2 / Sigorta), C (araçsız / Merkez / Genel).</summary>
-    private static async Task<Senaryo> KurAsync(IServiceProvider sp)
+    private static async Task<Senaryo> ExchangeRateAsync(IServiceProvider sp)
     {
         var veh = sp.GetRequiredService<VehicleService>();
         var cust = sp.GetRequiredService<CustomerService>();
@@ -41,17 +41,17 @@ public sealed class GiderAramaTests(PostgresFixture fx)
         var a = await exp.CreateAsync(new ExpenseInput
         {
             Tip = ExpenseType.Arac, VehicleId = v1, CariId = t1, NetTutar = 1000m, KdvOrani = 0.20m,
-            Sube = "Merkez", EvrakNo = "FTR-100", Aciklama = "Lastik değişimi", Tarih = Taban
+            Sube = "Merkez", EvrakNo = "FTR-100", Aciklama = "Lastik değişimi", Tarih = Base
         });
         var b = await exp.CreateAsync(new ExpenseInput
         {
             Tip = ExpenseType.Sigorta, VehicleId = v2, CariId = t2, NetTutar = 2000m, KdvOrani = 0.20m,
-            Sube = "Şube2", EvrakNo = "FTR-200", Aciklama = "Kasko poliçesi", Tarih = Taban.AddDays(10)
+            Sube = "Şube2", EvrakNo = "FTR-200", Aciklama = "Kasko poliçesi", Tarih = Base.AddDays(10)
         });
         var c = await exp.CreateAsync(new ExpenseInput
         {
             Tip = ExpenseType.Genel, CariId = t1, NetTutar = 300m, KdvOrani = 0.20m,
-            Sube = "Merkez", EvrakNo = "FTR-300", Aciklama = "Kırtasiye", Tarih = Taban.AddDays(20)
+            Sube = "Merkez", EvrakNo = "FTR-300", Aciklama = "Kırtasiye", Tarih = Base.AddDays(20)
         });
         return new Senaryo(a, b, c, t1, t2);
     }
@@ -61,15 +61,15 @@ public sealed class GiderAramaTests(PostgresFixture fx)
     {
         using var host = new TestHost(fx.AppConnectionString);
         using var s = host.ScopeFor(Guid.NewGuid());
-        await KurAsync(s.ServiceProvider);
+        await ExchangeRateAsync(s.ServiceProvider);
         var exp = s.ServiceProvider.GetRequiredService<ExpenseService>();
 
         Assert.Equal(3, (await exp.ListAsync()).Count);
         // Boş filtre nesnesi de daraltmamalı.
         Assert.Equal(3, (await exp.ListAsync(new ExpenseFilter())).Count);
         // Sıralama: tarihe göre AZALAN (en yeni önce) — eski davranış.
-        var liste = await exp.ListAsync();
-        Assert.True(liste[0].Tarih >= liste[1].Tarih && liste[1].Tarih >= liste[2].Tarih);
+        var list = await exp.ListAsync();
+        Assert.True(list[0].Tarih >= list[1].Tarih && list[1].Tarih >= list[2].Tarih);
     }
 
     [Fact]
@@ -77,7 +77,7 @@ public sealed class GiderAramaTests(PostgresFixture fx)
     {
         using var host = new TestHost(fx.AppConnectionString);
         using var s = host.ScopeFor(Guid.NewGuid());
-        var sen = await KurAsync(s.ServiceProvider);
+        var sen = await ExchangeRateAsync(s.ServiceProvider);
         var exp = s.ServiceProvider.GetRequiredService<ExpenseService>();
 
         // Metin araması: evrak no
@@ -104,12 +104,12 @@ public sealed class GiderAramaTests(PostgresFixture fx)
         Assert.Equal(sen.B, Assert.Single(await exp.ListAsync(new ExpenseFilter { Sube = "Şube2" })).Id);
 
         // Tarih aralığı: Taban+5 sonrası → B ve C
-        Assert.Equal(2, (await exp.ListAsync(new ExpenseFilter { Bas = Taban.AddDays(5) })).Count);
+        Assert.Equal(2, (await exp.ListAsync(new ExpenseFilter { Bas = Base.AddDays(5) })).Count);
         // Üst sınır: Taban+15'e kadar → A ve B
-        Assert.Equal(2, (await exp.ListAsync(new ExpenseFilter { Bit = Taban.AddDays(15) })).Count);
+        Assert.Equal(2, (await exp.ListAsync(new ExpenseFilter { Bit = Base.AddDays(15) })).Count);
         // Kapalı aralık: yalnız B
         Assert.Equal(sen.B, Assert.Single(await exp.ListAsync(
-            new ExpenseFilter { Bas = Taban.AddDays(5), Bit = Taban.AddDays(15) })).Id);
+            new ExpenseFilter { Bas = Base.AddDays(5), Bit = Base.AddDays(15) })).Id);
 
         // Birleşik: Merkez + Genel türü → yalnız C
         Assert.Equal(sen.C, Assert.Single(await exp.ListAsync(
@@ -123,7 +123,7 @@ public sealed class GiderAramaTests(PostgresFixture fx)
     {
         using var host = new TestHost(fx.AppConnectionString);
         var tenant = Guid.NewGuid();
-        using (var admin = host.ScopeFor(tenant)) await KurAsync(admin.ServiceProvider);
+        using (var admin = host.ScopeFor(tenant)) await ExchangeRateAsync(admin.ServiceProvider);
 
         // Operatör yalnız "Merkez" şubesini görür.
         using var op = host.ScopeFor(tenant, Guid.NewGuid(), "op", UserRole.Operator, assignedBranch: "Merkez");
@@ -143,7 +143,7 @@ public sealed class GiderAramaTests(PostgresFixture fx)
     {
         using var host = new TestHost(fx.AppConnectionString);
         var t1 = Guid.NewGuid();
-        using (var s1 = host.ScopeFor(t1)) await KurAsync(s1.ServiceProvider);
+        using (var s1 = host.ScopeFor(t1)) await ExchangeRateAsync(s1.ServiceProvider);
 
         using var s2 = host.ScopeFor(Guid.NewGuid());
         var exp = s2.ServiceProvider.GetRequiredService<ExpenseService>();
@@ -166,12 +166,12 @@ public sealed class GiderAramaTests(PostgresFixture fx)
         var d = new DirectoryInfo(AppContext.BaseDirectory);
         while (d is not null && !File.Exists(Path.Combine(d.FullName, "RentACar.slnx"))) d = d.Parent;
         Assert.NotNull(d);
-        var sayfa = File.ReadAllText(Path.Combine(d!.FullName,
+        var page = File.ReadAllText(Path.Combine(d!.FullName,
             "src/RentACar.Web/Components/Pages/ExpenseCategories/ExpenseCategoryList.razor"));
-        Assert.Contains("<th>Tür</th>", sayfa, StringComparison.Ordinal);
-        Assert.Contains("@c.Tur", sayfa, StringComparison.Ordinal);
+        Assert.Contains("<th>Tür</th>", page, StringComparison.Ordinal);
+        Assert.Contains("@c.Tur", page, StringComparison.Ordinal);
         // Başlık ve colspan tutarlı olmalı (kolon eklerken en sık hata bu).
-        var basSayisi = Regex.Matches(sayfa.Split("<tbody>")[0], "<th>").Count;
-        Assert.Equal(basSayisi, int.Parse(Regex.Match(sayfa, @"colspan=""(\d+)""").Groups[1].Value));
+        var startCount = Regex.Matches(page.Split("<tbody>")[0], "<th>").Count;
+        Assert.Equal(startCount, int.Parse(Regex.Match(page, @"colspan=""(\d+)""").Groups[1].Value));
     }
 }

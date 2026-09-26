@@ -35,10 +35,10 @@ public sealed class YetkiGrupTests(PostgresFixture fx)
         // Uygula → snapshot geri yüklenir (2 kalem: kasa + giderler).
         var n = await svc.ApplyGroupAsync("Profil A");
         Assert.Equal(2, n);
-        var kasa = (await svc.ListAsync()).FirstOrDefault(x => x.EkranKodu == "kasa");
-        Assert.NotNull(kasa);
-        Assert.Contains("Admin", kasa!.AllowedRolesCsv);
-        Assert.Contains("Muhasebe", kasa.AllowedRolesCsv);
+        var cash = (await svc.ListAsync()).FirstOrDefault(x => x.EkranKodu == "kasa");
+        Assert.NotNull(cash);
+        Assert.Contains("Admin", cash!.AllowedRolesCsv);
+        Assert.Contains("Muhasebe", cash.AllowedRolesCsv);
     }
 
     [Fact]

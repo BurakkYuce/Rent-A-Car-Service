@@ -16,7 +16,7 @@ public sealed partial class UiSystemSecurityTests
         var admin = await _kit.LoginAsync(e, Who.Admin);
         await Json(await Send(admin, HttpMethod.Put, $"{Users}/{e.UserIds[Who.Manager]}/istisnalar/ManageUsers", new { ver = true }));
         var manager = await _kit.LoginAsync(e, Who.Manager);
-        var pw = WebFixture.RastgeleParola();
+        var pw = WebFixture.RandomPassword();
 
         await Problem(await Send(admin, HttpMethod.Post, $"{Users}/{e.UserIds[Who.Admin]}/sifre", new { sifre = pw }),
             HttpStatusCode.BadRequest, "dogrulama", "sifre");
@@ -28,10 +28,10 @@ public sealed partial class UiSystemSecurityTests
         await _kit.LoginAsync(e, Who.Manager);
 
         // Başkasını sıfırlama çalışır (Admin → Yönetici, istisnalı Yönetici → Operatör).
-        var managerPw = WebFixture.RastgeleParola();
+        var managerPw = WebFixture.RandomPassword();
         Assert.Equal(HttpStatusCode.NoContent,
             (await Send(admin, HttpMethod.Post, $"{Users}/{e.UserIds[Who.Manager]}/sifre", new { sifre = managerPw })).StatusCode);
-        var opPw = WebFixture.RastgeleParola();
+        var opPw = WebFixture.RandomPassword();
         var manager2 = await _kit.LoginAsync(e, Who.Manager, managerPw);
         Assert.Equal(HttpStatusCode.NoContent,
             (await Send(manager2, HttpMethod.Post, $"{Users}/{e.UserIds[Who.OperatorA]}/sifre", new { sifre = opPw })).StatusCode);

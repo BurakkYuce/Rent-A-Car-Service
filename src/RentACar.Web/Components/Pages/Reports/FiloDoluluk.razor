@@ -26,7 +26,7 @@
         <div class="card-label">Aktif Kira Sözleşmesi</div>
     </div>
     <div class="card">
-        <div class="card-num">@DolulukYuzde</div>
+        <div class="card-num">@OccupancyPercent</div>
         <div class="card-label">Doluluk (Kirada / Aktif Filo)</div>
     </div>
 </div>
@@ -50,7 +50,7 @@
 <p class="muted small">Tüm kolonlar <strong>aracın bağlı olduğu şubeye</strong> göre sayılır
     (sözleşmenin çıkış şubesine göre değil) — böylece satırın "Filo" değeri ile kira kolonları aynı
     kümeden gelir. Doluluk paydası <strong>kullanılabilir filo</strong> (Filo − Satıldı − Pasif);
-    payda sıfırsa oran yazılmaz. İleri-bakış penceresi <strong>@_sube.PencereGun gün</strong>.</p>
+    payda sıfırsa oran yazılmaz. İleri-bakış penceresi <strong>@_branch.PencereGun gün</strong>.</p>
 
 <div class="table-scroll">
 <table class="grid tr-grid">
@@ -62,11 +62,11 @@
             <th class="num">Çıkacaklar</th><th class="num">Dönecekler</th><th class="num">Giden Rez</th></tr>
     </thead>
     <tbody>
-        @if (_sube.Satirlar.Count == 0)
+        @if (_branch.Satirlar.Count == 0)
         {
             <tr><td colspan="15" class="muted">Araç yok.</td></tr>
         }
-        @foreach (var r in _sube.Satirlar)
+        @foreach (var r in _branch.Satirlar)
         {
             <tr>
                 <td>@r.Sube</td>
@@ -86,27 +86,27 @@
                 <td class="num">@r.GidenRez</td>
             </tr>
         }
-        @if (_sube.Satirlar.Count > 0)
+        @if (_branch.Satirlar.Count > 0)
         {
             @* Toplam satırı üstteki KPI kartıyla mutabakat sağlar — sayı tutmazsa gözle yakalanır. *@
             <tr class="total-row">
                 <td><strong>Toplam</strong></td>
-                <td class="num"><strong>@_sube.ToplamFilo</strong></td>
-                <td class="num">@_sube.Satirlar.Sum(x => x.Bos)</td>
-                <td class="num">@_sube.Satirlar.Sum(x => x.Kirada)</td>
-                <td class="num">@_sube.Satirlar.Sum(x => x.Bakimda)</td>
-                <td class="num">@_sube.Satirlar.Sum(x => x.Pasif)</td>
-                <td class="num">@_sube.Satirlar.Sum(x => x.Satildi)</td>
-                <td class="num">@_sube.Satirlar.Sum(x => x.Satilik)</td>
-                <td class="num">@_sube.Satirlar.Sum(x => x.Baf)</td>
+                <td class="num"><strong>@_branch.ToplamFilo</strong></td>
+                <td class="num">@_branch.Satirlar.Sum(x => x.Bos)</td>
+                <td class="num">@_branch.Satirlar.Sum(x => x.Kirada)</td>
+                <td class="num">@_branch.Satirlar.Sum(x => x.Bakimda)</td>
+                <td class="num">@_branch.Satirlar.Sum(x => x.Pasif)</td>
+                <td class="num">@_branch.Satirlar.Sum(x => x.Satildi)</td>
+                <td class="num">@_branch.Satirlar.Sum(x => x.Satilik)</td>
+                <td class="num">@_branch.Satirlar.Sum(x => x.Baf)</td>
                 @* Toplam satırında ORAN YOK: şube oranlarının ortalaması genel doluluk değildir
                    (havuz KPI dersi — pay ve payda ayrı toplanır). Genel oran üstteki karttadır. *@
                 <td class="num">—</td>
-                <td class="num">@_sube.Satirlar.Sum(x => x.Cikislar)</td>
-                <td class="num">@_sube.Satirlar.Sum(x => x.Donusler)</td>
-                <td class="num">@_sube.Satirlar.Sum(x => x.Cikacaklar)</td>
-                <td class="num">@_sube.Satirlar.Sum(x => x.Donecekler)</td>
-                <td class="num">@_sube.Satirlar.Sum(x => x.GidenRez)</td>
+                <td class="num">@_branch.Satirlar.Sum(x => x.Cikislar)</td>
+                <td class="num">@_branch.Satirlar.Sum(x => x.Donusler)</td>
+                <td class="num">@_branch.Satirlar.Sum(x => x.Cikacaklar)</td>
+                <td class="num">@_branch.Satirlar.Sum(x => x.Donecekler)</td>
+                <td class="num">@_branch.Satirlar.Sum(x => x.GidenRez)</td>
             </tr>
         }
     </tbody>
@@ -115,21 +115,21 @@
 
 @code {
     private FleetUtilizationDto _f = new(0, 0, 0, 0, 0, 0, 0);
-    private FiloSubeDto _sube = new([], ReportService.DefaultFleetWindow);
+    private FiloSubeDto _branch = new([], ReportService.DefaultFleetWindow);
 
     // Aktif filo = satılmış ve pasif hariç (kiralanabilir havuz).
-    private string DolulukYuzde
+    private string OccupancyPercent
     {
         get
         {
-            var aktif = _f.Toplam - _f.Satildi - _f.Pasif;
-            return aktif <= 0 ? "—" : $"%{Math.Round(100m * _f.Kirada / aktif, 1)}";
+            var active = _f.Toplam - _f.Satildi - _f.Pasif;
+            return active <= 0 ? "—" : $"%{Math.Round(100m * _f.Kirada / active, 1)}";
         }
     }
 
     protected override async Task OnInitializedAsync()
     {
         _f = await Reports.GetFleetUtilizationAsync();
-        _sube = await Reports.GetFleetUtilizationByBranchAsync();
+        _branch = await Reports.GetFleetUtilizationByBranchAsync();
     }
 }

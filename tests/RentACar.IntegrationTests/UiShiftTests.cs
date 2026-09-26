@@ -43,13 +43,13 @@ public sealed class UiShiftTests(WebFixture fx)
     private static string Random(string prefix) => prefix + Guid.NewGuid().ToString("N")[..10];
 
     /// <summary>Test günü: takvimden bağımsız (sabit tarih yok).</summary>
-    private static readonly DateOnly Day = DateOnly.FromDateTime(TestZaman.GunSonra(3).UtcDateTime);
+    private static readonly DateOnly Day = DateOnly.FromDateTime(TestZaman.DaysLater(3).UtcDateTime);
 
     private async Task<Env> SetupAsync()
     {
         var e = new Env
         {
-            TenantId = Guid.NewGuid(), Code = Random("f103"), Password = WebFixture.RastgeleParola(),
+            TenantId = Guid.NewGuid(), Code = Random("f103"), Password = WebFixture.RandomPassword(),
             Users = Enum.GetValues<Who>().ToDictionary(k => k, _ => Random("u")),
         };
         var opts = new DbContextOptionsBuilder<AppDbContext>().UseNpgsql(fx.Pg.OwnerConnectionString).Options;
@@ -71,7 +71,7 @@ public sealed class UiShiftTests(WebFixture fx)
             }
             await db.SaveChangesAsync();
         }
-        await fx.PilotYapAsync(e.TenantId, true);
+        await fx.MakePilotAsync(e.TenantId, true);
 
         using var host = new TestHost(fx.Pg.AppConnectionString);
         using var scope = host.ScopeFor(e.TenantId);
@@ -96,7 +96,7 @@ public sealed class UiShiftTests(WebFixture fx)
 
     private async Task<Session> LoginAsync(Env e, Who who)
     {
-        var c = fx.Web.Istemci();
+        var c = fx.Web.Client();
         var first = Cookie(await c.GetAsync(V1 + "/oturum/xsrf"), "XSRF-TOKEN")!;
         var req = new HttpRequestMessage(HttpMethod.Post, V1 + "/oturum/giris")
         { Content = JsonContent.Create(new { firma = e.Code, kullanici = e.Users[who], sifre = e.Password }) };
@@ -130,11 +130,11 @@ public sealed class UiShiftTests(WebFixture fx)
     }
 
     private static object Body(Guid staff, DateOnly day, string from, string to, string? branch, string? note = null,
-        string? surum = null)
+        string? version = null)
         => new
         {
             personelId = staff, tarih = day.ToString("yyyy-MM-dd"), baslangicSaat = from, bitisSaat = to,
-            sube = branch, aciklama = note, surum,
+            sube = branch, aciklama = note, surum = version,
         };
 
     private static async Task<JsonElement> CreateAsync(Session s, object body)

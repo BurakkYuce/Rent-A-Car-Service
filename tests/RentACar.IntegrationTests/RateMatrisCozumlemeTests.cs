@@ -15,13 +15,13 @@ public sealed class RateMatrisCozumlemeTests(PostgresFixture fx)
 {
     private static readonly DateTimeOffset D = new(2026, 7, 15, 0, 0, 0, TimeSpan.Zero);
 
-    private static RateMatrixInput T(string kod, string? kanal = null, string? sube = null, string? grup = null,
-        TariffApprovalStatus onay = TariffApprovalStatus.Onayli, decimal? g1 = null, decimal? g3 = null, decimal? g7 = null,
-        DateTimeOffset? bas = null, DateTimeOffset? bit = null, string? para = null)
+    private static RateMatrixInput T(string code, string? channel = null, string? branch = null, string? group = null,
+        TariffApprovalStatus approval = TariffApprovalStatus.Onayli, decimal? g1 = null, decimal? g3 = null, decimal? g7 = null,
+        DateTimeOffset? start = null, DateTimeOffset? bit = null, string? money = null)
         => new()
         {
-            Kod = kod, Ad = kod, Kanal = kanal, Sube = sube, AracGrupKod = grup, OnayDurumu = onay, Aktif = true,
-            Gun1 = g1, Gun3 = g3, Gun7 = g7, BasTar = bas, BitTar = bit, ParaBirimi = para
+            Kod = code, Ad = code, Kanal = channel, Sube = branch, AracGrupKod = group, OnayDurumu = approval, Aktif = true,
+            Gun1 = g1, Gun3 = g3, Gun7 = g7, BasTar = start, BitTar = bit, ParaBirimi = money
         };
 
     [Fact]
@@ -47,13 +47,13 @@ public sealed class RateMatrisCozumlemeTests(PostgresFixture fx)
         await svc.CreateAsync(T("JOKER", null, null, null, g3: 200));                 // her şeye uyar
         await svc.CreateAsync(T("WEB-EKO", "WEB", "Merkez", "EKO", g3: 90));           // spesifik
 
-        var spesifik = await svc.ResolveAsync(new RateMatrisSorgu("WEB", "Merkez", "EKO", D, 3));
-        Assert.Equal("WEB-EKO", spesifik!.Kod);  // 3 alan eşleşen spesifik kazandı
-        Assert.Equal(90m, spesifik.GunlukFiyat);
+        var specific = await svc.ResolveAsync(new RateMatrisSorgu("WEB", "Merkez", "EKO", D, 3));
+        Assert.Equal("WEB-EKO", specific!.Kod);  // 3 alan eşleşen spesifik kazandı
+        Assert.Equal(90m, specific.GunlukFiyat);
 
-        var jokerYol = await svc.ResolveAsync(new RateMatrisSorgu("ACENTA", "Ankara", "LUX", D, 3));
-        Assert.Equal("JOKER", jokerYol!.Kod);    // spesifik uymuyor → joker
-        Assert.Equal(200m, jokerYol.GunlukFiyat);
+        var wildcardPath = await svc.ResolveAsync(new RateMatrisSorgu("ACENTA", "Ankara", "LUX", D, 3));
+        Assert.Equal("JOKER", wildcardPath!.Kod);    // spesifik uymuyor → joker
+        Assert.Equal(200m, wildcardPath.GunlukFiyat);
     }
 
     [Fact]
@@ -76,11 +76,11 @@ public sealed class RateMatrisCozumlemeTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
         var svc = scope.ServiceProvider.GetRequiredService<RateMatrixService>();
-        await svc.CreateAsync(T("BEKLE", "WEB", onay: TariffApprovalStatus.Bekliyor, g3: 50));  // onaysız
+        await svc.CreateAsync(T("BEKLE", "WEB", approval: TariffApprovalStatus.Bekliyor, g3: 50));  // onaysız
         Assert.Null(await svc.ResolveAsync(new RateMatrisSorgu("WEB", null, null, D, 3)));   // çözülmez
 
         await svc.CreateAsync(T("YAZ", "ACENTA", g3: 90,
-            bas: new(2026, 6, 1, 0, 0, 0, TimeSpan.Zero), bit: new(2026, 8, 31, 0, 0, 0, TimeSpan.Zero)));
+            start: new(2026, 6, 1, 0, 0, 0, TimeSpan.Zero), bit: new(2026, 8, 31, 0, 0, 0, TimeSpan.Zero)));
         Assert.NotNull(await svc.ResolveAsync(new RateMatrisSorgu("ACENTA", null, null, D, 3)));                   // 15 Tem içinde
         Assert.Null(await svc.ResolveAsync(new RateMatrisSorgu("ACENTA", null, null, new(2026, 10, 1, 0, 0, 0, TimeSpan.Zero), 3))); // dışında
     }
@@ -92,7 +92,7 @@ public sealed class RateMatrisCozumlemeTests(PostgresFixture fx)
         using var scope = host.ScopeFor(Guid.NewGuid());
         var svc = scope.ServiceProvider.GetRequiredService<RateMatrixService>();
         await svc.CreateAsync(T("ACIK", "WEB", g3: 95));                                        // açık pencere
-        await svc.CreateAsync(T("DAR", "WEB", g3: 88, bas: D.AddDays(-5), bit: D.AddDays(5)));  // dar, tarihi kapsar
+        await svc.CreateAsync(T("DAR", "WEB", g3: 88, start: D.AddDays(-5), bit: D.AddDays(5)));  // dar, tarihi kapsar
 
         var s = await svc.ResolveAsync(new RateMatrisSorgu("WEB", null, null, D, 3));
         Assert.Equal("DAR", s!.Kod);          // aynı spesifiklik → en dar pencere kazandı
@@ -108,11 +108,11 @@ public sealed class RateMatrisCozumlemeTests(PostgresFixture fx)
         using var scope = host.ScopeFor(Guid.NewGuid());
         var svc = scope.ServiceProvider.GetRequiredService<RateMatrixService>();
         await svc.CreateAsync(T("DEFAULT", "WEB", g3: 90));               // ParaBirimi null (varsayılan)
-        await svc.CreateAsync(T("EURTAR", "WEB", g3: 30, para: "EUR"));   // EUR (sonra yaratıldı → daha yeni)
+        await svc.CreateAsync(T("EURTAR", "WEB", g3: 30, money: "EUR"));   // EUR (sonra yaratıldı → daha yeni)
 
-        var paraNull = await svc.ResolveAsync(new RateMatrisSorgu("WEB", null, null, D, 3));
-        Assert.Equal("DEFAULT", paraNull!.Kod);   // yabancı-döviz SIZMADI (recency'ye rağmen)
-        Assert.Equal(90m, paraNull.GunlukFiyat);
+        var moneyNull = await svc.ResolveAsync(new RateMatrisSorgu("WEB", null, null, D, 3));
+        Assert.Equal("DEFAULT", moneyNull!.Kod);   // yabancı-döviz SIZMADI (recency'ye rağmen)
+        Assert.Equal(90m, moneyNull.GunlukFiyat);
 
         var euro = await svc.ResolveAsync(new RateMatrisSorgu("WEB", null, null, D, 3, ParaBirimi: "eur"));
         Assert.Equal("EURTAR", euro!.Kod);         // EUR sorgu → EUR tarife (case-insensitive)

@@ -25,19 +25,19 @@
     <label>Dönüş Lokasyonu
         <select name="fDonus">
             <option value="">— tümü —</option>
-            @foreach (var o in _lokasyonOpts) { <option value="@o" selected="@(o == FDonus)">@o</option> }
+            @foreach (var o in _locationOpts) { <option value="@o" selected="@(o == FDonus)">@o</option> }
         </select>
     </label>
     <label>Çıkış Lokasyonu
         <select name="fCikis">
             <option value="">— tümü —</option>
-            @foreach (var o in _lokasyonOpts) { <option value="@o" selected="@(o == FCikis)">@o</option> }
+            @foreach (var o in _locationOpts) { <option value="@o" selected="@(o == FCikis)">@o</option> }
         </select>
     </label>
     <label>Çıkış Şubesi
         <select name="fSube">
             <option value="">— tümü —</option>
-            @foreach (var o in _subeOpts) { <option value="@o" selected="@(o == FSube)">@o</option> }
+            @foreach (var o in _branchOpts) { <option value="@o" selected="@(o == FSube)">@o</option> }
         </select>
     </label>
     <label>Durum
@@ -53,9 +53,9 @@
 
 <form method="post" action="/drop-tanimlari/create" class="grid-form"><AntiforgeryToken />
     @Gizli
-    <ComboBox Name="lokasyon" Label="Dönüş Lokasyonu" Options="_lokasyonOpts" required />
-    <ComboBox Name="sube" Label="Çıkış Şubesi" Options="_subeOpts" required />
-    <ComboBox Name="cikisLokasyon" Label="Çıkış Lokasyonu (ops.)" Options="_lokasyonOpts" Placeholder="(tüm ofisler)" ListId="dl-cikislok-new" />
+    <ComboBox Name="lokasyon" Label="Dönüş Lokasyonu" Options="_locationOpts" required />
+    <ComboBox Name="sube" Label="Çıkış Şubesi" Options="_branchOpts" required />
+    <ComboBox Name="cikisLokasyon" Label="Çıkış Lokasyonu (ops.)" Options="_locationOpts" Placeholder="(tüm ofisler)" ListId="dl-cikislok-new" />
     <label>Karşılama Şekli<input name="karsilamaSekli" /></label>
     <label>Çalışma Şekli<input name="calismaSekli" /></label>
     <label>Özel İletişim<input name="ozelIletisim" /></label>
@@ -96,9 +96,9 @@
                         <form method="post" action="/drop-tanimlari/update" class="grid-form"><AntiforgeryToken />
                             <input type="hidden" name="id" value="@d.Id" />
                             @Gizli
-                            <ComboBox Name="lokasyon" Label="Dönüş Lokasyonu" Value="@d.Lokasyon" Options="_lokasyonOpts" ListId="dl-lok-edit" required />
-                            <ComboBox Name="sube" Label="Çıkış Şubesi" Value="@d.Sube" Options="_subeOpts" ListId="dl-sube-edit" required />
-                            <ComboBox Name="cikisLokasyon" Label="Çıkış Lokasyonu (ops.)" Value="@d.CikisLokasyon" Options="_lokasyonOpts" ListId="dl-cikislok-edit" />
+                            <ComboBox Name="lokasyon" Label="Dönüş Lokasyonu" Value="@d.Lokasyon" Options="_locationOpts" ListId="dl-lok-edit" required />
+                            <ComboBox Name="sube" Label="Çıkış Şubesi" Value="@d.Sube" Options="_branchOpts" ListId="dl-sube-edit" required />
+                            <ComboBox Name="cikisLokasyon" Label="Çıkış Lokasyonu (ops.)" Value="@d.CikisLokasyon" Options="_locationOpts" ListId="dl-cikislok-edit" />
                             <label>Karşılama Şekli<input name="karsilamaSekli" value="@d.KarsilamaSekli" /></label>
                             <label>Çalışma Şekli<input name="calismaSekli" value="@d.CalismaSekli" /></label>
                             <label>Özel İletişim<input name="ozelIletisim" value="@d.OzelIletisim" /></label>
@@ -142,7 +142,7 @@
     private static string? Inv(decimal? v) => v?.ToString(System.Globalization.CultureInfo.InvariantCulture);
 
     private IReadOnlyList<DropTanim> _list = [];
-    private List<string> _lokasyonOpts = [], _subeOpts = [];
+    private List<string> _locationOpts = [], _branchOpts = [];
 
     private bool FiltreVar => !string.IsNullOrWhiteSpace(FDonus) || !string.IsNullOrWhiteSpace(FCikis)
         || !string.IsNullOrWhiteSpace(FSube) || !string.IsNullOrWhiteSpace(FAktif);
@@ -170,10 +170,10 @@
 
         // Açılır liste seçenekleri FİLTRESİZ listeden türetilir; filtrelenmişten türetilseydi bir
         // seçim sonrası diğer seçenekler kaybolur ve filtre kendi kendini kilitlerdi.
-        var hepsi = await Droplar.ListAsync();
-        var lokasyonlar = await Lokasyonlar.ListActiveAsync();
-        var subeler = await Subeler.ListActiveAsync();
-        _lokasyonOpts = Opts(lokasyonlar.Select(l => l.Ad), hepsi.Select(d => d.Lokasyon), hepsi.Select(d => d.CikisLokasyon));
-        _subeOpts = Opts(subeler.Select(s => s.Ad), hepsi.Select(d => d.Sube));
+        var all = await Droplar.ListAsync();
+        var locations = await Lokasyonlar.ListActiveAsync();
+        var branches = await Subeler.ListActiveAsync();
+        _locationOpts = Opts(locations.Select(l => l.Ad), all.Select(d => d.Lokasyon), all.Select(d => d.CikisLokasyon));
+        _branchOpts = Opts(branches.Select(s => s.Ad), all.Select(d => d.Sube));
     }
 }

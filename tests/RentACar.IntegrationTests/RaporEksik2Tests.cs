@@ -25,15 +25,15 @@ public sealed class RaporEksik2Tests(PostgresFixture fx)
         var custId = await sp.GetRequiredService<CustomerService>()
             .CreateAsync(new CustomerInput { Tip = CustomerType.Bireysel, Ad = "Rez Müşteri" });
         var vehicles = sp.GetRequiredService<VehicleService>();
-        var rez = sp.GetRequiredService<ReservationService>();
-        var bas = DateTimeOffset.UtcNow.AddDays(3); // now-göreli gelecek (rez geçmişe kapalı)
+        var res = sp.GetRequiredService<ReservationService>();
+        var start = DateTimeOffset.UtcNow.AddDays(3); // now-göreli gelecek (rez geçmişe kapalı)
 
-        foreach (var plaka in new[] { "34 RZ 01", "34 RZ 02" })
+        foreach (var plate in new[] { "34 RZ 01", "34 RZ 02" })
         {
-            var vId = await vehicles.CreateAsync(new VehicleInput { Plaka = plaka, Durum = VehicleStatus.Musait });
-            await rez.CreateAsync(new BookingInput
+            var vId = await vehicles.CreateAsync(new VehicleInput { Plaka = plate, Durum = VehicleStatus.Musait });
+            await res.CreateAsync(new BookingInput
             {
-                MusteriId = custId, VehicleId = vId, BasTar = bas, BitTar = bas.AddDays(3),
+                MusteriId = custId, VehicleId = vId, BasTar = start, BitTar = start.AddDays(3),
                 GunlukUcret = 100m, KmLimit = 0, FazlaKmUcret = 0m, Kaynak = "Web"
             });
         }
@@ -51,10 +51,10 @@ public sealed class RaporEksik2Tests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
         var sp = scope.ServiceProvider;
-        var cariId = await sp.GetRequiredService<CustomerService>()
+        var customerId = await sp.GetRequiredService<CustomerService>()
             .CreateAsync(new CustomerInput { Tip = CustomerType.Bireysel, Ad = "Fatura Müşteri" });
         await sp.GetRequiredService<InvoiceService>()
-            .CreateManualAsync(new ManualInvoiceInput { CariId = cariId, NetTutar = 1000m, KdvOrani = 0.20m });
+            .CreateManualAsync(new ManualInvoiceInput { CariId = customerId, NetTutar = 1000m, KdvOrani = 0.20m });
 
         var rows = await sp.GetRequiredService<ReportService>().GetInvoicePeriodAsync();
         var r = Assert.Single(rows);

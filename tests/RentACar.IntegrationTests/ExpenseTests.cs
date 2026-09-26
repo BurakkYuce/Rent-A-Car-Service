@@ -27,7 +27,7 @@ public sealed class ExpenseTests(PostgresFixture fx)
         });
 
         var exp = await expenses.GetAsync(id);
-        BelgeNoOracle.BeklenenlerdenBiri(7, 1, exp!.No);
+        DocumentNoOracle.OneOfExpected(7, 1, exp!.No);
         Assert.Equal(20m, exp.KdvTutar);
         Assert.Equal(120m, exp.GenelToplam);
 
@@ -50,16 +50,16 @@ public sealed class ExpenseTests(PostgresFixture fx)
         using var scope = host.ScopeFor(Guid.NewGuid());
         var expenses = scope.ServiceProvider.GetRequiredService<ExpenseService>();
         var cash = scope.ServiceProvider.GetRequiredService<CashService>();
-        var tedarikci = Guid.NewGuid();
+        var supplier = Guid.NewGuid();
 
         await expenses.CreateAsync(new ExpenseInput
         {
-            Tip = ExpenseType.Genel, CariId = tedarikci,
+            Tip = ExpenseType.Genel, CariId = supplier,
             NetTutar = 200m, KdvOrani = 0.20m, OdemeYontemi = PaymentMethod.AcikHesap
         });
 
         // Alacak Cari (gross 240) → bakiye -240 (tedarikçiye borçluyuz / alacaklı).
-        Assert.Equal(-240m, await cash.GetAccountBalanceAsync(tedarikci));
+        Assert.Equal(-240m, await cash.GetAccountBalanceAsync(supplier));
     }
 
     [Fact]

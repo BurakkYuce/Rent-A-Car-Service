@@ -45,7 +45,7 @@
             <option value="">— tümü —</option>
             @foreach (var a in Enum.GetValues<BafUsagePurpose>())
             {
-                <option value="@a" selected="@(a.ToString() == AmacF)">@AmacAd(a)</option>
+                <option value="@a" selected="@(a.ToString() == AmacF)">@PurposeName(a)</option>
             }
         </select>
     </label>
@@ -59,7 +59,7 @@
     <label>Ofis (çıkış)
         <select name="ofisF">
             <option value="">— tümü —</option>
-            @foreach (var s in _subeOpts)
+            @foreach (var s in _branchOpts)
             {
                 <option value="@s" selected="@(s == OfisF)">@s</option>
             }
@@ -68,7 +68,7 @@
     <label>Çıkış ≥<input name="bas" type="date" value="@Bas" /></label>
     <label>Çıkış ≤<input name="bit" type="date" value="@Bit" /></label>
     <button type="submit">Filtrele</button>
-    @if (_filtreVar) { <a class="link" href="/baf">Temizle</a> }
+    @if (_hasFilter) { <a class="link" href="/baf">Temizle</a> }
 </form>
 
 <details>
@@ -90,14 +90,14 @@
         <label>Çıkış Saati<input name="cikisSaat" type="time" title="Tarihten ayrı saat granülü (opsiyonel)" /></label>
         <label>Çıkış KM<input name="cikisKm" type="number" min="0" value="0" /></label>
         <label>Çıkış Yakıt (0-12)<input name="cikisYakit" type="number" min="0" max="12" /></label>
-        <ComboBox Name="sube" Label="Şube (çıkış)" Options="_subeOpts" />
+        <ComboBox Name="sube" Label="Şube (çıkış)" Options="_branchOpts" />
         @* FAZ-18 bilgi alanları — hiçbiri iş kuralı işletmez, defter postlamaz. *@
         <label>Kullanım Amacı
             <select name="kullanimAmaci">
                 <option value="">—</option>
                 @foreach (var a in Enum.GetValues<BafUsagePurpose>())
                 {
-                    <option value="@a">@AmacAd(a)</option>
+                    <option value="@a">@PurposeName(a)</option>
                 }
             </select>
         </label>
@@ -119,7 +119,7 @@
     <tbody>
         @if (_list.Count == 0)
         {
-            <tr><td colspan="11" class="muted">@(_filtreVar ? "Filtreye uyan tahsis yok." : "Tahsis yok.")</td></tr>
+            <tr><td colspan="11" class="muted">@(_hasFilter ? "Filtreye uyan tahsis yok." : "Tahsis yok.")</td></tr>
         }
         @foreach (var b in _list)
         {
@@ -127,7 +127,7 @@
                 <td>@b.No</td>
                 <td>@PersName(b.PersonelId)</td>
                 <td>@VehName(b.VehicleId)</td>
-                <td>@(b.KullanimAmaci is { } a ? AmacAd(a) : "—")@(b.KirayaVer ? " (kiraya verilebilir)" : "")</td>
+                <td>@(b.KullanimAmaci is { } a ? PurposeName(a) : "—")@(b.KirayaVer ? " (kiraya verilebilir)" : "")</td>
                 <td>@(b.Sube ?? "—")@(b.CikisSaat is { } cs ? $" · {cs:HH\\:mm}" : "")</td>
                 <td>@(b.DonusSube ?? "—")@(b.DonusSaat is { } dsa ? $" · {dsa:HH\\:mm}" : "")</td>
                 <td class="num">@b.CikisKm</td>
@@ -164,7 +164,7 @@
 
 @* Dönüş ofisi ComboBox'ının datalist'i (tablo içinde satır başına form var → tek paylaşılan liste). *@
 <datalist id="dl-donus-sube">
-    @foreach (var s in _subeOpts) { <option value="@s"></option> }
+    @foreach (var s in _branchOpts) { <option value="@s"></option> }
 </datalist>
 
 @code {
@@ -182,11 +182,11 @@
     private IReadOnlyList<Baf> _list = [];
     private Dictionary<Guid, string> _persMap = new();
     private Dictionary<Guid, string> _vehMap = new();
-    private List<string> _subeOpts = [];
-    private bool _filtreVar;
+    private List<string> _branchOpts = [];
+    private bool _hasFilter;
 
     /// <summary>Enum adı → okunur Türkçe etiket (canlı listedeki yazımlar).</summary>
-    private static string AmacAd(BafUsagePurpose a) => a switch
+    private static string PurposeName(BafUsagePurpose a) => a switch
     {
         BafUsagePurpose.AracAyirma => "Araç Ayırma",
         BafUsagePurpose.AracDonusu => "Araç Dönüşü",
@@ -202,7 +202,7 @@
     };
 
     /// <summary>Sorgu dizesi → filtre. Tarih ≤ GÜN SONUNA alınır (o günün çıkışları düşmesin).</summary>
-    private BafFilter FiltreKur()
+    private BafFilter BuildFilter()
     {
         var f = new BafFilter
         {
@@ -222,15 +222,15 @@
 
     protected override async Task OnInitializedAsync()
     {
-        var filtre = FiltreKur();
-        _filtreVar = !filtre.Bos;
-        _list = await Baflar.SearchAsync(filtre);
+        var filter = BuildFilter();
+        _hasFilter = !filter.Bos;
+        _list = await Baflar.SearchAsync(filter);
         // ListAsync DEĞİL: o ManageUsers ister ve Operatör rolünde sayfayı 500'e düşürüyordu
         // (seed kullanıcı Admin olduğu için gözden kaçmıştı — iki rollü duman testi yakaladı).
         // Burada yalnız ad göstermek için isim lazım; ListForSelectAsync OperationsWrite yeter ve PII taşımaz.
         _persMap = (await Personeller.ListForSelectAsync()).ToDictionary(p => p.Id, p => $"{p.Ad} {p.Soyad}".Trim());
         _vehMap = (await Vehicles.ListAsync()).ToDictionary(v => v.Id, v => v.Plaka);
-        _subeOpts = (await Subeler.ListActiveAsync()).Select(s => s.Ad).ToList();
+        _branchOpts = (await Subeler.ListActiveAsync()).Select(s => s.Ad).ToList();
     }
 
     private string PersName(Guid id) => _persMap.TryGetValue(id, out var n) ? n : "—";

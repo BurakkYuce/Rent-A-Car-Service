@@ -72,13 +72,13 @@ else
         <label>Döviz
             <select name="doviz">
                 <option value="">— tümü —</option>
-                @foreach (var d in _dovizler) { <option value="@d" selected="@(d == Doviz)">@d</option> }
+                @foreach (var d in _currencies) { <option value="@d" selected="@(d == Doviz)">@d</option> }
             </select>
         </label>
         <label>Kaynak
             <select name="kaynak">
                 <option value="">— tümü —</option>
-                @foreach (var k in _kaynaklar) { <option value="@k" selected="@(k == Kaynak)">@k</option> }
+                @foreach (var k in _sources) { <option value="@k" selected="@(k == Kaynak)">@k</option> }
             </select>
         </label>
         <label>Sözleşme Durumu
@@ -114,18 +114,18 @@ else
         <table class="grid tr-grid">
             <thead><tr><th>Ay</th><th>Kaynak</th><th class="num">Adet</th><th class="num">Borç</th><th class="num">Alacak</th><th class="num">Net</th></tr></thead>
             <tbody>
-                @if (_ozet.Count == 0)
+                @if (_summary.Count == 0)
                 {
                     <tr><td colspan="6" class="muted">Hareket yok.</td></tr>
                 }
-                @foreach (var o in _ozet)
+                @foreach (var o in _summary)
                 {
                     <tr>
                         <td>@o.Ay</td>
                         <td>@o.Kaynak</td>
                         <td class="num">@o.Adet</td>
-                        <td class="num">@Bos(o.Borc)</td>
-                        <td class="num">@Bos(o.Alacak)</td>
+                        <td class="num">@Empty(o.Borc)</td>
+                        <td class="num">@Empty(o.Alacak)</td>
                         <td class="num @(o.Net > 0 ? "neg" : "pos")">@o.Net.ToString("N2")</td>
                     </tr>
                 }
@@ -142,20 +142,20 @@ else
             <tr><th>Tarih</th><th>Açıklama</th><th>Kaynak</th><th>Döviz</th><th class="num">Borç</th><th class="num">Alacak</th><th class="num">@YuruyenBaslik</th><th></th></tr>
         </thead>
         <tbody>
-            @if (_lines.Count == 0 && _devir == 0m)
+            @if (_lines.Count == 0 && _carryForward == 0m)
             {
                 <tr><td colspan="8" class="muted">@(FiltreVar ? "Filtreye uyan hareket yok." : "Hareket yok.")</td></tr>
             }
-            @{ decimal running = _devir; }
+            @{ decimal running = _carryForward; }
             @* Devir satırı: tarih filtresi kapsam dışında bıraktığı önceki hareketlerin neti.
                Olmasaydı yürüyen bakiye sıfırdan başlar ve EKRANDA YANLIŞ BAKİYE gösterirdi. *@
-            @if (_devir != 0m)
+            @if (_carryForward != 0m)
             {
                 <tr class="muted">
                     <td>—</td><td><em>Önceki dönemden devir</em></td><td>Devir</td><td>—</td>
-                    <td class="num">@Bos(_devir > 0 ? _devir : 0m)</td>
-                    <td class="num">@Bos(_devir < 0 ? -_devir : 0m)</td>
-                    <td class="num">@_devir.ToString("N2")</td><td></td>
+                    <td class="num">@Empty(_carryForward > 0 ? _carryForward : 0m)</td>
+                    <td class="num">@Empty(_carryForward < 0 ? -_carryForward : 0m)</td>
+                    <td class="num">@_carryForward.ToString("N2")</td><td></td>
                 </tr>
             }
             @foreach (var e in _lines)
@@ -187,7 +187,7 @@ else
         </tbody>
     </table>
     </div>
-    @if (_filtre.TarihDisiDaraltmaVar)
+    @if (_filter.TarihDisiDaraltmaVar)
     {
         <p class="muted small">Döviz/kaynak/sözleşme filtresi açıkken son kolon carinin BAKİYESİ değil,
             yalnız görünen hareketlerin birikimidir. Gerçek bakiye yukarıda yazılıdır.</p>
@@ -210,17 +210,17 @@ else
 
     private Customer? _customer;
     private decimal _balance;
-    private decimal _devir;
+    private decimal _carryForward;
     private IReadOnlyList<AccountLedgerEntry> _lines = [];
-    private IReadOnlyList<OzetSatir> _ozet = [];
-    private string[] _dovizler = [];
-    private string[] _kaynaklar = [];
-    private CariEkstreFilter _filtre = new();
+    private IReadOnlyList<OzetSatir> _summary = [];
+    private string[] _currencies = [];
+    private string[] _sources = [];
+    private CariEkstreFilter _filter = new();
 
-    private bool FiltreVar => !_filtre.BosMu || Mod == "ozet";
+    private bool FiltreVar => !_filter.BosMu || Mod == "ozet";
 
     /// <summary>Tarih-dışı daraltma varken son kolon bakiye DEĞİL, görünenlerin birikimidir.</summary>
-    private string YuruyenBaslik => _filtre.TarihDisiDaraltmaVar ? "Birikim" : "Bakiye";
+    private string YuruyenBaslik => _filter.TarihDisiDaraltmaVar ? "Birikim" : "Bakiye";
 
     protected override async Task OnInitializedAsync()
     {
@@ -232,27 +232,27 @@ else
 
         // Açılır liste seçenekleri TÜM hareketlerden (filtreliden türetilseydi bir seçim
         // yapıldıktan sonra diğer seçenekler kaybolurdu).
-        var tumu = (await Cash.GetStatementAsync(Id)).Satirlar;
-        _dovizler = tumu.Select(e => e.Amount.Currency).Where(c => !string.IsNullOrWhiteSpace(c))
+        var all = (await Cash.GetStatementAsync(Id)).Satirlar;
+        _currencies = all.Select(e => e.Amount.Currency).Where(c => !string.IsNullOrWhiteSpace(c))
             .Distinct(StringComparer.OrdinalIgnoreCase).OrderBy(c => c).ToArray();
-        _kaynaklar = tumu.Select(e => e.SourceType).Where(s => !string.IsNullOrWhiteSpace(s))
+        _sources = all.Select(e => e.SourceType).Where(s => !string.IsNullOrWhiteSpace(s))
             .Distinct(StringComparer.Ordinal).OrderBy(s => s).ToArray();
 
-        _filtre = new CariEkstreFilter
+        _filter = new CariEkstreFilter
         {
-            Bas = Tarih(Bas),
+            Bas = Date(Bas),
             // Üst sınır GÜN SONUNA genişletilir (tarih girişi 00:00'a düşer).
-            Bit = Tarih(Bit)?.AddDays(1).AddTicks(-1),
+            Bit = Date(Bit)?.AddDays(1).AddTicks(-1),
             Doviz = Doviz,
             SourceType = Kaynak,
             KiraDurum = Enum.TryParse<RentalStatus>(KiraDurum, out var kd) ? kd : null
         };
 
-        var sonuc = await Cash.GetStatementAsync(Id, _filtre);
-        _devir = sonuc.Devir;
-        _lines = sonuc.Satirlar;
+        var result = await Cash.GetStatementAsync(Id, _filter);
+        _carryForward = result.Devir;
+        _lines = result.Satirlar;
 
-        if (Mod == "ozet") _ozet = Ozetle(_lines);
+        if (Mod == "ozet") _summary = Summarize(_lines);
     }
 
     /// <summary>
@@ -260,34 +260,34 @@ else
     /// bu yüzden detay ile özetin Borç/Alacak toplamları birebir eşit olmalıdır (test bunu kilitler).
     /// Devir özete GİRMEZ: o bir hareket değil, önceki dönemin bakiyesidir.
     /// </summary>
-    private static IReadOnlyList<OzetSatir> Ozetle(IEnumerable<AccountLedgerEntry> satirlar)
-        => satirlar
+    private static IReadOnlyList<OzetSatir> Summarize(IEnumerable<AccountLedgerEntry> rows)
+        => rows
             .GroupBy(e => (Ay: e.EntryDateUtc.LocalDateTime.ToString("yyyy-MM"), e.SourceType))
             .Select(g =>
             {
-                var borc = g.Where(e => e.Direction == LedgerDirection.Debit).Sum(e => e.Amount.AmountInBase);
-                var alacak = g.Where(e => e.Direction == LedgerDirection.Credit).Sum(e => e.Amount.AmountInBase);
-                return new OzetSatir(g.Key.Ay, g.Key.SourceType, g.Count(), borc, alacak, borc - alacak);
+                var debit = g.Where(e => e.Direction == LedgerDirection.Debit).Sum(e => e.Amount.AmountInBase);
+                var credit = g.Where(e => e.Direction == LedgerDirection.Credit).Sum(e => e.Amount.AmountInBase);
+                return new OzetSatir(g.Key.Ay, g.Key.SourceType, g.Count(), debit, credit, debit - credit);
             })
             .OrderBy(o => o.Ay).ThenBy(o => o.Kaynak)
             .ToList();
 
-    private static DateTimeOffset? Tarih(string? s)
+    private static DateTimeOffset? Date(string? s)
         => DateTimeOffset.TryParse(s, System.Globalization.CultureInfo.InvariantCulture,
             System.Globalization.DateTimeStyles.None, out var d) ? d.ToUniversalTime() : null;
 
-    private static string Bos(decimal v) => v == 0m ? "" : v.ToString("N2");
+    private static string Empty(decimal v) => v == 0m ? "" : v.ToString("N2");
 
     /// <summary>Filtreyi export bağlantılarına aynen taşır (ekranda gördüğün = indirdiğin).</summary>
     private string Qs(string format)
     {
         var p = new List<string> { "cariId=" + Id, "format=" + format };
-        void Ekle(string ad, string? deger)
+        void Add(string name, string? value)
         {
-            if (!string.IsNullOrWhiteSpace(deger)) p.Add($"{ad}={Uri.EscapeDataString(deger)}");
+            if (!string.IsNullOrWhiteSpace(value)) p.Add($"{name}={Uri.EscapeDataString(value)}");
         }
-        Ekle("bas", Bas); Ekle("bit", Bit); Ekle("doviz", Doviz);
-        Ekle("kaynak", Kaynak); Ekle("kiraDurum", KiraDurum);
+        Add("bas", Bas); Add("bit", Bit); Add("doviz", Doviz);
+        Add("kaynak", Kaynak); Add("kiraDurum", KiraDurum);
         return string.Join("&", p);
     }
 }

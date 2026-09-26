@@ -35,7 +35,7 @@ public sealed class ImportTests(PostgresFixture fx)
                   "34 ABC 01;Fiat;Egea;EKO;Dizel;45000\n" +
                   "34ABC02;Renault;Clio;EKO;Benzin;12000\n" +
                   "34abc01;Kopya;Kopya;EKO;Benzin;0";
-        var r = await Svc(sp).ImportAraclarAsync(Rows(csv));
+        var r = await Svc(sp).ImportVehiclesAsync(Rows(csv));
 
         Assert.Equal(2, r.Eklenen);
         Assert.Equal(1, r.Atlanan);
@@ -62,7 +62,7 @@ public sealed class ImportTests(PostgresFixture fx)
                   "Ali Veli;11111111110;5551112233;İstanbul\n" +
                   "Ayşe Yılmaz;22222222220;5559998877;Ankara\n" +
                   "Ali Kopya;11111111110;5550001122;İzmir";
-        var r = await Svc(sp).ImportCarilerAsync(Rows(csv));
+        var r = await Svc(sp).ImportCustomersAsync(Rows(csv));
 
         Assert.Equal(2, r.Eklenen);
         Assert.Equal(1, r.Atlanan);
@@ -70,11 +70,11 @@ public sealed class ImportTests(PostgresFixture fx)
         // KVKK: düz TcKimlik NULL; TcKimlikEnc + TcKimlikHash DOLU (şifreli + blind-index).
         var factory = sp.GetRequiredService<IDbContextFactory<AppDbContext>>();
         await using var db = await factory.CreateDbContextAsync();
-        var cariler = await db.Customers.AsNoTracking().ToListAsync();
-        Assert.Equal(2, cariler.Count);
-        Assert.All(cariler, c => Assert.Null(c.TcKimlik));                              // düz metin yazılmadı
-        Assert.All(cariler, c => Assert.False(string.IsNullOrEmpty(c.TcKimlikEnc)));    // cipher var
-        Assert.All(cariler, c => Assert.False(string.IsNullOrEmpty(c.TcKimlikHash)));   // blind-index var
-        Assert.Contains(cariler, c => c.Ad == "Ali" && c.Soyad == "Veli");             // isim ayrıştı
+        var customers = await db.Customers.AsNoTracking().ToListAsync();
+        Assert.Equal(2, customers.Count);
+        Assert.All(customers, c => Assert.Null(c.TcKimlik));                              // düz metin yazılmadı
+        Assert.All(customers, c => Assert.False(string.IsNullOrEmpty(c.TcKimlikEnc)));    // cipher var
+        Assert.All(customers, c => Assert.False(string.IsNullOrEmpty(c.TcKimlikHash)));   // blind-index var
+        Assert.Contains(customers, c => c.Ad == "Ali" && c.Soyad == "Veli");             // isim ayrıştı
     }
 }

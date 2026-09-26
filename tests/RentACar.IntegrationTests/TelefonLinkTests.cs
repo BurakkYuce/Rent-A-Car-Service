@@ -23,8 +23,8 @@ public sealed class TelefonLinkTests
     [InlineData("0242 123 45 67", "902421234567")]
     // Zaten ülke kodlu yabancı numara BOZULMAZ (yurt dışı müşteri)
     [InlineData("0049 151 12345678", "4915112345678")]
-    public void Normalize_beklenen_rakam_dizisini_uretir(string girdi, string beklenen)
-        => Assert.Equal(beklenen, PhoneLink.Normalize(girdi));
+    public void Normalize_beklenen_rakam_dizisini_uretir(string input, string expected)
+        => Assert.Equal(expected, PhoneLink.Normalize(input));
 
     [Theory]
     [InlineData(null)]
@@ -33,11 +33,11 @@ public sealed class TelefonLinkTests
     [InlineData("123")]                  // çok kısa
     [InlineData("bilinmiyor")]           // rakam yok
     [InlineData("1234567890123456789")]  // çok uzun
-    public void Gecersiz_girdi_null_doner(string? girdi)
+    public void Gecersiz_girdi_null_doner(string? input)
     {
-        Assert.Null(PhoneLink.Normalize(girdi));
-        Assert.Null(PhoneLink.Tel(girdi));
-        Assert.Null(PhoneLink.Wa(girdi));
+        Assert.Null(PhoneLink.Normalize(input));
+        Assert.Null(PhoneLink.Tel(input));
+        Assert.Null(PhoneLink.Wa(input));
     }
 
     [Fact]

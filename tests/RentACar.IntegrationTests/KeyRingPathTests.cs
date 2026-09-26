@@ -29,21 +29,21 @@ public sealed class KeyRingPathTests
     public void Env_bos_ise_fallback_kullanilir(string? env)
     {
         // Boş/whitespace bir env, "dizin yok" demektir — düz `??` bunu yakalamaz, bu yüzden test ediliyor.
-        var yol = KeyRingPath.Resolve(env);
-        Assert.False(string.IsNullOrWhiteSpace(yol));
-        Assert.True(Path.IsPathRooted(yol));
+        var path = KeyRingPath.Resolve(env);
+        Assert.False(string.IsNullOrWhiteSpace(path));
+        Assert.True(Path.IsPathRooted(path));
     }
 
     [Fact]
     public void Fallback_BUILD_CIKTISININ_ALTINDA_DEGIL()
     {
         // Asıl kilit bu: yol bin/Debug/... altına düşerse `dotnet clean` şifreli PII'yi yok eder.
-        var yol = Path.GetFullPath(KeyRingPath.Resolve(null));
-        var binDizini = Path.GetFullPath(AppContext.BaseDirectory);
+        var path = Path.GetFullPath(KeyRingPath.Resolve(null));
+        var binDirectory = Path.GetFullPath(AppContext.BaseDirectory);
 
         Assert.False(
-            yol.StartsWith(binDizini, StringComparison.Ordinal),
-            $"Key-ring build çıktısının altına düştü: {yol}");
+            path.StartsWith(binDirectory, StringComparison.Ordinal),
+            $"Key-ring build çıktısının altına düştü: {path}");
     }
 
     [Fact]

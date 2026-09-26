@@ -27,9 +27,9 @@ public static class CustomerGroupEndpoints
         return app;
     }
 
-    private static async Task<IResult> Run(Func<Task> action, string mesaj)
+    private static async Task<IResult> Run(Func<Task> action, string message)
     {
-        try { await action(); return Sonuc.Tamam("/musteri-gruplari", mesaj); }
+        try { await action(); return Result.Ok("/musteri-gruplari", message); }
         catch (ValidationException ex) { return Results.Redirect($"/musteri-gruplari?hata={Uri.EscapeDataString(ex.Message)}"); }
     }
 }

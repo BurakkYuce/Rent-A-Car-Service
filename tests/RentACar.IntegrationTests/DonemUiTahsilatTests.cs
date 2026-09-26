@@ -19,15 +19,15 @@ namespace RentACar.IntegrationTests;
 [Collection("postgres")]
 public sealed class DonemUiTahsilatTests(PostgresFixture fx)
 {
-    private static readonly DateTimeOffset Bas = new(2027, 1, 15, 10, 0, 0, TimeSpan.Zero);
+    private static readonly DateTimeOffset Start = new(2027, 1, 15, 10, 0, 0, TimeSpan.Zero);
 
-    private static async Task<(Guid kira, Guid cari)> KiraAsync(IServiceProvider sp, string plaka)
+    private static async Task<(Guid kira, Guid cari)> RentalAsync(IServiceProvider sp, string plate)
     {
-        var v = await sp.GetRequiredService<VehicleService>().CreateAsync(new VehicleInput { Plaka = plaka });
+        var v = await sp.GetRequiredService<VehicleService>().CreateAsync(new VehicleInput { Plaka = plate });
         var m = await sp.GetRequiredService<CustomerService>().CreateAsync(new CustomerInput
         { Tip = CustomerType.Bireysel, Ad = "DT", Soyad = "M" });
         var id = await sp.GetRequiredService<RentalService>().CreateDirectAsync(new BookingInput
-        { MusteriId = m, VehicleId = v, BasTar = Bas, BitTar = Bas.AddDays(90), GunlukUcret = 100m });
+        { MusteriId = m, VehicleId = v, BasTar = Start, BitTar = Start.AddDays(90), GunlukUcret = 100m });
         return (id, m);
     }
 
@@ -37,26 +37,26 @@ public sealed class DonemUiTahsilatTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
         var sp = scope.ServiceProvider;
-        var (kira, cari) = await KiraAsync(sp, "34 DT 01");
+        var (rental, account) = await RentalAsync(sp, "34 DT 01");
         var svc = sp.GetRequiredService<PeriodCollectionService>();
 
         // İki kez aynı istek (çift-tık/geri-tuşu): fatura idempotent + tahsilat RowKey'li no-op.
-        var f1 = await svc.IssueAndCollectAsync(kira, 1, collectionRecord: true, LedgerAccountType.Kasa);
-        var f2 = await svc.IssueAndCollectAsync(kira, 1, collectionRecord: true, LedgerAccountType.Kasa);
+        var f1 = await svc.IssueAndCollectAsync(rental, 1, collectionRecord: true, LedgerAccountType.Kasa);
+        var f2 = await svc.IssueAndCollectAsync(rental, 1, collectionRecord: true, LedgerAccountType.Kasa);
         Assert.Equal(f1, f2);
 
         // TEK fatura (D1 = 3100) — fark-state faturalananı 3100 (ikinci fatura yok).
         var repo = sp.GetRequiredService<IInvoiceRepository>();
         Assert.Equal(3100m, (await repo.FindAsync(f1))!.GenelToplam);
-        var (faturalanan, _) = await repo.GetDifferenceStateAsync(kira);
-        Assert.Equal(3100m, faturalanan);
+        var (invoiced, _) = await repo.GetDifferenceStateAsync(rental);
+        Assert.Equal(3100m, invoiced);
 
         // TEK tahsilat: cari bakiye 0 (borç 3100 == alacak 3100) — çift tahsilat -3100 yapardı.
-        var bakiye = await sp.GetRequiredService<CashService>().GetAccountBalanceAsync(cari);
-        Assert.Equal(0m, bakiye);
+        var balance = await sp.GetRequiredService<CashService>().GetAccountBalanceAsync(account);
+        Assert.Equal(0m, balance);
 
         // Kira tahsilat alanı işledi (RentalId bağlı tahsilat).
-        Assert.Equal(3100m, (await sp.GetRequiredService<RentalService>().GetAsync(kira))!.Tahsilat);
+        Assert.Equal(3100m, (await sp.GetRequiredService<RentalService>().GetAsync(rental))!.Tahsilat);
     }
 
     [Fact]
@@ -65,13 +65,13 @@ public sealed class DonemUiTahsilatTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
         var sp = scope.ServiceProvider;
-        var (kira, cari) = await KiraAsync(sp, "34 DT 02");
+        var (rental, account) = await RentalAsync(sp, "34 DT 02");
 
         await sp.GetRequiredService<PeriodCollectionService>()
-            .IssueAndCollectAsync(kira, 1, collectionRecord: false, LedgerAccountType.Kasa);
+            .IssueAndCollectAsync(rental, 1, collectionRecord: false, LedgerAccountType.Kasa);
 
         // Fatura borcu cariye işledi (3100), tahsilat YOK → bakiye 3100.
-        Assert.Equal(3100m, await sp.GetRequiredService<CashService>().GetAccountBalanceAsync(cari));
-        Assert.Equal(0m, (await sp.GetRequiredService<RentalService>().GetAsync(kira))!.Tahsilat);
+        Assert.Equal(3100m, await sp.GetRequiredService<CashService>().GetAccountBalanceAsync(account));
+        Assert.Equal(0m, (await sp.GetRequiredService<RentalService>().GetAsync(rental))!.Tahsilat);
     }
 }

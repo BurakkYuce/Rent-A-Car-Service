@@ -20,7 +20,7 @@ namespace RentACar.IntegrationTests;
 /// </summary>
 public sealed class BasariMesajiDogruDaldaTests
 {
-    private static string RepoKok()
+    private static string RepoRoot()
     {
         var d = new DirectoryInfo(AppContext.BaseDirectory);
         while (d is not null && !File.Exists(Path.Combine(d.FullName, "RentACar.slnx"))) d = d.Parent;
@@ -28,49 +28,49 @@ public sealed class BasariMesajiDogruDaldaTests
         return d!.FullName;
     }
 
-    private static IEnumerable<string> UcDosyalari(string kok)
-        => Directory.EnumerateFiles(Path.Combine(kok, "src/RentACar.Web"), "*Endpoints.cs", SearchOption.AllDirectories);
+    private static IEnumerable<string> EndpointFiles(string root)
+        => Directory.EnumerateFiles(Path.Combine(root, "src/RentACar.Web"), "*Endpoints.cs", SearchOption.AllDirectories);
 
     [Fact]
     public void Guard_dalinda_basari_mesaji_yok()
     {
         // `if (dosya is null) return Sonuc.Tamam(...)` → kullanıcı hiçbir şey yapmadan "başarılı" görür.
-        var kok = RepoKok();
-        var bulgular = new List<string>();
+        var root = RepoRoot();
+        var findings = new List<string>();
 
-        foreach (var dosya in UcDosyalari(kok))
-            foreach (var (sat, i) in File.ReadLines(dosya).Select((s, i) => (s, i)))
-                if (Regex.IsMatch(sat, @"\bif\s*\(.*\)\s*return\s+Sonuc\.Tamam\b"))
-                    bulgular.Add($"{Path.GetRelativePath(kok, dosya)}:{i + 1}  {sat.Trim()}");
+        foreach (var file in EndpointFiles(root))
+            foreach (var (sell, i) in File.ReadLines(file).Select((s, i) => (s, i)))
+                if (Regex.IsMatch(sell, @"\bif\s*\(.*\)\s*return\s+Sonuc\.Tamam\b"))
+                    findings.Add($"{Path.GetRelativePath(root, file)}:{i + 1}  {sell.Trim()}");
 
-        Assert.True(bulgular.Count == 0,
+        Assert.True(findings.Count == 0,
             "Tek satırlık guard'da Sonuc.Tamam kullanılmış. Guard'lar erken ÇIKIŞ içindir " +
             "(dosya seçilmedi, kayıt yok...) — işlem YAPILMADIĞI için başarı mesajı yanlıştır; " +
-            "Sonuc.Hata kullanın ya da sessizce dönün.\n  " + string.Join("\n  ", bulgular));
+            "Sonuc.Hata kullanın ya da sessizce dönün.\n  " + string.Join("\n  ", findings));
     }
 
     [Fact]
     public void Catch_bloklarinda_basari_mesaji_yok()
     {
-        var kok = RepoKok();
-        var bulgular = new List<string>();
+        var root = RepoRoot();
+        var findings = new List<string>();
 
-        foreach (var dosya in UcDosyalari(kok))
+        foreach (var file in EndpointFiles(root))
         {
-            var satirlar = File.ReadAllLines(dosya);
-            for (var i = 0; i < satirlar.Length; i++)
+            var rows = File.ReadAllLines(file);
+            for (var i = 0; i < rows.Length; i++)
             {
-                if (!satirlar[i].Contains("Sonuc.Tamam", StringComparison.Ordinal)) continue;
+                if (!rows[i].Contains("Sonuc.Tamam", StringComparison.Ordinal)) continue;
 
                 // Aynı satırda ya da hemen üstündeki 2 satırda `catch (...)` varsa → hata dalı.
-                var pencere = string.Join('\n', satirlar.Skip(Math.Max(0, i - 2)).Take(3));
-                if (Regex.IsMatch(pencere, @"catch\s*\([^)]*\)"))
-                    bulgular.Add($"{Path.GetRelativePath(kok, dosya)}:{i + 1}  {satirlar[i].Trim()}");
+                var window = string.Join('\n', rows.Skip(Math.Max(0, i - 2)).Take(3));
+                if (Regex.IsMatch(window, @"catch\s*\([^)]*\)"))
+                    findings.Add($"{Path.GetRelativePath(root, file)}:{i + 1}  {rows[i].Trim()}");
             }
         }
 
-        Assert.True(bulgular.Count == 0,
+        Assert.True(findings.Count == 0,
             "catch bloğunda Sonuc.Tamam kullanılmış — işlem BAŞARISIZ olmuşken kullanıcıya başarı " +
-            "mesajı gösterilir. Sonuc.Hata kullanın.\n  " + string.Join("\n  ", bulgular));
+            "mesajı gösterilir. Sonuc.Hata kullanın.\n  " + string.Join("\n  ", findings));
     }
 }

@@ -54,7 +54,7 @@ public sealed class RowVersionReadRetryTests(PostgresFixture fx)
         var scope = host.ScopeFor(Guid.NewGuid());
         var sp = scope.ServiceProvider;
         var staff = await sp.GetRequiredService<PersonnelService>().CreateAsync(new PersonelInput { Kod = "P1", Ad = "Ali", Soyad = "Test" });
-        var day = DateOnly.FromDateTime(TestZaman.GunSonra(20).UtcDateTime);
+        var day = DateOnly.FromDateTime(TestZaman.DaysLater(20).UtcDateTime);
         var id = await sp.GetRequiredService<StaffShiftService>().CreateAsync(new VardiyaInput
         {
             PersonelId = staff, Tarih = day, BaslangicSaat = new TimeOnly(8, 0), BitisSaat = new TimeOnly(12, 0), Aciklama = "ilk",
@@ -136,12 +136,12 @@ public sealed class RowVersionReadRetryTests(PostgresFixture fx)
 
         public Task<IReadOnlyList<SabitKur>> ListAsync(CancellationToken ct = default) => inner.ListAsync(ct);
         public Task<SabitKur?> FindAsync(Guid id, CancellationToken ct = default) => inner.FindAsync(id, ct);
-        public Task<SabitKur?> GetActiveAsync(string kod, DateTimeOffset tarih, CancellationToken ct = default)
-            => inner.GetActiveAsync(kod, tarih, ct);
-        public Task<bool> CodeExistsAsync(string kod, Guid? excludeId, CancellationToken ct = default)
-            => inner.CodeExistsAsync(kod, excludeId, ct);
-        public Task CreateAsync(SabitKur sabit, CancellationToken ct = default) => inner.CreateAsync(sabit, ct);
-        public Task<bool> UpdateAsync(SabitKur sabit, CancellationToken ct = default) => inner.UpdateAsync(sabit, ct);
+        public Task<SabitKur?> GetActiveAsync(string code, DateTimeOffset date, CancellationToken ct = default)
+            => inner.GetActiveAsync(code, date, ct);
+        public Task<bool> CodeExistsAsync(string code, Guid? excludeId, CancellationToken ct = default)
+            => inner.CodeExistsAsync(code, excludeId, ct);
+        public Task CreateAsync(SabitKur fixedValue, CancellationToken ct = default) => inner.CreateAsync(fixedValue, ct);
+        public Task<bool> UpdateAsync(SabitKur fixedValue, CancellationToken ct = default) => inner.UpdateAsync(fixedValue, ct);
         public Task<bool> DeleteAsync(Guid id, CancellationToken ct = default) => inner.DeleteAsync(id, ct);
         public Task<bool> UpdateAsync(Guid id, string expectedVersion, Action<SabitKur> apply, CancellationToken ct = default)
             => inner.UpdateAsync(id, expectedVersion, apply, ct);

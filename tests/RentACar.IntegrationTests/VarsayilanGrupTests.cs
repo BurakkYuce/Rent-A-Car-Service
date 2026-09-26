@@ -18,23 +18,23 @@ namespace RentACar.IntegrationTests;
 [Collection("postgres")]
 public sealed class VarsayilanGrupTests(PostgresFixture fx)
 {
-    private static VehicleGroupInput Grup(string kod, string ad, bool aktif = true)
-        => new() { Kod = kod, Ad = ad, Aktif = aktif };
+    private static VehicleGroupInput Group(string code, string name, bool active = true)
+        => new() { Kod = code, Ad = name, Aktif = active };
 
     [Fact]
     public async Task Grup_bos_gelirse_Ekonomi_atanir()
     {
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
-        var gruplar = scope.ServiceProvider.GetRequiredService<VehicleGroupService>();
-        var araclar = scope.ServiceProvider.GetRequiredService<VehicleService>();
+        var groups = scope.ServiceProvider.GetRequiredService<VehicleGroupService>();
+        var vehicles = scope.ServiceProvider.GetRequiredService<VehicleService>();
 
-        await gruplar.CreateAsync(Grup("LUX", "Lüks"));
-        await gruplar.CreateAsync(Grup("EKO", "Ekonomi"));
+        await groups.CreateAsync(Group("LUX", "Lüks"));
+        await groups.CreateAsync(Group("EKO", "Ekonomi"));
 
-        var id = await araclar.CreateAsync(new VehicleInput { Plaka = "34 AAA 001" });
+        var id = await vehicles.CreateAsync(new VehicleInput { Plaka = "34 AAA 001" });
 
-        Assert.Equal("Ekonomi", (await araclar.GetAsync(id))!.Grup);
+        Assert.Equal("Ekonomi", (await vehicles.GetAsync(id))!.Grup);
     }
 
     [Fact]
@@ -42,15 +42,15 @@ public sealed class VarsayilanGrupTests(PostgresFixture fx)
     {
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
-        var gruplar = scope.ServiceProvider.GetRequiredService<VehicleGroupService>();
-        var araclar = scope.ServiceProvider.GetRequiredService<VehicleService>();
+        var groups = scope.ServiceProvider.GetRequiredService<VehicleGroupService>();
+        var vehicles = scope.ServiceProvider.GetRequiredService<VehicleService>();
 
         // "Lüks" tek aktif grup — yanlış segmentte yayınlamaktansa araç grupsuz (pending) kalmalı.
-        await gruplar.CreateAsync(Grup("LUX", "Lüks"));
+        await groups.CreateAsync(Group("LUX", "Lüks"));
 
-        var id = await araclar.CreateAsync(new VehicleInput { Plaka = "34 AAA 002" });
+        var id = await vehicles.CreateAsync(new VehicleInput { Plaka = "34 AAA 002" });
 
-        Assert.Null((await araclar.GetAsync(id))!.Grup);
+        Assert.Null((await vehicles.GetAsync(id))!.Grup);
     }
 
     [Fact]
@@ -58,17 +58,17 @@ public sealed class VarsayilanGrupTests(PostgresFixture fx)
     {
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
-        var gruplar = scope.ServiceProvider.GetRequiredService<VehicleGroupService>();
-        var araclar = scope.ServiceProvider.GetRequiredService<VehicleService>();
-        var ayarlar = scope.ServiceProvider.GetRequiredService<TenantSettingsService>();
+        var groups = scope.ServiceProvider.GetRequiredService<VehicleGroupService>();
+        var vehicles = scope.ServiceProvider.GetRequiredService<VehicleService>();
+        var settings = scope.ServiceProvider.GetRequiredService<TenantSettingsService>();
 
-        await gruplar.CreateAsync(Grup("EKO", "Ekonomi"));
-        var ticariId = await gruplar.CreateAsync(Grup("TIC", "Ticari"));
-        await ayarlar.SaveAsync(new TenantSettingsModel { VarsayilanGrupId = ticariId });
+        await groups.CreateAsync(Group("EKO", "Ekonomi"));
+        var commercialId = await groups.CreateAsync(Group("TIC", "Ticari"));
+        await settings.SaveAsync(new TenantSettingsModel { VarsayilanGrupId = commercialId });
 
-        var id = await araclar.CreateAsync(new VehicleInput { Plaka = "34 AAA 003" });
+        var id = await vehicles.CreateAsync(new VehicleInput { Plaka = "34 AAA 003" });
 
-        Assert.Equal("Ticari", (await araclar.GetAsync(id))!.Grup); // Ekonomi DEĞİL
+        Assert.Equal("Ticari", (await vehicles.GetAsync(id))!.Grup); // Ekonomi DEĞİL
     }
 
     [Fact]
@@ -76,19 +76,19 @@ public sealed class VarsayilanGrupTests(PostgresFixture fx)
     {
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
-        var gruplar = scope.ServiceProvider.GetRequiredService<VehicleGroupService>();
-        var araclar = scope.ServiceProvider.GetRequiredService<VehicleService>();
-        var ayarlar = scope.ServiceProvider.GetRequiredService<TenantSettingsService>();
+        var groups = scope.ServiceProvider.GetRequiredService<VehicleGroupService>();
+        var vehicles = scope.ServiceProvider.GetRequiredService<VehicleService>();
+        var settings = scope.ServiceProvider.GetRequiredService<TenantSettingsService>();
 
-        await gruplar.CreateAsync(Grup("EKO", "Ekonomi"));
-        var ticariId = await gruplar.CreateAsync(Grup("TIC", "Ticari"));
-        await ayarlar.SaveAsync(new TenantSettingsModel { VarsayilanGrupId = ticariId });
+        await groups.CreateAsync(Group("EKO", "Ekonomi"));
+        var commercialId = await groups.CreateAsync(Group("TIC", "Ticari"));
+        await settings.SaveAsync(new TenantSettingsModel { VarsayilanGrupId = commercialId });
         // Ayar dururken grup pasifleştirilirse araçlar görünmez bir gruba yazılmamalı.
-        await gruplar.UpdateAsync(ticariId, Grup("TIC", "Ticari", aktif: false));
+        await groups.UpdateAsync(commercialId, Group("TIC", "Ticari", active: false));
 
-        var id = await araclar.CreateAsync(new VehicleInput { Plaka = "34 AAA 004" });
+        var id = await vehicles.CreateAsync(new VehicleInput { Plaka = "34 AAA 004" });
 
-        Assert.Equal("Ekonomi", (await araclar.GetAsync(id))!.Grup);
+        Assert.Equal("Ekonomi", (await vehicles.GetAsync(id))!.Grup);
     }
 
     [Fact]
@@ -96,15 +96,15 @@ public sealed class VarsayilanGrupTests(PostgresFixture fx)
     {
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
-        var gruplar = scope.ServiceProvider.GetRequiredService<VehicleGroupService>();
-        var araclar = scope.ServiceProvider.GetRequiredService<VehicleService>();
+        var groups = scope.ServiceProvider.GetRequiredService<VehicleGroupService>();
+        var vehicles = scope.ServiceProvider.GetRequiredService<VehicleService>();
 
-        await gruplar.CreateAsync(Grup("EKO", "Ekonomi"));
+        await groups.CreateAsync(Group("EKO", "Ekonomi"));
 
         // Web formundaki "(Grupsuz)" seçeneği: alan BOŞ ama BİLİNÇLİ. Varsayılan uygulanmaz.
-        var id = await araclar.CreateAsync(new VehicleInput { Plaka = "34 AAA 005", GrupBilincliBos = true });
+        var id = await vehicles.CreateAsync(new VehicleInput { Plaka = "34 AAA 005", GrupBilincliBos = true });
 
-        Assert.Null((await araclar.GetAsync(id))!.Grup);
+        Assert.Null((await vehicles.GetAsync(id))!.Grup);
     }
 
     [Fact]
@@ -112,16 +112,16 @@ public sealed class VarsayilanGrupTests(PostgresFixture fx)
     {
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
-        var gruplar = scope.ServiceProvider.GetRequiredService<VehicleGroupService>();
-        var araclar = scope.ServiceProvider.GetRequiredService<VehicleService>();
+        var groups = scope.ServiceProvider.GetRequiredService<VehicleGroupService>();
+        var vehicles = scope.ServiceProvider.GetRequiredService<VehicleService>();
 
-        await gruplar.CreateAsync(Grup("EKO", "Ekonomi"));
+        await groups.CreateAsync(Group("EKO", "Ekonomi"));
 
         // Hiçbir gruba eşleşmeyen serbest metin bile olsa kullanıcının girdiği değer korunur
         // (toplu düzeltme yeri Araç Grupları ekranındaki eşleme aracıdır, sessiz ezme DEĞİL).
-        var id = await araclar.CreateAsync(new VehicleInput { Plaka = "34 AAA 006", Grup = "FİAT-EGEA" });
+        var id = await vehicles.CreateAsync(new VehicleInput { Plaka = "34 AAA 006", Grup = "FİAT-EGEA" });
 
-        Assert.Equal("FİAT-EGEA", (await araclar.GetAsync(id))!.Grup);
+        Assert.Equal("FİAT-EGEA", (await vehicles.GetAsync(id))!.Grup);
     }
 
     [Fact]
@@ -132,7 +132,7 @@ public sealed class VarsayilanGrupTests(PostgresFixture fx)
         var t2 = Guid.NewGuid();
 
         using (var s1 = host.ScopeFor(t1))
-            await s1.ServiceProvider.GetRequiredService<VehicleGroupService>().CreateAsync(Grup("EKO", "Ekonomi"));
+            await s1.ServiceProvider.GetRequiredService<VehicleGroupService>().CreateAsync(Group("EKO", "Ekonomi"));
 
         using var s2 = host.ScopeFor(t2);
         var id = await s2.ServiceProvider.GetRequiredService<VehicleService>()

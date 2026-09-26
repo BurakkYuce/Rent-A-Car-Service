@@ -25,12 +25,12 @@ public sealed class TcmbKurServiceTests(PostgresFixture fx)
     {
         public string Body = "";
         public bool AgHatasi;
-        private int _cagri;
-        public int Cagri => Volatile.Read(ref _cagri);
+        private int _call;
+        public int Cagri => Volatile.Read(ref _call);
 
         protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage r, CancellationToken ct)
         {
-            Interlocked.Increment(ref _cagri);
+            Interlocked.Increment(ref _call);
             if (AgHatasi) throw new HttpRequestException("ağ yok (test)");
             return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent(Body) });
         }
@@ -42,11 +42,11 @@ public sealed class TcmbKurServiceTests(PostgresFixture fx)
     }
 
     /// <summary>Parser fixture'ıyla aynı yapı; tarih/USD-satış parametrik (2099 → canlıyla çakışmaz).</summary>
-    private static string Xml(string tarih, string usdSatis) => $"""
-        <Tarih_Date Tarih="{tarih}" Date="{tarih}" Bulten_No="2099/1">
+    private static string Xml(string date, string usdSelling) => $"""
+        <Tarih_Date Tarih="{date}" Date="{date}" Bulten_No="2099/1">
           <Currency CrossOrder="0" Kod="USD" CurrencyCode="USD">
             <Unit>1</Unit><Isim>ABD DOLARI</Isim>
-            <ForexBuying>34.1234</ForexBuying><ForexSelling>{usdSatis}</ForexSelling>
+            <ForexBuying>34.1234</ForexBuying><ForexSelling>{usdSelling}</ForexSelling>
             <BanknoteBuying>34.1000</BanknoteBuying><BanknoteSelling>34.2800</BanknoteSelling>
           </Currency>
           <Currency CrossOrder="18" Kod="JPY" CurrencyCode="JPY">
@@ -60,51 +60,51 @@ public sealed class TcmbKurServiceTests(PostgresFixture fx)
         </Tarih_Date>
         """;
 
-    private TcmbKurService Servis(SayanHandler handler)
+    private TcmbExchangeRateService Service(SayanHandler handler)
     {
         var config = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
         {
             ["ConnectionStrings:Default"] = fx.AppConnectionString
         }).Build();
-        return new TcmbKurService(new FakeFactory(handler), config, NullLogger<TcmbKurService>.Instance);
+        return new TcmbExchangeRateService(new FakeFactory(handler), config, NullLogger<TcmbExchangeRateService>.Instance);
     }
 
     /// <summary>KurKayitlari paylaşımlı → verilen tarihin satırlarını idempotent temizle.</summary>
-    private async Task TemizleAsync(DateTimeOffset tarih)
+    private async Task ClearAsync(DateTimeOffset date)
     {
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
         var factory = scope.ServiceProvider.GetRequiredService<IDbContextFactory<AppDbContext>>();
         await using var db = await factory.CreateDbContextAsync();
-        db.KurKayitlari.RemoveRange(await db.KurKayitlari.Where(x => x.Tarih == tarih).ToListAsync());
+        db.KurKayitlari.RemoveRange(await db.KurKayitlari.Where(x => x.Tarih == date).ToListAsync());
         await db.SaveChangesAsync();
     }
 
-    private async Task<List<RentACar.Domain.Entities.KurKaydi>> OkuAsync(DateTimeOffset tarih, string kod)
+    private async Task<List<RentACar.Domain.Entities.KurKaydi>> ReadAsync(DateTimeOffset date, string code)
     {
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
         var factory = scope.ServiceProvider.GetRequiredService<IDbContextFactory<AppDbContext>>();
         await using var db = await factory.CreateDbContextAsync();
-        return await db.KurKayitlari.AsNoTracking().Where(x => x.Tarih == tarih && x.Kod == kod).ToListAsync();
+        return await db.KurKayitlari.AsNoTracking().Where(x => x.Tarih == date && x.Kod == code).ToListAsync();
     }
 
     // ---- (a) Refresh → yazar; USD ForexSatis 34.2567 (elle oracle) ----
     [Fact]
     public async Task Refresh_yazar_ve_USD_satis_dogru()
     {
-        var tarih = new DateTimeOffset(2099, 1, 1, 0, 0, 0, TimeSpan.Zero);
-        await TemizleAsync(tarih);
+        var date = new DateTimeOffset(2099, 1, 1, 0, 0, 0, TimeSpan.Zero);
+        await ClearAsync(date);
 
         var h = new SayanHandler { Body = Xml("01.01.2099", "34.2567") };
-        var n = await Servis(h).RefreshAsync();
+        var n = await Service(h).RefreshAsync();
 
         Assert.Equal(3, n); // fixture'da 3 Currency: USD, JPY, XDR (elle sayım)
-        var usd = Assert.Single(await OkuAsync(tarih, "USD"));
+        var usd = Assert.Single(await ReadAsync(date, "USD"));
         Assert.Equal(34.2567m, usd.ForexSatis); // ORACLE: fixture'daki el değeri
         Assert.Equal(34.1234m, usd.ForexAlis);
         Assert.Equal(34.2800m, usd.EfektifSatis);
-        var jpy = Assert.Single(await OkuAsync(tarih, "JPY"));
+        var jpy = Assert.Single(await ReadAsync(date, "JPY"));
         Assert.Equal(100, jpy.Birim);
     }
 
@@ -112,17 +112,17 @@ public sealed class TcmbKurServiceTests(PostgresFixture fx)
     [Fact]
     public async Task Ikinci_refresh_gunceller_cift_kayit_olmaz()
     {
-        var tarih = new DateTimeOffset(2099, 1, 2, 0, 0, 0, TimeSpan.Zero);
-        await TemizleAsync(tarih);
+        var date = new DateTimeOffset(2099, 1, 2, 0, 0, 0, TimeSpan.Zero);
+        await ClearAsync(date);
 
         var h = new SayanHandler { Body = Xml("02.01.2099", "34.2567") };
-        var svc = Servis(h);
+        var svc = Service(h);
         Assert.Equal(3, await svc.RefreshAsync());
 
         h.Body = Xml("02.01.2099", "35.1111"); // kur değişti
-        Assert.Equal(3, await svc.RefreshAsync(zorla: true)); // throttle'ı bilinçli atla
+        Assert.Equal(3, await svc.RefreshAsync(force: true)); // throttle'ı bilinçli atla
 
-        var usd = Assert.Single(await OkuAsync(tarih, "USD")); // TEK satır (Tarih+Kod upsert)
+        var usd = Assert.Single(await ReadAsync(date, "USD")); // TEK satır (Tarih+Kod upsert)
         Assert.Equal(35.1111m, usd.ForexSatis); // güncellenmiş değer
     }
 
@@ -130,11 +130,11 @@ public sealed class TcmbKurServiceTests(PostgresFixture fx)
     [Fact]
     public async Task Throttle_ikinci_cagri_http_yapmaz_eksi_bir_doner()
     {
-        var tarih = new DateTimeOffset(2099, 1, 3, 0, 0, 0, TimeSpan.Zero);
-        await TemizleAsync(tarih);
+        var date = new DateTimeOffset(2099, 1, 3, 0, 0, 0, TimeSpan.Zero);
+        await ClearAsync(date);
 
         var h = new SayanHandler { Body = Xml("03.01.2099", "34.2567") };
-        var svc = Servis(h);
+        var svc = Service(h);
 
         Assert.Equal(3, await svc.RefreshAsync()); // başarılı → damga atılır
         Assert.Equal(1, h.Cagri);
@@ -148,7 +148,7 @@ public sealed class TcmbKurServiceTests(PostgresFixture fx)
     public async Task Bozuk_xml_sifir_doner_patlamaz_ve_damga_basmaz()
     {
         var h = new SayanHandler { Body = "bu bir xml değil <<<" };
-        var svc = Servis(h);
+        var svc = Service(h);
 
         Assert.Equal(0, await svc.RefreshAsync());
         Assert.Equal(1, h.Cagri);
@@ -163,7 +163,7 @@ public sealed class TcmbKurServiceTests(PostgresFixture fx)
     public async Task Ag_hatasi_sifir_doner_patlamaz()
     {
         var h = new SayanHandler { AgHatasi = true };
-        Assert.Equal(0, await Servis(h).RefreshAsync());
+        Assert.Equal(0, await Service(h).RefreshAsync());
         Assert.Equal(1, h.Cagri);
     }
 }

@@ -27,12 +27,12 @@ namespace RentACar.IntegrationTests;
 [Collection("postgres")]
 public sealed class OtomatikFiyatKurtarmaTests(PostgresFixture fx)
 {
-    private static readonly DateTimeOffset Bas = new DateTimeOffset(DateTime.UtcNow.Date, TimeSpan.Zero).AddDays(5);
+    private static readonly DateTimeOffset Start = new DateTimeOffset(DateTime.UtcNow.Date, TimeSpan.Zero).AddDays(5);
 
-    private static async Task<(Guid m, Guid v)> SeedAsync(IServiceProvider sp, string plaka, string? grup = null)
+    private static async Task<(Guid m, Guid v)> SeedAsync(IServiceProvider sp, string plate, string? group = null)
     {
         var v = await sp.GetRequiredService<VehicleService>().CreateAsync(
-            new VehicleInput { Plaka = plaka, Grup = grup, GrupBilincliBos = grup is null });
+            new VehicleInput { Plaka = plate, Grup = group, GrupBilincliBos = group is null });
         var m = await sp.GetRequiredService<CustomerService>().CreateAsync(new CustomerInput
         { Tip = CustomerType.Bireysel, Ad = "Oto", Soyad = "Kurtarma" });
         return (m, v);
@@ -48,7 +48,7 @@ public sealed class OtomatikFiyatKurtarmaTests(PostgresFixture fx)
 
         var id = await sp.GetRequiredService<RentalService>().CreateDirectAsync(new BookingInput
         {
-            MusteriId = m, VehicleId = v, BasTar = Bas, BitTar = Bas.AddDays(3),
+            MusteriId = m, VehicleId = v, BasTar = Start, BitTar = Start.AddDays(3),
             GunlukUcret = 1000m, FiyatTuru = "Otomatik",
         });
 
@@ -71,7 +71,7 @@ public sealed class OtomatikFiyatKurtarmaTests(PostgresFixture fx)
         var ex = await Assert.ThrowsAsync<ValidationException>(() =>
             sp.GetRequiredService<RentalService>().CreateDirectAsync(new BookingInput
             {
-                MusteriId = m, VehicleId = v, BasTar = Bas, BitTar = Bas.AddDays(3),
+                MusteriId = m, VehicleId = v, BasTar = Start, BitTar = Start.AddDays(3),
                 GunlukUcret = 0m, FiyatTuru = "Otomatik",
             }));
         Assert.Contains("Otomatik tarife bulunamadı", ex.Message);
@@ -90,7 +90,7 @@ public sealed class OtomatikFiyatKurtarmaTests(PostgresFixture fx)
         var ex = await Assert.ThrowsAsync<ValidationException>(() =>
             sp.GetRequiredService<RentalService>().CreateDirectAsync(new BookingInput
             {
-                MusteriId = m, VehicleId = v, BasTar = Bas, BitTar = Bas.AddDays(3),
+                MusteriId = m, VehicleId = v, BasTar = Start, BitTar = Start.AddDays(3),
                 GunlukUcret = 1000m, FiyatTuru = "Otomatik", KampanyaKodu = "YAZ25",
             }));
         Assert.Contains("Kampanya kodu", ex.Message);
@@ -102,7 +102,7 @@ public sealed class OtomatikFiyatKurtarmaTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
         var sp = scope.ServiceProvider;
-        var (m, v) = await SeedAsync(sp, "34 OT 04", grup: "EKO");
+        var (m, v) = await SeedAsync(sp, "34 OT 04", group: "EKO");
 
         // Onaylı tarife: günlük 500 TRY. Kullanıcı 9.999 yazsa bile Otomatik'te tarife kazanmalı.
         await sp.GetRequiredService<RateMatrixService>().CreateAsync(new RateMatrixInput
@@ -114,7 +114,7 @@ public sealed class OtomatikFiyatKurtarmaTests(PostgresFixture fx)
 
         var id = await sp.GetRequiredService<RentalService>().CreateDirectAsync(new BookingInput
         {
-            MusteriId = m, VehicleId = v, BasTar = Bas, BitTar = Bas.AddDays(3),
+            MusteriId = m, VehicleId = v, BasTar = Start, BitTar = Start.AddDays(3),
             GunlukUcret = 9999m, FiyatTuru = "Otomatik",
         });
 
@@ -132,20 +132,20 @@ public sealed class OtomatikFiyatKurtarmaTests(PostgresFixture fx)
         var (m, v) = await SeedAsync(sp, "34 OT 05");
 
         // Canlı hesap ucu (mega-formun sağ paneli) eskiden burada ok:false + hata mesajı dönüyordu.
-        var onizleme = await sp.GetRequiredService<RentalCalculationService>().CalculateAsync(new KiraHesapIstek(
-            VehicleId: v, BasTar: Bas, BitTar: Bas.AddDays(3), GunlukUcret: 1000m,
+        var preview = await sp.GetRequiredService<RentalCalculationService>().CalculateAsync(new KiraHesapIstek(
+            VehicleId: v, BasTar: Start, BitTar: Start.AddDays(3), GunlukUcret: 1000m,
             FiyatTuru: "Otomatik", Doviz: "TL", CikisOfisi: null, EkHizmetler: [], MusteriId: m));
 
-        Assert.True(onizleme.Ok);
-        Assert.Equal(3600m, onizleme.GenelToplam);
-        Assert.Equal(3000m, onizleme.Net);
-        Assert.Equal(600m, onizleme.Kdv);
+        Assert.True(preview.Ok);
+        Assert.Equal(3600m, preview.GenelToplam);
+        Assert.Equal(3000m, preview.Net);
+        Assert.Equal(600m, preview.Kdv);
 
         var id = await sp.GetRequiredService<RentalService>().CreateDirectAsync(new BookingInput
         {
-            MusteriId = m, VehicleId = v, BasTar = Bas, BitTar = Bas.AddDays(3),
+            MusteriId = m, VehicleId = v, BasTar = Start, BitTar = Start.AddDays(3),
             GunlukUcret = 1000m, FiyatTuru = "Otomatik",
         });
-        Assert.Equal(onizleme.GenelToplam, (await sp.GetRequiredService<RentalService>().GetAsync(id))!.Tutar);
+        Assert.Equal(preview.GenelToplam, (await sp.GetRequiredService<RentalService>().GetAsync(id))!.Tutar);
     }
 }

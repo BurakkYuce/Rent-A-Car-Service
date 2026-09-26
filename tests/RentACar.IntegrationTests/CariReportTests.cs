@@ -13,21 +13,21 @@ namespace RentACar.IntegrationTests;
 [Collection("postgres")]
 public sealed class CariReportTests(PostgresFixture fx)
 {
-    private static async Task<Guid> SeedVehicleAsync(IServiceScope scope, string plaka)
+    private static async Task<Guid> SeedVehicleAsync(IServiceScope scope, string plate)
     {
         var factory = scope.ServiceProvider.GetRequiredService<IDbContextFactory<AppDbContext>>();
         await using var db = await factory.CreateDbContextAsync();
-        var v = new Vehicle { Plaka = plaka, Durum = VehicleStatus.Musait };
+        var v = new Vehicle { Plaka = plate, Durum = VehicleStatus.Musait };
         db.Vehicles.Add(v);
         await db.SaveChangesAsync();
         return v.Id;
     }
 
-    private static async Task<Guid> SeedCustomerAsync(IServiceScope scope, string ad, string soyad)
+    private static async Task<Guid> SeedCustomerAsync(IServiceScope scope, string name, string soyad)
     {
         var factory = scope.ServiceProvider.GetRequiredService<IDbContextFactory<AppDbContext>>();
         await using var db = await factory.CreateDbContextAsync();
-        var c = new Customer { Tip = CustomerType.Bireysel, Ad = ad, Soyad = soyad };
+        var c = new Customer { Tip = CustomerType.Bireysel, Ad = name, Soyad = soyad };
         db.Customers.Add(c);
         await db.SaveChangesAsync();
         return c.Id;
@@ -43,14 +43,14 @@ public sealed class CariReportTests(PostgresFixture fx)
         var reports = scope.ServiceProvider.GetRequiredService<ReportService>();
 
         var ali = await SeedCustomerAsync(scope, "Ali", "Veli");
-        var veli = await SeedCustomerAsync(scope, "Veli", "Han");
+        var guardian = await SeedCustomerAsync(scope, "Veli", "Han");
         var vid = await SeedVehicleAsync(scope, "34CB01");
 
         // Ali: satış net 5000 @0.20 → borç 6000; tahsilat 2000 → bakiye 4000.
         await sales.CreateAsync(new VehicleSaleInput { VehicleId = vid, AliciCariId = ali, SatisNet = 5000m, KdvOrani = 0.20m });
         await cash.CollectAsync(new CashInput { CariId = ali, Tutar = 2000m });
         // Veli: yalnız tahsilat 1000 → bakiye −1000 (alacaklı).
-        await cash.CollectAsync(new CashInput { CariId = veli, Tutar = 1000m });
+        await cash.CollectAsync(new CashInput { CariId = guardian, Tutar = 1000m });
 
         var balances = await reports.GetAccountBalancesAsync();
         Assert.Equal(2, balances.Count);
@@ -68,17 +68,17 @@ public sealed class CariReportTests(PostgresFixture fx)
         var sales = scope.ServiceProvider.GetRequiredService<VehicleSaleService>();
         var reports = scope.ServiceProvider.GetRequiredService<ReportService>();
 
-        var cari = await SeedCustomerAsync(scope, "Yaş", "Test");
+        var account = await SeedCustomerAsync(scope, "Yaş", "Test");
         var v1 = await SeedVehicleAsync(scope, "34AG01");
         var v2 = await SeedVehicleAsync(scope, "34AG02");
         var asOf = new DateTimeOffset(2026, 6, 1, 0, 0, 0, TimeSpan.Zero);
 
         // 45 gün önce: net 1000 → borç 1200 → 31-60 kovası.
         await sales.CreateAsync(new VehicleSaleInput
-        { VehicleId = v1, AliciCariId = cari, SatisNet = 1000m, KdvOrani = 0.20m, Tarih = asOf.AddDays(-45) });
+        { VehicleId = v1, AliciCariId = account, SatisNet = 1000m, KdvOrani = 0.20m, Tarih = asOf.AddDays(-45) });
         // 10 gün önce: net 2000 → borç 2400 → 0-30 kovası.
         await sales.CreateAsync(new VehicleSaleInput
-        { VehicleId = v2, AliciCariId = cari, SatisNet = 2000m, KdvOrani = 0.20m, Tarih = asOf.AddDays(-10) });
+        { VehicleId = v2, AliciCariId = account, SatisNet = 2000m, KdvOrani = 0.20m, Tarih = asOf.AddDays(-10) });
 
         var aging = Assert.Single(await reports.GetAgingAsync(asOf));
         Assert.Equal(2400m, aging.B0_30);
@@ -97,9 +97,9 @@ public sealed class CariReportTests(PostgresFixture fx)
 
         using (var s1 = host.ScopeFor(t1))
         {
-            var cari = await SeedCustomerAsync(s1, "T1", "Cari");
+            var account = await SeedCustomerAsync(s1, "T1", "Cari");
             await s1.ServiceProvider.GetRequiredService<CashService>()
-                .CollectAsync(new CashInput { CariId = cari, Tutar = 500m });
+                .CollectAsync(new CashInput { CariId = account, Tutar = 500m });
         }
 
         using var s2 = host.ScopeFor(t2);

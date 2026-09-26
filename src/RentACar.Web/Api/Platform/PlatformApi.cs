@@ -15,7 +15,7 @@ namespace RentACar.Web.Api.Platform;
 /// <list type="bullet">
 /// <item><b>Access</b>: <see cref="PlatformClaims.Policy"/> (claim <c>platform_admin=true</c>, written only by a
 /// platform login). A tenant user — Admin included — gets 403 <c>yetki_yok</c>; anonymous 401. The tenant permission
-/// matrix does not apply (<c>IzinMuaf</c>), and the pilot gate is skipped (<see cref="UiApiExtensions.PilotMuaf"/>).
+/// matrix does not apply (<c>IzinMuaf</c>), and the pilot gate is skipped (<see cref="UiApiExtensions.PilotExempt"/>).
 /// The reverse direction (platform session → tenant <c>/api/ui</c>) stays closed by <see cref="PlatformIsolationMiddleware"/>.</item>
 /// <item><b>Data</b>: only through <see cref="PlatformAdminService"/> (owner connection + tx-local <c>set_config</c> for
 /// FORCE-RLS tables) — no new data path. Tenant META only: counts, status, contact fields, flags; never customer PII
@@ -29,7 +29,7 @@ public static partial class PlatformApi
 {
     private const string Root = UiApiExtensions.PlatformPrefix;
 
-    public const string MuafGerekce =
+    public const string ExemptReason =
         "Platform konsolu: firma izin matrisi uygulanmaz; erişim yalnız PlatformAdmin policy'siyle (platform_admin claim'i, " +
         "yalnız platform girişi yazar). Firma kullanıcısı (Admin dahil) 403; platform oturumu firma uçlarına PlatformIsolation ile kapalı.";
 
@@ -37,7 +37,7 @@ public static partial class PlatformApi
     {
         var g = v1.MapGroup("/platform").WithTags("Platform")
             .RequireAuthorization(PlatformClaims.Policy)
-            .IzinMuaf(MuafGerekce);
+            .PermissionExempt(ExemptReason);
 
         var session = g.MapGroup("/oturum");
         session.MapPost("/giris", Login).AllowAnonymous().RequireRateLimiting("login"); // brute-force: Blazor login policy
@@ -52,7 +52,7 @@ public static partial class PlatformApi
 
     private static string OperatorName(HttpContext http) => http.User.Identity?.Name ?? "platform";
 
-    private static ProblemHttpResult TenantNotFound() => F5Ortak.Bulunamadi("Firma bulunamadı.");
+    private static ProblemHttpResult TenantNotFound() => F5Shared.NotFound("Firma bulunamadı.");
 
     // ================================================================== session
 
@@ -61,13 +61,13 @@ public static partial class PlatformApi
     {
         if (!creds.Verify(body.Kullanici ?? "", body.Sifre ?? ""))
             // Which field is wrong is NOT disclosed. 400 (form error), not 401 (the SPA treats 401 as "session dropped").
-            return UiHata.Problem(UiHata.Dogrulama, "Kullanıcı adı veya şifre hatalı.");
+            return UiError.Problem(UiError.Validation, "Kullanıcı adı veya şifre hatalı.");
 
         var principal = PlatformClaims.CreatePrincipal(creds.User);
         await http.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme, principal);
         // ORDER MATTERS: the antiforgery token is bound to ctx.User — new principal first, then the token.
         http.User = principal;
-        UiApiExtensions.XsrfVer(http);
+        UiApiExtensions.IssueXsrf(http);
         http.RequestServices.GetRequiredService<ILoggerFactory>().CreateLogger("RentACar.Web.Api.Platform")
             .LogWarning("PLATFORM: operatör {Operator} UI API ile giriş yaptı.", creds.User);
         return TypedResults.Ok(new PlatformSessionResponse(creds.User));
@@ -77,13 +77,13 @@ public static partial class PlatformApi
     {
         await http.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
         http.User = new System.Security.Claims.ClaimsPrincipal(new System.Security.Claims.ClaimsIdentity());
-        UiApiExtensions.XsrfVer(http); // token bound to the anonymous identity
+        UiApiExtensions.IssueXsrf(http); // token bound to the anonymous identity
         return TypedResults.NoContent();
     }
 
     private static Ok<PlatformSessionResponse> Me(HttpContext http, CancellationToken ct)
     {
-        UiApiExtensions.XsrfVer(http); // refreshed on page reload
+        UiApiExtensions.IssueXsrf(http); // refreshed on page reload
         return TypedResults.Ok(new PlatformSessionResponse(OperatorName(http)));
     }
 

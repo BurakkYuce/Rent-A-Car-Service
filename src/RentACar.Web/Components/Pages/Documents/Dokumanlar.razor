@@ -17,7 +17,7 @@
 @if (!string.IsNullOrEmpty(Hata)) { <p class="error">@Hata</p> }
 
 <AuthorizeView Policy="izin:OperationsWrite" Context="yazCtx">
-    @if (_satirlar.Count >= CompanyFileService.MaxDocuments)
+    @if (_rows.Count >= CompanyFileService.MaxDocuments)
     {
         @* Sınır dolduğunda formu göstermiyoruz; ama asıl dayatma SERVİSTE ve DB'de (yuva unique
            index + CHECK) — bu yalnız kullanıcıya nazik bir uyarı. *@
@@ -26,7 +26,7 @@
     }
     else
     {
-        <details class="card" open="@(_satirlar.Count == 0)">
+        <details class="card" open="@(_rows.Count == 0)">
             <summary class="link">＋ Yeni doküman yükle</summary>
             <form method="post" action="/dokumanlar/yukle" enctype="multipart/form-data" class="grid-form">
                 <AntiforgeryToken />
@@ -43,7 +43,7 @@
     }
 </AuthorizeView>
 
-@if (_satirlar.Count == 0)
+@if (_rows.Count == 0)
 {
     <p class="empty-state">Henüz doküman yüklenmemiş.</p>
 }
@@ -57,7 +57,7 @@ else
                 <tr><th>Belge</th><th class="num">Boyut</th><th>Yükleyen</th><th>Tarih</th><th></th></tr>
             </thead>
             <tbody>
-                @foreach (var d in _satirlar)
+                @foreach (var d in _rows)
                 {
                     <tr>
                         <td class="kart-baslik">
@@ -90,7 +90,7 @@ else
     [SupplyParameterFromQuery(Name = "hata")] public string? Hata { get; set; }
     private bool Ok => Ok_ == "1";
 
-    private IReadOnlyList<FirmaDokumanSatiri> _satirlar = [];
+    private IReadOnlyList<FirmaDokumanSatiri> _rows = [];
 
-    protected override async Task OnInitializedAsync() => _satirlar = await DokumanServisi.ListAsync();
+    protected override async Task OnInitializedAsync() => _rows = await DokumanServisi.ListAsync();
 }

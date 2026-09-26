@@ -30,7 +30,7 @@
         <label>Şart / Talep<input name="sart" maxlength="512" required placeholder="Bebek koltuğu istiyor" /></label>
         <label>Grup<input name="grup" maxlength="64" list="rezsart-gruplar" placeholder="Ekipman / Teslim / Ödeme" />
             <datalist id="rezsart-gruplar">
-                @foreach (var g in _gruplar) { <option value="@g"></option> }
+                @foreach (var g in _groups) { <option value="@g"></option> }
             </datalist>
         </label>
         <label>Geçerlilik Baş<input name="basTar" type="date" /></label>
@@ -87,7 +87,7 @@
                 <td>@Cust(r.MusteriId)</td>
                 <td>@(r.Grup ?? "—")</td>
                 <td>@r.Sart</td>
-                <td>@Aralik(r)</td>
+                <td>@RangeLabel(r)</td>
                 <td>
                     @if (r.KarsilamaTarihi is { } k)
                     {
@@ -154,7 +154,7 @@
     private IReadOnlyList<RezSart> _list = [];
     private IReadOnlyList<Customer> _customers = [];
     private Dictionary<Guid, string> _custMap = new();
-    private string[] _gruplar = [];
+    private string[] _groups = [];
 
     private bool FiltreVar => !string.IsNullOrWhiteSpace(MusteriId) || !string.IsNullOrWhiteSpace(Durum)
         || !string.IsNullOrWhiteSpace(Bas) || !string.IsNullOrWhiteSpace(Bit);
@@ -168,25 +168,25 @@
         {
             MusteriId = Guid.TryParse(MusteriId, out var m) ? m : null,
             Karsilandi = Durum switch { "bekleyen" => false, "karsilanan" => true, _ => (bool?)null },
-            TarihBas = Tarih(Bas),
+            TarihBas = Date(Bas),
             // Üst sınır GÜN SONUNA genişletilir: "…bit=05.08" seçildiğinde o günün kayıtları
             // dışarıda kalmamalı (tarih girişi 00:00'a düşer).
-            TarihBit = Tarih(Bit)?.AddDays(1).AddTicks(-1)
+            TarihBit = Date(Bit)?.AddDays(1).AddTicks(-1)
         };
         _list = await RezSartlari.ListAsync(filter);
 
-        _gruplar = (await RezSartlari.ListAsync())
+        _groups = (await RezSartlari.ListAsync())
             .Select(r => r.Grup).Where(g => !string.IsNullOrWhiteSpace(g))
             .Select(g => g!).Distinct().OrderBy(g => g).ToArray();
     }
 
-    private static DateTimeOffset? Tarih(string? s)
+    private static DateTimeOffset? Date(string? s)
         => DateTimeOffset.TryParse(s, System.Globalization.CultureInfo.InvariantCulture,
             System.Globalization.DateTimeStyles.None, out var d) ? d.ToUniversalTime() : null;
 
     private string Cust(Guid id) => _custMap.GetValueOrDefault(id, "—");
 
-    private static string Aralik(RezSart r) => (r.BasTar, r.BitTar) switch
+    private static string RangeLabel(RezSart r) => (r.BasTar, r.BitTar) switch
     {
         ({ } b, { } t) => $"{b.LocalDateTime:dd.MM.yyyy} – {t.LocalDateTime:dd.MM.yyyy}",
         ({ } b, null) => $"{b.LocalDateTime:dd.MM.yyyy} –",

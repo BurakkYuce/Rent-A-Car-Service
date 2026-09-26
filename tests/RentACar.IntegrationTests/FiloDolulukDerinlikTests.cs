@@ -21,18 +21,18 @@ namespace RentACar.IntegrationTests;
 [Collection("postgres")]
 public sealed class FiloDolulukDerinlikTests(PostgresFixture fx)
 {
-    private static DateTimeOffset D(int gun) => new(2026, 6, gun, 0, 0, 0, TimeSpan.Zero);
+    private static DateTimeOffset D(int day) => new(2026, 6, day, 0, 0, 0, TimeSpan.Zero);
 
-    private static Vehicle Arac(string plaka, string? sube, VehicleStatus durum,
-        string? grup = null, FleetLifecycleStatus? filo = null)
-        => new() { Plaka = plaka, Sube = sube, Durum = durum, Grup = grup, FiloDurum = filo };
+    private static Vehicle MakeVehicle(string plate, string? branch, VehicleStatus status,
+        string? group = null, FleetLifecycleStatus? fleet = null)
+        => new() { Plaka = plate, Sube = branch, Durum = status, Grup = group, FiloDurum = fleet };
 
-    private static RentalContract Kira(string no, Guid arac, DateTimeOffset bas, DateTimeOffset bit,
-        RentalStatus durum = RentalStatus.Kirada, DateTimeOffset? gercekDonus = null)
+    private static RentalContract Rental(string no, Guid vehicle, DateTimeOffset start, DateTimeOffset bit,
+        RentalStatus status = RentalStatus.Kirada, DateTimeOffset? actualReturn = null)
         => new()
         {
-            SozlesmeNo = no, MusteriId = Guid.NewGuid(), VehicleId = arac, Durum = durum,
-            BasTar = bas, BitTar = bit, GercekDonusTar = gercekDonus, CreatedAtUtc = bas
+            SozlesmeNo = no, MusteriId = Guid.NewGuid(), VehicleId = vehicle, Durum = status,
+            BasTar = start, BitTar = bit, GercekDonusTar = actualReturn, CreatedAtUtc = start
         };
 
     // ---------------- A) Şube kırılımlı filo ----------------
@@ -49,12 +49,12 @@ public sealed class FiloDolulukDerinlikTests(PostgresFixture fx)
         await using (var db = await factory.CreateDbContextAsync())
         {
             db.Vehicles.AddRange(
-                Arac("34A001", "Sube A", VehicleStatus.Musait),
-                Arac("34A002", "Sube A", VehicleStatus.Kirada),
-                Arac("34A003", "Sube A", VehicleStatus.Serviste),
-                Arac("34B001", "Sube B", VehicleStatus.Kirada),
-                Arac("34B002", "Sube B", VehicleStatus.Satildi, filo: FleetLifecycleStatus.IkinciElSatis),
-                Arac("34X001", null, VehicleStatus.Pasif));
+                MakeVehicle("34A001", "Sube A", VehicleStatus.Musait),
+                MakeVehicle("34A002", "Sube A", VehicleStatus.Kirada),
+                MakeVehicle("34A003", "Sube A", VehicleStatus.Serviste),
+                MakeVehicle("34B001", "Sube B", VehicleStatus.Kirada),
+                MakeVehicle("34B002", "Sube B", VehicleStatus.Satildi, fleet: FleetLifecycleStatus.IkinciElSatis),
+                MakeVehicle("34X001", null, VehicleStatus.Pasif));
             await db.SaveChangesAsync();
         }
 
@@ -85,13 +85,13 @@ public sealed class FiloDolulukDerinlikTests(PostgresFixture fx)
         Assert.Null(x.DolulukYuzde);
 
         // Geriye uyum: eski parametresiz API aynı veriyle değişmeden çalışıyor ve toplamlar tutuyor.
-        var eski = await svc.GetFleetUtilizationAsync();
-        Assert.Equal(6, eski.Toplam);
-        Assert.Equal(eski.Toplam, r.ToplamFilo);
-        Assert.Equal(eski.Kirada, r.Satirlar.Sum(s => s.Kirada));
-        Assert.Equal(eski.Serviste, r.Satirlar.Sum(s => s.Bakimda));
-        Assert.Equal(eski.Satildi, r.Satirlar.Sum(s => s.Satildi));
-        Assert.Equal(eski.Pasif, r.Satirlar.Sum(s => s.Pasif));
+        var old = await svc.GetFleetUtilizationAsync();
+        Assert.Equal(6, old.Toplam);
+        Assert.Equal(old.Toplam, r.ToplamFilo);
+        Assert.Equal(old.Kirada, r.Satirlar.Sum(s => s.Kirada));
+        Assert.Equal(old.Serviste, r.Satirlar.Sum(s => s.Bakimda));
+        Assert.Equal(old.Satildi, r.Satirlar.Sum(s => s.Satildi));
+        Assert.Equal(old.Pasif, r.Satirlar.Sum(s => s.Pasif));
     }
 
     [Fact]
@@ -101,19 +101,19 @@ public sealed class FiloDolulukDerinlikTests(PostgresFixture fx)
         using var scope = host.ScopeFor(Guid.NewGuid());
         var factory = scope.ServiceProvider.GetRequiredService<IDbContextFactory<AppDbContext>>();
 
-        var bugun = DateTimeOffset.UtcNow.UtcDateTime.Date;
-        Guid aracA;
+        var today = DateTimeOffset.UtcNow.UtcDateTime.Date;
+        Guid vehicleA;
         await using (var db = await factory.CreateDbContextAsync())
         {
-            var va = Arac("34A001", "Sube A", VehicleStatus.Kirada);
-            var vb = Arac("34B001", "Sube B", VehicleStatus.Musait);
+            var va = MakeVehicle("34A001", "Sube A", VehicleStatus.Kirada);
+            var vb = MakeVehicle("34B001", "Sube B", VehicleStatus.Musait);
             db.Vehicles.AddRange(va, vb);
-            aracA = va.Id;
+            vehicleA = va.Id;
 
             // A'nın aracı, ama sözleşmenin ÇIKIŞ OFİSİ B şubesinde. Kira A'ya yazılmalı.
-            var k = Kira("KS-1", va.Id,
-                new DateTimeOffset(bugun, TimeSpan.Zero),
-                new DateTimeOffset(bugun.AddDays(3), TimeSpan.Zero));
+            var k = Rental("KS-1", va.Id,
+                new DateTimeOffset(today, TimeSpan.Zero),
+                new DateTimeOffset(today.AddDays(3), TimeSpan.Zero));
             k.CikisOfisi = "Sube B";
             db.Rentals.Add(k);
             await db.SaveChangesAsync();
@@ -128,7 +128,7 @@ public sealed class FiloDolulukDerinlikTests(PostgresFixture fx)
         Assert.Equal(0, b.Cikislar);      // çıkış ofisi B olsa da B'ye YAZILMAZ
         Assert.Equal(1, a.Donecekler);    // bugün+3 pencere içinde
         Assert.Equal(0, a.Donusler);
-        Assert.NotEqual(Guid.Empty, aracA);
+        Assert.NotEqual(Guid.Empty, vehicleA);
     }
 
     [Fact]
@@ -140,8 +140,8 @@ public sealed class FiloDolulukDerinlikTests(PostgresFixture fx)
 
         await using (var db = await factory.CreateDbContextAsync())
         {
-            var v1 = Arac("34A001", "Sube A", VehicleStatus.Musait, filo: FleetLifecycleStatus.IkinciElSatis);
-            var v2 = Arac("34A002", "Sube A", VehicleStatus.Musait, filo: FleetLifecycleStatus.Havuz);
+            var v1 = MakeVehicle("34A001", "Sube A", VehicleStatus.Musait, fleet: FleetLifecycleStatus.IkinciElSatis);
+            var v2 = MakeVehicle("34A002", "Sube A", VehicleStatus.Musait, fleet: FleetLifecycleStatus.Havuz);
             db.Vehicles.AddRange(v1, v2);
             db.Baflar.AddRange(
                 new Baf { No = "BAF-000001", VehicleId = v1.Id, Durum = BafStatus.Acik },
@@ -168,36 +168,36 @@ public sealed class FiloDolulukDerinlikTests(PostgresFixture fx)
 
         await using (var db = await factory.CreateDbContextAsync())
         {
-            var v1 = Arac("34A001", "Sube A", VehicleStatus.Kirada);
-            var v2 = Arac("34B001", "Sube B", VehicleStatus.Kirada);
+            var v1 = MakeVehicle("34A001", "Sube A", VehicleStatus.Kirada);
+            var v2 = MakeVehicle("34B001", "Sube B", VehicleStatus.Kirada);
             db.Vehicles.AddRange(v1, v2);
             // ELLE: 3–7 (5 gün), 6–8 (3 gün), dönem dışı 15–18 (0 gün), iptal 2–9 (0 gün).
             db.Rentals.AddRange(
-                Kira("KS-A", v1.Id, D(3), D(7)),
-                Kira("KS-B", v2.Id, D(6), D(8)),
-                Kira("KS-OUT", v1.Id, D(15), D(18)),
-                Kira("KS-IPT", v2.Id, D(2), D(9), RentalStatus.Iptal));
+                Rental("KS-A", v1.Id, D(3), D(7)),
+                Rental("KS-B", v2.Id, D(6), D(8)),
+                Rental("KS-OUT", v1.Id, D(15), D(18)),
+                Rental("KS-IPT", v2.Id, D(2), D(9), RentalStatus.Iptal));
             await db.SaveChangesAsync();
         }
 
         var svc = scope.ServiceProvider.GetRequiredService<ReportService>();
-        var donem = await svc.GetOccupancyAsync(D(1), D(10));
-        var gunluk = await svc.GetOccupancyDailyAsync(D(1), D(10));
+        var period = await svc.GetOccupancyAsync(D(1), D(10));
+        var daily = await svc.GetOccupancyDailyAsync(D(1), D(10));
 
-        Assert.Equal(8, donem.KiraGun);                       // ELLE: 5 + 3
-        Assert.Equal(10, gunluk.DonemGun);
-        Assert.Equal(10, gunluk.Satirlar.Count);              // kırılımsız → gün başına 1 satır
+        Assert.Equal(8, period.KiraGun);                       // ELLE: 5 + 3
+        Assert.Equal(10, daily.DonemGun);
+        Assert.Equal(10, daily.Satirlar.Count);              // kırılımsız → gün başına 1 satır
         // AYNI OverlapDays helper'ı → gün toplamı dönem toplamına EŞİT olmalı (kalıcı kilit).
-        Assert.Equal(donem.KiraGun, gunluk.ToplamKiraGun);
+        Assert.Equal(period.KiraGun, daily.ToplamKiraGun);
 
         // ELLE gün gün: 1,2 → 0 · 3,4,5 → 1 (A) · 6,7 → 2 (A+B) · 8 → 1 (B) · 9,10 → 0
-        int[] beklenen = [0, 0, 1, 1, 1, 2, 2, 1, 0, 0];
-        Assert.Equal(beklenen, gunluk.Satirlar.Select(x => x.KiraGun).ToArray());
+        int[] expected = [0, 0, 1, 1, 1, 2, 2, 1, 0, 0];
+        Assert.Equal(expected, daily.Satirlar.Select(x => x.KiraGun).ToArray());
 
         // Payda 2 araç → 6. günde 2/2 = %100, 3. günde 1/2 = %50, 1. günde %0.
-        Assert.Equal(100m, gunluk.Satirlar.Single(x => x.Gun == new DateOnly(2026, 6, 6)).KiraYuzde);
-        Assert.Equal(50m, gunluk.Satirlar.Single(x => x.Gun == new DateOnly(2026, 6, 3)).KiraYuzde);
-        Assert.Equal(0m, gunluk.Satirlar.Single(x => x.Gun == new DateOnly(2026, 6, 1)).KiraYuzde);
+        Assert.Equal(100m, daily.Satirlar.Single(x => x.Gun == new DateOnly(2026, 6, 6)).KiraYuzde);
+        Assert.Equal(50m, daily.Satirlar.Single(x => x.Gun == new DateOnly(2026, 6, 3)).KiraYuzde);
+        Assert.Equal(0m, daily.Satirlar.Single(x => x.Gun == new DateOnly(2026, 6, 1)).KiraYuzde);
     }
 
     [Fact]
@@ -210,14 +210,14 @@ public sealed class FiloDolulukDerinlikTests(PostgresFixture fx)
         await using (var db = await factory.CreateDbContextAsync())
         {
             // ELLE: A şubesi 1 araç, B şubesi 3 araç.
-            var a1 = Arac("34A001", "Sube A", VehicleStatus.Kirada, "EKO");
-            var b1 = Arac("34B001", "Sube B", VehicleStatus.Kirada, "EKO");
-            var b2 = Arac("34B002", "Sube B", VehicleStatus.Musait, "LUX");
-            var b3 = Arac("34B003", "Sube B", VehicleStatus.Musait, "LUX");
+            var a1 = MakeVehicle("34A001", "Sube A", VehicleStatus.Kirada, "EKO");
+            var b1 = MakeVehicle("34B001", "Sube B", VehicleStatus.Kirada, "EKO");
+            var b2 = MakeVehicle("34B002", "Sube B", VehicleStatus.Musait, "LUX");
+            var b3 = MakeVehicle("34B003", "Sube B", VehicleStatus.Musait, "LUX");
             db.Vehicles.AddRange(a1, b1, b2, b3);
             db.Rentals.AddRange(
-                Kira("KS-A", a1.Id, D(1), D(2)),      // A aracı, 1-2
-                Kira("KS-B", b1.Id, D(1), D(1)));     // B aracı, yalnız 1
+                Rental("KS-A", a1.Id, D(1), D(2)),      // A aracı, 1-2
+                Rental("KS-B", b1.Id, D(1), D(1)));     // B aracı, yalnız 1
             await db.SaveChangesAsync();
         }
 
@@ -253,11 +253,11 @@ public sealed class FiloDolulukDerinlikTests(PostgresFixture fx)
 
         await using (var db = await factory.CreateDbContextAsync())
         {
-            var e1 = Arac("34E001", "Sube A", VehicleStatus.Kirada, "EKO");
-            var e2 = Arac("34E002", "Sube A", VehicleStatus.Musait, "EKO");
-            var x1 = Arac("34X001", "Sube A", VehicleStatus.Kirada, grup: null);
+            var e1 = MakeVehicle("34E001", "Sube A", VehicleStatus.Kirada, "EKO");
+            var e2 = MakeVehicle("34E002", "Sube A", VehicleStatus.Musait, "EKO");
+            var x1 = MakeVehicle("34X001", "Sube A", VehicleStatus.Kirada, group: null);
             db.Vehicles.AddRange(e1, e2, x1);
-            db.Rentals.AddRange(Kira("KS-E", e1.Id, D(1), D(1)), Kira("KS-X", x1.Id, D(1), D(1)));
+            db.Rentals.AddRange(Rental("KS-E", e1.Id, D(1), D(1)), Rental("KS-X", x1.Id, D(1), D(1)));
             await db.SaveChangesAsync();
         }
 
@@ -266,11 +266,11 @@ public sealed class FiloDolulukDerinlikTests(PostgresFixture fx)
 
         Assert.Equal(2, g.Satirlar.Count);   // EKO + (Atanmamış)
         var eko = g.Satirlar.Single(x => x.Seri == "EKO");
-        var bos = g.Satirlar.Single(x => x.Seri == "(Atanmamış)");
+        var empty = g.Satirlar.Single(x => x.Seri == "(Atanmamış)");
         Assert.Equal(2, eko.AracSayisi);
         Assert.Equal(50m, eko.KiraYuzde);    // ELLE: 1/2
-        Assert.Equal(1, bos.AracSayisi);
-        Assert.Equal(100m, bos.KiraYuzde);   // ELLE: 1/1 — grupsuz araç sessizce kaybolmadı
+        Assert.Equal(1, empty.AracSayisi);
+        Assert.Equal(100m, empty.KiraYuzde);   // ELLE: 1/1 — grupsuz araç sessizce kaybolmadı
     }
 
     [Fact]
@@ -282,12 +282,12 @@ public sealed class FiloDolulukDerinlikTests(PostgresFixture fx)
 
         await using (var db = await factory.CreateDbContextAsync())
         {
-            var v1 = Arac("34A001", "Sube A", VehicleStatus.Kirada);
-            var v2 = Arac("34A002", "Sube A", VehicleStatus.Musait);
-            var v3 = Arac("34A003", "Sube A", VehicleStatus.Musait);
-            var v4 = Arac("34A004", "Sube A", VehicleStatus.Musait);
+            var v1 = MakeVehicle("34A001", "Sube A", VehicleStatus.Kirada);
+            var v2 = MakeVehicle("34A002", "Sube A", VehicleStatus.Musait);
+            var v3 = MakeVehicle("34A003", "Sube A", VehicleStatus.Musait);
+            var v4 = MakeVehicle("34A004", "Sube A", VehicleStatus.Musait);
             db.Vehicles.AddRange(v1, v2, v3, v4);
-            db.Rentals.Add(Kira("KS-1", v1.Id, D(1), D(1)));
+            db.Rentals.Add(Rental("KS-1", v1.Id, D(1), D(1)));
             db.Reservations.AddRange(
                 new Reservation { ReservationNo = "RZ-000001", MusteriId = Guid.NewGuid(), VehicleId = v2.Id, BasTar = D(1), BitTar = D(1), Kaynak = "Web" },
                 new Reservation { ReservationNo = "RZ-000002", MusteriId = Guid.NewGuid(), VehicleId = v3.Id, BasTar = D(1), BitTar = D(1), Kaynak = "Telefon" },
@@ -302,15 +302,15 @@ public sealed class FiloDolulukDerinlikTests(PostgresFixture fx)
         // Seriler: Web, Telefon + kiraların ayrı kovası.
         var web = g.Satirlar.Single(x => x.Seri == "Web");
         var tel = g.Satirlar.Single(x => x.Seri == "Telefon");
-        var kira = g.Satirlar.Single(x => x.Seri == ReportService.WholeFleetRental);
+        var rental = g.Satirlar.Single(x => x.Seri == ReportService.WholeFleetRental);
 
         Assert.Equal(4, web.AracSayisi);          // payda TÜM FİLO (kaynak filo bölüntüsü değil)
         Assert.Equal(1, web.RezGun);              // ELLE: kiraya çevrilen SAYILMADI
         Assert.Equal(25m, web.RezYuzde);          // ELLE: 1/4
         Assert.Equal(1, tel.RezGun);
         Assert.Equal(0, web.KiraGun);             // kira kaynak satırına yazılmaz
-        Assert.Equal(1, kira.KiraGun);            // kiralar ayrı kovada
-        Assert.Equal(0, kira.RezGun);
+        Assert.Equal(1, rental.KiraGun);            // kiralar ayrı kovada
+        Assert.Equal(0, rental.RezGun);
         Assert.Contains("TÜM FİLO", g.PaydaAciklama);
     }
 
@@ -321,11 +321,11 @@ public sealed class FiloDolulukDerinlikTests(PostgresFixture fx)
         using var scope = host.ScopeFor(Guid.NewGuid());
         var svc = scope.ServiceProvider.GetRequiredService<ReportService>();
 
-        var ters = await svc.GetOccupancyDailyAsync(D(10), D(1));
-        Assert.Equal(10, ters.DonemGun);          // boş sayfa yerine düzeltilir
+        var reverse = await svc.GetOccupancyDailyAsync(D(10), D(1));
+        Assert.Equal(10, reverse.DonemGun);          // boş sayfa yerine düzeltilir
 
-        var genis = await svc.GetOccupancyDailyAsync(D(1), D(1).AddYears(5));
-        Assert.Equal(ReportService.MaxOccupancyDays, genis.DonemGun);
+        var wide = await svc.GetOccupancyDailyAsync(D(1), D(1).AddYears(5));
+        Assert.Equal(ReportService.MaxOccupancyDays, wide.DonemGun);
     }
 
     [Fact]
@@ -337,9 +337,9 @@ public sealed class FiloDolulukDerinlikTests(PostgresFixture fx)
         {
             var f = s1.ServiceProvider.GetRequiredService<IDbContextFactory<AppDbContext>>();
             await using var db = await f.CreateDbContextAsync();
-            var v = Arac("34G001", "Gizli Sube", VehicleStatus.Kirada, "GIZLI");
+            var v = MakeVehicle("34G001", "Gizli Sube", VehicleStatus.Kirada, "GIZLI");
             db.Vehicles.Add(v);
-            db.Rentals.Add(Kira("KS-G", v.Id, D(1), D(5)));
+            db.Rentals.Add(Rental("KS-G", v.Id, D(1), D(5)));
             await db.SaveChangesAsync();
         }
 

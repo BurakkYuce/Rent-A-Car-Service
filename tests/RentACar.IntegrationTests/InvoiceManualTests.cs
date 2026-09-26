@@ -21,7 +21,7 @@ namespace RentACar.IntegrationTests;
 [Collection("postgres")]
 public sealed class InvoiceManualTests(PostgresFixture fx)
 {
-    private static async Task<Guid> Cari(IServiceProvider sp)
+    private static async Task<Guid> Account(IServiceProvider sp)
         => await sp.GetRequiredService<CustomerService>().CreateAsync(new CustomerInput { Tip = CustomerType.Bireysel, Ad = "Manuel Cari" });
 
     [Fact]
@@ -30,13 +30,13 @@ public sealed class InvoiceManualTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
         var sp = scope.ServiceProvider;
-        var cariId = await Cari(sp);
+        var customerId = await Account(sp);
 
         await sp.GetRequiredService<InvoiceService>().CreateManualAsync(new ManualInvoiceInput
-        { CariId = cariId, NetTutar = 1000m, KdvOrani = 0.20m, Aciklama = "Danışmanlık" });
+        { CariId = customerId, NetTutar = 1000m, KdvOrani = 0.20m, Aciklama = "Danışmanlık" });
 
         // Oracle: net 1000 + kdv 200 = brüt 1200; cari BORÇLANIR (+1200); gelir 1000; kdv tahsil 200.
-        Assert.Equal(1200m, await sp.GetRequiredService<CashService>().GetAccountBalanceAsync(cariId));
+        Assert.Equal(1200m, await sp.GetRequiredService<CashService>().GetAccountBalanceAsync(customerId));
         var gg = await sp.GetRequiredService<ReportService>().GetRevenueExpenseAsync();
         Assert.Equal(1000m, gg.GelirToplam);
         Assert.Equal(200m, gg.KdvTahsil);
@@ -48,11 +48,11 @@ public sealed class InvoiceManualTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
         var sp = scope.ServiceProvider;
-        var cariId = await Cari(sp);
+        var customerId = await Account(sp);
         await sp.GetRequiredService<PeriodLockService>().LockAsync(new DateTimeOffset(2099, 1, 1, 0, 0, 0, TimeSpan.Zero));
 
         await Assert.ThrowsAsync<RentACar.Application.Common.ValidationException>(() =>
-            sp.GetRequiredService<InvoiceService>().CreateManualAsync(new ManualInvoiceInput { CariId = cariId, NetTutar = 500m }));
+            sp.GetRequiredService<InvoiceService>().CreateManualAsync(new ManualInvoiceInput { CariId = customerId, NetTutar = 500m }));
     }
 
     [Fact]
@@ -61,15 +61,15 @@ public sealed class InvoiceManualTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
         var sp = scope.ServiceProvider;
-        var cariId = await Cari(sp);
+        var customerId = await Account(sp);
         var key = Guid.NewGuid();
         var svc = sp.GetRequiredService<InvoiceService>();
 
-        var id1 = await svc.CreateManualAsync(new ManualInvoiceInput { CariId = cariId, NetTutar = 1000m, KdvOrani = 0.20m, IslemAnahtari = key });
-        var id2 = await svc.CreateManualAsync(new ManualInvoiceInput { CariId = cariId, NetTutar = 1000m, KdvOrani = 0.20m, IslemAnahtari = key });
+        var id1 = await svc.CreateManualAsync(new ManualInvoiceInput { CariId = customerId, NetTutar = 1000m, KdvOrani = 0.20m, IslemAnahtari = key });
+        var id2 = await svc.CreateManualAsync(new ManualInvoiceInput { CariId = customerId, NetTutar = 1000m, KdvOrani = 0.20m, IslemAnahtari = key });
 
         Assert.Equal(id1, id2);                 // çift-submit aynı fatura
-        Assert.Equal(1200m, await sp.GetRequiredService<CashService>().GetAccountBalanceAsync(cariId)); // tek borç (çiftlenmedi)
+        Assert.Equal(1200m, await sp.GetRequiredService<CashService>().GetAccountBalanceAsync(customerId)); // tek borç (çiftlenmedi)
     }
 
     /// <summary>FAZ-51(a) — bilgi alanları round-trip. BAĞIMSIZ ORACLE: elle girilen 6 metin değeri
@@ -80,12 +80,12 @@ public sealed class InvoiceManualTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
         var sp = scope.ServiceProvider;
-        var cariId = await Cari(sp);
+        var customerId = await Account(sp);
         var svc = sp.GetRequiredService<InvoiceService>();
 
         var invId = await svc.CreateManualAsync(new ManualInvoiceInput
         {
-            CariId = cariId, NetTutar = 1000m, KdvOrani = 0.20m, Aciklama = "Danışmanlık",
+            CariId = customerId, NetTutar = 1000m, KdvOrani = 0.20m, Aciklama = "Danışmanlık",
             IslemSube = "Merkez", EvrakNo = "EVR-2026-001", FaturaOzelKod = "OZK-7",
             OdemeTuru = "Havale", GonderimSekli = "Mail", KdvSifirSebep = "11/1-A Hizmet İhracatı"
         });
@@ -102,7 +102,7 @@ public sealed class InvoiceManualTests(PostgresFixture fx)
         Assert.Equal(1000m, inv.NetTutar);
         Assert.Equal(200m, inv.KdvTutar);
         Assert.Equal(1200m, inv.GenelToplam);
-        Assert.Equal(1200m, await sp.GetRequiredService<CashService>().GetAccountBalanceAsync(cariId));
+        Assert.Equal(1200m, await sp.GetRequiredService<CashService>().GetAccountBalanceAsync(customerId));
     }
 
     /// <summary>FAZ-51(b) — ÖTV/tevkifat/damga UÇUK değerlerle doldurulur (tevkifat %90, damga 9999,
@@ -115,18 +115,18 @@ public sealed class InvoiceManualTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
         var sp = scope.ServiceProvider;
-        var cariId = await Cari(sp);
+        var customerId = await Account(sp);
         var svc = sp.GetRequiredService<InvoiceService>();
         var cash = sp.GetRequiredService<CashService>();
 
         // Baseline: vergi alanı OLMADAN aynı tutarda bir fatura (karşılaştırma referansı).
         var baselineId = await svc.CreateManualAsync(new ManualInvoiceInput
-        { CariId = cariId, NetTutar = 1000m, KdvOrani = 0.20m });
-        var baselineBalance = await cash.GetAccountBalanceAsync(cariId);
+        { CariId = customerId, NetTutar = 1000m, KdvOrani = 0.20m });
+        var baselineBalance = await cash.GetAccountBalanceAsync(customerId);
 
         var extremeId = await svc.CreateManualAsync(new ManualInvoiceInput
         {
-            CariId = cariId, NetTutar = 1000m, KdvOrani = 0.20m,
+            CariId = customerId, NetTutar = 1000m, KdvOrani = 0.20m,
             Vergi = new InvoiceTaxInfo(Otv: 12345.67m, TevkifatOran: 90m, TevkifatTutar: 9000m, DamgaVergisi: 9999m)
         });
         var extreme = await svc.GetAsync(extremeId);
@@ -144,7 +144,7 @@ public sealed class InvoiceManualTests(PostgresFixture fx)
         Assert.Equal(1000m, extreme.NetTutar);
         Assert.Equal(200m, extreme.KdvTutar);
         Assert.Equal(1200m, extreme.GenelToplam);
-        var afterBalance = await cash.GetAccountBalanceAsync(cariId);
+        var afterBalance = await cash.GetAccountBalanceAsync(customerId);
         Assert.Equal(baselineBalance + 1200m, afterBalance); // ikinci fatura da tam olarak +1200 ekledi, ne fazla ne eksik
 
         // Defter satır SAYISI da sabit: her manuel fatura TAM 3 kayıt (Cari/Gelir/Kdv) — vergi alanları
@@ -170,24 +170,24 @@ public sealed class InvoiceManualTests(PostgresFixture fx)
     [InlineData(null, null, -5d, null)]      // Tevkifat tutarı negatif
     [InlineData(null, null, null, -0.01d)]   // Damga negatif
     public async Task Manual_invoice_rejects_invalid_vergi_values(
-        double? otv, double? tevkifatOran, double? tevkifatTutar, double? damga)
+        double? otv, double? withholdingRate, double? withholdingAmount, double? stamp)
     {
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
         var sp = scope.ServiceProvider;
-        var cariId = await Cari(sp);
+        var customerId = await Account(sp);
         var svc = sp.GetRequiredService<InvoiceService>();
 
         await Assert.ThrowsAsync<ValidationException>(() => svc.CreateManualAsync(new ManualInvoiceInput
         {
-            CariId = cariId, NetTutar = 1000m, KdvOrani = 0.20m,
+            CariId = customerId, NetTutar = 1000m, KdvOrani = 0.20m,
             Vergi = new InvoiceTaxInfo(
-                Otv: (decimal?)otv, TevkifatOran: (decimal?)tevkifatOran,
-                TevkifatTutar: (decimal?)tevkifatTutar, DamgaVergisi: (decimal?)damga)
+                Otv: (decimal?)otv, TevkifatOran: (decimal?)withholdingRate,
+                TevkifatTutar: (decimal?)withholdingAmount, DamgaVergisi: (decimal?)stamp)
         }));
 
         // Red edilen istek CARİ BAKİYEYİ DEĞİŞTİRMEDİ (yarım/kirli fatura yazılmadı).
-        Assert.Equal(0m, await sp.GetRequiredService<CashService>().GetAccountBalanceAsync(cariId));
+        Assert.Equal(0m, await sp.GetRequiredService<CashService>().GetAccountBalanceAsync(customerId));
     }
 
     [Fact]
@@ -201,7 +201,7 @@ public sealed class InvoiceManualTests(PostgresFixture fx)
 
         var id = await sales.CreateAsync(new VehicleSaleInput
         {
-            VehicleId = vId, AliciCariId = await Cari(sp), SatisNet = 5000m, KdvOrani = 0m, Doviz = "TRY", Kur = 1m,
+            VehicleId = vId, AliciCariId = await Account(sp), SatisNet = 5000m, KdvOrani = 0m, Doviz = "TRY", Kur = 1m,
             HedefFiyat = 5500m, SatisKm = 120000, SatisKanali = "Galeri", Devir = "Noter"
         });
         var s = await sales.GetAsync(id);

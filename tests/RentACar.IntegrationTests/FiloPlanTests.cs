@@ -18,10 +18,10 @@ namespace RentACar.IntegrationTests;
 [Collection("postgres")]
 public sealed class FiloPlanTests(PostgresFixture fx)
 {
-    private static Task<Guid> AracAsync(IServiceProvider sp, string plaka, string? grup, string? sipp = null,
-        VehicleStatus durum = VehicleStatus.Musait)
+    private static Task<Guid> VehicleAsync(IServiceProvider sp, string plate, string? group, string? sipp = null,
+        VehicleStatus status = VehicleStatus.Musait)
         => sp.GetRequiredService<VehicleService>().CreateAsync(new VehicleInput
-        { Plaka = plaka, Grup = grup, Sipp = sipp, Durum = durum });
+        { Plaka = plate, Grup = group, Sipp = sipp, Durum = status });
 
     [Fact]
     public async Task Gerceklesen_sayim_ELLE_beklenen_degeri_verir_ve_SATILMIS_PASIF_haric()
@@ -31,12 +31,12 @@ public sealed class FiloPlanTests(PostgresFixture fx)
         var sp = s.ServiceProvider;
 
         // ELLE: EKO grubunda 4 araç — 2 müsait, 1 kirada, 1 satılmış. Ayrıca 1 LUX.
-        await AracAsync(sp, "34 FP 01", "EKO");
-        await AracAsync(sp, "34 FP 02", "EKO");
-        await AracAsync(sp, "34 FP 03", "EKO", durum: VehicleStatus.Kirada);
-        await AracAsync(sp, "34 FP 04", "EKO", durum: VehicleStatus.Satildi);
-        await AracAsync(sp, "34 FP 05", "EKO", durum: VehicleStatus.Pasif);
-        await AracAsync(sp, "34 FP 06", "LUX");
+        await VehicleAsync(sp, "34 FP 01", "EKO");
+        await VehicleAsync(sp, "34 FP 02", "EKO");
+        await VehicleAsync(sp, "34 FP 03", "EKO", status: VehicleStatus.Kirada);
+        await VehicleAsync(sp, "34 FP 04", "EKO", status: VehicleStatus.Satildi);
+        await VehicleAsync(sp, "34 FP 05", "EKO", status: VehicleStatus.Pasif);
+        await VehicleAsync(sp, "34 FP 06", "LUX");
 
         var svc = sp.GetRequiredService<FleetPlanService>();
         await svc.CreateAsync(new FiloPlanInput { AracGrupAdi = "EKO", HedefAdet = 5 });
@@ -64,10 +64,10 @@ public sealed class FiloPlanTests(PostgresFixture fx)
         var sp = s.ServiceProvider;
 
         // ELLE: EKO/EDMR 2, EKO/CDAR 1, LUX/EDMR 1.
-        await AracAsync(sp, "34 SP 01", "EKO", "EDMR");
-        await AracAsync(sp, "34 SP 02", "EKO", "EDMR");
-        await AracAsync(sp, "34 SP 03", "EKO", "CDAR");
-        await AracAsync(sp, "34 SP 04", "LUX", "EDMR");
+        await VehicleAsync(sp, "34 SP 01", "EKO", "EDMR");
+        await VehicleAsync(sp, "34 SP 02", "EKO", "EDMR");
+        await VehicleAsync(sp, "34 SP 03", "EKO", "CDAR");
+        await VehicleAsync(sp, "34 SP 04", "LUX", "EDMR");
 
         var svc = sp.GetRequiredService<FleetPlanService>();
         await svc.CreateAsync(new FiloPlanInput { AracGrupAdi = "EKO", HedefAdet = 3 });                 // yalnız grup
@@ -86,8 +86,8 @@ public sealed class FiloPlanTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var s = host.ScopeFor(Guid.NewGuid());
         var sp = s.ServiceProvider;
-        await AracAsync(sp, "34 TR 01", "İş Araçları");
-        await AracAsync(sp, "34 TR 02", "iş araçları");
+        await VehicleAsync(sp, "34 TR 01", "İş Araçları");
+        await VehicleAsync(sp, "34 TR 02", "iş araçları");
 
         var svc = sp.GetRequiredService<FleetPlanService>();
         await svc.CreateAsync(new FiloPlanInput { AracGrupAdi = "İŞ ARAÇLARI", HedefAdet = 2 });
@@ -164,9 +164,9 @@ public sealed class FiloPlanTests(PostgresFixture fx)
         }
 
         // Muhasebe OKUYABİLİR (ViewReports) ama YAZAMAZ.
-        using (var muh = host.ScopeFor(t1, Guid.NewGuid(), "muh", UserRole.Muhasebe))
+        using (var acct = host.ScopeFor(t1, Guid.NewGuid(), "muh", UserRole.Muhasebe))
         {
-            var svc = muh.ServiceProvider.GetRequiredService<FleetPlanService>();
+            var svc = acct.ServiceProvider.GetRequiredService<FleetPlanService>();
             Assert.Single(await svc.ListWithCountAsync());
             await Assert.ThrowsAsync<NoPermissionException>(() => svc.ChangeTargetAsync(id, 1));
             await Assert.ThrowsAsync<NoPermissionException>(() =>
@@ -193,7 +193,7 @@ public sealed class FiloPlanTests(PostgresFixture fx)
         var t1 = Guid.NewGuid();
         using (var s1 = host.ScopeFor(t1))
         {
-            await AracAsync(s1.ServiceProvider, "34 TZ 01", "EKO");
+            await VehicleAsync(s1.ServiceProvider, "34 TZ 01", "EKO");
             await s1.ServiceProvider.GetRequiredService<FleetPlanService>()
                 .CreateAsync(new FiloPlanInput { AracGrupAdi = "EKO", HedefAdet = 1 });
         }
@@ -203,7 +203,7 @@ public sealed class FiloPlanTests(PostgresFixture fx)
         Assert.Empty(await sp.GetRequiredService<FleetPlanService>().ListWithCountAsync());
 
         // Diğer tenant kendi hedefini kurduğunda SAYIM da yalnız kendi araçlarını görmeli.
-        await AracAsync(sp, "34 TZ 02", "EKO");
+        await VehicleAsync(sp, "34 TZ 02", "EKO");
         await sp.GetRequiredService<FleetPlanService>()
             .CreateAsync(new FiloPlanInput { AracGrupAdi = "EKO", HedefAdet = 5 });
         var row = Assert.Single(await sp.GetRequiredService<FleetPlanService>().ListWithCountAsync());
@@ -221,7 +221,7 @@ public sealed class FiloPlanTests(PostgresFixture fx)
 [Collection("postgres")]
 public sealed class MusaitlikSonKullanimTests(PostgresFixture fx)
 {
-    private static readonly DateTimeOffset Now = TestZaman.Simdi();
+    private static readonly DateTimeOffset Now = TestZaman.Now();
 
     [Fact]
     public async Task Son_kullanim_EN_SON_donen_kirayi_verir_gelecek_kira_SAYILMAZ()
@@ -229,9 +229,9 @@ public sealed class MusaitlikSonKullanimTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var s = host.ScopeFor(Guid.NewGuid());
         var sp = s.ServiceProvider;
-        var arac = await sp.GetRequiredService<VehicleService>()
+        var vehicle = await sp.GetRequiredService<VehicleService>()
             .CreateAsync(new VehicleInput { Plaka = "34 SK 10" });
-        var bosArac = await sp.GetRequiredService<VehicleService>()
+        var idleVehicle = await sp.GetRequiredService<VehicleService>()
             .CreateAsync(new VehicleInput { Plaka = "34 SK 11" });
 
         var m1 = await sp.GetRequiredService<RentACar.Application.Customers.CustomerService>()
@@ -241,23 +241,23 @@ public sealed class MusaitlikSonKullanimTests(PostgresFixture fx)
             .CreateAsync(new RentACar.Application.Customers.CustomerInput
             { Tip = CustomerType.Kurumsal, Unvan = "Son Müşteri" });
 
-        var kiralar = sp.GetRequiredService<RentACar.Application.Bookings.RentalService>();
+        var rentals = sp.GetRequiredService<RentACar.Application.Bookings.RentalService>();
         // ELLE: 30 gün önce dönen kira (eski), 10 gün önce dönen kira (son), gelecekte biten kira.
-        await kiralar.CreateDirectAsync(new RentACar.Application.Bookings.BookingInput
-        { MusteriId = m1, VehicleId = arac, BasTar = Now.AddDays(-40), BitTar = Now.AddDays(-30), GunlukUcret = 100m });
-        await kiralar.CreateDirectAsync(new RentACar.Application.Bookings.BookingInput
-        { MusteriId = m2, VehicleId = arac, BasTar = Now.AddDays(-20), BitTar = Now.AddDays(-10), GunlukUcret = 100m });
-        await kiralar.CreateDirectAsync(new RentACar.Application.Bookings.BookingInput
-        { MusteriId = m1, VehicleId = arac, BasTar = Now.AddDays(-1), BitTar = Now.AddDays(9), GunlukUcret = 100m });
+        await rentals.CreateDirectAsync(new RentACar.Application.Bookings.BookingInput
+        { MusteriId = m1, VehicleId = vehicle, BasTar = Now.AddDays(-40), BitTar = Now.AddDays(-30), GunlukUcret = 100m });
+        await rentals.CreateDirectAsync(new RentACar.Application.Bookings.BookingInput
+        { MusteriId = m2, VehicleId = vehicle, BasTar = Now.AddDays(-20), BitTar = Now.AddDays(-10), GunlukUcret = 100m });
+        await rentals.CreateDirectAsync(new RentACar.Application.Bookings.BookingInput
+        { MusteriId = m1, VehicleId = vehicle, BasTar = Now.AddDays(-1), BitTar = Now.AddDays(9), GunlukUcret = 100m });
 
         var svc = sp.GetRequiredService<RentACar.Application.Availability.AvailabilityService>();
-        var son = await svc.LastUsageAsync([arac, bosArac]);
+        var last = await svc.LastUsageAsync([vehicle, idleVehicle]);
 
-        Assert.True(son.ContainsKey(arac));
-        Assert.False(son.ContainsKey(bosArac));      // hiç kiralanmamış → satır YOK
-        Assert.Equal("Son Müşteri", son[arac].MusteriAd);   // ELLE: 10 gün önce dönen
+        Assert.True(last.ContainsKey(vehicle));
+        Assert.False(last.ContainsKey(idleVehicle));      // hiç kiralanmamış → satır YOK
+        Assert.Equal("Son Müşteri", last[vehicle].MusteriAd);   // ELLE: 10 gün önce dönen
         Assert.Equal(10, RentACar.Application.Availability.AvailabilityService
-            .IdleDays(son[arac].SonDonus, Now));            // ELLE: bugüne 10 gün
+            .IdleDays(last[vehicle].SonDonus, Now));            // ELLE: bugüne 10 gün
     }
 
     [Fact]
@@ -280,23 +280,23 @@ public sealed class MusaitlikSonKullanimTests(PostgresFixture fx)
     public async Task Son_kullanim_tenant_izolasyonlu()
     {
         using var host = new TestHost(fx.AppConnectionString);
-        Guid arac;
+        Guid vehicle;
         using (var s1 = host.ScopeFor(Guid.NewGuid()))
         {
             var sp = s1.ServiceProvider;
-            arac = await sp.GetRequiredService<VehicleService>().CreateAsync(new VehicleInput { Plaka = "34 SK 12" });
+            vehicle = await sp.GetRequiredService<VehicleService>().CreateAsync(new VehicleInput { Plaka = "34 SK 12" });
             var m = await sp.GetRequiredService<RentACar.Application.Customers.CustomerService>()
                 .CreateAsync(new RentACar.Application.Customers.CustomerInput
                 { Tip = CustomerType.Kurumsal, Unvan = "Gizli" });
             await sp.GetRequiredService<RentACar.Application.Bookings.RentalService>()
                 .CreateDirectAsync(new RentACar.Application.Bookings.BookingInput
-                { MusteriId = m, VehicleId = arac, BasTar = Now.AddDays(-5), BitTar = Now.AddDays(-2), GunlukUcret = 100m });
+                { MusteriId = m, VehicleId = vehicle, BasTar = Now.AddDays(-5), BitTar = Now.AddDays(-2), GunlukUcret = 100m });
         }
 
         using var s2 = host.ScopeFor(Guid.NewGuid());
         // Araç id'si bilinse bile başka tenant'ın kirası görünmemeli.
         Assert.Empty(await s2.ServiceProvider
             .GetRequiredService<RentACar.Application.Availability.AvailabilityService>()
-            .LastUsageAsync([arac]));
+            .LastUsageAsync([vehicle]));
     }
 }

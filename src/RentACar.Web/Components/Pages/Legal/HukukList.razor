@@ -30,7 +30,7 @@
     <label>Ad Soyad (müşteri)
         <select name="cariId">
             <option value="">— tümü —</option>
-            @foreach (var c in _cariler) { <option value="@c.Id" selected="@(c.Id.ToString() == CariId)">@c.DisplayName</option> }
+            @foreach (var c in _accounts) { <option value="@c.Id" selected="@(c.Id.ToString() == CariId)">@c.DisplayName</option> }
         </select>
     </label>
     <label>Dosya No<input name="dosyaNo" value="@DosyaNo" placeholder="içinde geçen" /></label>
@@ -55,8 +55,8 @@
 </form>
 
 <p class="muted small">@_rows.Count dosya · @_rows.Count(x => x.Dosya.Durum == LegalStatus.Acik) açık ·
-    toplam tutar @Toplam(_rows.Sum(x => x.Dosya.Tutar)) · tahsilat @Toplam(_rows.Sum(x => x.Dosya.Tahsilat ?? 0m)) ·
-    kalan @Toplam(_rows.Sum(x => x.Dosya.Kalan)) <em>(bilgi)</em></p>
+    toplam tutar @Total(_rows.Sum(x => x.Dosya.Tutar)) · tahsilat @Total(_rows.Sum(x => x.Dosya.Tahsilat ?? 0m)) ·
+    kalan @Total(_rows.Sum(x => x.Dosya.Kalan)) <em>(bilgi)</em></p>
 
 <div class="table-scroll">
 <table class="grid tr-grid">
@@ -112,7 +112,7 @@
     <label>Müşteri (cari)
         <select name="cariId">
             <option value="">—</option>
-            @foreach (var c in _cariler) { <option value="@c.Id" selected="@(c.Id == _edit?.CariId)">@c.DisplayName</option> }
+            @foreach (var c in _accounts) { <option value="@c.Id" selected="@(c.Id == _edit?.CariId)">@c.DisplayName</option> }
         </select></label>
     <label>Avukat<input name="avukat" value="@_edit?.Avukat" maxlength="128" /></label>
     <label>Avukat Tel<input name="avukatTel" value="@_edit?.AvukatTel" maxlength="32" /></label>
@@ -166,7 +166,7 @@
 
     private IReadOnlyList<HukukDosyaSatirDto> _rows = [];
     private RentACar.Domain.Entities.HukukDosya? _edit;
-    private IReadOnlyList<Customer> _cariler = [];
+    private IReadOnlyList<Customer> _accounts = [];
 
     private bool FiltreVar => !string.IsNullOrWhiteSpace(CariId) || !string.IsNullOrWhiteSpace(DosyaNo)
         || !string.IsNullOrWhiteSpace(FaturaNo) || !string.IsNullOrWhiteSpace(Bas) || !string.IsNullOrWhiteSpace(Bit)
@@ -174,7 +174,7 @@
 
     protected override async Task OnInitializedAsync()
     {
-        _cariler = await Cariler.ListAsync();
+        _accounts = await Cariler.ListAsync();
         _rows = await Hukuk.SearchAsync(new HukukDosyaFilter
         {
             CariId = FormParse.Id(CariId),
@@ -192,17 +192,17 @@
     }
 
     private static string? Inv(decimal? d) => d?.ToString(CultureInfo.InvariantCulture);
-    private static string Toplam(decimal d) => d.ToString("N2");
+    private static string Total(decimal d) => d.ToString("N2");
 
     private string Qs(string format)
     {
         var p = new List<string> { "format=" + format };
-        void Ekle(string ad, string? deger)
+        void Add(string name, string? value)
         {
-            if (!string.IsNullOrWhiteSpace(deger)) p.Add($"{ad}={Uri.EscapeDataString(deger)}");
+            if (!string.IsNullOrWhiteSpace(value)) p.Add($"{name}={Uri.EscapeDataString(value)}");
         }
-        Ekle("cariId", CariId); Ekle("dosyaNo", DosyaNo); Ekle("faturaNo", FaturaNo);
-        Ekle("bas", Bas); Ekle("bit", Bit); Ekle("tur", Tur); Ekle("durum", Durum); Ekle("ara", Ara);
+        Add("cariId", CariId); Add("dosyaNo", DosyaNo); Add("faturaNo", FaturaNo);
+        Add("bas", Bas); Add("bit", Bit); Add("tur", Tur); Add("durum", Durum); Add("ara", Ara);
         return string.Join("&", p);
     }
 }

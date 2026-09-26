@@ -14,22 +14,22 @@ namespace RentACar.IntegrationTests;
 [Collection("web")]
 public sealed class UiIstemciHataTests(WebFixture fx)
 {
-    private const string Uc = "/api/ui/v1/istemci-hata";
+    private const string Endpoint = "/api/ui/v1/istemci-hata";
 
-    private static string? CerezDegeri(HttpResponseMessage r, string ad)
+    private static string? CookieValue(HttpResponseMessage r, string name)
     {
-        if (!r.Headers.TryGetValues("Set-Cookie", out var degerler)) return null;
-        foreach (var d in degerler)
-            if (d.StartsWith(ad + "=", StringComparison.Ordinal))
-                return Uri.UnescapeDataString(d[(ad.Length + 1)..].Split(';')[0]);
+        if (!r.Headers.TryGetValues("Set-Cookie", out var values)) return null;
+        foreach (var d in values)
+            if (d.StartsWith(name + "=", StringComparison.Ordinal))
+                return Uri.UnescapeDataString(d[(name.Length + 1)..].Split(';')[0]);
         return null;
     }
 
     /// <summary>Girişli istemci + girişten SONRAKİ XSRF belirteci. Kimlik fixture'da çalışma anında üretilir.</summary>
-    private static async Task<(HttpClient C, string Xsrf)> GirisYap(WebFactory f, TestKimlik k)
+    private static async Task<(HttpClient C, string Xsrf)> Login(WebFactory f, TestKimlik k)
     {
-        var c = f.Istemci();
-        var once = CerezDegeri(await c.GetAsync("/api/ui/v1/oturum/xsrf"), "XSRF-TOKEN")!;
+        var c = f.Client();
+        var once = CookieValue(await c.GetAsync("/api/ui/v1/oturum/xsrf"), "XSRF-TOKEN")!;
         var req = new HttpRequestMessage(HttpMethod.Post, "/api/ui/v1/oturum/giris")
         {
             Content = JsonContent.Create(new { firma = k.Firma, kullanici = k.Kullanici, sifre = k.Sifre }),
@@ -37,134 +37,134 @@ public sealed class UiIstemciHataTests(WebFixture fx)
         req.Headers.Add("X-XSRF-TOKEN", once);
         var r = await c.SendAsync(req);
         Assert.True(r.StatusCode == HttpStatusCode.OK, await r.Content.ReadAsStringAsync());
-        return (c, CerezDegeri(r, "XSRF-TOKEN")!);
+        return (c, CookieValue(r, "XSRF-TOKEN")!);
     }
 
-    private static HttpRequestMessage Rapor(string? xsrf, HttpContent govde)
+    private static HttpRequestMessage Report(string? xsrf, HttpContent body)
     {
-        var req = new HttpRequestMessage(HttpMethod.Post, Uc) { Content = govde };
+        var req = new HttpRequestMessage(HttpMethod.Post, Endpoint) { Content = body };
         if (xsrf is not null) req.Headers.Add("X-XSRF-TOKEN", xsrf);
         return req;
     }
 
     private static HttpContent Json(object o) => JsonContent.Create(o);
 
-    private static async Task Durum(HttpResponseMessage r, HttpStatusCode beklenen, string? kod)
+    private static async Task Status(HttpResponseMessage r, HttpStatusCode expected, string? code)
     {
-        var metin = await r.Content.ReadAsStringAsync();
-        Assert.True(beklenen == r.StatusCode, $"Beklenen {(int)beklenen}, gelen {(int)r.StatusCode}: {metin}");
+        var text = await r.Content.ReadAsStringAsync();
+        Assert.True(expected == r.StatusCode, $"Beklenen {(int)expected}, gelen {(int)r.StatusCode}: {text}");
         Assert.Null(r.Headers.Location);
-        if (beklenen == HttpStatusCode.NoContent) return;
+        if (expected == HttpStatusCode.NoContent) return;
         Assert.Equal("application/problem+json", r.Content.Headers.ContentType?.MediaType);
-        var j = JsonDocument.Parse(metin).RootElement;
-        if (kod is null) Assert.False(j.TryGetProperty("kod", out _));
-        else Assert.Equal(kod, j.GetProperty("kod").GetString());
+        var j = JsonDocument.Parse(text).RootElement;
+        if (code is null) Assert.False(j.TryGetProperty("kod", out _));
+        else Assert.Equal(code, j.GetProperty("kod").GetString());
     }
 
     /// <summary>Log dosyalarında işaretçiyi içeren olayı bekler (Serilog her olayda diske yazar).</summary>
-    private async Task<JsonElement?> LogOlayi(string isaret, TimeSpan? sure = null)
+    private async Task<JsonElement?> LogEvent(string sign, TimeSpan? duration = null)
     {
-        var bitis = DateTime.UtcNow + (sure ?? TimeSpan.FromSeconds(3));
+        var end = DateTime.UtcNow + (duration ?? TimeSpan.FromSeconds(3));
         do
         {
-            foreach (var dosya in Directory.GetFiles(fx.LogDizini, "log-web-*.log"))
+            foreach (var file in Directory.GetFiles(fx.LogDirectory, "log-web-*.log"))
             {
-                await using var akis = new FileStream(dosya, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
-                using var okuyucu = new StreamReader(akis, Encoding.UTF8);
-                while (await okuyucu.ReadLineAsync() is { } satir)
-                    if (satir.Contains(isaret, StringComparison.Ordinal))
-                        return JsonDocument.Parse(satir).RootElement.Clone();
+                await using var flow = new FileStream(file, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+                using var reader = new StreamReader(flow, Encoding.UTF8);
+                while (await reader.ReadLineAsync() is { } row)
+                    if (row.Contains(sign, StringComparison.Ordinal))
+                        return JsonDocument.Parse(row).RootElement.Clone();
             }
             await Task.Delay(100);
-        } while (DateTime.UtcNow < bitis);
+        } while (DateTime.UtcNow < end);
         return null;
     }
 
     [Fact]
     public async Task Oturumsuz_401_oturum_yok()
     {
-        var r = await fx.Web.Istemci().SendAsync(Rapor(null, Json(new { mesaj = "x", url = "/app/", surum = "t" })));
-        await Durum(r, HttpStatusCode.Unauthorized, "oturum_yok");
+        var r = await fx.Web.Client().SendAsync(Report(null, Json(new { mesaj = "x", url = "/app/", surum = "t" })));
+        await Status(r, HttpStatusCode.Unauthorized, "oturum_yok");
     }
 
     [Fact]
     public async Task Oturumlu_rapor_204_ve_firma_kullaniciyla_WARNING_loglanir()
     {
-        var (c, xsrf) = await GirisYap(fx.Web, fx.PilotAdmin);
-        var isaret = "RAPOR-" + Guid.NewGuid().ToString("N");
-        var r = await c.SendAsync(Rapor(xsrf, Json(new
+        var (c, xsrf) = await Login(fx.Web, fx.PilotAdmin);
+        var sign = "RAPOR-" + Guid.NewGuid().ToString("N");
+        var r = await c.SendAsync(Report(xsrf, Json(new
         {
-            mesaj = isaret + " TypeError: x\r\nSAHTE [ERR] satiri",
+            mesaj = sign + " TypeError: x\r\nSAHTE [ERR] satiri",
             yigin = "TypeError: x\n  at a (chunk-1.js:1:1)",
             url = "/app/kiralar/5",
             surum = "main-ABCD1234.js",
         })));
-        await Durum(r, HttpStatusCode.NoContent, null);
+        await Status(r, HttpStatusCode.NoContent, null);
 
-        var olay = await LogOlayi(isaret);
-        Assert.True(olay is not null, "Log olayı bulunamadı");
-        var o = olay.Value;
+        var evt = await LogEvent(sign);
+        Assert.True(evt is not null, "Log olayı bulunamadı");
+        var o = evt.Value;
         Assert.Equal("Warning", o.GetProperty("@l").GetString());
-        Assert.Equal(fx.PilotFirmaId.ToString(), o.GetProperty("TenantId").GetString());
+        Assert.Equal(fx.PilotCompanyId.ToString(), o.GetProperty("TenantId").GetString());
         Assert.False(string.IsNullOrEmpty(o.GetProperty("UserId").GetString()));
         Assert.Equal(fx.PilotAdmin.Kullanici, o.GetProperty("KullaniciAdi").GetString());
         Assert.Equal("/app/kiralar/5", o.GetProperty("Url").GetString());
         Assert.Equal("main-ABCD1234.js", o.GetProperty("Surum").GetString());
-        var mesaj = o.GetProperty("Mesaj").GetString()!;
-        Assert.DoesNotContain('\r', mesaj); // sahte log satırı üretilemez
-        Assert.DoesNotContain('\n', mesaj);
+        var message = o.GetProperty("Mesaj").GetString()!;
+        Assert.DoesNotContain('\r', message); // sahte log satırı üretilemez
+        Assert.DoesNotContain('\n', message);
         Assert.Contains("at a (chunk-1.js:1:1)", o.GetProperty("Yigin").GetString());
     }
 
     [Fact]
     public async Task Pilot_olmayan_firmanin_kullanicisi_da_raporlayabilir()
     {
-        var (c, xsrf) = await GirisYap(fx.Web, fx.DigerAdmin);
-        var r = await c.SendAsync(Rapor(xsrf, Json(new { mesaj = "pilot dışı hata", url = "/app/", surum = "t" })));
-        await Durum(r, HttpStatusCode.NoContent, null);
+        var (c, xsrf) = await Login(fx.Web, fx.OtherAdmin);
+        var r = await c.SendAsync(Report(xsrf, Json(new { mesaj = "pilot dışı hata", url = "/app/", surum = "t" })));
+        await Status(r, HttpStatusCode.NoContent, null);
     }
 
     [Fact]
     public async Task Csrf_basligi_yoksa_400_xsrf_gecersiz()
     {
-        var (c, _) = await GirisYap(fx.Web, fx.PilotAdmin);
-        var r = await c.SendAsync(Rapor(null, Json(new { mesaj = "x", url = "/app/", surum = "t" })));
-        await Durum(r, HttpStatusCode.BadRequest, "xsrf_gecersiz");
+        var (c, _) = await Login(fx.Web, fx.PilotAdmin);
+        var r = await c.SendAsync(Report(null, Json(new { mesaj = "x", url = "/app/", surum = "t" })));
+        await Status(r, HttpStatusCode.BadRequest, "xsrf_gecersiz");
     }
 
     [Fact]
     public async Task Dort_KB_ustu_413_ve_loglanmaz()
     {
-        var (c, xsrf) = await GirisYap(fx.Web, fx.PilotAdmin);
-        var isaret = "BUYUK-" + Guid.NewGuid().ToString("N");
-        var govde = new StringContent(
-            JsonSerializer.Serialize(new { mesaj = isaret, yigin = new string('y', 5000), url = "/app/", surum = "t" }),
+        var (c, xsrf) = await Login(fx.Web, fx.PilotAdmin);
+        var sign = "BUYUK-" + Guid.NewGuid().ToString("N");
+        var body = new StringContent(
+            JsonSerializer.Serialize(new { mesaj = sign, yigin = new string('y', 5000), url = "/app/", surum = "t" }),
             Encoding.UTF8, "application/json");
-        var r = await c.SendAsync(Rapor(xsrf, govde));
-        await Durum(r, HttpStatusCode.RequestEntityTooLarge, null);
-        Assert.Null(await LogOlayi(isaret, TimeSpan.FromMilliseconds(500)));
+        var r = await c.SendAsync(Report(xsrf, body));
+        await Status(r, HttpStatusCode.RequestEntityTooLarge, null);
+        Assert.Null(await LogEvent(sign, TimeSpan.FromMilliseconds(500)));
     }
 
     [Fact]
     public async Task Bos_mesaj_ve_bozuk_json_400_dogrulama()
     {
-        var (c, xsrf) = await GirisYap(fx.Web, fx.PilotAdmin);
-        var bos = await c.SendAsync(Rapor(xsrf, Json(new { mesaj = " ", url = "/app/", surum = "t" })));
-        await Durum(bos, HttpStatusCode.BadRequest, "dogrulama");
-        var j = JsonDocument.Parse(await bos.Content.ReadAsStringAsync()).RootElement;
+        var (c, xsrf) = await Login(fx.Web, fx.PilotAdmin);
+        var empty = await c.SendAsync(Report(xsrf, Json(new { mesaj = " ", url = "/app/", surum = "t" })));
+        await Status(empty, HttpStatusCode.BadRequest, "dogrulama");
+        var j = JsonDocument.Parse(await empty.Content.ReadAsStringAsync()).RootElement;
         Assert.True(j.GetProperty("errors").TryGetProperty("mesaj", out _));
 
-        var bozuk = await c.SendAsync(Rapor(xsrf, new StringContent("{bozuk", Encoding.UTF8, "application/json")));
-        await Durum(bozuk, HttpStatusCode.BadRequest, "dogrulama");
+        var corrupt = await c.SendAsync(Report(xsrf, new StringContent("{bozuk", Encoding.UTF8, "application/json")));
+        await Status(corrupt, HttpStatusCode.BadRequest, "dogrulama");
     }
 
     [Fact]
     public async Task Hiz_siniri_429_cok_istek_json()
     {
-        var c = fx.DarLimitli.Istemci(); // istemci-hata limiti 2 (limiter kimlikten ÖNCE: anonim de sayılır)
-        var govde = new { mesaj = "x", url = "/app/", surum = "t" };
-        await c.SendAsync(Rapor(null, Json(govde)));
-        await c.SendAsync(Rapor(null, Json(govde)));
-        await Durum(await c.SendAsync(Rapor(null, Json(govde))), HttpStatusCode.TooManyRequests, "cok_istek");
+        var c = fx.NarrowLimited.Client(); // istemci-hata limiti 2 (limiter kimlikten ÖNCE: anonim de sayılır)
+        var body = new { mesaj = "x", url = "/app/", surum = "t" };
+        await c.SendAsync(Report(null, Json(body)));
+        await c.SendAsync(Report(null, Json(body)));
+        await Status(await c.SendAsync(Report(null, Json(body))), HttpStatusCode.TooManyRequests, "cok_istek");
     }
 }

@@ -21,13 +21,13 @@ public sealed class RentalRuleTests(PostgresFixture fx)
         using var scope = host.ScopeFor(Guid.NewGuid());
         var svc = scope.ServiceProvider.GetRequiredService<RentalRuleService>();
 
-        var bas = new DateTimeOffset(2026, 6, 1, 0, 0, 0, TimeSpan.Zero);
+        var start = new DateTimeOffset(2026, 6, 1, 0, 0, 0, TimeSpan.Zero);
         var bit = new DateTimeOffset(2026, 8, 31, 0, 0, 0, TimeSpan.Zero);
         var id = await svc.CreateAsync(new RentalRuleInput
         {
             Kod = "yaz-kamp", Ad = "Yaz Kampanyası", Kanal = "WEB", Sube = "Merkez", AracGrupKod = "eko",
             MinGun = 3, MaxGun = 30, Iskonto = 12.50m, SonraOdeOran = 40.00m, HediyeGun = 1,
-            KampanyaMi = true, KampanyaKodu = "YAZ2026", GecerlilikBas = bas, GecerlilikBit = bit,
+            KampanyaMi = true, KampanyaKodu = "YAZ2026", GecerlilikBas = start, GecerlilikBit = bit,
             SartMetni = "Min 3 gün, iade yok"
         });
 
@@ -42,7 +42,7 @@ public sealed class RentalRuleTests(PostgresFixture fx)
         Assert.Equal(1, r.HediyeGun);
         Assert.True(r.KampanyaMi);
         Assert.Equal("YAZ2026", r.KampanyaKodu);
-        Assert.Equal(bas, r.GecerlilikBas);
+        Assert.Equal(start, r.GecerlilikBas);
         Assert.Equal("Min 3 gün, iade yok", r.SartMetni);
         Assert.True(r.Aktif);
     }

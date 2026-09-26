@@ -15,9 +15,9 @@
 
 <div class="page-head"><h1>Müsait Araç Ara</h1><div class="actions"></div></div>
 
-@if (!string.IsNullOrEmpty(Hata))
+@if (!string.IsNullOrEmpty(ErrorMessage))
 {
-    <p class="error">@Hata</p>
+    <p class="error">@ErrorMessage</p>
 }
 
 @* FAZ-48 — pencere girdileri genişledi: gün sayısı (bitiş yerine) + alış/dönüş saati. Pencere kurma
@@ -28,15 +28,15 @@
     <label>Gün<input name="gun" type="number" min="1" max="365" step="1" value="@Gun" placeholder="Bitiş yerine" /></label>
     <label>Alış Saati<input name="bassaat" type="time" value="@BasSaat" /></label>
     <label>Dönüş Saati<input name="bitsaat" type="time" value="@BitSaat" /></label>
-    <ComboBox Name="grup" Label="Grup" Value="@Grup" Options="_grupOpts" Placeholder="(tümü)" />
-    <ComboBox Name="sube" Label="Şube" Value="@Sube" Options="_subeOpts" Placeholder="(tümü)" />
+    <ComboBox Name="grup" Label="Grup" Value="@Grup" Options="_groupOpts" Placeholder="(tümü)" />
+    <ComboBox Name="sube" Label="Şube" Value="@Sube" Options="_branchOpts" Placeholder="(tümü)" />
     @* "Dönüş ofisi" BİLEREK YOK — aracın dolu olup olmaması dönüş ofisine bağlı değildir; tek-yön
        (drop) ücreti sözleşme seviyesinde FeeLineService'ten gelir. Buraya koymak ya ölü bir alan ya
        da ikinci bir fiyat yüzeyi olurdu (bkz. PR açıklaması). *@
     <label>Rez. Kaynağı
         <select name="rezkaynak">
             <option value="">—</option>
-            @foreach (var k in _kaynakOpts)
+            @foreach (var k in _sourceOpts)
             {
                 <option value="@k" selected="@(string.Equals(k, RezKaynak, StringComparison.OrdinalIgnoreCase))">@k</option>
             }
@@ -49,7 +49,7 @@
     <label>Döviz
         <select name="doviz">
             <option value="">(tümü)</option>
-            @foreach (var d in _dovizOpts)
+            @foreach (var d in _currencyOpts)
             {
                 <option value="@d" selected="@(string.Equals(d, Doviz, StringComparison.OrdinalIgnoreCase))">@d</option>
             }
@@ -61,11 +61,11 @@
 
 @if (_searched)
 {
-    <p class="muted">@_pencereMetni arası @_list.Count müsait araç.</p>
-    @if (_brokerElenen > 0)
+    <p class="muted">@_windowText arası @_list.Count müsait araç.</p>
+    @if (_brokerExcluded > 0)
     {
-        <p class="muted small">@_brokerElenen araç, seçili kaynak (@RezKaynak) için tanımlı broker
-            satış yasağı nedeniyle listelenmedi (@string.Join(", ", _brokerGerekce)).</p>
+        <p class="muted small">@_brokerExcluded araç, seçili kaynak (@RezKaynak) için tanımlı broker
+            satış yasağı nedeniyle listelenmedi (@string.Join(", ", _brokerReason)).</p>
     }
     <div class="table-scroll">
     <table class="grid tr-grid">
@@ -83,8 +83,8 @@
             }
             @foreach (var v in _list)
             {
-                var f = Fiyat(v.Grup);
-                var son = _son.GetValueOrDefault(v.Id);
+                var f = Price(v.Grup);
+                var last = _last.GetValueOrDefault(v.Id);
                 <tr>
                     <td class="mono">@v.Plaka</td>
                     <td>@v.Marka</td>
@@ -102,14 +102,14 @@
                     @* Km limiti araçta tanımlıysa o, değilse grubun günlük limiti (araç kaydı grup
                        varsayılanını EZER — kira formundaki kuralla aynı yön). Ehliyet/asgari sürücü
                        yaşı yalnız GRUPTA tanımlı. *@
-                    <td class="num">@(KmLimiti(v)?.ToString("N0") ?? "—")</td>
-                    <td class="num">@(MinSurucuYas(v.Grup)?.ToString() ?? "—")</td>
+                    <td class="num">@(KmLimit(v)?.ToString("N0") ?? "—")</td>
+                    <td class="num">@(MinDriverAge(v.Grup)?.ToString() ?? "—")</td>
                     @* FAZ-73 — broker/kanal yöneticisinin sorduğu iki kural daha; ikisi de yalnız
                        GRUP tanımında var (araç seviyesinde karşılığı yok). Provizyon BİLGİDİR:
                        teklif toplamına GİRMEZ (motor onu ayrı alanda döndürür), bu yüzden ekranda
                        da fiyat kolonlarından ayrı durur. *@
-                    <td class="num">@(MinEhliyetYil(v.Grup)?.ToString() ?? "—")</td>
-                    <td class="num">@Provizyon(v.Grup)</td>
+                    <td class="num">@(MinLicenseYears(v.Grup)?.ToString() ?? "—")</td>
+                    <td class="num">@PreAuth(v.Grup)</td>
                     @* Canlıdaki "Lokasyon" kolonunun Vehicle'da karşılığı YOK (araçta yalnız Sube
                        var); uydurulmuş bir alan eklemek yerine gerçekten var olan operasyonel
                        bayraklar konuldu. Lokasyon istenirse ayrı bir alan işidir. *@
@@ -119,14 +119,14 @@
                     <td class="num">@v.Km.ToString("N0")</td>
                     @* Boşta gün = son TAMAMLANMIŞ kiranın dönüşünden bugüne. Hiç kiralanmamış araçta
                        "—" yazılır; 0 yazmak "dün döndü" ile karışırdı. *@
-                    <td class="num">@(son is null ? "—" : AvailabilityService.IdleDays(son.SonDonus, _now).ToString())</td>
-                    <td>@(son?.MusteriAd ?? "—")</td>
+                    <td class="num">@(last is null ? "—" : AvailabilityService.IdleDays(last.SonDonus, _now).ToString())</td>
+                    <td>@(last?.MusteriAd ?? "—")</td>
                     <td class="num">@(f is null ? "—" : f.Value.Gunluk.ToString("N2"))</td>
                     <td class="num">@(f is null ? "—" : f.Value.Toplam.ToString("N2"))</td>
                     <td>@(f?.Para)</td>
                     <td>
                         @* Kirala: araç + tarihler kira formuna taşınır (?varac=&vfrom=&vto=). *@
-                        <a href="@KiralaLink(v.Id)">Kirala →</a>
+                        <a href="@RentLink(v.Id)">Kirala →</a>
                     </td>
                 </tr>
             }
@@ -153,23 +153,23 @@
     [SupplyParameterFromQuery(Name = "doviz")] public string? Doviz { get; set; }
 
     private IReadOnlyList<Vehicle> _list = [];
-    private IReadOnlyDictionary<Guid, SonKullanimRow> _son = new Dictionary<Guid, SonKullanimRow>();
+    private IReadOnlyDictionary<Guid, SonKullanimRow> _last = new Dictionary<Guid, SonKullanimRow>();
     private DateTimeOffset _now = DateTimeOffset.UtcNow;
-    private readonly Dictionary<string, (decimal Gunluk, decimal Toplam, string Para)> _fiyat = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, (decimal Gunluk, decimal Toplam, string Para)> _price = new(StringComparer.OrdinalIgnoreCase);
     private bool _searched;
-    private string? Hata;
-    private List<string> _subeOpts = [];
-    private List<string> _grupOpts = [];
-    private List<string> _kaynakOpts = [];
-    private List<string> _dovizOpts = [];
-    private int _brokerElenen;
-    private List<string> _brokerGerekce = [];
-    private Dictionary<string, VehicleGroup> _grupMap = new(StringComparer.OrdinalIgnoreCase);
-    private string _pencereMetni = "";
+    private string? ErrorMessage;
+    private List<string> _branchOpts = [];
+    private List<string> _groupOpts = [];
+    private List<string> _sourceOpts = [];
+    private List<string> _currencyOpts = [];
+    private int _brokerExcluded;
+    private List<string> _brokerReason = [];
+    private Dictionary<string, VehicleGroup> _groupMap = new(StringComparer.OrdinalIgnoreCase);
+    private string _windowText = "";
     private string? _vfrom, _vto;   // Kirala bağlantısı için ÇÖZÜLMÜŞ pencere (gün-modunda To boş olabilir)
 
-    private (decimal Gunluk, decimal Toplam, string Para)? Fiyat(string? grup)
-        => grup is not null && _fiyat.TryGetValue(grup, out var f) ? f : null;
+    private (decimal Gunluk, decimal Toplam, string Para)? Price(string? group)
+        => group is not null && _price.TryGetValue(group, out var f) ? f : null;
 
     /// <summary>
     /// Takvim günü ayrıştırma. Önce &lt;input type="date"&gt; biçimi (yyyy-MM-dd); tutmazsa TAM
@@ -177,9 +177,9 @@
     /// edilir — biçim daraltması yüzünden eski URL'ler sessizce "arama yok"a düşmesin.
     /// Kültürden bağımsız (InvariantCulture): sunucu yereli ne olursa olsun aynı gün okunur.
     /// </summary>
-    private static DateOnly? Tarih(string? s)
+    private static DateOnly? Date(string? s)
     {
-        if (FormParse.Gun(s) is DateOnly g) return g;
+        if (FormParse.Day(s) is DateOnly g) return g;
         return DateTimeOffset.TryParse((s ?? "").Trim(), System.Globalization.CultureInfo.InvariantCulture,
             System.Globalization.DateTimeStyles.None, out var d)
             ? DateOnly.FromDateTime(d.Date)
@@ -187,63 +187,63 @@
     }
 
     /// <summary>Km limiti: araç kaydı grubun günlük varsayılanını EZER (kira formundaki yön).</summary>
-    private int? KmLimiti(Vehicle v)
-        => v.KiraKmLimiti ?? (v.Grup is not null && _grupMap.TryGetValue(v.Grup, out var g) ? g.GunlukKmLimiti : null);
+    private int? KmLimit(Vehicle v)
+        => v.KiraKmLimiti ?? (v.Grup is not null && _groupMap.TryGetValue(v.Grup, out var g) ? g.GunlukKmLimiti : null);
 
     /// <summary>Asgari sürücü yaşı (ehliyet koşulu) yalnız GRUP tanımında var.</summary>
-    private int? MinSurucuYas(string? grup)
-        => grup is not null && _grupMap.TryGetValue(grup, out var g) ? g.SurucuMinYas : null;
+    private int? MinDriverAge(string? group)
+        => group is not null && _groupMap.TryGetValue(group, out var g) ? g.SurucuMinYas : null;
 
     /// <summary>FAZ-73 — asgari ehliyet yılı (yalnız grup tanımında).</summary>
-    private int? MinEhliyetYil(string? grup)
-        => grup is not null && _grupMap.TryGetValue(grup, out var g) ? g.EhliyetMinYil : null;
+    private int? MinLicenseYears(string? group)
+        => group is not null && _groupMap.TryGetValue(group, out var g) ? g.EhliyetMinYil : null;
 
     /// <summary>FAZ-73 — provizyon (bloke) tutarı + kendi dövizi. BİLGİ: teklif toplamına girmez.
     /// Grup kendi dövizini taşımıyorsa yalnız tutar yazılır (uydurma bir para birimi basılmaz).</summary>
-    private string Provizyon(string? grup)
+    private string PreAuth(string? group)
     {
-        if (grup is null || !_grupMap.TryGetValue(grup, out var g) || g.Provizyon is not { } p) return "—";
+        if (group is null || !_groupMap.TryGetValue(group, out var g) || g.Provizyon is not { } p) return "—";
         return string.IsNullOrWhiteSpace(g.ProvizyonDoviz) ? p.ToString("N2") : $"{p:N2} {g.ProvizyonDoviz}";
     }
 
     protected override async Task OnInitializedAsync()
     {
-        _subeOpts = (await Subeler.ListActiveAsync()).Select(s => s.Ad).ToList();
-        var gruplar = await AracGruplari.ListActiveAsync();
-        _grupOpts = gruplar.Select(g => g.Ad).ToList();
-        _grupMap = gruplar
+        _branchOpts = (await Subeler.ListActiveAsync()).Select(s => s.Ad).ToList();
+        var groups = await AracGruplari.ListActiveAsync();
+        _groupOpts = groups.Select(g => g.Ad).ToList();
+        _groupMap = groups
             .Where(g => !string.IsNullOrWhiteSpace(g.Ad))
             .GroupBy(g => g.Ad, StringComparer.OrdinalIgnoreCase)
             .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
-        var aktifKaynaklar = await Kaynaklar.ListActiveAsync();
-        _kaynakOpts = aktifKaynaklar.Select(k => k.Ad).ToList();
+        var activeSources = await Kaynaklar.ListActiveAsync();
+        _sourceOpts = activeSources.Select(k => k.Ad).ToList();
 
         // Döviz seçenekleri AKTİF TARİFELERDEN gelir — teklif dövizinin tek kaynağı odur
         // (RentalQuoteEngine: paraBirimi = matris.ParaBirimi ?? "TRY"). Sabit bir liste yazmak,
         // seçilebilir ama hiçbir sonucu olmayan dövizler üretirdi.
-        _dovizOpts = (await Tarifeler.ListActiveAsync())
+        _currencyOpts = (await Tarifeler.ListActiveAsync())
             .Select(m => string.IsNullOrWhiteSpace(m.ParaBirimi) ? "TRY" : m.ParaBirimi!.Trim().ToUpperInvariant())
             .Distinct(StringComparer.OrdinalIgnoreCase).OrderBy(x => x, StringComparer.Ordinal).ToList();
 
         // Pencere kuralı SUNUCUDA (saf fonksiyon): gün sayısı bitişin yerine geçer, saatler
         // verilmezse 00:00 → eski davranışla birebir.
-        var pencere = AvailabilityService.Window(
-            Tarih(From), Tarih(To), FormParse.Int(Gun),
-            FormParse.Saat(BasSaat), FormParse.Saat(BitSaat));
-        if (pencere is null)
+        var window = AvailabilityService.Window(
+            Date(From), Date(To), FormParse.Int(Gun),
+            FormParse.Hour(BasSaat), FormParse.Hour(BitSaat));
+        if (window is null)
         {
             // "Bitiş" artık zorunlu değil (gün sayısı onun yerine geçebiliyor) — ama İKİSİ de boşsa
             // sessizce boş sayfa göstermek yerine ne istendiğini söyle (HTML "ikisinden biri zorunlu"
             // diye bir kural ifade edemiyor).
             if (!string.IsNullOrWhiteSpace(From))
-                Hata = "Bitiş tarihi ya da gün sayısından birini girin.";
+                ErrorMessage = "Bitiş tarihi ya da gün sayısından birini girin.";
             return; // ilk açılış / eksik girdi: arama yok
         }
-        var (from, to) = pencere.Value;
+        var (from, to) = window.Value;
 
         _vfrom = from.ToString("yyyy-MM-dd");
         _vto = to.ToString("yyyy-MM-dd");
-        _pencereMetni = $"{from:dd.MM.yyyy HH:mm} – {to:dd.MM.yyyy HH:mm}";
+        _windowText = $"{from:dd.MM.yyyy HH:mm} – {to:dd.MM.yyyy HH:mm}";
 
         _searched = true;
         try
@@ -259,19 +259,19 @@
                     _list = _list.Where(v => v.Plaka.Contains(p, StringComparison.OrdinalIgnoreCase)).ToList();
             }
 
-            _son = await Availability.LastUsageAsync(_list.Select(v => v.Id).ToList());
+            _last = await Availability.LastUsageAsync(_list.Select(v => v.Id).ToList());
             // roadmap G4: her müsait grup için fiyat motorundan teklif.
             // FAZ-48: kanal artık seçilebilir — çözüm PricingService'le AYNI çitten (KanalCozucu):
             // yalnız AKTİF kaynak eşleşirse kanal setlenir, aksi null (kanalsız = base matris).
-            var kanal = ChannelResolver.Resolve(RezKaynak, aktifKaynaklar);
-            foreach (var grup in _list.Select(v => v.Grup)
+            var channel = ChannelResolver.Resolve(RezKaynak, activeSources);
+            foreach (var group in _list.Select(v => v.Grup)
                 .Where(g => !string.IsNullOrWhiteSpace(g)).Distinct(StringComparer.OrdinalIgnoreCase))
             {
                 try
                 {
                     var q = await Quotes.QuoteAsync(new QuoteRequest
-                    { AracGrupKod = grup!, BasTar = from, BitTar = to, Sube = Sube, Kanal = kanal, SigortaUrunKodlari = [] });
-                    _fiyat[grup!] = (q.GunlukUcret, q.GenelToplam, q.ParaBirimi);
+                    { AracGrupKod = group!, BasTar = from, BitTar = to, Sube = Sube, Kanal = channel, SigortaUrunKodlari = [] });
+                    _price[group!] = (q.GunlukUcret, q.GenelToplam, q.ParaBirimi);
                 }
                 catch (RentACar.Application.Common.ValidationException) { /* grup/tarih geçersiz → fiyat gösterilmez */ }
             }
@@ -283,21 +283,21 @@
             // Fiyata HİÇ dokunmaz: kalan satırların tutarı motordan geldiği gibi durur.
             if (!string.IsNullOrWhiteSpace(RezKaynak))
             {
-                var yasaklar = await BrokerYasaklari.ListActiveAsync();
-                if (yasaklar.Count > 0)
+                var bans = await BrokerYasaklari.ListActiveAsync();
+                if (bans.Count > 0)
                 {
-                    var gun = BookingMath.ComputeDays(from, to);
-                    var kalan = new List<Vehicle>(_list.Count);
-                    var gerekce = new List<string>();
+                    var day = BookingMath.ComputeDays(from, to);
+                    var remaining = new List<Vehicle>(_list.Count);
+                    var reason = new List<string>();
                     foreach (var v in _list)
                     {
-                        var engel = BrokerAvailability.Block(yasaklar, RezKaynak, v.Grup, v.Sube, gun, from);
-                        if (engel is null) { kalan.Add(v); continue; }
-                        _brokerElenen++;
-                        if (!gerekce.Contains(engel.Kod, StringComparer.Ordinal)) gerekce.Add(engel.Kod);
+                        var block = BrokerAvailability.Block(bans, RezKaynak, v.Grup, v.Sube, day, from);
+                        if (block is null) { remaining.Add(v); continue; }
+                        _brokerExcluded++;
+                        if (!reason.Contains(block.Kod, StringComparer.Ordinal)) reason.Add(block.Kod);
                     }
-                    _list = kalan;
-                    _brokerGerekce = gerekce;
+                    _list = remaining;
+                    _brokerReason = reason;
                 }
             }
 
@@ -307,13 +307,13 @@
             if (!string.IsNullOrWhiteSpace(Doviz))
             {
                 var d = Doviz.Trim();
-                _list = _list.Where(v => Fiyat(v.Grup) is { } f
+                _list = _list.Where(v => Price(v.Grup) is { } f
                     && string.Equals(f.Para, d, StringComparison.OrdinalIgnoreCase)).ToList();
             }
         }
         catch (RentACar.Application.Common.ValidationException ex)
         {
-            Hata = ex.Message;
+            ErrorMessage = ex.Message;
             _searched = false;
         }
     }
@@ -321,7 +321,7 @@
     /// <summary>Kira formuna araç + tarih taşıyan bağlantı (mega-form ?varac/?vfrom/?vto okur).
     /// FAZ-48: tarihler ham form alanından değil ÇÖZÜLMÜŞ pencereden gelir — gün-sayısı modunda
     /// "Bitiş" alanı boştur, ham alanı taşımak kira formuna eksik tarih götürürdü.</summary>
-    private string KiralaLink(Guid vehicleId)
+    private string RentLink(Guid vehicleId)
     {
         var q = new List<string> { $"varac={vehicleId}" };
         if (!string.IsNullOrWhiteSpace(_vfrom)) q.Add($"vfrom={Uri.EscapeDataString(_vfrom)}");

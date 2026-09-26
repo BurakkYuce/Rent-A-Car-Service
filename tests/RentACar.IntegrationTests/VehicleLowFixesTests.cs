@@ -41,10 +41,10 @@ public sealed class VehicleLowFixesTests(PostgresFixture fx)
 
         // Güncelleme yolu da aynı kuraldan geçer (Blazor düzenleme formu).
         var id = await vehicles.CreateAsync(new VehicleInput
-        { Plaka = NewPlate(), Durum = VehicleStatus.Musait, FiloGirisTarih = TestZaman.GunSonra(-30) });
-        var surum = await vehicles.VersionAsync(id);
+        { Plaka = NewPlate(), Durum = VehicleStatus.Musait, FiloGirisTarih = TestZaman.DaysLater(-30) });
+        var version = await vehicles.VersionAsync(id);
         ex = await Assert.ThrowsAsync<ValidationException>(() => vehicles.UpdateAsync(id, new VehicleInput
-        { Plaka = NewPlate(), Durum = VehicleStatus.Musait, FiloYonetimMaliyeti = -1m }, surum));
+        { Plaka = NewPlate(), Durum = VehicleStatus.Musait, FiloYonetimMaliyeti = -1m }, version));
         Assert.StartsWith("Filo yönetim maliyeti", ex.Message);
 
         ex = await Assert.ThrowsAsync<ValidationException>(() => vehicles.EnterManualKmAsync(id, 100, old));

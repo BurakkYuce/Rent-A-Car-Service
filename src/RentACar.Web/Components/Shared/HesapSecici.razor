@@ -11,14 +11,14 @@
 *@
 @inject FinancialAccountService Hesaplar
 
-@if (_liste.Count > 0)
+@if (_list.Count > 0)
 {
     <label class="@CssClass">@Etiket
         <select name="@Ad" title="Para hangi kasa/banka hesabından geçti (boş bırakılabilir)">
             <option value="">— hesap belirtilmemiş —</option>
-            @foreach (var h in _liste)
+            @foreach (var h in _list)
             {
-                <option value="@h.Id" selected="@(Secili == h.Id)">@Goster(h)</option>
+                <option value="@h.Id" selected="@(Secili == h.Id)">@Show(h)</option>
             }
         </select>
     </label>
@@ -31,20 +31,20 @@
     [Parameter] public Guid? Secili { get; set; }
     [Parameter] public string? CssClass { get; set; }
 
-    private IReadOnlyList<FinancialAccount> _liste = [];
+    private IReadOnlyList<FinancialAccount> _list = [];
 
     protected override async Task OnInitializedAsync()
         // Yalnız AKTİF hesaplar: pasif hesap seçilse servis zaten reddederdi, listede durması
         // kullanıcıyı boşuna hataya sürüklerdi.
-        => _liste = await Hesaplar.ListActiveAsync();
+        => _list = await Hesaplar.ListActiveAsync();
 
     /// <summary>"Kasa · Merkez Kasa (MRK)" — tür öneki kullanıcının doğru hesabı seçmesi için.</summary>
-    private static string Goster(FinancialAccount h)
+    private static string Show(FinancialAccount h)
     {
-        var tur = string.IsNullOrWhiteSpace(h.Tur) ? null : h.Tur.Trim();
-        var ad = string.IsNullOrWhiteSpace(h.Ad) ? h.Kod : h.Ad;
-        var doviz = string.IsNullOrWhiteSpace(h.Doviz) ? null : h.Doviz;
-        var kuyruk = doviz is null ? $" ({h.Kod})" : $" ({h.Kod} · {doviz})";
-        return tur is null ? ad + kuyruk : $"{tur} · {ad}{kuyruk}";
+        var type = string.IsNullOrWhiteSpace(h.Tur) ? null : h.Tur.Trim();
+        var name = string.IsNullOrWhiteSpace(h.Ad) ? h.Kod : h.Ad;
+        var currency = string.IsNullOrWhiteSpace(h.Doviz) ? null : h.Doviz;
+        var queue = currency is null ? $" ({h.Kod})" : $" ({h.Kod} · {currency})";
+        return type is null ? name + queue : $"{type} · {name}{queue}";
     }
 }

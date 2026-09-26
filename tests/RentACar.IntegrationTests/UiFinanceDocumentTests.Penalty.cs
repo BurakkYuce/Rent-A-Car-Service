@@ -13,7 +13,7 @@ public sealed partial class UiFinanceDocumentTests
     {
         var id = await IdOf(await PostAsync(s, "/cezalar", new
         {
-            cezaTuru = "Hız", aracId = vehicle ?? e.RentalVehicle, cariId = e.Customer, tebligTarihi = TestZaman.GunSonra(-2),
+            cezaTuru = "Hız", aracId = vehicle ?? e.RentalVehicle, cariId = e.Customer, tebligTarihi = TestZaman.DaysLater(-2),
             kalemler = new[] { new { tutar = 150m, sebep = "Hız" }, new { tutar = 50.50m, sebep = "Park" } },
         }));
         var detail = await Ok(await GetAsync(s, $"/cezalar/{id}"));

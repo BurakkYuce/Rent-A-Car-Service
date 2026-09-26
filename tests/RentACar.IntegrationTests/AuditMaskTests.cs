@@ -81,8 +81,8 @@ public sealed class AuditMaskTests
         Assert.Equal("********1234", root.GetProperty("Iban").GetString());
         Assert.Equal("Ana Banka", root.GetProperty("Ad").GetString());
 
-        var vkn = JsonDocument.Parse(SystemAdminApi.MaskSecrets("""{"FirmaVergiNo":"0000009876"}""", "ayarlar")!).RootElement;
-        Assert.Equal("********9876", vkn.GetProperty("FirmaVergiNo").GetString());
+        var taxNo = JsonDocument.Parse(SystemAdminApi.MaskSecrets("""{"FirmaVergiNo":"0000009876"}""", "ayarlar")!).RootElement;
+        Assert.Equal("********9876", taxNo.GetProperty("FirmaVergiNo").GetString());
 
         // Tablo verilmezse ya da başka tabloysa TAM maske (anahtar adı tek başına yetmez).
         Assert.Equal("***", JsonDocument.Parse(SystemAdminApi.MaskSecrets(json)!).RootElement.GetProperty("Iban").GetString());

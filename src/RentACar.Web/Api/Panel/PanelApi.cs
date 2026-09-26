@@ -33,13 +33,13 @@ namespace RentACar.Web.Api.Panel;
 /// </summary>
 public static class PanelApi
 {
-    public const string Gerekce =
+    public const string Reason =
         "Panel: her oturumun ana ekranı (Blazor '/' yalnız [Authorize], menü kaydında izinsiz). Kapılar İÇERİKTE: " +
         "finans özeti ViewReports, tahsilat anahtarı FinanceWrite ile; kira/rezervasyon listeleri şube kapsamlı servislerden.";
 
     public static RouteGroupBuilder MapPanelApi(this RouteGroupBuilder v1)
     {
-        v1.MapGet("/panel/ozet", Ozet).IzinMuaf(Gerekce).WithTags("Panel");
+        v1.MapGet("/panel/ozet", Summary).PermissionExempt(Reason).WithTags("Panel");
         return v1;
     }
 
@@ -65,7 +65,7 @@ public static class PanelApi
     public sealed record PanelCikisSatiri(
         Guid ReservationId, string ReservationNo, DateTimeOffset Tarih, string MusteriAd, string Plaka, string? Ofis);
 
-    /// <summary><c>VarsayilanSekme</c>: seçim yokken açılacak kova (<see cref="PanelSekme"/> kuralı: dönüşlerde
+    /// <summary><c>VarsayilanSekme</c>: seçim yokken açılacak kova (<see cref="PanelTab"/> kuralı: dönüşlerde
     /// gecikmiş varsa "gec", yoksa "bugun"; çıkışlarda daima "bugun").</summary>
     public sealed record PanelDonusKovalari(
         IReadOnlyList<PanelDonusSatiri> Gecikmis, IReadOnlyList<PanelDonusSatiri> Bugun,
@@ -87,91 +87,91 @@ public static class PanelApi
 
     // ---------------------------------------------------------------- uç
 
-    private static async Task<Ok<PanelOzetiYaniti>> Ozet(
+    private static async Task<Ok<PanelOzetiYaniti>> Summary(
         HttpContext http, RentalService kiralar, ReservationService rezervasyonlar, CashService kasa,
         ReportService raporlar, DashboardService pano, DueService vade, ComplaintService sikayet,
         PublicBookingRequestService talepler, TenantStatusCache kiraciDurum, ITenantContext kiraci,
         CancellationToken ct)
     {
-        var simdi = DateTimeOffset.UtcNow;
-        var bugun = TenantDay.Day(simdi);
-        var finansYazma = AuthExtensions.HasPermission(http.User, Permission.FinanceWrite);
-        var raporOkuma = AuthExtensions.HasPermission(http.User, Permission.ViewReports);
+        var now = DateTimeOffset.UtcNow;
+        var today = TenantDay.Day(now);
+        var financeWrite = AuthExtensions.HasPermission(http.User, Permission.FinanceWrite);
+        var reportRead = AuthExtensions.HasPermission(http.User, Permission.ViewReports);
 
         // Dönüşler: açık kiralar (Kirada ⇒ gerçek dönüş yok: ReturnAsync ikisini AYNI anda yazar), şube kapsamlı.
-        var acikKira = await kiralar.SearchAsync(new RentalFilter { Durum = RentalStatus.Kirada }, ct);
-        var islemSayilari = finansYazma && acikKira.Count > 0
-            ? await kasa.GetRentalTransactionCountsAsync(acikKira.Select(r => r.Id).ToList(), ct)
+        var openRental = await kiralar.SearchAsync(new RentalFilter { Durum = RentalStatus.Kirada }, ct);
+        var transactionCounts = financeWrite && openRental.Count > 0
+            ? await kasa.GetRentalTransactionCountsAsync(openRental.Select(r => r.Id).ToList(), ct)
             : new Dictionary<Guid, int>();
-        List<PanelDonusSatiri> Donus(Func<DateOnly, bool> kosul) => acikKira
-            .Where(r => kosul(TenantDay.Day(r.BitTar)))
+        List<PanelDonusSatiri> Return(Func<DateOnly, bool> condition) => openRental
+            .Where(r => condition(TenantDay.Day(r.BitTar)))
             .OrderBy(r => r.BitTar)
             .Select(r => new PanelDonusSatiri(r.Id, r.SozlesmeNo, r.BitTar,
-                MusteriGorunumu.ListeAdi(r.MusteriAd, r.MusteriAnonimAd), r.Plaka, r.DonusOfisi,
+                CustomerView.ListName(r.MusteriAd, r.MusteriAnonimAd), r.Plaka, r.DonusOfisi,
                 r.Bakiye, r.Doviz,
                 // Home.razor: finans yetkisi + bakiye > 0 (kayıtsız kira sayaç sözlüğünde yok → 0)
-                finansYazma && r.Bakiye > 0m
-                    ? KiraApi.TahsilatVerisi(r.Id, r.MusteriId, r.Bakiye, r.Doviz, islemSayilari.GetValueOrDefault(r.Id))
+                financeWrite && r.Bakiye > 0m
+                    ? RentalApi.CollectionData(r.Id, r.MusteriId, r.Bakiye, r.Doviz, transactionCounts.GetValueOrDefault(r.Id))
                     : null))
             .ToList();
-        var donusGec = Donus(g => g < bugun);
-        var donusBugun = Donus(g => g == bugun);
-        var donusYarin = Donus(g => g == bugun.AddDays(1));
+        var returnOverdue = Return(g => g < today);
+        var returnToday = Return(g => g == today);
+        var returnTomorrow = Return(g => g == today.AddDays(1));
 
         // Çıkışlar: açık rezervasyonlar (Rezerv/Onaylı), şube kapsamlı.
-        var acikRez = (await rezervasyonlar.SearchAsync(new ReservationFilter(), ct))
+        var openReservation = (await rezervasyonlar.SearchAsync(new ReservationFilter(), ct))
             .Where(r => r.Rez.Durum is ReservationStatus.Rezerv or ReservationStatus.Onayli).ToList();
-        List<PanelCikisSatiri> Cikis(Func<DateOnly, bool> kosul) => acikRez
-            .Where(r => kosul(TenantDay.Day(r.Rez.BasTar)))
+        List<PanelCikisSatiri> Logout(Func<DateOnly, bool> condition) => openReservation
+            .Where(r => condition(TenantDay.Day(r.Rez.BasTar)))
             .OrderBy(r => r.Rez.BasTar)
             .Select(r => new PanelCikisSatiri(r.Rez.Id, r.Rez.ReservationNo, r.Rez.BasTar,
-                MusteriGorunumu.ListeAdi(r.MusteriAd, r.MusteriAnonimAd), r.Plaka, r.Rez.CikisOfisi))
+                CustomerView.ListName(r.MusteriAd, r.MusteriAnonimAd), r.Plaka, r.Rez.CikisOfisi))
             .ToList();
-        var cikisGec = Cikis(g => g < bugun);
-        var cikisBugun = Cikis(g => g == bugun);
-        var cikisYarin = Cikis(g => g == bugun.AddDays(1));
+        var pickupOverdue = Logout(g => g < today);
+        var pickupToday = Logout(g => g == today);
+        var pickupTomorrow = Logout(g => g == today.AddDays(1));
 
         // Site talebi: yalnız Web Sitesi modülü açıkken; yetkisiz rol panoyu DÜŞÜRMEZ (Home ile aynı savunma).
-        SiteTalebiOzeti? siteTalebi = null;
+        SiteTalebiOzeti? siteRequest = null;
         if (kiraci.TenantId is { } tid && await kiraciDurum.WebsiteModuleAsync(tid, ct))
         {
             try
             {
                 var o = await talepler.SummaryAsync(ct);
-                siteTalebi = new SiteTalebiOzeti(o.Yeni, o.EnEskiGun);
+                siteRequest = new SiteTalebiOzeti(o.Yeni, o.EnEskiGun);
             }
-            catch (ValidationException) { siteTalebi = null; }
+            catch (ValidationException) { siteRequest = null; }
         }
 
-        var filo = await raporlar.GetFleetUtilizationAsync(ct);
-        var kmGecen = (await raporlar.GetPeriodicServiceAsync(ct: ct)).Count(s => s.KalanKm < 0);
+        var fleet = await raporlar.GetFleetUtilizationAsync(ct);
+        var kmElapsed = (await raporlar.GetPeriodicServiceAsync(ct: ct)).Count(s => s.KalanKm < 0);
 
-        var vadeler = await vade.GetAllAsync(ct: ct);
-        VadeKademesi Kademe(string tur) => new(
-            vadeler.Count(v => v.Tur == tur && v.Bucket == DueBucket.YediGun),
-            vadeler.Count(v => v.Tur == tur && v.Bucket == DueBucket.OtuzGun),
-            vadeler.Count(v => v.Tur == tur && v.Bucket == DueBucket.Gecmis));
-        var uyarilar = await vade.GetWarningsAsync(ct: ct);
-        var acikSikayet = (await sikayet.ListAsync(ct)).Count(s => s.Durum == ComplaintStatus.Acik);
+        var dues = await vade.GetAllAsync(ct: ct);
+        VadeKademesi Tier(string type) => new(
+            dues.Count(v => v.Tur == type && v.Bucket == DueBucket.YediGun),
+            dues.Count(v => v.Tur == type && v.Bucket == DueBucket.OtuzGun),
+            dues.Count(v => v.Tur == type && v.Bucket == DueBucket.Gecmis));
+        var warnings = await vade.GetWarningsAsync(ct: ct);
+        var openComplaint = (await sikayet.ListAsync(ct)).Count(s => s.Durum == ComplaintStatus.Acik);
 
-        PanelFinans? finans = null;
-        if (raporOkuma)
+        PanelFinans? finance = null;
+        if (reportRead)
         {
-            var d = await pano.GetAsync(simdi, ct);
-            var havuz = (await raporlar.GetFleetAnalysisAsync(ct: ct)).HavuzKpi;
+            var d = await pano.GetAsync(now, ct);
+            var pool = (await raporlar.GetFleetAnalysisAsync(ct: ct)).HavuzKpi;
             var trend = await raporlar.GetMonthlyRevenueTrendAsync(6, ct: ct);
-            finans = new PanelFinans(d.KasaBakiye, d.BankaBakiye, d.AcikBakiye, d.BugunTahsilatTutar, d.BugunTahsilatAdet,
-                havuz?.DolulukYuzde, havuz?.RevPacd, havuz?.Adr,
+            finance = new PanelFinans(d.KasaBakiye, d.BankaBakiye, d.AcikBakiye, d.BugunTahsilatTutar, d.BugunTahsilatAdet,
+                pool?.DolulukYuzde, pool?.RevPacd, pool?.Adr,
                 trend.Select(t => new AylikGelir(t.AyBas, t.Gelir)).ToList());
         }
 
         return TypedResults.Ok(new PanelOzetiYaniti(
-            bugun,
-            new PanelKpi(filo.Toplam, filo.Kirada, filo.Musait, filo.Serviste, acikRez.Count, kmGecen, cikisGec.Count, siteTalebi),
-            new PanelVade(Kademe("Trafik"), Kademe("Kasko"), Kademe("Muayene"),
-                uyarilar.Count(w => w.Bucket == DueBucket.Gecmis), uyarilar.Count(w => w.Bucket != DueBucket.Gecmis), acikSikayet),
-            new PanelDonusKovalari(donusGec, donusBugun, donusYarin, PanelSekme.Etkin(null, donusGec.Count)),
-            new PanelCikisKovalari(cikisGec, cikisBugun, cikisYarin, PanelSekme.CikisEtkin(null)),
-            finans));
+            today,
+            new PanelKpi(fleet.Toplam, fleet.Kirada, fleet.Musait, fleet.Serviste, openReservation.Count, kmElapsed, pickupOverdue.Count, siteRequest),
+            new PanelVade(Tier("Trafik"), Tier("Kasko"), Tier("Muayene"),
+                warnings.Count(w => w.Bucket == DueBucket.Gecmis), warnings.Count(w => w.Bucket != DueBucket.Gecmis), openComplaint),
+            new PanelDonusKovalari(returnOverdue, returnToday, returnTomorrow, PanelTab.Active(null, returnOverdue.Count)),
+            new PanelCikisKovalari(pickupOverdue, pickupToday, pickupTomorrow, PanelTab.IsPickupActive(null)),
+            finance));
     }
 }

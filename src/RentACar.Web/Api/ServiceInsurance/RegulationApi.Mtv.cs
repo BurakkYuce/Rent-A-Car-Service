@@ -25,14 +25,14 @@ internal static partial class RegulationApi
         string? plaka, bool? odendi, DateOnly? vadeBas, DateOnly? vadeBit, int? sayfa, int? boyut, string? sirala,
         RegulationService reg, IDbContextFactory<AppDbContext> dbf, ICurrentUser user, CancellationToken ct)
     {
-        var (min, max) = F5Ortak.GunAraligi(vadeBas, vadeBit, "vadeBas", "vadeBit");
+        var (min, max) = F5Shared.DayRange(vadeBas, vadeBit, "vadeBas", "vadeBit");
         var rows = (await reg.ListMtvAsync(ct)).Where(m => (odendi is null || m.Odendi == odendi)
             && (min is null || m.Vade >= min) && (max is null || m.Vade <= max));
         var visible = await S.VisibleAsync(dbf, user, rows, m => m.VehicleId, ct);
         var plates = await S.PlatesAsync(dbf, visible.Select(m => m.VehicleId), ct);
-        var list = visible.Select(m => MtvRow.From(m, F5Ortak.Plaka(plates, m.VehicleId)))
-            .Where(r => F5Ortak.Nz(plaka) is not { } q || r.Plaka.Contains(q, StringComparison.OrdinalIgnoreCase)).ToList();
-        return TypedResults.Ok(F5Ortak.Sayfala(list, MtvSort, sayfa, boyut, sirala));
+        var list = visible.Select(m => MtvRow.From(m, F5Shared.Plate(plates, m.VehicleId)))
+            .Where(r => F5Shared.Nz(plaka) is not { } q || r.Plaka.Contains(q, StringComparison.OrdinalIgnoreCase)).ToList();
+        return TypedResults.Ok(F5Shared.Paginate(list, MtvSort, sayfa, boyut, sirala));
     }
 
     private static async Task<MtvRecord?> ScopedMtvAsync(Guid id, IDbContextFactory<AppDbContext> dbf, ICurrentUser user, CancellationToken ct)
@@ -78,7 +78,7 @@ internal static partial class RegulationApi
     private static async Task<Results<Created<MtvDetail>, ProblemHttpResult>> CreateMtv(
         MtvRequest r, HttpContext http, RegulationService reg, IDbContextFactory<AppDbContext> dbf, ICurrentUser user, CancellationToken ct)
     {
-        var key = IdempotencyBasligi.Anahtar(http);
+        var key = IdempotencyHeader.Key(http);
         if (key is { } k && await ScopedMtvAsync(k, dbf, user, ct) is { } m) throw MtvDuplicate(m, r);
         S.RecordAmount(r.Tutar, "tutar");
         S.Text(r.Donem, 16, "donem"); S.Text(r.Aciklama, 512, "aciklama");
@@ -92,7 +92,7 @@ internal static partial class RegulationApi
         catch (DbUpdateException ex) when (key is { } k2 && S.IsPrimaryKeyViolation(ex))
         {
             if (await ScopedMtvAsync(k2, dbf, user, ct) is { } won) throw MtvDuplicate(won, r);
-            throw new DuplicateOperationException(AnahtarBaskaIslemde);
+            throw new DuplicateOperationException(KeyInOtherOperation);
         }
         var d = await MtvDetailAsync(id, http, reg, dbf, user, ct);
         return TypedResults.Created($"{Root}/mtv/{id}", d!);
@@ -113,14 +113,14 @@ internal static partial class RegulationApi
         string? plaka, bool? odendi, DateOnly? bitisBas, DateOnly? bitisBit, int? sayfa, int? boyut, string? sirala,
         RegulationService reg, IDbContextFactory<AppDbContext> dbf, ICurrentUser user, CancellationToken ct)
     {
-        var (min, max) = F5Ortak.GunAraligi(bitisBas, bitisBit, "bitisBas", "bitisBit");
+        var (min, max) = F5Shared.DayRange(bitisBas, bitisBit, "bitisBas", "bitisBit");
         var rows = (await reg.ListInspectionAsync(ct)).Where(m => (odendi is null || m.Odendi == odendi)
             && (min is null || m.Bitis >= min) && (max is null || m.Bitis <= max));
         var visible = await S.VisibleAsync(dbf, user, rows, m => m.VehicleId, ct);
         var plates = await S.PlatesAsync(dbf, visible.Select(m => m.VehicleId), ct);
-        var list = visible.Select(m => InspectionRow.From(m, F5Ortak.Plaka(plates, m.VehicleId)))
-            .Where(r => F5Ortak.Nz(plaka) is not { } q || r.Plaka.Contains(q, StringComparison.OrdinalIgnoreCase)).ToList();
-        return TypedResults.Ok(F5Ortak.Sayfala(list, InspectionSort, sayfa, boyut, sirala));
+        var list = visible.Select(m => InspectionRow.From(m, F5Shared.Plate(plates, m.VehicleId)))
+            .Where(r => F5Shared.Nz(plaka) is not { } q || r.Plaka.Contains(q, StringComparison.OrdinalIgnoreCase)).ToList();
+        return TypedResults.Ok(F5Shared.Paginate(list, InspectionSort, sayfa, boyut, sirala));
     }
 
     private static async Task<InspectionRecord?> ScopedInspectionAsync(Guid id, IDbContextFactory<AppDbContext> dbf,
@@ -152,7 +152,7 @@ internal static partial class RegulationApi
         InspectionRequest r, HttpContext http, RegulationService reg, IDbContextFactory<AppDbContext> dbf, ICurrentUser user,
         CancellationToken ct)
     {
-        var key = IdempotencyBasligi.Anahtar(http);
+        var key = IdempotencyHeader.Key(http);
         if (key is { } k && await ScopedInspectionAsync(k, dbf, user, ct) is { } m) throw InspectionDuplicate(m, r);
         S.RecordAmount(r.Ucret, "ucret");
         S.IntRange(r.IslemKm, 0, 10_000_000, "islemKm");
@@ -168,7 +168,7 @@ internal static partial class RegulationApi
         catch (DbUpdateException ex) when (key is { } k2 && S.IsPrimaryKeyViolation(ex))
         {
             if (await ScopedInspectionAsync(k2, dbf, user, ct) is { } won) throw InspectionDuplicate(won, r);
-            throw new DuplicateOperationException(AnahtarBaskaIslemde);
+            throw new DuplicateOperationException(KeyInOtherOperation);
         }
         var d = await InspectionDetailAsync(id, http, reg, dbf, user, ct);
         return TypedResults.Created($"{Root}/muayeneler/{id}", d!);

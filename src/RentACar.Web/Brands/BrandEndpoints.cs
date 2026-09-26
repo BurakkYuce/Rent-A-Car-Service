@@ -27,9 +27,9 @@ public static class BrandEndpoints
         return app;
     }
 
-    private static async Task<IResult> Run(Func<Task> action, string mesaj)
+    private static async Task<IResult> Run(Func<Task> action, string message)
     {
-        try { await action(); return Sonuc.Tamam("/markalar", mesaj); }
+        try { await action(); return Result.Ok("/markalar", message); }
         catch (ValidationException ex) { return Results.Redirect($"/markalar?hata={Uri.EscapeDataString(ex.Message)}"); }
     }
 }

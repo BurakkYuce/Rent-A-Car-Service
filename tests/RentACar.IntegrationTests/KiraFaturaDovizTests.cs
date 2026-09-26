@@ -17,14 +17,14 @@ namespace RentACar.IntegrationTests;
 [Collection("postgres")]
 public sealed class KiraFaturaDovizTests(PostgresFixture fx)
 {
-    private static BookingInput Rental(Guid cari, Guid vehicle, string? doviz) => new()
+    private static BookingInput Rental(Guid account, Guid vehicle, string? currency) => new()
     {
-        MusteriId = cari,
+        MusteriId = account,
         VehicleId = vehicle,
         BasTar = new DateTimeOffset(2026, 12, 1, 9, 0, 0, TimeSpan.Zero),
         BitTar = new DateTimeOffset(2026, 12, 4, 9, 0, 0, TimeSpan.Zero), // 3 gün
         GunlukUcret = 100m,
-        Doviz = doviz
+        Doviz = currency
     };
 
     [Fact]
@@ -35,13 +35,13 @@ public sealed class KiraFaturaDovizTests(PostgresFixture fx)
         var rentals = scope.ServiceProvider.GetRequiredService<RentalService>();
         var invoices = scope.ServiceProvider.GetRequiredService<InvoiceService>();
         var cash = scope.ServiceProvider.GetRequiredService<CashService>();
-        var sabit = scope.ServiceProvider.GetRequiredService<FixedExchangeRateService>();
+        var fixedValue = scope.ServiceProvider.GetRequiredService<FixedExchangeRateService>();
 
         // Firma EUR'yu 40 TL sabitler (deterministik — TCMB'ye bağımlı olma; override çözümlenir).
-        await sabit.UpsertAsync(new SabitKurInput { Kod = "EUR", Kur = 40m, Aktif = true });
+        await fixedValue.UpsertAsync(new SabitKurInput { Kod = "EUR", Kur = 40m, Aktif = true });
 
-        var cari = await TestCari.YeniAsync(scope.ServiceProvider);
-        var rentalId = await rentals.CreateDirectAsync(Rental(cari, await TestArac.YeniAsync(scope.ServiceProvider), "EURO")); // form değeri "EURO"
+        var account = await TestCustomer.NewAsync(scope.ServiceProvider);
+        var rentalId = await rentals.CreateDirectAsync(Rental(account, await TestVehicle.NewAsync(scope.ServiceProvider), "EURO")); // form değeri "EURO"
         var invId = await invoices.CreateFromRentalAsync(rentalId);
         var inv = await invoices.GetAsync(invId);
 
@@ -53,17 +53,17 @@ public sealed class KiraFaturaDovizTests(PostgresFixture fx)
         Assert.Equal(50m, inv.KdvTutar);
 
         // LEDGER otomatik TL: cari bakiye = 300 EUR × 40 = 12000 TL (kur YÖNÜ doğru).
-        Assert.Equal(12000m, await cash.GetAccountBalanceAsync(cari));
+        Assert.Equal(12000m, await cash.GetAccountBalanceAsync(account));
 
         // Denge: Σ borç(base) == Σ alacak(base) (hepsi ×40 sonrası).
         var factory = scope.ServiceProvider.GetRequiredService<IDbContextFactory<AppDbContext>>();
         await using var db = await factory.CreateDbContextAsync();
         var entries = await db.AccountLedgerEntries.AsNoTracking()
             .Where(e => e.SourceType == "Fatura" && e.SourceId == invId).ToListAsync();
-        var borc = entries.Where(e => e.Direction == LedgerDirection.Debit).Sum(e => e.Amount.Amount * e.Amount.Rate);
-        var alacak = entries.Where(e => e.Direction == LedgerDirection.Credit).Sum(e => e.Amount.Amount * e.Amount.Rate);
-        Assert.Equal(12000m, borc);
-        Assert.Equal(borc, alacak);
+        var debit = entries.Where(e => e.Direction == LedgerDirection.Debit).Sum(e => e.Amount.Amount * e.Amount.Rate);
+        var credit = entries.Where(e => e.Direction == LedgerDirection.Credit).Sum(e => e.Amount.Amount * e.Amount.Rate);
+        Assert.Equal(12000m, debit);
+        Assert.Equal(debit, credit);
     }
 
     [Fact]
@@ -75,14 +75,14 @@ public sealed class KiraFaturaDovizTests(PostgresFixture fx)
         var invoices = scope.ServiceProvider.GetRequiredService<InvoiceService>();
         var cash = scope.ServiceProvider.GetRequiredService<CashService>();
 
-        var cari = await TestCari.YeniAsync(scope.ServiceProvider);
-        var rentalId = await rentals.CreateDirectAsync(Rental(cari, await TestArac.YeniAsync(scope.ServiceProvider), "TL"));
+        var account = await TestCustomer.NewAsync(scope.ServiceProvider);
+        var rentalId = await rentals.CreateDirectAsync(Rental(account, await TestVehicle.NewAsync(scope.ServiceProvider), "TL"));
         var invId = await invoices.CreateFromRentalAsync(rentalId);
         var inv = await invoices.GetAsync(invId);
 
         Assert.Equal("TRY", inv!.Currency);
         Assert.Equal(1m, inv.Kur);
         Assert.Equal(300m, inv.GenelToplam);
-        Assert.Equal(300m, await cash.GetAccountBalanceAsync(cari)); // TL 1:1, değişmedi
+        Assert.Equal(300m, await cash.GetAccountBalanceAsync(account)); // TL 1:1, değişmedi
     }
 }

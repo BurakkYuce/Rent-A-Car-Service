@@ -17,10 +17,10 @@ public static class RateCardEndpoints
         // FAZ-72: alan sayısı 15'e çıktı → pozisyonel imza yerine form koleksiyonu (diğer
         // uçlardaki desen). Opsiyonel sayısal/tarih alanları FormParse ile çevrilir.
         grp.MapPost("/create", async (RateCardService svc, HttpRequest req) =>
-            await Run(() => svc.CreateAsync(Build(req.Form, varsayilanAktif: true)), "Kayıt eklendi."));
+            await Run(() => svc.CreateAsync(Build(req.Form, defaultActive: true)), "Kayıt eklendi."));
 
         grp.MapPost("/update", async (RateCardService svc, HttpRequest req, [FromForm] Guid id) =>
-            await Run(() => svc.UpdateAsync(id, Build(req.Form, varsayilanAktif: null)), "Değişiklikler kaydedildi."));
+            await Run(() => svc.UpdateAsync(id, Build(req.Form, defaultActive: null)), "Değişiklikler kaydedildi."));
 
         grp.MapPost("/delete", async (RateCardService svc, [FromForm] Guid id) =>
             await Run(() => svc.DeleteAsync(id), "Kayıt silindi."));
@@ -28,7 +28,7 @@ public static class RateCardEndpoints
         return app;
     }
 
-    private static RateCardInput Build(IFormCollection f, bool? varsayilanAktif) => new()
+    private static RateCardInput Build(IFormCollection f, bool? defaultActive) => new()
     {
         Kod = f["kod"].ToString(),
         Ad = f["ad"].ToString(),
@@ -40,21 +40,21 @@ public static class RateCardEndpoints
         GecerliBas = FormParse.Date(FormParse.Str(f, "gecerliBas")),
         GecerliBit = FormParse.Date(FormParse.Str(f, "gecerliBit")),
         // FAZ-72 teminat/görünürlük bayrakları — işaretsiz checkbox HİÇ gönderilmez → false.
-        ScdwDahil = Bayrak(f, "scdwDahil"),
-        MiniHasarDahil = Bayrak(f, "miniHasarDahil"),
-        HirsizlikDahil = Bayrak(f, "hirsizlikDahil"),
-        ScdwZorunlu = Bayrak(f, "scdwZorunlu"),
-        Gosterme = Bayrak(f, "gosterme"),
+        ScdwDahil = Flag(f, "scdwDahil"),
+        MiniHasarDahil = Flag(f, "miniHasarDahil"),
+        HirsizlikDahil = Flag(f, "hirsizlikDahil"),
+        ScdwZorunlu = Flag(f, "scdwZorunlu"),
+        Gosterme = Flag(f, "gosterme"),
         TarifeGrubuId = FormParse.Id(FormParse.Str(f, "tarifeGrubuId")),
-        Aktif = varsayilanAktif ?? ((FormParse.Str(f, "aktif") ?? "true") is "true" or "True")
+        Aktif = defaultActive ?? ((FormParse.Str(f, "aktif") ?? "true") is "true" or "True")
     };
 
-    private static bool Bayrak(IFormCollection f, string ad)
-        => FormParse.Str(f, ad) is "true" or "on" or "True";
+    private static bool Flag(IFormCollection f, string name)
+        => FormParse.Str(f, name) is "true" or "on" or "True";
 
-    private static async Task<IResult> Run(Func<Task> action, string mesaj)
+    private static async Task<IResult> Run(Func<Task> action, string message)
     {
-        try { await action(); return Sonuc.Tamam("/tarifeler", mesaj); }
+        try { await action(); return Result.Ok("/tarifeler", message); }
         catch (ValidationException ex) { return Results.Redirect($"/tarifeler?hata={Uri.EscapeDataString(ex.Message)}"); }
     }
 }

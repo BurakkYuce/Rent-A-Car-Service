@@ -14,11 +14,11 @@ namespace RentACar.IntegrationTests;
 [Collection("postgres")]
 public sealed class ReportingTests(PostgresFixture fx)
 {
-    private static async Task<Guid> SeedVehicleAsync(IServiceScope scope, string plaka)
+    private static async Task<Guid> SeedVehicleAsync(IServiceScope scope, string plate)
     {
         var factory = scope.ServiceProvider.GetRequiredService<IDbContextFactory<AppDbContext>>();
         await using var db = await factory.CreateDbContextAsync();
-        var v = new Vehicle { Plaka = plaka, Durum = VehicleStatus.Musait };
+        var v = new Vehicle { Plaka = plate, Durum = VehicleStatus.Musait };
         db.Vehicles.Add(v);
         await db.SaveChangesAsync();
         return v.Id;
@@ -29,7 +29,7 @@ public sealed class ReportingTests(PostgresFixture fx)
     /// raporun ELLE-HESAPLI toplamlara eşit olduğunu doğrula. Beklenen değerler rapor kodundan
     /// DEĞİL, işlem girdilerinden türetilir.
     /// </summary>
-    private static async Task SeedKnownLedgerAsync(IServiceScope scope, Guid alici)
+    private static async Task SeedKnownLedgerAsync(IServiceScope scope, Guid recipient)
     {
         var expenses = scope.ServiceProvider.GetRequiredService<ExpenseService>();
         var sales = scope.ServiceProvider.GetRequiredService<VehicleSaleService>();
@@ -42,10 +42,10 @@ public sealed class ReportingTests(PostgresFixture fx)
 
         // Araç satış: net 5000 @0.20 → Cari(D 6000) / Gelir(C 5000) + Kdv(C 1000).
         await sales.CreateAsync(new VehicleSaleInput
-        { VehicleId = vid, AliciCariId = alici, SatisNet = 5000m, KdvOrani = 0.20m });
+        { VehicleId = vid, AliciCariId = recipient, SatisNet = 5000m, KdvOrani = 0.20m });
 
         // Tahsilat: 3000 → Kasa(D 3000) / Cari(C 3000).
-        await cash.CollectAsync(new CashInput { CariId = alici, Tutar = 3000m });
+        await cash.CollectAsync(new CashInput { CariId = recipient, Tutar = 3000m });
     }
 
     [Fact]
@@ -53,7 +53,7 @@ public sealed class ReportingTests(PostgresFixture fx)
     {
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
-        await SeedKnownLedgerAsync(scope, await TestCari.YeniAsync(scope.ServiceProvider));
+        await SeedKnownLedgerAsync(scope, await TestCustomer.NewAsync(scope.ServiceProvider));
         var reports = scope.ServiceProvider.GetRequiredService<ReportService>();
 
         var s = await reports.GetCashBankSummaryAsync();
@@ -70,7 +70,7 @@ public sealed class ReportingTests(PostgresFixture fx)
     {
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
-        await SeedKnownLedgerAsync(scope, await TestCari.YeniAsync(scope.ServiceProvider));
+        await SeedKnownLedgerAsync(scope, await TestCustomer.NewAsync(scope.ServiceProvider));
         var reports = scope.ServiceProvider.GetRequiredService<ReportService>();
 
         var lines = await reports.GetAccountLedgerAsync(LedgerAccountType.Kasa);
@@ -85,7 +85,7 @@ public sealed class ReportingTests(PostgresFixture fx)
     {
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
-        await SeedKnownLedgerAsync(scope, await TestCari.YeniAsync(scope.ServiceProvider));
+        await SeedKnownLedgerAsync(scope, await TestCustomer.NewAsync(scope.ServiceProvider));
         var reports = scope.ServiceProvider.GetRequiredService<ReportService>();
 
         var gg = await reports.GetRevenueExpenseAsync();
@@ -95,12 +95,12 @@ public sealed class ReportingTests(PostgresFixture fx)
         Assert.Equal(200m, gg.KdvIndirilecek);    // gider kdv (borç)
         Assert.Equal(4000m, gg.NetKar);           // 5000 − 1000
 
-        var gelir = Assert.Single(gg.GelirKirilim);
-        Assert.Equal("AracSatis", gelir.SourceType);
-        Assert.Equal(5000m, gelir.Tutar);
-        var gider = Assert.Single(gg.GiderKirilim);
-        Assert.Equal("Gider", gider.SourceType);
-        Assert.Equal(1000m, gider.Tutar);
+        var revenue = Assert.Single(gg.GelirKirilim);
+        Assert.Equal("AracSatis", revenue.SourceType);
+        Assert.Equal(5000m, revenue.Tutar);
+        var expense = Assert.Single(gg.GiderKirilim);
+        Assert.Equal("Gider", expense.SourceType);
+        Assert.Equal(1000m, expense.Tutar);
     }
 
     [Fact]
@@ -113,7 +113,7 @@ public sealed class ReportingTests(PostgresFixture fx)
 
         // Ocak'ta bir tahsilat.
         await cash.CollectAsync(new CashInput
-        { CariId = await TestCari.YeniAsync(scope.ServiceProvider), Tutar = 500m, Tarih = new DateTimeOffset(2026, 1, 15, 0, 0, 0, TimeSpan.Zero) });
+        { CariId = await TestCustomer.NewAsync(scope.ServiceProvider), Tutar = 500m, Tarih = new DateTimeOffset(2026, 1, 15, 0, 0, 0, TimeSpan.Zero) });
 
         // Şubat'tan itibaren sorgu → Ocak işlemi sayılmaz.
         var feb = await reports.GetCashBankSummaryAsync(
@@ -135,7 +135,7 @@ public sealed class ReportingTests(PostgresFixture fx)
         var t2 = Guid.NewGuid();
 
         using (var s1 = host.ScopeFor(t1))
-            await SeedKnownLedgerAsync(s1, await TestCari.YeniAsync(s1.ServiceProvider));
+            await SeedKnownLedgerAsync(s1, await TestCustomer.NewAsync(s1.ServiceProvider));
 
         using var s2 = host.ScopeFor(t2);
         var reports = s2.ServiceProvider.GetRequiredService<ReportService>();

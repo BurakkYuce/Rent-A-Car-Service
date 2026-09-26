@@ -25,7 +25,7 @@
             <option value="">(tümü)</option>
             @foreach (var d in Enum.GetValues<CampaignStatus>())
             {
-                <option value="@d" selected="@(Durum == d.ToString())">@DurumAd(d)</option>
+                <option value="@d" selected="@(Durum == d.ToString())">@StatusName(d)</option>
             }
         </select>
     </label>
@@ -50,7 +50,7 @@
     <label>Geçerli — Bit<input name="gbit" type="date" value="@GBit" /></label>
     <button type="submit">Ara</button>
 </form>
-<p class="muted small">@_list.Count kural listeleniyor@(_filtreli ? " (süzgeç uygulandı)" : "").
+<p class="muted small">@_list.Count kural listeleniyor@(_filtered ? " (süzgeç uygulandı)" : "").
     Tarih aralığı ÇAKIŞMA arar: verilen aralıkla kesişen kurallar listelenir.</p>
 
 <details class="new-vehicle" open="@(_list.Count == 0)">
@@ -60,7 +60,7 @@
         <label>Ad<input name="ad" required placeholder="Yaz Kampanyası" /></label>
         <label>Açıklama<input name="aciklama" /></label>
         <label>Kanal<input name="kanal" placeholder="WEB/ACENTA" /></label>
-        <ComboBox Name="sube" Label="Şube" Options="_subeOpts" />
+        <ComboBox Name="sube" Label="Şube" Options="_branchOpts" />
         <label>Araç Grubu Kodu<input name="aracGrupKod" placeholder="EKO" /></label>
         <label>Min Gün<input name="minGun" type="number" min="0" /></label>
         <label>Max Gün<input name="maxGun" type="number" min="0" /></label>
@@ -84,7 +84,7 @@
             <select name="kampanyaDurum">
                 @foreach (var d in Enum.GetValues<CampaignStatus>())
                 {
-                    <option value="@d" selected="@(d == CampaignStatus.Aktif)">@DurumAd(d)</option>
+                    <option value="@d" selected="@(d == CampaignStatus.Aktif)">@StatusName(d)</option>
                 }
             </select>
         </label>
@@ -121,7 +121,7 @@
     <tbody>
         @if (_list.Count == 0)
         {
-            <tr><td colspan="12" class="muted">@(_filtreli ? "Süzgece uyan kural yok." : "Kiralama kuralı tanımlı değil.")</td></tr>
+            <tr><td colspan="12" class="muted">@(_filtered ? "Süzgece uyan kural yok." : "Kiralama kuralı tanımlı değil.")</td></tr>
         }
         @foreach (var r in _list)
         {
@@ -138,7 +138,7 @@
                 <td>@r.TarihTipi</td>
                 <td>@(r.GecerlilikBas?.LocalDateTime.ToString("dd.MM.yyyy") ?? "—") → @(r.GecerlilikBit?.LocalDateTime.ToString("dd.MM.yyyy") ?? "—")</td>
                 @* Fiyat motoru YALNIZ "Aktif" durumunu seçer — diğer dördü bilgi/iş akışı durumudur. *@
-                <td>@DurumAd(r.KampanyaDurum)</td>
+                <td>@StatusName(r.KampanyaDurum)</td>
                 <td>
                     <details>
                         <summary class="link">Düzenle</summary>
@@ -148,7 +148,7 @@
                             <label>Ad<input name="ad" value="@r.Ad" required /></label>
                             <label>Açıklama<input name="aciklama" value="@r.Aciklama" /></label>
                             <label>Kanal<input name="kanal" value="@r.Kanal" /></label>
-                            <ComboBox Name="sube" Label="Şube" Value="@r.Sube" Options="_subeOpts" ListId="dl-sube-edit" />
+                            <ComboBox Name="sube" Label="Şube" Value="@r.Sube" Options="_branchOpts" ListId="dl-sube-edit" />
                             <label>Araç Grubu Kodu<input name="aracGrupKod" value="@r.AracGrupKod" /></label>
                             <label>Min Gün<input name="minGun" type="number" min="0" value="@r.MinGun" /></label>
                             <label>Max Gün<input name="maxGun" type="number" min="0" value="@r.MaxGun" /></label>
@@ -164,11 +164,11 @@
                             </label>
                             <label>Kampanya Kodu<input name="kampanyaKodu" maxlength="64" value="@r.KampanyaKodu" /></label>
                             <label>Müşteri Segmenti<input name="musteriSegment" list="dl-rr-segment" autocomplete="off" placeholder="Boş = herkes" maxlength="64" value="@r.MusteriSegment" /></label>
-                            <label>Geçerlilik Baş<input name="gecerlilikBas" type="date" value="@Gun(r.GecerlilikBas)" /></label>
-                            <label>Geçerlilik Bit<input name="gecerlilikBit" type="date" value="@Gun(r.GecerlilikBit)" /></label>
+                            <label>Geçerlilik Baş<input name="gecerlilikBas" type="date" value="@Day(r.GecerlilikBas)" /></label>
+                            <label>Geçerlilik Bit<input name="gecerlilikBit" type="date" value="@Day(r.GecerlilikBit)" /></label>
                             <label>Şart Metni<input name="sartMetni" value="@r.SartMetni" /></label>
-                            <label>Talep Baş<input name="talepBas" type="date" value="@Gun(r.TalepBas)" /></label>
-                            <label>Talep Bit<input name="talepBit" type="date" value="@Gun(r.TalepBit)" /></label>
+                            <label>Talep Baş<input name="talepBas" type="date" value="@Day(r.TalepBas)" /></label>
+                            <label>Talep Bit<input name="talepBit" type="date" value="@Day(r.TalepBit)" /></label>
                             <label>Promosyon Türü
                                 <select name="promosyonTuru">
                                     <option value="" selected="@(r.PromosyonTuru is null)">—</option>
@@ -195,7 +195,7 @@
                                 <legend>Geçerli günler (boş = tüm günler)</legend>
                                 @foreach (var g in Gunler)
                                 {
-                                    <label class="check"><input type="checkbox" name="haftaGun" value="@g.No" checked="@GunSecili(r.HaftaGunKisiti, g.No)" /> @g.Ad</label>
+                                    <label class="check"><input type="checkbox" name="haftaGun" value="@g.No" checked="@IsDaySelected(r.HaftaGunKisiti, g.No)" /> @g.Ad</label>
                                 }
                             </fieldset>
                             <label>Tarih Tipi
@@ -210,7 +210,7 @@
                                 <select name="kampanyaDurum">
                                     @foreach (var d in Enum.GetValues<CampaignStatus>())
                                     {
-                                        <option value="@d" selected="@(d == r.KampanyaDurum)">@DurumAd(d)</option>
+                                        <option value="@d" selected="@(d == r.KampanyaDurum)">@StatusName(d)</option>
                                     }
                                 </select>
                             </label>
@@ -249,11 +249,11 @@
     [SupplyParameterFromQuery(Name = "gbit")] public string? GBit { get; set; }
 
     private IReadOnlyList<RentalRule> _list = [];
-    private List<string> _subeOpts = [];
-    private bool _filtreli;
+    private List<string> _branchOpts = [];
+    private bool _filtered;
 
     /// <summary>Durum etiketi (enum adları Türkçe aksan taşımaz; ekranda düzgün yazılır).</summary>
-    private static string DurumAd(CampaignStatus d) => d switch
+    private static string StatusName(CampaignStatus d) => d switch
     {
         CampaignStatus.Taslak => "Taslak",
         CampaignStatus.Planlandi => "Planlandı",
@@ -269,10 +269,10 @@
         (1, "Pzt"), (2, "Sal"), (3, "Çar"), (4, "Per"), (5, "Cum"), (6, "Cmt"), (0, "Paz")
     ];
 
-    private static bool GunSecili(string? kisit, int gun)
-        => !string.IsNullOrWhiteSpace(kisit)
-           && kisit.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-                   .Contains(gun.ToString(System.Globalization.CultureInfo.InvariantCulture));
+    private static bool IsDaySelected(string? constraint, int day)
+        => !string.IsNullOrWhiteSpace(constraint)
+           && constraint.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                   .Contains(day.ToString(System.Globalization.CultureInfo.InvariantCulture));
 
     // Ondalık prefill'i InvariantCulture ile: tr-TR "12,50" basınca tarayıcı type=number alanını
     // BOŞALTIR ve kullanıcı dokunmadan kaydettiğinde değer NULL'lanır (repoda bilinen tuzak).
@@ -280,29 +280,29 @@
 
     // Tarih prefill'i YEREL gün ile: FormParse.Date sunucu-yerel parse edip UTC'ye çevirdiğinden
     // UTC günü basmak her kayıtta bir gün geri kaydırırdı.
-    private static string? Gun(DateTimeOffset? d) => d?.LocalDateTime.ToString("yyyy-MM-dd");
+    private static string? Day(DateTimeOffset? d) => d?.LocalDateTime.ToString("yyyy-MM-dd");
 
     protected override async Task OnInitializedAsync()
     {
         // Boş form alanı "" olarak gelir — null'a indirgenmezse "boş metin ara" gibi davranır ve
         // "süzgeç uygulandı" rozeti hep yanardı.
-        static string? Bos(string? s) => string.IsNullOrWhiteSpace(s) ? null : s.Trim();
+        static string? Empty(string? s) => string.IsNullOrWhiteSpace(s) ? null : s.Trim();
 
-        var filtre = new RentalRuleFilter
+        var filter = new RentalRuleFilter
         {
-            Terim = Bos(Q),
-            Durum = Enum.TryParse<CampaignStatus>(Bos(Durum), out var d) ? d : null,
-            TarihTipi = Enum.TryParse<RuleDateType>(Bos(TarihTipi), out var t) ? t : null,
-            KampanyaMi = Bos(KampanyaMi) is "true" ? true : Bos(KampanyaMi) is "false" ? false : null,
-            Kanal = Bos(Kanal),
-            GecerliBas = FormParse.Date(Bos(GBas)),
-            GecerliBit = FormParse.Date(Bos(GBit))
+            Terim = Empty(Q),
+            Durum = Enum.TryParse<CampaignStatus>(Empty(Durum), out var d) ? d : null,
+            TarihTipi = Enum.TryParse<RuleDateType>(Empty(TarihTipi), out var t) ? t : null,
+            KampanyaMi = Empty(KampanyaMi) is "true" ? true : Empty(KampanyaMi) is "false" ? false : null,
+            Kanal = Empty(Kanal),
+            GecerliBas = FormParse.Date(Empty(GBas)),
+            GecerliBit = FormParse.Date(Empty(GBit))
         };
-        _filtreli = filtre.Terim is not null || filtre.Durum is not null || filtre.TarihTipi is not null
-            || filtre.KampanyaMi is not null || filtre.Kanal is not null
-            || filtre.GecerliBas is not null || filtre.GecerliBit is not null;
+        _filtered = filter.Terim is not null || filter.Durum is not null || filter.TarihTipi is not null
+            || filter.KampanyaMi is not null || filter.Kanal is not null
+            || filter.GecerliBas is not null || filter.GecerliBit is not null;
 
-        _list = await KiralamaKurallari.SearchAsync(filtre);
-        _subeOpts = (await Subeler.ListActiveAsync()).Select(s => s.Ad).ToList();
+        _list = await KiralamaKurallari.SearchAsync(filter);
+        _branchOpts = (await Subeler.ListActiveAsync()).Select(s => s.Ad).ToList();
     }
 }

@@ -15,7 +15,7 @@ namespace RentACar.Web.Api.Cari;
 
 /// <summary>
 /// <c>/api/ui/v1/sikayetler/*</c> — müşteri şikayeti (Blazor <c>SikayetList</c>). İzin OperationsWrite; şube kapsamı
-/// <see cref="CrmScope"/>. Müşteri adı/telefonu repodan DEĞİL <see cref="F5Ortak.CarilerAsync"/>'ten (KVKK tek kural —
+/// <see cref="CrmScope"/>. Müşteri adı/telefonu repodan DEĞİL <see cref="F5Shared.CustomersAsync"/>'ten (KVKK tek kural —
 /// repo projeksiyonu <c>Anonim*</c> bayraklarını uygulamıyor).
 /// </summary>
 public static partial class CrmApi
@@ -26,14 +26,14 @@ public static partial class CrmApi
     private static void MapComplaints(RouteGroupBuilder g)
     {
         var s = g.MapGroup("/sikayetler").WithTags("CRM");
-        s.MapGet("", ListComplaints).AlanlariEsle(F5Ortak.SiralamaKurallari);
+        s.MapGet("", ListComplaints).MapFields(F5Shared.SortRules);
         s.MapGet("/{id:guid}", GetComplaint);
-        s.MapPost("", CreateComplaint).AlanlariEsle(ComplaintFieldRules);
-        s.MapPut("/{id:guid}", UpdateComplaint).AlanlariEsle(ComplaintFieldRules);
+        s.MapPost("", CreateComplaint).MapFields(ComplaintFieldRules);
+        s.MapPut("/{id:guid}", UpdateComplaint).MapFields(ComplaintFieldRules);
         s.MapDelete("/{id:guid}", DeleteComplaint);
     }
 
-    private static ProblemHttpResult ComplaintNotFound() => F5Ortak.Bulunamadi("Şikayet bulunamadı.");
+    private static ProblemHttpResult ComplaintNotFound() => F5Shared.NotFound("Şikayet bulunamadı.");
 
     private static readonly SortFieldMap<ComplaintRow> ComplaintSort = SortFieldMap<ComplaintRow>
         .Create(r => r.Id)
@@ -58,23 +58,23 @@ public static partial class CrmApi
         [AsParameters] ComplaintListFilter f, ComplaintService complaints, ICurrentUser user, IDbContextFactory<AppDbContext> dbf,
         ILocationRepository locations, int? sayfa, int? boyut, string? sirala, CancellationToken ct)
     {
-        var search = F5Ortak.Nz(f.Ara);
-        Sinirlar.Metin(search, 100, "ara", "Arama metni");
+        var search = F5Shared.Nz(f.Ara);
+        RentalLimits.Text(search, 100, "ara", "Arama metni");
         var items = await complaints.SearchAsync(new SikayetFilter
         {
-            CariId = f.CariId, Ofis = F5Ortak.Nz(f.Ofis), Yer = F5Ortak.EnumAdi<ComplaintLocation>(f.Yer, "yer"),
-            Kanal = F5Ortak.Nz(f.Kanal), Durum = F5Ortak.EnumAdi<ComplaintStatus>(f.Durum, "durum"), Ara = search, EnFazla = 10_000,
+            CariId = f.CariId, Ofis = F5Shared.Nz(f.Ofis), Yer = F5Shared.EnumAdi<ComplaintLocation>(f.Yer, "yer"),
+            Kanal = F5Shared.Nz(f.Kanal), Durum = F5Shared.EnumAdi<ComplaintStatus>(f.Durum, "durum"), Ara = search, EnFazla = 10_000,
         }, ct);
         var inScope = await CrmScope.BuildAsync(user, dbf, locations, items.Select(x => (x.Sikayet.RentalId, x.Sikayet.CikisOfisi)), ct);
         var visible = items.Where(x => inScope(x.Sikayet.RentalId, x.Sikayet.CikisOfisi)).ToList();
         var rows = await ComplaintRowsAsync(dbf, visible, ct);
-        return TypedResults.Ok(F5Ortak.Sayfala(rows, ComplaintSort, sayfa, boyut, sirala));
+        return TypedResults.Ok(F5Shared.Paginate(rows, ComplaintSort, sayfa, boyut, sirala));
     }
 
     private static async Task<List<ComplaintRow>> ComplaintRowsAsync(
         IDbContextFactory<AppDbContext> dbf, IReadOnlyList<SikayetSatirDto> items, CancellationToken ct)
     {
-        var customers = await F5Ortak.CarilerAsync(dbf, items.Where(x => x.Sikayet.CariId is not null).Select(x => x.Sikayet.CariId!.Value), ct);
+        var customers = await F5Shared.CustomersAsync(dbf, items.Where(x => x.Sikayet.CariId is not null).Select(x => x.Sikayet.CariId!.Value), ct);
         return items.Select(x =>
         {
             var s = x.Sikayet;
@@ -125,20 +125,20 @@ public static partial class CrmApi
         ComplaintRequest r, ICurrentUser user, RentalService rentals, IDbContextFactory<AppDbContext> dbf,
         ILocationRepository locations, CancellationToken ct)
     {
-        Sinirlar.Metin(r.Konu, 256, "konu", "Konu");
-        Sinirlar.Metin(r.Detay, 2048, "detay", "Detay");
-        Sinirlar.Metin(r.Cozum, 2048, "cozum", "Çözüm");
-        Sinirlar.Metin(r.SikayetKanali, 64, "sikayetKanali", "Şikayet kanalı");
-        Sinirlar.Metin(r.CikisOfisi, 128, "cikisOfisi", "Çıkış ofisi");
+        RentalLimits.Text(r.Konu, 256, "konu", "Konu");
+        RentalLimits.Text(r.Detay, 2048, "detay", "Detay");
+        RentalLimits.Text(r.Cozum, 2048, "cozum", "Çözüm");
+        RentalLimits.Text(r.SikayetKanali, 64, "sikayetKanali", "Şikayet kanalı");
+        RentalLimits.Text(r.CikisOfisi, 128, "cikisOfisi", "Çıkış ofisi");
         if (r.Puan is < 1 or > 5) throw new ValidationException("Puan 1 ile 5 arasında olmalıdır.", "puan");
         DatePolicy.MoneyDate(r.Tarih, "Şikayet");
         var input = new SikayetInput
         {
             CariId = r.CariId, Konu = r.Konu, Detay = r.Detay,
-            Durum = F5Ortak.EnumAdi<ComplaintStatus>(r.Durum, "durum") ?? ComplaintStatus.Acik,
-            Tarih = F5Ortak.Utc(r.Tarih), Cozum = r.Cozum, RentalId = r.RentalId == Guid.Empty ? null : r.RentalId,
+            Durum = F5Shared.EnumAdi<ComplaintStatus>(r.Durum, "durum") ?? ComplaintStatus.Acik,
+            Tarih = F5Shared.Utc(r.Tarih), Cozum = r.Cozum, RentalId = r.RentalId == Guid.Empty ? null : r.RentalId,
             TeslimAlanPersonelId = r.TeslimAlanPersonelId, TeslimEdenPersonelId = r.TeslimEdenPersonelId, Puan = r.Puan,
-            SikayetKanali = r.SikayetKanali, SikayetYeri = F5Ortak.EnumAdi<ComplaintLocation>(r.SikayetYeri, "sikayetYeri"),
+            SikayetKanali = r.SikayetKanali, SikayetYeri = F5Shared.EnumAdi<ComplaintLocation>(r.SikayetYeri, "sikayetYeri"),
             CikisOfisi = r.CikisOfisi,
         };
         await CrmScope.RequireCustomerAsync(dbf, input.CariId, "cariId", ct);

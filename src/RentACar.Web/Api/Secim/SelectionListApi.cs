@@ -1,0 +1,76 @@
+using Microsoft.AspNetCore.Http.HttpResults;
+using RentACar.Application.Authorization;
+using RentACar.Application.Secim;
+using RentACar.Domain.Enums;
+using RentACar.Web.Identity;
+
+namespace RentACar.Web.Api.Secim;
+
+/// <summary>
+/// <c>/api/ui/v1/secim/*</c> — F4–F5 formlarının typeahead/seçim kaynakları (F1.6). Hepsi <c>GET</c>,
+/// hepsi <c>q</c> (isteğe bağlı) + <c>limit</c> (varsayılan ve en çok 20) alır; yalnız kimlik + etiket
+/// (+ formun ihtiyacı olan operasyonel alan) döner — PII YOK. İzin kapısı <see cref="Permission.OperationsWrite"/>
+/// (kira/rezervasyon/teklif formlarının yazma izni); servis katmanı aynı izni ikinci kez doğrular
+/// (<see cref="SelectionService"/>). Şube kapsamı servis katmanında.
+/// <para><b>F4.4 istisnası — <c>musteri</c> ve <c>kur</c>: OperationsWrite VEYA FinanceWrite</b>
+/// (<see cref="AuthExtensions.RequireAnyPermission{TBuilder}"/>; servis de aynı "herhangi biri" kuralını uygular).
+/// Kira formunun sabit finans panelinde Muhasebe (FinanceWrite, OperationsWrite yok) dış hizmet tedarikçi
+/// carisini arar ve kur bilgisini okur — Blazor sabit panelinde de yapabiliyordu. Dönen alanlar DEĞİŞMEDİ:
+/// müşteri yalnız kimlik + görünen ad + tip (TC/telefon/e-posta YOK), kur ulusal TCMB verisi.</para>
+/// <para>Blazor'daki karşılıkları (<c>CustomerService.ListSecimAsync</c>, <c>*.ListActiveAsync</c>) DEĞİŞMEDİ:
+/// bunlar yetkisiz ve sınırsızdır; yeni yüzey o gevşekliği taşımasın diye ayrı, sınırlı yöntemlerden geçer.</para>
+/// </summary>
+public static class SelectionListApi
+{
+    public static RouteGroupBuilder MapSelectionApi(this RouteGroupBuilder v1)
+    {
+        var root = v1.MapGroup("/secim").WithTags("Seçim");
+        // F4.4: finans paneli (Muhasebe) — OperationsWrite VEYA FinanceWrite; PII yok.
+        root.MapGet("/musteri", async Task<Ok<IReadOnlyList<MusteriSecimOgesi>>> (string? q, int? limit, SelectionService s, CancellationToken ct)
+            => TypedResults.Ok(await s.CustomerAsync(q, limit, ct)))
+            .RequireAnyPermission(Permission.OperationsWrite, Permission.FinanceWrite);
+        root.MapGet("/kur", async Task<Ok<IReadOnlyList<KurSecimOgesi>>> (string? q, int? limit, SelectionService s, CancellationToken ct)
+            => TypedResults.Ok(await s.ExchangeRateAsync(q, limit, ct)))
+            .RequireAnyPermission(Permission.OperationsWrite, Permission.FinanceWrite);
+        // #300: gelen e-faturadan gider (Muhasebe) — yalnız aktif gider türleri; tanım ekranının yazması değişmedi.
+        root.MapGet("/gider-kategorisi", async Task<Ok<IReadOnlyList<SecimOgesi>>> (string? q, int? limit, SelectionService s, CancellationToken ct)
+            => TypedResults.Ok(await s.ExpenseCategoryAsync(q, limit, ct)))
+            .RequireAnyPermission(Permission.OperationsWrite, Permission.FinanceWrite);
+        // #300: araç satış formu — satılmamış araçlar, şube kapsamlı; satışla aynı izin (FinanceWrite).
+        root.MapGet("/satilabilir-arac", async Task<Ok<IReadOnlyList<AracSecimOgesi>>> (string? q, int? limit, SelectionService s, CancellationToken ct)
+            => TypedResults.Ok(await s.SellableVehicleAsync(q, limit, ct)))
+            .RequirePermission(Permission.FinanceWrite);
+
+        var g = root.MapGroup("").RequirePermission(Permission.OperationsWrite);
+        g.MapGet("/arac", async Task<Ok<IReadOnlyList<AracSecimOgesi>>> (string? q, int? limit, SelectionService s, CancellationToken ct)
+            => TypedResults.Ok(await s.VehicleAsync(q, limit, ct)));
+        // F4.3b — kimlikle tek öğe (bağlantıdaki ?musteriId= / ?varac= etiketi). Aynı izin + PII kuralı;
+        // araçta şube kapsamı (kapsam dışı 403), yok/başka kiracı 404.
+        g.MapGet("/musteri/{id:guid}", async Task<Results<Ok<MusteriSecimOgesi>, ProblemHttpResult>> (Guid id, SelectionService s, CancellationToken ct)
+            => await s.GetCustomerAsync(id, ct) is { } m ? TypedResults.Ok(m) : NotFoundProblem("Müşteri bulunamadı."));
+        g.MapGet("/arac/{id:guid}", async Task<Results<Ok<AracSecimOgesi>, ProblemHttpResult>> (Guid id, SelectionService s, CancellationToken ct)
+            => await s.GetVehicleAsync(id, ct) is { } a ? TypedResults.Ok(a) : NotFoundProblem("Araç bulunamadı."));
+        g.MapGet("/lokasyon", async Task<Ok<IReadOnlyList<LokasyonSecimOgesi>>> (string? q, int? limit, SelectionService s, CancellationToken ct)
+            => TypedResults.Ok(await s.LocationAsync(q, limit, ct)));
+        g.MapGet("/ek-hizmet", async Task<Ok<IReadOnlyList<SecimOgesi>>> (string? q, int? limit, SelectionService s, CancellationToken ct)
+            => TypedResults.Ok(await s.AddOnAsync(q, limit, ct)));
+        g.MapGet("/sigorta-urunu", async Task<Ok<IReadOnlyList<SecimOgesi>>> (string? q, int? limit, SelectionService s, CancellationToken ct)
+            => TypedResults.Ok(await s.InsuranceProductAsync(q, limit, ct)));
+        g.MapGet("/rezervasyon-kaynagi", async Task<Ok<IReadOnlyList<SecimOgesi>>> (string? q, int? limit, SelectionService s, CancellationToken ct)
+            => TypedResults.Ok(await s.ReservationSourceAsync(q, limit, ct)));
+        g.MapGet("/ozel-kod", async Task<Ok<IReadOnlyList<SecimOgesi>>> (string? q, int? limit, SelectionService s, CancellationToken ct)
+            => TypedResults.Ok(await s.CustomCodeAsync(q, limit, ct)));
+        g.MapGet("/belge-sablonu", async Task<Ok<IReadOnlyList<SecimOgesi>>> (string? q, int? limit, BelgeTuru? tur, SelectionService s, CancellationToken ct)
+            => TypedResults.Ok(await s.DocumentTemplateAsync(q, limit, tur, ct)));
+        g.MapGet("/personel", async Task<Ok<IReadOnlyList<SecimOgesi>>> (string? q, int? limit, SelectionService s, CancellationToken ct)
+            => TypedResults.Ok(await s.StaffAsync(q, limit, ct)));
+        g.MapGet("/sube", async Task<Ok<IReadOnlyList<SecimOgesi>>> (string? q, int? limit, SelectionService s, CancellationToken ct)
+            => TypedResults.Ok(await s.BranchAsync(q, limit, ct)));
+        g.MapGet("/arac-grubu", async Task<Ok<IReadOnlyList<SecimOgesi>>> (string? q, int? limit, SelectionService s, CancellationToken ct)
+            => TypedResults.Ok(await s.VehicleGroupAsync(q, limit, ct)));
+        return root;
+    }
+
+    private static ProblemHttpResult NotFoundProblem(string detail)
+        => TypedResults.Problem(detail: detail, statusCode: StatusCodes.Status404NotFound, title: "Bulunamadı");
+}

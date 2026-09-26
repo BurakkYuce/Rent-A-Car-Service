@@ -21,7 +21,7 @@ aralığı (Servis Tanımları). Hedefsiz araçlar "tanım yok" olarak listeleni
     <label>Şube
         <select name="sube">
             <option value="">— tümü —</option>
-            @foreach (var o in _subeOpts) { <option value="@o" selected="@(o == Sube)">@o</option> }
+            @foreach (var o in _branchOpts) { <option value="@o" selected="@(o == Sube)">@o</option> }
         </select>
     </label>
     <label>Durum
@@ -78,7 +78,7 @@ aralığı (Servis Tanımları). Hedefsiz araçlar "tanım yok" olarak listeleni
     [SupplyParameterFromQuery(Name = "esik")] public string? Esik { get; set; }
 
     private IReadOnlyList<PeriyodikServisRow> _rows = [];
-    private string[] _subeOpts = [];
+    private string[] _branchOpts = [];
 
     private bool FiltreVar => !string.IsNullOrWhiteSpace(Plaka) || !string.IsNullOrWhiteSpace(Sube)
         || !string.IsNullOrWhiteSpace(Durum) || !string.IsNullOrWhiteSpace(Esik);
@@ -91,6 +91,6 @@ aralığı (Servis Tanımları). Hedefsiz araçlar "tanım yok" olarak listeleni
             Aktif = bool.TryParse(Durum, out var a) ? a : null,
             UyariEsigi = int.TryParse(Esik, out var e) ? e : null
         });
-        _subeOpts = (await Subeler.ListActiveAsync()).Select(b => b.Ad).OrderBy(x => x).ToArray();
+        _branchOpts = (await Subeler.ListActiveAsync()).Select(b => b.Ad).OrderBy(x => x).ToArray();
     }
 }

@@ -27,9 +27,9 @@ public static class DepartmentEndpoints
         return app;
     }
 
-    private static async Task<IResult> Run(Func<Task> action, string mesaj)
+    private static async Task<IResult> Run(Func<Task> action, string message)
     {
-        try { await action(); return Sonuc.Tamam("/departmanlar", mesaj); }
+        try { await action(); return Result.Ok("/departmanlar", message); }
         catch (ValidationException ex) { return Results.Redirect($"/departmanlar?hata={Uri.EscapeDataString(ex.Message)}"); }
     }
 }

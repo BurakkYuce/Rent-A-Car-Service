@@ -53,16 +53,16 @@ public sealed class EffectivePermissionTests
     public void Istisnasiz_kullanici_birebir_matris()
     {
         foreach (var rol in Enum.GetValues<UserRole>())
-            foreach (var izin in Enum.GetValues<Permission>())
-                Assert.Equal(RolePermissions.Has(rol, izin),
-                    EffectivePermission.Has(rol, izin, [], []));
+            foreach (var permission in Enum.GetValues<Permission>())
+                Assert.Equal(RolePermissions.Has(rol, permission),
+                    EffectivePermission.Has(rol, permission, [], []));
     }
 }
 
 [Collection("postgres")]
 public sealed class KullaniciIzinIstisnaTests(PostgresFixture fx)
 {
-    private static TestIdentity Kimlik(IServiceScope s)
+    private static TestIdentity Identity(IServiceScope s)
         => s.ServiceProvider.GetRequiredService<TestIdentity>();
 
     // ---------------------------------------------------------------- guard bileşimi (servis katmanı)
@@ -72,7 +72,7 @@ public sealed class KullaniciIzinIstisnaTests(PostgresFixture fx)
     {
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid(), Guid.NewGuid(), "op", UserRole.Operator);
-        Kimlik(scope).EkIzinler = ["ViewReports"];
+        Identity(scope).EkIzinler = ["ViewReports"];
 
         // InvoiceService.ListLinesAsync ViewReports ister — istisnasız operatörde patlar (kontrol),
         // ek izinli operatörde geçer (boş liste döner, istisna izni verdi).
@@ -86,14 +86,14 @@ public sealed class KullaniciIzinIstisnaTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         var tenant = Guid.NewGuid();
         using var scope = host.ScopeFor(tenant, Guid.NewGuid(), "yon", UserRole.Yonetici);
-        Kimlik(scope).YasakIzinler = ["FinanceReverse"];
+        Identity(scope).YasakIzinler = ["FinanceReverse"];
 
         var cash = scope.ServiceProvider.GetRequiredService<CashService>();
         // FinanceWrite hâlâ var: tahsilat girebilir.
-        var islem = await cash.CollectAsync(new CashInput { CariId = await TestCari.YeniAsync(scope.ServiceProvider), Tutar = 100m });
+        var operation = await cash.CollectAsync(new CashInput { CariId = await TestCustomer.NewAsync(scope.ServiceProvider), Tutar = 100m });
         // FinanceReverse yasak: aynı işlemin tersini ATAMAZ — tam da istenen "tek kişiden yalnız
         // ters-kayıt yetkisi alınabilsin" senaryosu.
-        var ex = await Assert.ThrowsAsync<NoPermissionException>(() => cash.ReverseAsync(islem));
+        var ex = await Assert.ThrowsAsync<NoPermissionException>(() => cash.ReverseAsync(operation));
         Assert.Contains("FinanceReverse", ex.Message);
     }
 
@@ -132,16 +132,16 @@ public sealed class KullaniciIzinIstisnaTests(PostgresFixture fx)
 
         // Gerçek bir Admin kullanıcı satırı gerekli (hedef rol kontrol DB'den okunur).
         var users = scope.ServiceProvider.GetRequiredService<UserService>();
-        var hedefAdmin = await users.CreateAsync(new UserInput
+        var targetAdmin = await users.CreateAsync(new UserInput
         { UserName = "admin2", DisplayName = "İkinci Admin", Rol = UserRole.Admin, Password = "sifre123" });
 
         var svc = scope.ServiceProvider.GetRequiredService<UserPermissionService>();
         var ex = await Assert.ThrowsAsync<ValidationException>(
-            () => svc.SetAsync(hedefAdmin, "ManageUsers", give: false));
+            () => svc.SetAsync(targetAdmin, "ManageUsers", give: false));
         Assert.Contains("alınamaz", ex.Message);
 
         // Ama Admin'e ViewReports YASAĞI konabilir (kilitlenme riski yok, bilinçli serbest).
-        await svc.SetAsync(hedefAdmin, "ViewReports", give: false);
+        await svc.SetAsync(targetAdmin, "ViewReports", give: false);
         Assert.Single(await svc.ListAsync());
     }
 
@@ -153,18 +153,18 @@ public sealed class KullaniciIzinIstisnaTests(PostgresFixture fx)
         using var scope = host.ScopeFor(tenant, Guid.NewGuid(), "admin", UserRole.Admin);
 
         var users = scope.ServiceProvider.GetRequiredService<UserService>();
-        var hedef = await users.CreateAsync(new UserInput
+        var target = await users.CreateAsync(new UserInput
         { UserName = "op1", DisplayName = "Operatör", Rol = UserRole.Operator, Password = "sifre123" });
 
         var svc = scope.ServiceProvider.GetRequiredService<UserPermissionService>();
-        await svc.SetAsync(hedef, "ViewReports", give: true);
-        await svc.SetAsync(hedef, "ViewReports", give: false); // çevirme: UPDATE, ikinci satır DEĞİL
+        await svc.SetAsync(target, "ViewReports", give: true);
+        await svc.SetAsync(target, "ViewReports", give: false); // çevirme: UPDATE, ikinci satır DEĞİL
 
-        var satir = Assert.Single(await svc.ListAsync());
-        Assert.False(satir.Ver); // son yazan kazandı
-        Assert.Equal("ViewReports", satir.Izin);
+        var row = Assert.Single(await svc.ListAsync());
+        Assert.False(row.Ver); // son yazan kazandı
+        Assert.Equal("ViewReports", row.Izin);
 
-        Assert.True(await svc.RemoveAsync(hedef, "ViewReports"));
+        Assert.True(await svc.RemoveAsync(target, "ViewReports"));
         Assert.Empty(await svc.ListAsync());
     }
 
@@ -184,7 +184,7 @@ public sealed class KullaniciIzinIstisnaTests(PostgresFixture fx)
     {
         using var host = new TestHost(fx.AppConnectionString);
         var tenant = Guid.NewGuid();
-        Guid hedef;
+        Guid target;
         // Tenants platform tablosu: owner yazar, app okur — tenant satırı OWNER bağlantısıyla açılır
         // (racar_app INSERT'i 42501 permission denied ile reddeder; bu da başlı başına doğru davranış).
         await using (var ownerDb = new AppDbContext(
@@ -199,12 +199,12 @@ public sealed class KullaniciIzinIstisnaTests(PostgresFixture fx)
         using (var scope = host.ScopeFor(tenant, Guid.NewGuid(), "admin", UserRole.Admin))
         {
             var users = scope.ServiceProvider.GetRequiredService<UserService>();
-            hedef = await users.CreateAsync(new UserInput
+            target = await users.CreateAsync(new UserInput
             { UserName = "istisnali", DisplayName = "X", Rol = UserRole.Operator, Password = "sifre123" });
 
             var svc = scope.ServiceProvider.GetRequiredService<UserPermissionService>();
-            await svc.SetAsync(hedef, "ViewReports", give: true);
-            await svc.SetAsync(hedef, "OperationsWrite", give: false);
+            await svc.SetAsync(target, "ViewReports", give: true);
+            await svc.SetAsync(target, "OperationsWrite", give: false);
         }
 
         // Login kimliksiz scope'tan yapılır (gerçek hayattaki anonim istek — GUC yok):
@@ -212,10 +212,10 @@ public sealed class KullaniciIzinIstisnaTests(PostgresFixture fx)
         using (var anon = host.ScopeFor(null, null, null, role: null))
         {
             var login = anon.ServiceProvider.GetRequiredService<LoginService>();
-            var sonuc = await login.ValidateAsync($"t{tenant:N}"[..8], "istisnali", "sifre123");
-            Assert.NotNull(sonuc);
-            Assert.Equal(["ViewReports"], sonuc!.EkIzinler);
-            Assert.Equal(["OperationsWrite"], sonuc.YasakIzinler);
+            var result = await login.ValidateAsync($"t{tenant:N}"[..8], "istisnali", "sifre123");
+            Assert.NotNull(result);
+            Assert.Equal(["ViewReports"], result!.EkIzinler);
+            Assert.Equal(["OperationsWrite"], result.YasakIzinler);
         }
     }
 
@@ -225,15 +225,15 @@ public sealed class KullaniciIzinIstisnaTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         var tenantA = Guid.NewGuid();
         var tenantB = Guid.NewGuid();
-        Guid kullaniciA;
+        Guid userA;
 
         using (var a = host.ScopeFor(tenantA, Guid.NewGuid(), "adminA", UserRole.Admin))
         {
             var users = a.ServiceProvider.GetRequiredService<UserService>();
-            kullaniciA = await users.CreateAsync(new UserInput
+            userA = await users.CreateAsync(new UserInput
             { UserName = "opA", DisplayName = "A", Rol = UserRole.Operator, Password = "sifre123" });
             await a.ServiceProvider.GetRequiredService<UserPermissionService>()
-                .SetAsync(kullaniciA, "ViewReports", true);
+                .SetAsync(userA, "ViewReports", true);
         }
 
         using (var b = host.ScopeFor(tenantB, Guid.NewGuid(), "adminB", UserRole.Admin))
@@ -242,7 +242,7 @@ public sealed class KullaniciIzinIstisnaTests(PostgresFixture fx)
             // B tenant'ı A'nın istisnasını LİSTEDE göremez (repo tenant filtresi + RLS).
             Assert.Empty(await svc.ListAsync());
             // B, A'nın kullanıcısına istisna YAZAMAZ — kullanıcı B'nin tenant'ında bulunamaz.
-            await Assert.ThrowsAsync<ValidationException>(() => svc.SetAsync(kullaniciA, "ViewReports", false));
+            await Assert.ThrowsAsync<ValidationException>(() => svc.SetAsync(userA, "ViewReports", false));
         }
     }
 }

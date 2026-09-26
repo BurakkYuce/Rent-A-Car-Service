@@ -36,7 +36,7 @@
                 }
             </select>
         </label>
-        <label>Başlangıç<input name="basTar" type="datetime-local" value="@_defBas" required /></label>
+        <label>Başlangıç<input name="basTar" type="datetime-local" value="@_defaultStart" required /></label>
         <label>Bitiş<input name="bitTar" type="datetime-local" value="@_defBit" required /></label>
         @* FAZ-82: tenant "Varsayılan Fiyat Türü" ayarı yalnız ön-seçimi belirler. Ayar boşsa listenin
            ilki ("Otomatik") seçili kalır — bugünkü davranışın birebir aynısı. *@
@@ -44,7 +44,7 @@
             <select name="fiyatTuru">
                 @foreach (var o in RentACar.Application.Pricing.PriceTypeOption.All)
                 {
-                    <option value="@o" selected="@(o == _varsayilanFiyatTuru)">@o</option>
+                    <option value="@o" selected="@(o == _defaultPriceType)">@o</option>
                 }
             </select>
         </label>
@@ -119,9 +119,9 @@
     private IReadOnlyList<Location> _locations = [];
     private Dictionary<Guid, string> _custMap = new();
     private Dictionary<Guid, string> _vehMap = new();
-    private readonly string _defBas = DateTime.Now.ToString("yyyy-MM-ddT09:00");
+    private readonly string _defaultStart = DateTime.Now.ToString("yyyy-MM-ddT09:00");
     private readonly string _defBit = DateTime.Now.AddDays(3).ToString("yyyy-MM-ddT09:00");
-    private string? _varsayilanFiyatTuru;   // FAZ-82: yalnız YENİ teklif formunun ön-seçimi
+    private string? _defaultPriceType;   // FAZ-82: yalnız YENİ teklif formunun ön-seçimi
 
     protected override async Task OnInitializedAsync()
     {
@@ -131,7 +131,7 @@
         _locations = await Locations.ListActiveAsync();
         _custMap = _customers.ToDictionary(c => c.Id, c => c.DisplayName);
         _vehMap = _vehicles.ToDictionary(v => v.Id, v => v.Plaka);
-        _varsayilanFiyatTuru = await Varsayilanlar.PriceTypeAsync(); // FAZ-82 (ayar yoksa null → ilk seçenek)
+        _defaultPriceType = await Varsayilanlar.PriceTypeAsync(); // FAZ-82 (ayar yoksa null → ilk seçenek)
     }
 
     private string Cust(Guid id) => _custMap.GetValueOrDefault(id, "—");

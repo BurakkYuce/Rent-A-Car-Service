@@ -28,25 +28,25 @@
     <label>Çıkış Ofisi
         <select name="ofis">
             <option value="">— tümü —</option>
-            @foreach (var o in _ofisOpts) { <option value="@o" selected="@(o == Ofis)">@o</option> }
+            @foreach (var o in _officeOpts) { <option value="@o" selected="@(o == Ofis)">@o</option> }
         </select>
     </label>
     <label>Araç Grubu
         <select name="grup">
             <option value="">— tümü —</option>
-            @foreach (var o in _grupOpts) { <option value="@o" selected="@(o == Grup)">@o</option> }
+            @foreach (var o in _groupOpts) { <option value="@o" selected="@(o == Grup)">@o</option> }
         </select>
     </label>
     <label>SIPP
         <select name="sipp">
             <option value="">— tümü —</option>
-            @foreach (var o in _sippOpts) { <option value="@o" selected="@(o == Sipp)">@o</option> }
+            @foreach (var o in _orderOpts) { <option value="@o" selected="@(o == Sipp)">@o</option> }
         </select>
     </label>
     <label>Araç Sahibi
         <select name="aracSahibi">
             <option value="">— tümü —</option>
-            @foreach (var o in _sahipOpts) { <option value="@o" selected="@(o == AracSahibi)">@o</option> }
+            @foreach (var o in _ownerOpts) { <option value="@o" selected="@(o == AracSahibi)">@o</option> }
         </select>
     </label>
     <label>Plaka<input name="plaka" value="@Plaka" placeholder="34 ABC" /></label>
@@ -57,7 +57,7 @@
 <div class="cards">
     <div class="card">
         <div class="card-num">@_rows.Count</div>
-        <div class="card-label">Kirada araç (@GunEtiket)</div>
+        <div class="card-label">Kirada araç (@DayLabel)</div>
     </div>
     <div class="card">
         <div class="card-num">@_rows.Sum(r => r.GunlukKira).ToString("N2")</div>
@@ -127,8 +127,8 @@
     [SupplyParameterFromQuery(Name = "plaka")] public string? Plaka { get; set; }
 
     private IReadOnlyList<AracGunlukDurumRow> _rows = [];
-    private string[] _ofisOpts = [], _grupOpts = [], _sippOpts = [], _sahipOpts = [];
-    private string GunEtiket = string.Empty;
+    private string[] _officeOpts = [], _groupOpts = [], _orderOpts = [], _ownerOpts = [];
+    private string DayLabel = string.Empty;
 
     private bool FiltreVar => !string.IsNullOrWhiteSpace(Ofis) || !string.IsNullOrWhiteSpace(Grup)
         || !string.IsNullOrWhiteSpace(Sipp) || !string.IsNullOrWhiteSpace(AracSahibi)
@@ -136,21 +136,21 @@
 
     protected override async Task OnInitializedAsync()
     {
-        var gun = ParseDate(Gun) ?? new DateTimeOffset(DateTime.UtcNow.Date, TimeSpan.Zero);
-        GunEtiket = gun.ToString("dd.MM.yyyy");
+        var day = ParseDate(Gun) ?? new DateTimeOffset(DateTime.UtcNow.Date, TimeSpan.Zero);
+        DayLabel = day.ToString("dd.MM.yyyy");
 
-        _rows = await Reports.GetVehicleDailyStatusAsync(gun, new AracGunlukDurumFilter
+        _rows = await Reports.GetVehicleDailyStatusAsync(day, new AracGunlukDurumFilter
         {
             Plaka = Plaka, Grup = Grup, Sipp = Sipp, AracSahibi = AracSahibi, Ofis = Ofis
         });
 
         // Seçenekler FİLTRESİZ kaynaktan — filtrelenmiş listeden türetilseydi bir seçim sonrası
         // diğer seçenekler kaybolur ve filtre kendini kilitlerdi.
-        _ofisOpts = (await Ofisler.ListActiveAsync()).Select(o => o.Ad).OrderBy(a => a).ToArray();
-        var tumArac = await Araclar.ListAsync();
-        _grupOpts = Opts(tumArac.Select(v => v.Grup));
-        _sippOpts = Opts(tumArac.Select(v => v.Sipp));
-        _sahipOpts = Opts(tumArac.Select(v => v.AracSahibi));
+        _officeOpts = (await Ofisler.ListActiveAsync()).Select(o => o.Ad).OrderBy(a => a).ToArray();
+        var allVehicles = await Araclar.ListAsync();
+        _groupOpts = Opts(allVehicles.Select(v => v.Grup));
+        _orderOpts = Opts(allVehicles.Select(v => v.Sipp));
+        _ownerOpts = Opts(allVehicles.Select(v => v.AracSahibi));
     }
 
     private static string[] Opts(IEnumerable<string?> src) => src
@@ -166,16 +166,16 @@
         get
         {
             var qs = new List<string>();
-            void Ekle(string ad, string? deger)
+            void Add(string name, string? value)
             {
-                if (!string.IsNullOrWhiteSpace(deger)) qs.Add($"{ad}={Uri.EscapeDataString(deger)}");
+                if (!string.IsNullOrWhiteSpace(value)) qs.Add($"{name}={Uri.EscapeDataString(value)}");
             }
-            Ekle("gun", Gun);
-            Ekle("ofis", Ofis);
-            Ekle("grup", Grup);
-            Ekle("sipp", Sipp);
-            Ekle("aracSahibi", AracSahibi);
-            Ekle("plaka", Plaka);
+            Add("gun", Gun);
+            Add("ofis", Ofis);
+            Add("grup", Grup);
+            Add("sipp", Sipp);
+            Add("aracSahibi", AracSahibi);
+            Add("plaka", Plaka);
             return string.Join("&", qs);
         }
     }

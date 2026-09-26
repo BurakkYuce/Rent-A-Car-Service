@@ -22,10 +22,10 @@
         <input name="aracGrupKod" list="grup-list" required value="@Grup" placeholder="EKO" />
     </label>
     <datalist id="grup-list">
-        @foreach (var g in _gruplar) { <option value="@g.Kod">@g.Ad</option> }
+        @foreach (var g in _groups) { <option value="@g.Kod">@g.Ad</option> }
     </datalist>
     <label>Kanal<input name="kanal" placeholder="WEB/ACENTA" /></label>
-    <ComboBox Name="sube" Label="Şube" Options="_subeOpts" />
+    <ComboBox Name="sube" Label="Şube" Options="_branchOpts" />
     <label>Başlangıç<input name="basTar" type="datetime-local" required /></label>
     <label>Bitiş<input name="bitTar" type="datetime-local" required /></label>
     <label>Sürücü Yaşı<input name="surucuYas" type="number" min="0" /></label>
@@ -34,10 +34,10 @@
     <button type="submit">Hesapla</button>
 </form>
 
-@if (_gruplar.Count > 0 || _urunler.Count > 0)
+@if (_groups.Count > 0 || _products.Count > 0)
 {
-    <p class="muted small">Tanımlı gruplar: @string.Join(", ", _gruplar.Select(g => g.Kod)) ·
-        Sigorta ürünleri: @string.Join(", ", _urunler.Select(u => u.Kod))</p>
+    <p class="muted small">Tanımlı gruplar: @string.Join(", ", _groups.Select(g => g.Kod)) ·
+        Sigorta ürünleri: @string.Join(", ", _products.Select(u => u.Kod))</p>
 }
 
 @if (Ok == "1")
@@ -84,14 +84,14 @@
     [SupplyParameterFromQuery(Name = "muaf")] public string? Muaf { get; set; }
     [SupplyParameterFromQuery(Name = "not")] public string? Notlar { get; set; }
 
-    private IReadOnlyList<VehicleGroup> _gruplar = [];
-    private IReadOnlyList<CoverageProduct> _urunler = [];
-    private List<string> _subeOpts = [];
+    private IReadOnlyList<VehicleGroup> _groups = [];
+    private IReadOnlyList<CoverageProduct> _products = [];
+    private List<string> _branchOpts = [];
 
     protected override async Task OnInitializedAsync()
     {
-        _gruplar = await AracGruplari.ListActiveAsync();
-        _urunler = await SigortaUrunleri.ListActiveAsync();
-        _subeOpts = (await Subeler.ListActiveAsync()).Select(s => s.Ad).ToList();
+        _groups = await AracGruplari.ListActiveAsync();
+        _products = await SigortaUrunleri.ListActiveAsync();
+        _branchOpts = (await Subeler.ListActiveAsync()).Select(s => s.Ad).ToList();
     }
 }

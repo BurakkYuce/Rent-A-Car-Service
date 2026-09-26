@@ -25,7 +25,7 @@ public static partial class ReportApi
 {
     public static RouteGroupBuilder MapReportApi(this RouteGroupBuilder v1)
     {
-        var g = v1.MapGroup("/raporlar").WithTags("Rapor").AlanlariEsle(F5Ortak.SiralamaKurallari);
+        var g = v1.MapGroup("/raporlar").WithTags("Rapor").MapFields(F5Shared.SortRules);
 
         // izin:ViewReports sayfaları (Blazor [Authorize(Policy = "izin:ViewReports")]).
         var vr = g.MapGroup("").RequirePermission(Permission.ViewReports);

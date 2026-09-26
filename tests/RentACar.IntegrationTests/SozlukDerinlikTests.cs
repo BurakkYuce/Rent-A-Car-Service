@@ -80,28 +80,28 @@ public sealed class SozlukDerinlikTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var s = host.ScopeFor(Guid.NewGuid());
         var sp = s.ServiceProvider;
-        var gruplar = sp.GetRequiredService<VehicleGroupService>();
-        var araclar = sp.GetRequiredService<VehicleService>();
+        var groups = sp.GetRequiredService<VehicleGroupService>();
+        var vehicles = sp.GetRequiredService<VehicleService>();
 
-        var eko = await gruplar.CreateAsync(new VehicleGroupInput { Kod = "EKO", Ad = "Ekonomik" });
-        var lux = await gruplar.CreateAsync(new VehicleGroupInput { Kod = "LUX", Ad = "Lüks" });
+        var eko = await groups.CreateAsync(new VehicleGroupInput { Kod = "EKO", Ad = "Ekonomik" });
+        var lux = await groups.CreateAsync(new VehicleGroupInput { Kod = "LUX", Ad = "Lüks" });
 
         // ELLE: 3 araç Ekonomik'e (biri farklı harf yazımıyla), 1 araç Lüks'e, 1 araç grupsuz.
-        await araclar.CreateAsync(new VehicleInput { Plaka = "34 SD 01", Grup = "Ekonomik" });
-        await araclar.CreateAsync(new VehicleInput { Plaka = "34 SD 02", Grup = "EKONOMİK" });
-        await araclar.CreateAsync(new VehicleInput { Plaka = "34 SD 03", Grup = "ekonomik" });
-        await araclar.CreateAsync(new VehicleInput { Plaka = "34 SD 04", Grup = "Lüks" });
-        await araclar.CreateAsync(new VehicleInput { Plaka = "34 SD 05" });
+        await vehicles.CreateAsync(new VehicleInput { Plaka = "34 SD 01", Grup = "Ekonomik" });
+        await vehicles.CreateAsync(new VehicleInput { Plaka = "34 SD 02", Grup = "EKONOMİK" });
+        await vehicles.CreateAsync(new VehicleInput { Plaka = "34 SD 03", Grup = "ekonomik" });
+        await vehicles.CreateAsync(new VehicleInput { Plaka = "34 SD 04", Grup = "Lüks" });
+        await vehicles.CreateAsync(new VehicleInput { Plaka = "34 SD 05" });
 
-        var sayilar = await gruplar.VehicleCountsAsync();
-        Assert.Equal(3, sayilar[eko]);
-        Assert.Equal(1, sayilar[lux]);
+        var numbers = await groups.VehicleCountsAsync();
+        Assert.Equal(3, numbers[eko]);
+        Assert.Equal(1, numbers[lux]);
 
         // Sayaç ile "eşleşmeyen değerler" paneli AYNI kuralı kullanmalı: 3+1 araç eşleşti,
         // geriye yalnız grubu BOŞ olan 1 araç kalır.
-        var eslesmeyen = await gruplar.ListUnmatchedGroupValuesAsync();
-        Assert.Equal(1, eslesmeyen.Single(x => x.Bos).AracSayisi);
-        Assert.DoesNotContain(eslesmeyen, x => !x.Bos);
+        var unmatched = await groups.ListUnmatchedGroupValuesAsync();
+        Assert.Equal(1, unmatched.Single(x => x.Bos).AracSayisi);
+        Assert.DoesNotContain(unmatched, x => !x.Bos);
     }
 
     // ---------- Döviz ----------
@@ -122,10 +122,10 @@ public sealed class SozlukDerinlikTests(PostgresFixture fx)
 
         // Sözleşme kilidi: Currency'ye KUR alanı EKLENMEMELİ. Kur tek kaynaktan (/kurlar: TCMB +
         // tenant sabitleme) yönetiliyor; buraya ikinci bir kur alanı çift-kaynak yaratırdı.
-        var kurAlanlari = typeof(RentACar.Domain.Entities.Currency).GetProperties()
+        var exchangeRateFields = typeof(RentACar.Domain.Entities.Currency).GetProperties()
             .Where(p => p.Name.Contains("Kur", StringComparison.OrdinalIgnoreCase))
             .Select(p => p.Name).ToList();
-        Assert.Empty(kurAlanlari);
+        Assert.Empty(exchangeRateFields);
     }
 
     // ---------- Hesap No ----------

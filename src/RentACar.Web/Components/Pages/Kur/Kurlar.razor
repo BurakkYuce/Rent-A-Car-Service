@@ -18,9 +18,9 @@
     <form method="post" action="/kurlar/yenile" style="display:inline"><AntiforgeryToken />
         <button type="submit">TCMB'den Güncelle</button>
     </form>
-    @if (_tarih is not null)
+    @if (_date is not null)
     {
-        <span class="muted small">Geçerli kur tarihi: <b>@_tarih.Value.ToString("dd.MM.yyyy")</b></span>
+        <span class="muted small">Geçerli kur tarihi: <b>@_date.Value.ToString("dd.MM.yyyy")</b></span>
     }
 </div>
 
@@ -30,20 +30,20 @@
         <tr><th>Kod</th><th>Ad</th><th>Birim</th><th class="num">Alış</th><th class="num">Satış</th><th>Sabit (tenant)</th></tr>
     </thead>
     <tbody>
-        @if (_kurlar.Count == 0)
+        @if (_rates.Count == 0)
         {
             <tr><td colspan="6" class="muted">Kur kaydı yok — "TCMB'den Güncelle"e basın (internet gerekir).</td></tr>
         }
-        @foreach (var k in _kurlar)
+        @foreach (var k in _rates)
         {
-            var sabit = _sabitMap.GetValueOrDefault(k.Kod);
+            var fixedValue = _pinnedMap.GetValueOrDefault(k.Kod);
             <tr>
                 <td><b>@k.Kod</b></td>
                 <td>@k.Ad</td>
                 <td>@k.Birim</td>
                 <td class="num">@(k.ForexAlis?.ToString("N4") ?? "—")</td>
                 <td class="num">@(k.ForexSatis?.ToString("N4") ?? "—")</td>
-                <td>@(sabit is { Aktif: true } ? $"{sabit.Kur.ToString("N4")}" : "")</td>
+                <td>@(fixedValue is { Aktif: true } ? $"{fixedValue.Kur.ToString("N4")}" : "")</td>
             </tr>
         }
     </tbody>
@@ -55,33 +55,33 @@
     <form method="get" class="filter-bar">
         <input name="tutar" type="number" step="0.01" value="@Tutar" placeholder="Tutar" required />
         <select name="from">
-            @foreach (var c in _kodlar) { <option value="@c" selected="@(From == c)">@c</option> }
+            @foreach (var c in _codes) { <option value="@c" selected="@(From == c)">@c</option> }
         </select>
         <span>→</span>
         <select name="to">
-            @foreach (var c in _kodlar) { <option value="@c" selected="@(To == c)">@c</option> }
+            @foreach (var c in _codes) { <option value="@c" selected="@(To == c)">@c</option> }
         </select>
         <button type="submit">Çevir</button>
     </form>
-    @if (_cevrim is not null)
+    @if (_conversion is not null)
     {
-        <p class="ok"><b>@Tutar @From = @_cevrim.Value.ToString("N2") @To</b></p>
+        <p class="ok"><b>@Tutar @From = @_conversion.Value.ToString("N2") @To</b></p>
     }
-    else if (!string.IsNullOrEmpty(_cevrimHata))
+    else if (!string.IsNullOrEmpty(_conversionError))
     {
-        <p class="error">@_cevrimHata</p>
+        <p class="error">@_conversionError</p>
     }
 </div>
 
 <h2>Kur Sabitleme (bu firma)</h2>
 <p class="muted small">Sabit kur tanımlıysa çevirimde TCMB yerine bu kullanılır. Kod başına tek tanım (yeniden kaydet = güncelle).</p>
-<details class="new-vehicle" open="@(_sabitler.Count == 0)">
+<details class="new-vehicle" open="@(_pinnedRates.Count == 0)">
     <summary>+ Sabit Kur Ekle / Güncelle</summary>
     <form method="post" action="/kurlar/sabit/kaydet" class="grid-form"><AntiforgeryToken />
         <label>Döviz
             <select name="kod" required>
                 <option value="">—</option>
-                @foreach (var c in _dovizKodlari) { <option value="@c">@c</option> }
+                @foreach (var c in _currencyCodes) { <option value="@c">@c</option> }
             </select>
         </label>
         <label>Sabit Kur (TL / 1 birim)<input name="kur" type="number" step="0.0001" min="0.0001" required /></label>
@@ -98,11 +98,11 @@
         <tr><th>Kod</th><th class="num">Sabit Kur</th><th>Başlangıç</th><th>Bitiş</th><th>Durum</th><th></th></tr>
     </thead>
     <tbody>
-        @if (_sabitler.Count == 0)
+        @if (_pinnedRates.Count == 0)
         {
             <tr><td colspan="6" class="muted">Sabit kur tanımı yok.</td></tr>
         }
-        @foreach (var s in _sabitler)
+        @foreach (var s in _pinnedRates)
         {
             <tr>
                 <td><b>@s.Kod</b></td>
@@ -126,33 +126,33 @@
     [SupplyParameterFromQuery(Name = "from")] public string? From { get; set; }
     [SupplyParameterFromQuery(Name = "to")] public string? To { get; set; }
 
-    private IReadOnlyList<RentACar.Domain.Entities.KurKaydi> _kurlar = [];
-    private IReadOnlyList<RentACar.Domain.Entities.SabitKur> _sabitler = [];
-    private Dictionary<string, RentACar.Domain.Entities.SabitKur> _sabitMap = new();
-    private DateTimeOffset? _tarih;
-    private List<string> _kodlar = new() { "TL" };
-    private List<string> _dovizKodlari = new();
-    private decimal? _cevrim;
-    private string? _cevrimHata;
+    private IReadOnlyList<RentACar.Domain.Entities.KurKaydi> _rates = [];
+    private IReadOnlyList<RentACar.Domain.Entities.SabitKur> _pinnedRates = [];
+    private Dictionary<string, RentACar.Domain.Entities.SabitKur> _pinnedMap = new();
+    private DateTimeOffset? _date;
+    private List<string> _codes = new() { "TL" };
+    private List<string> _currencyCodes = new();
+    private decimal? _conversion;
+    private string? _conversionError;
 
     protected override async Task OnInitializedAsync()
     {
-        _kurlar = await Kur.TodayRatesAsync();
-        _sabitler = await Sabit.ListAsync();
-        _sabitMap = _sabitler.ToDictionary(s => s.Kod);
-        _tarih = _kurlar.Count > 0 ? _kurlar[0].Tarih : null;
+        _rates = await Kur.TodayRatesAsync();
+        _pinnedRates = await Sabit.ListAsync();
+        _pinnedMap = _pinnedRates.ToDictionary(s => s.Kod);
+        _date = _rates.Count > 0 ? _rates[0].Tarih : null;
 
         // Çevirici + sabit-kur dropdown kodları: TCMB + tanımlı dövizler (birleşik, tekil).
-        var dovizler = (await Currencies.ListActiveAsync()).Select(d => d.Kod).ToList();
-        _dovizKodlari = _kurlar.Select(k => k.Kod).Union(dovizler).Where(k => k is not ("TRY" or "TL")).OrderBy(k => k).ToList();
-        _kodlar = new List<string> { "TL" }.Concat(_kurlar.Select(k => k.Kod)).Distinct().ToList();
+        var currencies = (await Currencies.ListActiveAsync()).Select(d => d.Kod).ToList();
+        _currencyCodes = _rates.Select(k => k.Kod).Union(currencies).Where(k => k is not ("TRY" or "TL")).OrderBy(k => k).ToList();
+        _codes = new List<string> { "TL" }.Concat(_rates.Select(k => k.Kod)).Distinct().ToList();
 
         // Mini çevirici (GET query varsa hesapla).
         if (!string.IsNullOrWhiteSpace(Tutar) && !string.IsNullOrWhiteSpace(From) && !string.IsNullOrWhiteSpace(To)
-            && decimal.TryParse(Tutar, NumberStyles.Number, CultureInfo.InvariantCulture, out var tutar))
+            && decimal.TryParse(Tutar, NumberStyles.Number, CultureInfo.InvariantCulture, out var amount))
         {
-            try { _cevrim = await Kur.ConvertAsync(tutar, From!, To!); }
-            catch (RentACar.Application.Common.ValidationException ex) { _cevrimHata = ex.Message; }
+            try { _conversion = await Kur.ConvertAsync(amount, From!, To!); }
+            catch (RentACar.Application.Common.ValidationException ex) { _conversionError = ex.Message; }
         }
     }
 }

@@ -19,12 +19,12 @@ namespace RentACar.IntegrationTests;
 [Collection("postgres")]
 public sealed class TahsilatKurOtomatikTests(PostgresFixture fx)
 {
-    private static Task SabitKurAsync(IServiceProvider sp, string kod, decimal kur)
-        => sp.GetRequiredService<FixedExchangeRateService>().UpsertAsync(new SabitKurInput { Kod = kod, Kur = kur, Aktif = true });
+    private static Task FixedExchangeRateAsync(IServiceProvider sp, string code, decimal exchangeRate)
+        => sp.GetRequiredService<FixedExchangeRateService>().UpsertAsync(new SabitKurInput { Kod = code, Kur = exchangeRate, Aktif = true });
 
-    private static Task<Guid> CariAsync(IServiceProvider sp, string ad = "Fx") =>
+    private static Task<Guid> CustomerAsync(IServiceProvider sp, string name = "Fx") =>
         sp.GetRequiredService<CustomerService>()
-            .CreateAsync(new CustomerInput { Tip = CustomerType.Bireysel, Ad = ad, Soyad = "Cari" });
+            .CreateAsync(new CustomerInput { Tip = CustomerType.Bireysel, Ad = name, Soyad = "Cari" });
 
     [Fact]
     public async Task Tahsilat_eur_otomatik_ve_acik_kur()
@@ -32,15 +32,15 @@ public sealed class TahsilatKurOtomatikTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
         var sp = scope.ServiceProvider;
-        await SabitKurAsync(sp, "EUR", 40m);
-        var cari = await CariAsync(sp);
+        await FixedExchangeRateAsync(sp, "EUR", 40m);
+        var account = await CustomerAsync(sp);
         var cash = sp.GetRequiredService<CashService>();
 
-        await cash.CollectAsync(new CashInput { CariId = cari, Tutar = 100m, Doviz = "EUR" }); // kur boş
-        Assert.Equal(-4000m, await cash.GetAccountBalanceAsync(cari));   // 100×40 tahsilat → cari −4000 (elle)
+        await cash.CollectAsync(new CashInput { CariId = account, Tutar = 100m, Doviz = "EUR" }); // kur boş
+        Assert.Equal(-4000m, await cash.GetAccountBalanceAsync(account));   // 100×40 tahsilat → cari −4000 (elle)
 
-        await cash.PayAsync(new CashInput { CariId = cari, Tutar = 10m, Doviz = "EUR", Kur = 35m }); // açık kur
-        Assert.Equal(-3650m, await cash.GetAccountBalanceAsync(cari));   // −4000 + 350
+        await cash.PayAsync(new CashInput { CariId = account, Tutar = 10m, Doviz = "EUR", Kur = 35m }); // açık kur
+        Assert.Equal(-3650m, await cash.GetAccountBalanceAsync(account));   // −4000 + 350
     }
 
     [Fact]
@@ -49,12 +49,12 @@ public sealed class TahsilatKurOtomatikTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
         var sp = scope.ServiceProvider;
-        var cari = await CariAsync(sp);
+        var account = await CustomerAsync(sp);
         var cash = sp.GetRequiredService<CashService>();
 
         await Assert.ThrowsAsync<ValidationException>(
-            () => cash.CollectAsync(new CashInput { CariId = cari, Tutar = 100m, Doviz = "DKK" }));
-        Assert.Equal(0m, await cash.GetAccountBalanceAsync(cari));
+            () => cash.CollectAsync(new CashInput { CariId = account, Tutar = 100m, Doviz = "DKK" }));
+        Assert.Equal(0m, await cash.GetAccountBalanceAsync(account));
         Assert.Empty(await cash.ListAsync()); // CashTransaction bile yazılmadı
     }
 
@@ -64,9 +64,9 @@ public sealed class TahsilatKurOtomatikTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
         var sp = scope.ServiceProvider;
-        await SabitKurAsync(sp, "EUR", 40m);
-        var c1 = await CariAsync(sp, "T1");
-        var c2 = await CariAsync(sp, "T2");
+        await FixedExchangeRateAsync(sp, "EUR", 40m);
+        var c1 = await CustomerAsync(sp, "T1");
+        var c2 = await CustomerAsync(sp, "T2");
         var cash = sp.GetRequiredService<CashService>();
 
         // Karışık: TRY (boş kur→1) + EUR (boş→40) + EUR açık 35 — elle: 100 + 4000 + 3500.
@@ -95,19 +95,19 @@ public sealed class TahsilatKurOtomatikTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
         var sp = scope.ServiceProvider;
-        await SabitKurAsync(sp, "EUR", 40m);
+        await FixedExchangeRateAsync(sp, "EUR", 40m);
         var cash = sp.GetRequiredService<CashService>();
         var rs = sp.GetRequiredService<ReportService>();
 
         // Kasa→Banka 10 EUR (oto 40): kasa −400 / banka +400 (elle).
         await cash.TransferAsync(LedgerAccountType.Kasa, LedgerAccountType.Banka, 10m, currency: "EUR");
-        var ozet = await rs.GetCashBankSummaryAsync();
-        Assert.Equal(-400m, ozet.KasaBakiye);
-        Assert.Equal(400m, ozet.BankaBakiye);
+        var summary = await rs.GetCashBankSummaryAsync();
+        Assert.Equal(-400m, summary.KasaBakiye);
+        Assert.Equal(400m, summary.BankaBakiye);
 
         // Cari↔cari 5 EUR (oto 40): kaynak −200 / hedef +200.
-        var k = await CariAsync(sp, "K");
-        var h = await CariAsync(sp, "H");
+        var k = await CustomerAsync(sp, "K");
+        var h = await CustomerAsync(sp, "H");
         await cash.TransferBetweenAccountsAsync(k, h, 5m, currency: "EUR");
         Assert.Equal(-200m, await cash.GetAccountBalanceAsync(k));
         Assert.Equal(200m, await cash.GetAccountBalanceAsync(h));
@@ -124,14 +124,14 @@ public sealed class TahsilatKurOtomatikTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
         var sp = scope.ServiceProvider;
-        await SabitKurAsync(sp, "EUR", 40m);
-        var cari = await CariAsync(sp, "Api");
+        await FixedExchangeRateAsync(sp, "EUR", 40m);
+        var account = await CustomerAsync(sp, "Api");
         var cash = sp.GetRequiredService<CashService>();
 
         // JSON gövdesinde Kur alanı hiç gönderilmedi → null → otomatik 40 (eski DTO default'u 1m'di).
-        var req = new RentACar.Api.Dtos.CashRequest { CariId = cari, Tutar = 100m, Doviz = "EUR" };
+        var req = new RentACar.Api.Dtos.CashRequest { CariId = account, Tutar = 100m, Doviz = "EUR" };
         await cash.CollectAsync(req.ToInput());
-        Assert.Equal(-4000m, await cash.GetAccountBalanceAsync(cari)); // 100×40 (elle) — 100 DEĞİL
+        Assert.Equal(-4000m, await cash.GetAccountBalanceAsync(account)); // 100×40 (elle) — 100 DEĞİL
     }
 
     [Fact]
@@ -140,7 +140,7 @@ public sealed class TahsilatKurOtomatikTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
         var sp = scope.ServiceProvider;
-        await SabitKurAsync(sp, "EUR", 40m);
+        await FixedExchangeRateAsync(sp, "EUR", 40m);
         var exp = sp.GetRequiredService<ExpenseService>();
         var rs = sp.GetRequiredService<ReportService>();
 

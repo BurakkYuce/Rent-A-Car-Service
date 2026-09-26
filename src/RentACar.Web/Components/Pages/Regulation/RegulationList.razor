@@ -19,9 +19,9 @@
     <label>Başlangıç<input name="baslangic" type="date" required /></label>
     <label>Bitiş<input name="bitis" type="date" required /></label>
     <label>Prim<input name="prim" type="number" step="0.01" value="0" /></label>
-    <label>Döviz<select name="doviz">@foreach (var d in Dovizler){<option value="@d">@d</option>}</select></label>
+    <label>Döviz<select name="doviz">@foreach (var d in Currencies){<option value="@d">@d</option>}</select></label>
     <label>Poliçe No<input name="policeNo" /></label>
-    <ComboBox Name="firma" Label="Firma" Options="_firmaOpts" />
+    <ComboBox Name="firma" Label="Firma" Options="_companyOpts" />
     @* FAZ-15 sigorta değer tabanı — BİLGİ alanları; hiçbir hesaba/deftere girmez. *@
     <label>Araç Değeri<input name="aracDegeri" type="number" step="0.01" min="0" title="Kasko araç değeri (bilgi)" /></label>
     <label>İMM Değeri<input name="immDegeri" type="number" step="0.01" min="0" title="İhtiyari Mali Mesuliyet teminatı (bilgi)" /></label>
@@ -34,7 +34,7 @@ yazılmaz, gelir-gider ve cari bakiyeyi etkilemez. Kalan, poliçe ödendiğinde 
 <table class="grid tr-grid"><thead><tr><th>Araç</th><th>Tip</th><th>Bitiş</th><th class="num">Prim</th><th>Döviz</th><th>Firma</th><th class="num">Araç Değ.</th><th class="num">İMM</th><th class="num">Aksesuar</th><th class="num">Kalan</th><th>Ödendi</th><th></th></tr></thead><tbody>
 @foreach (var s in _ins)
 {
-    <tr><td>@Plaka(s.VehicleId)</td><td>@s.Tip</td><td>@s.Bitis.LocalDateTime.ToString("dd.MM.yyyy")</td><td class="num">@s.Prim.ToString("N2")</td><td>@s.Currency</td><td>@s.Firma</td>
+    <tr><td>@Plate(s.VehicleId)</td><td>@s.Tip</td><td>@s.Bitis.LocalDateTime.ToString("dd.MM.yyyy")</td><td class="num">@s.Prim.ToString("N2")</td><td>@s.Currency</td><td>@s.Firma</td>
         <td class="num">@(s.AracDegeri?.ToString("N2") ?? "—")</td>
         <td class="num">@(s.ImmDegeri?.ToString("N2") ?? "—")</td>
         <td class="num">@(s.AksesuarDegeri?.ToString("N2") ?? "—")</td>
@@ -78,7 +78,7 @@ else
             <option value="">— seç —</option>
             @foreach (var p in _ins)
             {
-                <option value="@p.Id">@PoliceEtiket(p)</option>
+                <option value="@p.Id">@PolicyLabel(p)</option>
             }
         </select></label>
         <label>Zeyil No<input name="zeyilNo" maxlength="32" required /></label>
@@ -89,21 +89,21 @@ else
         <label>Brüt<input name="brut" type="number" step="0.01" title="Brüt prim farkı — tenzil zeylinde negatif (bilgi)" /></label>
         <label>Net<input name="net" type="number" step="0.01" title="Net prim farkı (bilgi)" /></label>
         <label>Fon+Vergi<input name="fonVergi" type="number" step="0.01" title="Fon ve vergi payı (bilgi)" /></label>
-        <ComboBox Name="tipi" Label="Tipi" Options="_zeyilTipiOpts" Extra="@(new Dictionary<string, object> { ["maxlength"] = "64" })" />
+        <ComboBox Name="tipi" Label="Tipi" Options="_endorsementTypeOpts" Extra="@(new Dictionary<string, object> { ["maxlength"] = "64" })" />
         <label class="u-col-full">Neden<input name="neden" maxlength="512" /></label>
         <button type="submit">Zeyil Ekle</button>
     </form>
 }
 <div class="table-scroll">
 <table class="grid tr-grid"><thead><tr><th>Poliçe</th><th>Zeyil No</th><th>Tarih</th><th>Tanzim</th><th class="num">Değer</th><th class="num">Brüt</th><th class="num">Net</th><th class="num">Fon-Vergi</th><th>Tipi</th><th>Neden</th><th></th></tr></thead><tbody>
-@if (_zeyil.Count == 0)
+@if (_endorsement.Count == 0)
 {
     <tr><td colspan="11" class="muted">Zeyil kaydı yok.</td></tr>
 }
-@foreach (var z in _zeyil)
+@foreach (var z in _endorsement)
 {
     <tr>
-        <td>@PoliceEtiket(z.PolicyId)</td>
+        <td>@PolicyLabel(z.PolicyId)</td>
         <td>@z.ZeyilNo</td>
         <td>@z.Tarih.LocalDateTime.ToString("dd.MM.yyyy")</td>
         <td>@(z.Tanzim?.LocalDateTime.ToString("dd.MM.yyyy") ?? "—")</td>
@@ -139,7 +139,7 @@ else
 <table class="grid tr-grid"><thead><tr><th>Araç</th><th>Dönem</th><th class="num">Tutar</th><th class="num">Kalan</th><th>Vade</th><th>Ödendi</th><th>Açıklama</th><th>Ödeme</th></tr></thead><tbody>
 @foreach (var m in _mtv)
 {
-    <tr><td>@Plaka(m.VehicleId)</td><td>@m.Donem</td><td class="num">@m.Tutar.ToString("N2")</td>
+    <tr><td>@Plate(m.VehicleId)</td><td>@m.Donem</td><td class="num">@m.Tutar.ToString("N2")</td>
         <td class="num">@m.Kalan.ToString("N2")</td>
         <td>@m.Vade.LocalDateTime.ToString("dd.MM.yyyy")</td><td>@(m.Odendi ? "Evet" : "Hayır")</td>
         <td>@(m.Aciklama ?? "—")</td>
@@ -163,10 +163,10 @@ else
                     <button type="submit">Öde</button>
                 </form>
             }
-            @if (_mtvOdeme.TryGetValue(m.Id, out var gecmis))
+            @if (_mtvPayment.TryGetValue(m.Id, out var history))
             {
                 <div class="muted small">
-                    @foreach (var o in gecmis)
+                    @foreach (var o in history)
                     {
                         <div>#@o.Sira · @o.Tarih.LocalDateTime.ToString("dd.MM.yyyy") · @o.Tutar.ToString("N2") · kalan @o.KalanSonrasi.ToString("N2")@(string.IsNullOrWhiteSpace(o.EvrakNo) ? "" : " · " + o.EvrakNo)</div>
                     }
@@ -195,7 +195,7 @@ else
 <table class="grid tr-grid"><thead><tr><th>Araç</th><th>Muayene</th><th>Bitiş</th><th class="num">Ücret</th><th class="num">Ceza</th><th class="num">Kalan</th><th class="num">İşlem KM</th><th>Ödendi</th><th>Açıklama</th><th>Ödeme</th></tr></thead><tbody>
 @foreach (var m in _insp)
 {
-    <tr><td>@Plaka(m.VehicleId)</td><td>@m.MuayeneTarihi.LocalDateTime.ToString("dd.MM.yyyy")</td><td>@m.Bitis.LocalDateTime.ToString("dd.MM.yyyy")</td>
+    <tr><td>@Plate(m.VehicleId)</td><td>@m.MuayeneTarihi.LocalDateTime.ToString("dd.MM.yyyy")</td><td>@m.Bitis.LocalDateTime.ToString("dd.MM.yyyy")</td>
         <td class="num">@m.Ucret.ToString("N2")</td>
         <td class="num">@m.Ceza.ToString("N2")</td>
         <td class="num">@m.Kalan.ToString("N2")</td>
@@ -222,10 +222,10 @@ else
                     <button type="submit">Öde</button>
                 </form>
             }
-            @if (_muayeneOdeme.TryGetValue(m.Id, out var gecmis))
+            @if (_inspectionPayment.TryGetValue(m.Id, out var history))
             {
                 <div class="muted small">
-                    @foreach (var o in gecmis)
+                    @foreach (var o in history)
                     {
                         <div>#@o.Sira · @o.Tarih.LocalDateTime.ToString("dd.MM.yyyy") · @o.Tutar.ToString("N2")@(o.Ceza > 0 ? $" (+ceza {o.Ceza:N2})" : "") · kalan @o.KalanSonrasi.ToString("N2")</div>
                     }
@@ -241,42 +241,42 @@ else
     [SupplyParameterFromQuery(Name = "hata")] public string? Hata { get; set; }
 
     // Sigorta poliçesi para birimleri (ithal araçta EUR/USD; yerelde TRY). Servis normalize eder.
-    private static readonly string[] Dovizler = ["TRY", "EUR", "USD", "GBP"];
+    private static readonly string[] Currencies = ["TRY", "EUR", "USD", "GBP"];
 
     private IReadOnlyList<InsurancePolicy> _ins = [];
-    private IReadOnlyList<InsurancePolicyZeyil> _zeyil = [];
+    private IReadOnlyList<InsurancePolicyZeyil> _endorsement = [];
     private Dictionary<Guid, InsurancePolicy> _insMap = new();
-    private List<string> _zeyilTipiOpts = [];
+    private List<string> _endorsementTypeOpts = [];
     private IReadOnlyList<MtvRecord> _mtv = [];
     private IReadOnlyList<InspectionRecord> _insp = [];
-    private Dictionary<Guid, IReadOnlyList<MtvOdeme>> _mtvOdeme = new();
-    private Dictionary<Guid, IReadOnlyList<MuayeneOdeme>> _muayeneOdeme = new();
+    private Dictionary<Guid, IReadOnlyList<MtvOdeme>> _mtvPayment = new();
+    private Dictionary<Guid, IReadOnlyList<MuayeneOdeme>> _inspectionPayment = new();
     private IReadOnlyList<Vehicle> _vehicles = [];
     private Dictionary<Guid, string> _vehMap = new();
-    private List<string> _firmaOpts = [];
+    private List<string> _companyOpts = [];
 
     protected override async Task OnInitializedAsync()
     {
         _ins = await Reg.ListInsuranceAsync();
         _insMap = _ins.ToDictionary(p => p.Id);
         // FAZ-15: zeyiller TEK sorguda (poliçe başına sorgu atmamak için — MTV ödeme geçmişi deseni).
-        _zeyil = await Reg.ListAllEndorsementsAsync();
+        _endorsement = await Reg.ListAllEndorsementsAsync();
         _mtv = await Reg.ListMtvAsync();
         _insp = await Reg.ListInspectionAsync();
 
         // Ödeme geçmişi TEK sorguda ve KAYIT KAPANSA DA gösterilir. Önceki hâli "kısmen ödenmiş"
         // filtresi kullanıyordu; kayıt kapanınca (Kalan=0) geçmiş ekrandan KAYBOLUYORDU — oysa
         // evrak numaraları ve kasa/banka dağılımı yalnız burada görünüyor ve ödemeler değişmez.
-        _mtvOdeme = (await Reg.ListAllMtvPaymentsAsync())
+        _mtvPayment = (await Reg.ListAllMtvPaymentsAsync())
             .GroupBy(x => x.MtvId).ToDictionary(g => g.Key, g => (IReadOnlyList<MtvOdeme>)g.OrderBy(x => x.Sira).ToList());
-        _muayeneOdeme = (await Reg.ListAllInspectionPaymentsAsync())
+        _inspectionPayment = (await Reg.ListAllInspectionPaymentsAsync())
             .GroupBy(x => x.InspectionId).ToDictionary(g => g.Key, g => (IReadOnlyList<MuayeneOdeme>)g.OrderBy(x => x.Sira).ToList());
         _vehicles = await Vehicles.ListAsync();
         _vehMap = _vehicles.ToDictionary(v => v.Id, v => v.Plaka);
 
         // Seç-veya-yaz önerileri: master tanım (Ad) ∪ mevcut kayıtların distinct'i.
-        var sirketler = await SigortaSirketleri.ListActiveAsync();
-        _firmaOpts = sirketler.Select(s => s.Ad)
+        var companies = await SigortaSirketleri.ListActiveAsync();
+        _companyOpts = companies.Select(s => s.Ad)
             .Concat(_ins.Select(i => i.Firma))
             .Where(x => !string.IsNullOrWhiteSpace(x))
             .Select(x => x!.Trim())
@@ -286,8 +286,8 @@ else
 
         // Zeyil tipi seç-veya-yaz önerileri: yaygın tipler ∪ mevcut kayıtların distinct'i.
         // Sabit liste DEĞİL (canlıda da serbest metin) → ComboBox, <select> değil.
-        _zeyilTipiOpts = new[] { "Zam", "Tenzil", "Değişiklik", "İptal", "Yenileme" }
-            .Concat(_zeyil.Select(z => z.Tipi))
+        _endorsementTypeOpts = new[] { "Zam", "Tenzil", "Değişiklik", "İptal", "Yenileme" }
+            .Concat(_endorsement.Select(z => z.Tipi))
             .Where(x => !string.IsNullOrWhiteSpace(x))
             .Select(x => x!.Trim())
             .Distinct(StringComparer.OrdinalIgnoreCase)
@@ -295,14 +295,14 @@ else
             .ToList();
     }
 
-    private string Plaka(Guid id) => _vehMap.GetValueOrDefault(id, "—");
+    private string Plate(Guid id) => _vehMap.GetValueOrDefault(id, "—");
 
     /// <summary>Poliçe etiketi: plaka · tip · poliçe no (zeyil formunda/listesinde ayırt edici).</summary>
-    private string PoliceEtiket(InsurancePolicy p)
-        => $"{Plaka(p.VehicleId)} · {p.Tip}" + (string.IsNullOrWhiteSpace(p.PoliceNo) ? "" : $" · {p.PoliceNo}");
+    private string PolicyLabel(InsurancePolicy p)
+        => $"{Plate(p.VehicleId)} · {p.Tip}" + (string.IsNullOrWhiteSpace(p.PoliceNo) ? "" : $" · {p.PoliceNo}");
 
-    private string PoliceEtiket(Guid policyId)
-        => _insMap.TryGetValue(policyId, out var p) ? PoliceEtiket(p) : "—";
+    private string PolicyLabel(Guid policyId)
+        => _insMap.TryGetValue(policyId, out var p) ? PolicyLabel(p) : "—";
 
     private RenderFragment VehicleSelect(string name) =>@<select name="@name" required>
         <option value="">— seç —</option>

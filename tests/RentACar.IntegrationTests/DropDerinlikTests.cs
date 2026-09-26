@@ -20,12 +20,12 @@ namespace RentACar.IntegrationTests;
 [Collection("postgres")]
 public sealed class DropDerinlikTests(PostgresFixture fx)
 {
-    private static DropTanimInput T(string donusLokasyon, string cikisSube, decimal? ucret,
-        string? cikisLokasyon = null, int? minGun = null, bool aktif = true)
+    private static DropTanimInput T(string returnLocation, string pickupBranch, decimal? fee,
+        string? pickupLocation = null, int? minDays = null, bool active = true)
         => new()
         {
-            Lokasyon = donusLokasyon, Sube = cikisSube, Ucret = ucret,
-            CikisLokasyon = cikisLokasyon, MinGun = minGun, Aktif = aktif
+            Lokasyon = returnLocation, Sube = pickupBranch, Ucret = fee,
+            CikisLokasyon = pickupLocation, MinGun = minDays, Aktif = active
         };
 
     [Fact]
@@ -88,7 +88,7 @@ public sealed class DropDerinlikTests(PostgresFixture fx)
         await Assert.ThrowsAsync<ValidationException>(() => svc.CreateAsync(T("A", "B", -1m)));
         await Assert.ThrowsAsync<ValidationException>(() => svc.CreateAsync(
             new DropTanimInput { Lokasyon = "A", Sube = "B", Drop2 = -5m }));
-        await Assert.ThrowsAsync<ValidationException>(() => svc.CreateAsync(T("A", "B", 100m, minGun: 0)));
+        await Assert.ThrowsAsync<ValidationException>(() => svc.CreateAsync(T("A", "B", 100m, minDays: 0)));
         await Assert.ThrowsAsync<ValidationException>(() => svc.CreateAsync(
             new DropTanimInput { Lokasyon = "A", Sube = "B", ManSuresi = -1 }));
         Assert.Empty(await svc.ListAsync());
@@ -102,9 +102,9 @@ public sealed class DropDerinlikTests(PostgresFixture fx)
         var svc = s.ServiceProvider.GetRequiredService<DropDefinitionService>();
 
         // ELLE: 3 kayıt.
-        await svc.CreateAsync(T("Ankara", "İstanbul", 500m, cikisLokasyon: "IST Havalimanı"));
+        await svc.CreateAsync(T("Ankara", "İstanbul", 500m, pickupLocation: "IST Havalimanı"));
         await svc.CreateAsync(T("Ankara", "İzmir", 400m));
-        await svc.CreateAsync(T("Bursa", "İstanbul", 300m, aktif: false));
+        await svc.CreateAsync(T("Bursa", "İstanbul", 300m, active: false));
 
         Assert.Equal(3, (await svc.SearchAsync()).Count);
         Assert.Equal(2, (await svc.SearchAsync(new DropTanimFilter { DonusLokasyon = "Ankara" })).Count);
@@ -174,20 +174,20 @@ public sealed class DropDerinlikTests(PostgresFixture fx)
 
         // Şube geneli 500; IST Havalimanı çıkışına özel 900.
         await svc.CreateAsync(T("Ankara", "İstanbul", 500m));
-        await svc.CreateAsync(T("Ankara", "İstanbul", 900m, cikisLokasyon: "IST Havalimanı"));
+        await svc.CreateAsync(T("Ankara", "İstanbul", 900m, pickupLocation: "IST Havalimanı"));
 
         Assert.Equal(900m, await fee.ResolveDropFeeAsync("IST Havalimanı", "Ankara", null, 3));   // ELLE
         Assert.Equal(500m, await fee.ResolveDropFeeAsync("İstanbul", "Ankara", null, 3));         // ELLE
 
         // SON SÖZ: çıkış-lokasyonu satırı ücretsizse (0) daha genel satırın 500'üne DÜŞÜLMEZ.
         await svc.CreateAsync(T("Bursa", "İstanbul", 500m));
-        await svc.CreateAsync(T("Bursa", "İstanbul", 0m, cikisLokasyon: "SAW Havalimanı"));
+        await svc.CreateAsync(T("Bursa", "İstanbul", 0m, pickupLocation: "SAW Havalimanı"));
         Assert.Null(await fee.ResolveDropFeeAsync("SAW Havalimanı", "Bursa", null, 3));
         Assert.Equal(500m, await fee.ResolveDropFeeAsync("İstanbul", "Bursa", null, 3));
 
         // Pasif özgül satır da SON SÖZDÜR.
         await svc.CreateAsync(T("İzmir", "İstanbul", 500m));
-        await svc.CreateAsync(T("İzmir", "İstanbul", 800m, cikisLokasyon: "ADB Havalimanı", aktif: false));
+        await svc.CreateAsync(T("İzmir", "İstanbul", 800m, pickupLocation: "ADB Havalimanı", active: false));
         Assert.Null(await fee.ResolveDropFeeAsync("ADB Havalimanı", "İzmir", null, 3));
     }
 
@@ -200,7 +200,7 @@ public sealed class DropDerinlikTests(PostgresFixture fx)
         var svc = sp.GetRequiredService<DropDefinitionService>();
         var fee = sp.GetRequiredService<FeeLineService>();
 
-        await svc.CreateAsync(T("Ankara", "İstanbul", 500m, minGun: 5));
+        await svc.CreateAsync(T("Ankara", "İstanbul", 500m, minDays: 5));
 
         Assert.Null(await fee.ResolveDropFeeAsync("İstanbul", "Ankara", null, 4));      // ELLE: 4 < 5
         Assert.Equal(500m, await fee.ResolveDropFeeAsync("İstanbul", "Ankara", null, 5)); // ELLE: 5 >= 5
@@ -224,7 +224,7 @@ public sealed class DropDerinlikTests(PostgresFixture fx)
         var fee = sp.GetRequiredService<FeeLineService>();
 
         await svc.CreateAsync(T("Ankara", "Adana", 1000m));                   // başka şube, pahalı
-        await svc.CreateAsync(T("Ankara", "İstanbul", 300m, minGun: 7));      // çıkış şubesi, koşullu
+        await svc.CreateAsync(T("Ankara", "İstanbul", 300m, minDays: 7));      // çıkış şubesi, koşullu
 
         // ELLE: 3 gün → İstanbul satırının koşulu tutmuyor → rota ÜCRETSİZ (Adana'nın 1000'i DEĞİL).
         Assert.Null(await fee.ResolveDropFeeAsync("İstanbul", "Ankara", null, 3));
@@ -233,7 +233,7 @@ public sealed class DropDerinlikTests(PostgresFixture fx)
 
         // Aynı şey CikisLokasyon daraltması için de geçerli.
         await svc.CreateAsync(T("Bursa", "Adana", 1000m));
-        await svc.CreateAsync(T("Bursa", "İstanbul", 300m, cikisLokasyon: "IST Havalimanı"));
+        await svc.CreateAsync(T("Bursa", "İstanbul", 300m, pickupLocation: "IST Havalimanı"));
         Assert.Null(await fee.ResolveDropFeeAsync("İstanbul", "Bursa", null, 3));            // ELLE
         Assert.Equal(300m, await fee.ResolveDropFeeAsync("IST Havalimanı", "Bursa", null, 3));
 
@@ -264,7 +264,7 @@ public sealed class DropDerinlikTests(PostgresFixture fx)
 
         // AÇIK 0 ise SUSTURUR (fiyat kararıdır: "bu rota ücretsiz").
         await svc.CreateAsync(T("Bursa", "İstanbul", 500m));
-        await svc.CreateAsync(T("Bursa", "İzmir", 0m, cikisLokasyon: "İstanbul"));
+        await svc.CreateAsync(T("Bursa", "İzmir", 0m, pickupLocation: "İstanbul"));
         Assert.Null(await fee.ResolveDropFeeAsync("İstanbul", "Bursa", null, 3));
     }
 
@@ -279,8 +279,8 @@ public sealed class DropDerinlikTests(PostgresFixture fx)
         var svc = sp.GetRequiredService<DropDefinitionService>();
         var fee = sp.GetRequiredService<FeeLineService>();
 
-        await svc.CreateAsync(T("Ankara", "Adana", 1000m, cikisLokasyon: "IST Havalimanı"));
-        await svc.CreateAsync(T("Ankara", "IST Havalimanı", 200m, cikisLokasyon: "IST Havalimanı"));
+        await svc.CreateAsync(T("Ankara", "Adana", 1000m, pickupLocation: "IST Havalimanı"));
+        await svc.CreateAsync(T("Ankara", "IST Havalimanı", 200m, pickupLocation: "IST Havalimanı"));
 
         Assert.Equal(200m, await fee.ResolveDropFeeAsync("IST Havalimanı", "Ankara", null, 3));   // ELLE
     }
@@ -296,8 +296,8 @@ public sealed class DropDerinlikTests(PostgresFixture fx)
         var svc = sp.GetRequiredService<DropDefinitionService>();
         var fee = sp.GetRequiredService<FeeLineService>();
 
-        await svc.CreateAsync(T("Ankara", "İstanbul", 900m, cikisLokasyon: "IST Havalimanı"));
-        await svc.CreateAsync(T("Ankara", "İstanbul", 600m, cikisLokasyon: "SAW Havalimanı"));
+        await svc.CreateAsync(T("Ankara", "İstanbul", 900m, pickupLocation: "IST Havalimanı"));
+        await svc.CreateAsync(T("Ankara", "İstanbul", 600m, pickupLocation: "SAW Havalimanı"));
         await svc.CreateAsync(T("Ankara", "İstanbul", 750m));   // şube geneli (CikisLokasyon NULL)
 
         Assert.Equal(900m, await fee.ResolveDropFeeAsync("IST Havalimanı", "Ankara", null, 3));
@@ -308,7 +308,7 @@ public sealed class DropDerinlikTests(PostgresFixture fx)
         await Assert.ThrowsAnyAsync<Exception>(() => svc.CreateAsync(T("Ankara", "İstanbul", 800m)));
         // Aynı çıkış lokasyonuyla ikinci satır da yasak.
         await Assert.ThrowsAnyAsync<Exception>(() =>
-            svc.CreateAsync(T("Ankara", "İstanbul", 800m, cikisLokasyon: "IST Havalimanı")));
+            svc.CreateAsync(T("Ankara", "İstanbul", 800m, pickupLocation: "IST Havalimanı")));
         Assert.Equal(3, (await svc.ListAsync()).Count);
     }
 
@@ -322,7 +322,7 @@ public sealed class DropDerinlikTests(PostgresFixture fx)
         var fee = sp.GetRequiredService<FeeLineService>();
 
         // TEK satır ve o da başka bir çıkış ofisine bağlı.
-        await svc.CreateAsync(T("Ankara", "İstanbul", 500m, cikisLokasyon: "IST Havalimanı"));
+        await svc.CreateAsync(T("Ankara", "İstanbul", 500m, pickupLocation: "IST Havalimanı"));
 
         Assert.Null(await fee.ResolveDropFeeAsync("SAW Havalimanı", "Ankara", null, 3));   // ELLE
         Assert.Equal(500m, await fee.ResolveDropFeeAsync("IST Havalimanı", "Ankara", null, 3));
@@ -352,7 +352,7 @@ public sealed class DropDerinlikTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using (var s1 = host.ScopeFor(Guid.NewGuid()))
             await s1.ServiceProvider.GetRequiredService<DropDefinitionService>()
-                .CreateAsync(T("Ankara", "İstanbul", 500m, cikisLokasyon: "IST"));
+                .CreateAsync(T("Ankara", "İstanbul", 500m, pickupLocation: "IST"));
 
         using var s2 = host.ScopeFor(Guid.NewGuid());
         Assert.Empty(await s2.ServiceProvider.GetRequiredService<DropDefinitionService>().SearchAsync());

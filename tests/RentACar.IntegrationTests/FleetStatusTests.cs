@@ -20,8 +20,8 @@ public sealed class FleetStatusTests(PostgresFixture fx)
         var factory = scope.ServiceProvider.GetRequiredService<IDbContextFactory<AppDbContext>>();
         await using var db = await factory.CreateDbContextAsync();
 
-        var musteri = new Customer { Tip = CustomerType.Bireysel, Ad = "Ali", Soyad = "Veli" };
-        db.Customers.Add(musteri);
+        var customer = new Customer { Tip = CustomerType.Bireysel, Ad = "Ali", Soyad = "Veli" };
+        db.Customers.Add(customer);
 
         // Araç A: kirada (Havuz, EKO) → aktif kira müşteri Ali Veli, bakiye 150.
         var a = new Vehicle { Plaka = "34AAA01", Marka = "Fiat", Grup = "EKO",
@@ -34,13 +34,13 @@ public sealed class FleetStatusTests(PostgresFixture fx)
 
         db.Rentals.Add(new RentalContract
         {
-            SozlesmeNo = "K-1", VehicleId = a.Id, MusteriId = musteri.Id, Durum = RentalStatus.Kirada,
+            SozlesmeNo = "K-1", VehicleId = a.Id, MusteriId = customer.Id, Durum = RentalStatus.Kirada,
             BasTar = DateTimeOffset.UtcNow.AddDays(-1), BitTar = DateTimeOffset.UtcNow.AddDays(3), Bakiye = 150m
         });
         // Tamamlanmış (eski) kira → AKTİF sayılmamalı.
         db.Rentals.Add(new RentalContract
         {
-            SozlesmeNo = "K-0", VehicleId = b.Id, MusteriId = musteri.Id, Durum = RentalStatus.Tamamlandi,
+            SozlesmeNo = "K-0", VehicleId = b.Id, MusteriId = customer.Id, Durum = RentalStatus.Tamamlandi,
             BasTar = DateTimeOffset.UtcNow.AddDays(-10), BitTar = DateTimeOffset.UtcNow.AddDays(-8)
         });
         await db.SaveChangesAsync();
@@ -76,17 +76,17 @@ public sealed class FleetStatusTests(PostgresFixture fx)
         await SeedAsync(scope);
         var svc = scope.ServiceProvider.GetRequiredService<FleetStatusService>();
 
-        var havuz = await svc.QueryAsync(new FleetStatusFilter { FiloDurum = FleetLifecycleStatus.Havuz });
-        Assert.Single(havuz);
-        Assert.Equal("34AAA01", havuz[0].Plaka);
+        var pool = await svc.QueryAsync(new FleetStatusFilter { FiloDurum = FleetLifecycleStatus.Havuz });
+        Assert.Single(pool);
+        Assert.Equal("34AAA01", pool[0].Plaka);
 
         var suv = await svc.QueryAsync(new FleetStatusFilter { Grup = "SUV" });
         Assert.Single(suv);
         Assert.Equal("34BBB02", suv[0].Plaka);
 
-        var ara = await svc.QueryAsync(new FleetStatusFilter { Query = "BBB" });
-        Assert.Single(ara);
-        Assert.Equal("34BBB02", ara[0].Plaka);
+        var search = await svc.QueryAsync(new FleetStatusFilter { Query = "BBB" });
+        Assert.Single(search);
+        Assert.Equal("34BBB02", search[0].Plaka);
     }
 
     [Fact]
@@ -97,13 +97,13 @@ public sealed class FleetStatusTests(PostgresFixture fx)
         await SeedAsync(scope);
         var svc = scope.ServiceProvider.GetRequiredService<FleetStatusService>();
 
-        var kirada = await svc.QueryAsync(new FleetStatusFilter { KiradaMi = true });
-        Assert.Single(kirada);
-        Assert.Equal("34AAA01", kirada[0].Plaka);
+        var onRent = await svc.QueryAsync(new FleetStatusFilter { KiradaMi = true });
+        Assert.Single(onRent);
+        Assert.Equal("34AAA01", onRent[0].Plaka);
 
-        var bosta = await svc.QueryAsync(new FleetStatusFilter { KiradaMi = false });
-        Assert.Single(bosta);
-        Assert.Equal("34BBB02", bosta[0].Plaka);
+        var idle = await svc.QueryAsync(new FleetStatusFilter { KiradaMi = false });
+        Assert.Single(idle);
+        Assert.Equal("34BBB02", idle[0].Plaka);
     }
 
     // ---- FAZ-11: aksiyon konsolu kolonları + araç künyesi filtreleri ----
@@ -127,9 +127,9 @@ public sealed class FleetStatusTests(PostgresFixture fx)
         }
         var svc = scope.ServiceProvider.GetRequiredService<FleetStatusService>();
 
-        var kaza = await svc.QueryAsync(new FleetStatusFilter { PasifSebep = "Kaza" });
-        Assert.Single(kaza);
-        Assert.Equal("34PAS01", kaza[0].Plaka);
+        var accident = await svc.QueryAsync(new FleetStatusFilter { PasifSebep = "Kaza" });
+        Assert.Single(accident);
+        Assert.Equal("34PAS01", accident[0].Plaka);
 
         // Filtresiz: üçü de görünür (filtre kalıcı bir daraltma yapmıyor).
         Assert.Equal(3, (await svc.QueryAsync(new FleetStatusFilter())).Count);
@@ -172,9 +172,9 @@ public sealed class FleetStatusTests(PostgresFixture fx)
         var factory = scope.ServiceProvider.GetRequiredService<IDbContextFactory<AppDbContext>>();
         await using (var db = await factory.CreateDbContextAsync())
         {
-            var kiraci = new Customer { Tip = CustomerType.Bireysel, Ad = "Ali", Soyad = "Veli", CepTel = "0555 111 22 33" };
-            var rezci = new Customer { Tip = CustomerType.Bireysel, Ad = "Ayşe", Soyad = "Kaya" };
-            db.Customers.AddRange(kiraci, rezci);
+            var renter = new Customer { Tip = CustomerType.Bireysel, Ad = "Ali", Soyad = "Veli", CepTel = "0555 111 22 33" };
+            var reserver = new Customer { Tip = CustomerType.Bireysel, Ad = "Ayşe", Soyad = "Kaya" };
+            db.Customers.AddRange(renter, reserver);
 
             var a = new Vehicle { Plaka = "34OZT01", Durum = VehicleStatus.Kirada };
             var b = new Vehicle { Plaka = "34OZT02" };
@@ -188,18 +188,18 @@ public sealed class FleetStatusTests(PostgresFixture fx)
 
             db.Rentals.Add(new RentalContract
             {
-                SozlesmeNo = "K-77", VehicleId = a.Id, MusteriId = kiraci.Id, Durum = RentalStatus.Kirada,
+                SozlesmeNo = "K-77", VehicleId = a.Id, MusteriId = renter.Id, Durum = RentalStatus.Kirada,
                 BasTar = DateTimeOffset.UtcNow.AddDays(-1), BitTar = DateTimeOffset.UtcNow.AddDays(3), Bakiye = 150m
             });
             db.Reservations.Add(new Reservation
             {
-                ReservationNo = "RZ-77", VehicleId = b.Id, MusteriId = rezci.Id, Durum = ReservationStatus.Onayli,
+                ReservationNo = "RZ-77", VehicleId = b.Id, MusteriId = reserver.Id, Durum = ReservationStatus.Onayli,
                 BasTar = DateTimeOffset.UtcNow.AddDays(5), BitTar = DateTimeOffset.UtcNow.AddDays(8)
             });
             // GEÇMİŞTE bitmiş rezervasyon: "sıradaki" değildir → satıra çıkmamalı.
             db.Reservations.Add(new Reservation
             {
-                ReservationNo = "RZ-00", VehicleId = e.Id, MusteriId = rezci.Id, Durum = ReservationStatus.Onayli,
+                ReservationNo = "RZ-00", VehicleId = e.Id, MusteriId = reserver.Id, Durum = ReservationStatus.Onayli,
                 BasTar = DateTimeOffset.UtcNow.AddDays(-9), BitTar = DateTimeOffset.UtcNow.AddDays(-7)
             });
             db.ServiceRecords.Add(new ServiceRecord
@@ -209,7 +209,7 @@ public sealed class FleetStatusTests(PostgresFixture fx)
             db.Baflar.Add(new Baf { No = "BAF-77", VehicleId = d.Id, PersonelId = pers.Id, Durum = BafStatus.Acik });
             db.FiloKiralamalar.Add(new FiloKiralama
             {
-                No = "FK-77", VehicleId = e.Id, MusteriId = kiraci.Id, Durum = FleetRentalStatus.Aktif,
+                No = "FK-77", VehicleId = e.Id, MusteriId = renter.Id, Durum = FleetRentalStatus.Aktif,
                 DosyaNo = "DSY-2026-9", SureAy = 12, AylikUcret = 1000m
             });
             await db.SaveChangesAsync();
@@ -250,10 +250,10 @@ public sealed class FleetStatusTests(PostgresFixture fx)
     [InlineData("2026-01-07T23:30:00Z", "2026-01-10T00:30:00Z", 3)]
     [InlineData("2026-01-10T08:00:00Z", "2026-01-10T20:00:00Z", 0)]
     [InlineData("2026-01-12T08:00:00Z", "2026-01-10T20:00:00Z", -2)]
-    public void KalanGun_takvim_gunu_farkidir(string simdi, string bitis, int beklenen)
-        => Assert.Equal(beklenen, FleetStatusRow.RemainingDays(
-            DateTimeOffset.Parse(bitis, System.Globalization.CultureInfo.InvariantCulture),
-            DateTimeOffset.Parse(simdi, System.Globalization.CultureInfo.InvariantCulture)));
+    public void KalanGun_takvim_gunu_farkidir(string now, string end, int expected)
+        => Assert.Equal(expected, FleetStatusRow.RemainingDays(
+            DateTimeOffset.Parse(end, System.Globalization.CultureInfo.InvariantCulture),
+            DateTimeOffset.Parse(now, System.Globalization.CultureInfo.InvariantCulture)));
 
     [Fact]
     public async Task Tenant_isolated()

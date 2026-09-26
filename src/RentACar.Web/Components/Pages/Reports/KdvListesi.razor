@@ -124,27 +124,27 @@ else
 
     <div class="cards">
         <div class="card">
-            <div class="card-num">@_genis.SatisKdv.ToString("N2")</div>
-            <div class="card-label">Hesaplanan KDV ₺ (@_genis.SatisBelgeAdet belge)</div>
+            <div class="card-num">@_wide.SatisKdv.ToString("N2")</div>
+            <div class="card-label">Hesaplanan KDV ₺ (@_wide.SatisBelgeAdet belge)</div>
         </div>
         <div class="card">
-            <div class="card-num">@_genis.AlisKdv.ToString("N2")</div>
-            <div class="card-label">İndirilecek KDV ₺ (@_genis.AlisBelgeAdet belge)</div>
+            <div class="card-num">@_wide.AlisKdv.ToString("N2")</div>
+            <div class="card-label">İndirilecek KDV ₺ (@_wide.AlisBelgeAdet belge)</div>
         </div>
         <div class="card">
-            <div class="card-num">@_genis.NetKdv.ToString("N2")</div>
-            <div class="card-label">@(_genis.NetKdv >= 0 ? "Ödenecek KDV ₺" : "Devreden KDV ₺")</div>
+            <div class="card-num">@_wide.NetKdv.ToString("N2")</div>
+            <div class="card-label">@(_wide.NetKdv >= 0 ? "Ödenecek KDV ₺" : "Devreden KDV ₺")</div>
         </div>
         <div class="card">
-            <div class="card-num">@_genis.SatisNet.ToString("N2")</div>
+            <div class="card-num">@_wide.SatisNet.ToString("N2")</div>
             <div class="card-label">Satış Matrahı ₺</div>
         </div>
     </div>
 
-    @if (_genis.AtlananDovizliAlis > 0)
+    @if (_wide.AtlananDovizliAlis > 0)
     {
         <div class="vt-box warn" style="margin:0 0 1rem;padding:.6rem .9rem;">
-            <strong>@_genis.AtlananDovizliAlis adet dövizli gelen e-Fatura rapora alınmadı.</strong>
+            <strong>@_wide.AtlananDovizliAlis adet dövizli gelen e-Fatura rapora alınmadı.</strong>
             Gelen e-Faturada kur alanı tutulmuyor (belge kendi para biriminde saklanır); uydurma kurla
             baz paraya çevirmek yerine satır dışarıda bırakıldı. Bu belgelerin KDV'si yukarıdaki
             "İndirilecek KDV" toplamına DAHİL DEĞİLDİR.
@@ -163,11 +163,11 @@ else
                 <th class="num">Toplam Matrah</th><th class="num">Toplam KDV</th></tr>
         </thead>
         <tbody>
-            @if (_genis.Satirlar.Count == 0)
+            @if (_wide.Satirlar.Count == 0)
             {
                 <tr><td colspan="16" class="muted">Bu dönemde belge yok.</td></tr>
             }
-            @foreach (var r in _genis.Satirlar)
+            @foreach (var r in _wide.Satirlar)
             {
                 <tr>
                     <td>@r.Tur</td>
@@ -200,7 +200,7 @@ else
     [SupplyParameterFromQuery(Name = "alis")] public string? Alis { get; set; }
 
     private KdvListesiDto _data = new([], 0, 0, 0, 0);
-    private KdvGenisDto _genis = new([], 0, 0, 0, 0, 0, 0, 0);
+    private KdvGenisDto _wide = new([], 0, 0, 0, 0, 0, 0, 0);
 
     private bool GenisMod => string.Equals(Mod, "genis", StringComparison.OrdinalIgnoreCase);
     private bool DahilAlis => Alis is "1" or "on" or "true";
@@ -211,7 +211,7 @@ else
         var from = ParseDate(From);
         var to = ParseDate(To)?.AddDays(1).AddTicks(-1); // gün sonuna dek dahil
 
-        if (GenisMod) _genis = await Reports.GetVatExtendedAsync(from, to, DahilAlis);
+        if (GenisMod) _wide = await Reports.GetVatExtendedAsync(from, to, DahilAlis);
         else _data = await Reports.GetVatListAsync(from, to);
     }
 

@@ -29,37 +29,37 @@ namespace RentACar.IntegrationTests;
 [Collection("postgres")]
 public sealed class FaturaListesiTopluTests(PostgresFixture fx)
 {
-    private static DateTimeOffset Gun(int fark)
+    private static DateTimeOffset Day(int difference)
     {
-        var t = new DateTimeOffset(DateTime.SpecifyKind(DateTime.UtcNow.AddDays(fark), DateTimeKind.Utc), TimeSpan.Zero);
+        var t = new DateTimeOffset(DateTime.SpecifyKind(DateTime.UtcNow.AddDays(difference), DateTimeKind.Utc), TimeSpan.Zero);
         return t.AddTicks(-(t.Ticks % TimeSpan.TicksPerSecond));
     }
 
-    private static int _vergiSayac = 1000000000;
+    private static int _taxCounter = 1000000000;
 
     /// <summary>Vergi No tenant içinde BENZERSİZ (blind-index kısıtı) — her cariye farklı üretilir.</summary>
-    private static Task<Guid> CariAsync(IServiceScope s, string ad, string? ozelKod = null, string? vergiNo = null)
+    private static Task<Guid> CustomerAsync(IServiceScope s, string name, string? customCode = null, string? taxNo = null)
         => s.ServiceProvider.GetRequiredService<CustomerService>()
             .CreateAsync(new CustomerInput
             {
-                Tip = CustomerType.Kurumsal, Unvan = ad, OzelKod = ozelKod,
-                VergiNo = vergiNo ?? Interlocked.Increment(ref _vergiSayac).ToString(),
+                Tip = CustomerType.Kurumsal, Unvan = name, OzelKod = customCode,
+                VergiNo = taxNo ?? Interlocked.Increment(ref _taxCounter).ToString(),
                 VergiDairesi = "Kadıköy"
             });
 
     /// <summary>3 günlük, günlük 100 → 300 brüt kira kurar.</summary>
-    private static async Task<Guid> KiraAsync(IServiceScope s, Guid cari, string plaka, string? ofis = null)
+    private static async Task<Guid> RentalAsync(IServiceScope s, Guid account, string plate, string? office = null)
     {
         var veh = await s.ServiceProvider.GetRequiredService<VehicleService>()
-            .CreateAsync(new VehicleInput { Plaka = plaka, Durum = VehicleStatus.Musait });
+            .CreateAsync(new VehicleInput { Plaka = plate, Durum = VehicleStatus.Musait });
         return await s.ServiceProvider.GetRequiredService<RentalService>().CreateDirectAsync(new BookingInput
         {
-            MusteriId = cari, VehicleId = veh,
-            BasTar = Gun(-5), BitTar = Gun(-2), GunlukUcret = 100m, CikisOfisi = ofis
+            MusteriId = account, VehicleId = veh,
+            BasTar = Day(-5), BitTar = Day(-2), GunlukUcret = 100m, CikisOfisi = office
         });
     }
 
-    private static async Task<(int Adet, decimal Borc, decimal Alacak)> DefterAsync(TestHost host, Guid tenant)
+    private static async Task<(int Adet, decimal Borc, decimal Alacak)> LedgerAsync(TestHost host, Guid tenant)
     {
         using var scope = host.ScopeFor(tenant);
         var factory = scope.ServiceProvider.GetRequiredService<IDbContextFactory<AppDbContext>>();
@@ -81,25 +81,25 @@ public sealed class FaturaListesiTopluTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(tenant);
         var invoices = scope.ServiceProvider.GetRequiredService<InvoiceService>();
-        var cari = await CariAsync(scope, "Toplu A.Ş.");
-        var k1 = await KiraAsync(scope, cari, "34 TF 01");
-        var k2 = await KiraAsync(scope, cari, "34 TF 02");
-        var k3 = await KiraAsync(scope, cari, "34 TF 03");
+        var account = await CustomerAsync(scope, "Toplu A.Ş.");
+        var k1 = await RentalAsync(scope, account, "34 TF 01");
+        var k2 = await RentalAsync(scope, account, "34 TF 02");
+        var k3 = await RentalAsync(scope, account, "34 TF 03");
 
-        var sonuc = await invoices.BatchCreateFromRentalsAsync([k1, k2, k3]);
+        var result = await invoices.BatchCreateFromRentalsAsync([k1, k2, k3]);
 
-        Assert.Equal(3, sonuc.Kesilen.Count);
-        Assert.Empty(sonuc.Atlananlar);
+        Assert.Equal(3, result.Kesilen.Count);
+        Assert.Empty(result.Atlananlar);
 
         // Elle: 3 fatura × 300 brüt = 900. Her fatura Borç Cari 300 / Alacak Gelir 250 + Kdv 50.
-        var (adet, borc, alacak) = await DefterAsync(host, tenant);
-        Assert.Equal(9, adet);              // 3 fatura × 3 satır
-        Assert.Equal(900m, borc);
-        Assert.Equal(900m, alacak);         // denge
-        var liste = await invoices.SearchAsync();
-        Assert.Equal(3, liste.Count);
-        Assert.All(liste, x => Assert.Equal(250m, x.Fatura.NetTutar));
-        Assert.All(liste, x => Assert.Equal(50m, x.Fatura.KdvTutar));
+        var (count, debit, credit) = await LedgerAsync(host, tenant);
+        Assert.Equal(9, count);              // 3 fatura × 3 satır
+        Assert.Equal(900m, debit);
+        Assert.Equal(900m, credit);         // denge
+        var list = await invoices.SearchAsync();
+        Assert.Equal(3, list.Count);
+        Assert.All(list, x => Assert.Equal(250m, x.Fatura.NetTutar));
+        Assert.All(list, x => Assert.Equal(50m, x.Fatura.KdvTutar));
     }
 
     [Fact]
@@ -111,23 +111,23 @@ public sealed class FaturaListesiTopluTests(PostgresFixture fx)
         using var scope = host.ScopeFor(tenant);
         var invoices = scope.ServiceProvider.GetRequiredService<InvoiceService>();
         var rentals = scope.ServiceProvider.GetRequiredService<RentalService>();
-        var cari = await CariAsync(scope, "Kismi");
-        var k1 = await KiraAsync(scope, cari, "34 KB 01");
-        var iptal = await KiraAsync(scope, cari, "34 KB 02");
-        var k3 = await KiraAsync(scope, cari, "34 KB 03");
-        await rentals.CancelAsync(iptal);   // iptal kiraya fatura kesilemez
+        var account = await CustomerAsync(scope, "Kismi");
+        var k1 = await RentalAsync(scope, account, "34 KB 01");
+        var cancel = await RentalAsync(scope, account, "34 KB 02");
+        var k3 = await RentalAsync(scope, account, "34 KB 03");
+        await rentals.CancelAsync(cancel);   // iptal kiraya fatura kesilemez
 
-        var sonuc = await invoices.BatchCreateFromRentalsAsync([k1, iptal, k3]);
+        var result = await invoices.BatchCreateFromRentalsAsync([k1, cancel, k3]);
 
-        Assert.Equal(2, sonuc.Kesilen.Count);
-        var atlanan = Assert.Single(sonuc.Atlananlar);
-        Assert.Contains("İptal", atlanan);
+        Assert.Equal(2, result.Kesilen.Count);
+        var skipped = Assert.Single(result.Atlananlar);
+        Assert.Contains("İptal", skipped);
         // Atlanan mesajı SÖZLEŞME NO taşır — çok seçimli kesimde hangisi olduğu ayırt edilebilmeli.
-        Assert.Matches(@"\d{13,}", atlanan);   // atlanan kiranın numarası mesajda geçmeli
+        Assert.Matches(@"\d{13,}", skipped);   // atlanan kiranın numarası mesajda geçmeli
 
-        var (_, borc, alacak) = await DefterAsync(host, tenant);
-        Assert.Equal(600m, borc);   // elle: 2 × 300
-        Assert.Equal(borc, alacak);
+        var (_, debit, credit) = await LedgerAsync(host, tenant);
+        Assert.Equal(600m, debit);   // elle: 2 × 300
+        Assert.Equal(debit, credit);
     }
 
     [Fact]
@@ -138,17 +138,17 @@ public sealed class FaturaListesiTopluTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(tenant);
         var invoices = scope.ServiceProvider.GetRequiredService<InvoiceService>();
-        var cari = await CariAsync(scope, "CiftSubmit");
-        var k1 = await KiraAsync(scope, cari, "34 CS 01");
+        var account = await CustomerAsync(scope, "CiftSubmit");
+        var k1 = await RentalAsync(scope, account, "34 CS 01");
 
-        var ilk = await invoices.BatchCreateFromRentalsAsync([k1]);
-        Assert.Single(ilk.Kesilen);
-        var defterSonrasi = await DefterAsync(host, tenant);
+        var first = await invoices.BatchCreateFromRentalsAsync([k1]);
+        Assert.Single(first.Kesilen);
+        var ledgerAfter = await LedgerAsync(host, tenant);
 
-        var ikinci = await invoices.BatchCreateFromRentalsAsync([k1]);
-        Assert.Empty(ikinci.Kesilen);
-        Assert.Single(ikinci.Atlananlar);
-        Assert.Equal(defterSonrasi, await DefterAsync(host, tenant));   // defter DEĞİŞMEDİ
+        var second = await invoices.BatchCreateFromRentalsAsync([k1]);
+        Assert.Empty(second.Kesilen);
+        Assert.Single(second.Atlananlar);
+        Assert.Equal(ledgerAfter, await LedgerAsync(host, tenant));   // defter DEĞİŞMEDİ
         Assert.Single(await invoices.SearchAsync());
     }
 
@@ -170,12 +170,12 @@ public sealed class FaturaListesiTopluTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
         var invoices = scope.ServiceProvider.GetRequiredService<InvoiceService>();
-        var cari = await CariAsync(scope, "Uydurma");
-        var k1 = await KiraAsync(scope, cari, "34 UY 01");
+        var account = await CustomerAsync(scope, "Uydurma");
+        var k1 = await RentalAsync(scope, account, "34 UY 01");
 
-        var sonuc = await invoices.BatchCreateFromRentalsAsync([k1, Guid.NewGuid()]);
-        Assert.Single(sonuc.Kesilen);
-        Assert.Contains(sonuc.Atlananlar, a => a.Contains("bulunamadı"));
+        var result = await invoices.BatchCreateFromRentalsAsync([k1, Guid.NewGuid()]);
+        Assert.Single(result.Kesilen);
+        Assert.Contains(result.Atlananlar, a => a.Contains("bulunamadı"));
     }
 
     [Fact]
@@ -185,27 +185,27 @@ public sealed class FaturaListesiTopluTests(PostgresFixture fx)
         var t1 = Guid.NewGuid();
         var t2 = Guid.NewGuid();
 
-        Guid kira;
+        Guid rental;
         using (var s1 = host.ScopeFor(t1))
         {
-            var cari = await CariAsync(s1, "T1");
-            kira = await KiraAsync(s1, cari, "34 TN 01");
+            var account = await CustomerAsync(s1, "T1");
+            rental = await RentalAsync(s1, account, "34 TN 01");
         }
 
         // Başka tenant'ın kira kimliği: bulunamaz → atlanır, fatura YAZILMAZ.
         using (var s2 = host.ScopeFor(t2))
         {
-            var sonuc = await s2.ServiceProvider.GetRequiredService<InvoiceService>()
-                .BatchCreateFromRentalsAsync([kira]);
-            Assert.Empty(sonuc.Kesilen);
-            Assert.Single(sonuc.Atlananlar);
+            var result = await s2.ServiceProvider.GetRequiredService<InvoiceService>()
+                .BatchCreateFromRentalsAsync([rental]);
+            Assert.Empty(result.Kesilen);
+            Assert.Single(result.Atlananlar);
             Assert.Empty(await s2.ServiceProvider.GetRequiredService<InvoiceService>().SearchAsync());
         }
 
         // Operatör toplu fatura kesemez (FinanceWrite yok).
         using var op = host.ScopeFor(t1, role: UserRole.Operator);
         await Assert.ThrowsAsync<NoPermissionException>(() => op.ServiceProvider
-            .GetRequiredService<InvoiceService>().BatchCreateFromRentalsAsync([kira]));
+            .GetRequiredService<InvoiceService>().BatchCreateFromRentalsAsync([rental]));
     }
 
     // ---------------------------------------------------------------- Süzgeçler
@@ -216,10 +216,10 @@ public sealed class FaturaListesiTopluTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
         var invoices = scope.ServiceProvider.GetRequiredService<InvoiceService>();
-        var a = await CariAsync(scope, "Alfa A.Ş.", "OZL-A");
-        var b = await CariAsync(scope, "Beta Ltd.", "OZL-B");
-        var k1 = await KiraAsync(scope, a, "34 FL 01", ofis: "Kadıköy");
-        var k2 = await KiraAsync(scope, b, "34 FL 02", ofis: "Beşiktaş");
+        var a = await CustomerAsync(scope, "Alfa A.Ş.", "OZL-A");
+        var b = await CustomerAsync(scope, "Beta Ltd.", "OZL-B");
+        var k1 = await RentalAsync(scope, a, "34 FL 01", office: "Kadıköy");
+        var k2 = await RentalAsync(scope, b, "34 FL 02", office: "Beşiktaş");
         await invoices.BatchCreateFromRentalsAsync([k1, k2]);
 
         // Süzgeçsiz: 2.
@@ -236,8 +236,8 @@ public sealed class FaturaListesiTopluTests(PostgresFixture fx)
         Assert.Equal(2, (await invoices.SearchAsync(new InvoiceFilter { Doviz = "TRY" })).Count);
         Assert.Empty(await invoices.SearchAsync(new InvoiceFilter { Doviz = "EUR" }));
         // Tarih penceresi (bugün dahil).
-        Assert.Equal(2, (await invoices.SearchAsync(new InvoiceFilter { Bas = Gun(-1) })).Count);
-        Assert.Empty(await invoices.SearchAsync(new InvoiceFilter { Bas = Gun(1) }));
+        Assert.Equal(2, (await invoices.SearchAsync(new InvoiceFilter { Bas = Day(-1) })).Count);
+        Assert.Empty(await invoices.SearchAsync(new InvoiceFilter { Bas = Day(1) }));
         // Boş süzgeç daraltmaz.
         Assert.Equal(2, (await invoices.SearchAsync(new InvoiceFilter { Ara = "", Ofis = "", Doviz = "" })).Count);
     }
@@ -248,18 +248,18 @@ public sealed class FaturaListesiTopluTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
         var invoices = scope.ServiceProvider.GetRequiredService<InvoiceService>();
-        var cari = await CariAsync(scope, "Künye A.Ş.", "OZL-K", vergiNo: "1234567890");
-        var kira = await KiraAsync(scope, cari, "34 KN 01", ofis: "Merkez");
-        await invoices.BatchCreateFromRentalsAsync([kira]);
+        var account = await CustomerAsync(scope, "Künye A.Ş.", "OZL-K", taxNo: "1234567890");
+        var rental = await RentalAsync(scope, account, "34 KN 01", office: "Merkez");
+        await invoices.BatchCreateFromRentalsAsync([rental]);
 
-        var satir = Assert.Single(await invoices.SearchAsync());
-        Assert.Equal("Künye A.Ş.", satir.CariAd);
-        Assert.Equal("OZL-K", satir.CariOzelKod);
-        Assert.Equal("Kadıköy", satir.VergiDairesi);
-        Assert.Equal("1234567890", satir.VergiNo);
-        Assert.Equal("34KN01", satir.Plaka?.Replace(" ", ""));
-        Assert.Matches(@"^\d{13,}$", satir.SozlesmeNo);   // yeni desen: tamamı rakam
-        Assert.Equal("Merkez", satir.Ofis);
+        var row = Assert.Single(await invoices.SearchAsync());
+        Assert.Equal("Künye A.Ş.", row.CariAd);
+        Assert.Equal("OZL-K", row.CariOzelKod);
+        Assert.Equal("Kadıköy", row.VergiDairesi);
+        Assert.Equal("1234567890", row.VergiNo);
+        Assert.Equal("34KN01", row.Plaka?.Replace(" ", ""));
+        Assert.Matches(@"^\d{13,}$", row.SozlesmeNo);   // yeni desen: tamamı rakam
+        Assert.Equal("Merkez", row.Ofis);
 
         // İptal hariç → 1; yalnız iptal → 0 (henüz iptal edilmiş fatura yok).
         Assert.Single(await invoices.SearchAsync(new InvoiceFilter { Iptal = false }));
@@ -281,21 +281,21 @@ public sealed class FaturaListesiTopluTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
         var invoices = scope.ServiceProvider.GetRequiredService<InvoiceService>();
-        var cari = await CariAsync(scope, "NoAralik");
-        var kiralar = new List<Guid>();
-        for (var i = 1; i <= 3; i++) kiralar.Add(await KiraAsync(scope, cari, $"34 NA 0{i}"));
-        await invoices.BatchCreateFromRentalsAsync(kiralar);
+        var account = await CustomerAsync(scope, "NoAralik");
+        var rentals = new List<Guid>();
+        for (var i = 1; i <= 3; i++) rentals.Add(await RentalAsync(scope, account, $"34 NA 0{i}"));
+        await invoices.BatchCreateFromRentalsAsync(rentals);
 
-        var hepsi = await invoices.SearchAsync();
-        Assert.Equal(3, hepsi.Count);
+        var all = await invoices.SearchAsync();
+        Assert.Equal(3, all.Count);
 
         // Tam numarayla arama → yalnız o fatura.
-        var ortanca = hepsi.Select(x => x.Fatura.No).Order(StringComparer.Ordinal).ElementAt(1);
-        Assert.Equal(ortanca, Assert.Single(await invoices.SearchAsync(new InvoiceFilter { Ara = ortanca })).Fatura.No);
+        var median = all.Select(x => x.Fatura.No).Order(StringComparer.Ordinal).ElementAt(1);
+        Assert.Equal(median, Assert.Single(await invoices.SearchAsync(new InvoiceFilter { Ara = median })).Fatura.No);
 
         // Tarih aralığı: hepsi bugün kesildi → bugünü kapsayan aralık 3, dünle biten aralık 0.
-        var bugun = DateTimeOffset.UtcNow;
-        Assert.Equal(3, (await invoices.SearchAsync(new InvoiceFilter { Bas = bugun.AddDays(-1) })).Count);
-        Assert.Empty(await invoices.SearchAsync(new InvoiceFilter { Bit = bugun.AddDays(-1) }));
+        var today = DateTimeOffset.UtcNow;
+        Assert.Equal(3, (await invoices.SearchAsync(new InvoiceFilter { Bas = today.AddDays(-1) })).Count);
+        Assert.Empty(await invoices.SearchAsync(new InvoiceFilter { Bit = today.AddDays(-1) }));
     }
 }

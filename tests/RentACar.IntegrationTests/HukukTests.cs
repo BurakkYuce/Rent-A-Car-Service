@@ -154,34 +154,34 @@ public sealed class HukukTests(PostgresFixture fx)
         using var scope = host.ScopeFor(Guid.NewGuid());
         var sp = scope.ServiceProvider;
 
-        var cari = await sp.GetRequiredService<CustomerService>()
+        var account = await sp.GetRequiredService<CustomerService>()
             .CreateAsync(new CustomerInput { Tip = CustomerType.Bireysel, Ad = "Hukuk", Soyad = "Müşterisi" });
         await sp.GetRequiredService<CashService>().CollectAsync(new CashInput
-        { CariId = cari, Tutar = 700m, Hesap = LedgerAccountType.Kasa });
+        { CariId = account, Tutar = 700m, Hesap = LedgerAccountType.Kasa });
 
         var db = sp.GetRequiredService<IDbContextFactory<AppDbContext>>();
-        async Task<int> SatirSayisiAsync()
+        async Task<int> RowCountAsync()
         {
             await using var c = await db.CreateDbContextAsync();
             return await c.AccountLedgerEntries.AsNoTracking().CountAsync();
         }
-        async Task<decimal> BakiyeAsync()
+        async Task<decimal> BalanceAsync()
             => (await sp.GetRequiredService<ReportService>().GetAccountBalancesAsync())
-                .Where(b => b.CariId == cari).Sum(b => b.Bakiye);
+                .Where(b => b.CariId == account).Sum(b => b.Bakiye);
 
-        var satirOnce = await SatirSayisiAsync();
-        var bakiyeOnce = await BakiyeAsync();
-        Assert.Equal(2, satirOnce);        // tahsilat = 1 borç + 1 alacak
-        Assert.Equal(-700m, bakiyeOnce);   // müşteri alacaklı (Credit → negatif)
+        var rowBefore = await RowCountAsync();
+        var balanceBefore = await BalanceAsync();
+        Assert.Equal(2, rowBefore);        // tahsilat = 1 borç + 1 alacak
+        Assert.Equal(-700m, balanceBefore);   // müşteri alacaklı (Credit → negatif)
 
         var svc = sp.GetRequiredService<LegalCaseService>();
-        var dosya = await svc.CreateAsync(new HukukDosyaInput
-        { DosyaNo = "2026/LEDGER", CariId = cari, Tutar = 5_000m, Tahsilat = 987_654_321m });
-        await svc.UpdateAsync(dosya, new HukukDosyaInput
-        { DosyaNo = "2026/LEDGER", CariId = cari, Tutar = 9_999_999m, Tahsilat = 123_456_789m });
+        var file = await svc.CreateAsync(new HukukDosyaInput
+        { DosyaNo = "2026/LEDGER", CariId = account, Tutar = 5_000m, Tahsilat = 987_654_321m });
+        await svc.UpdateAsync(file, new HukukDosyaInput
+        { DosyaNo = "2026/LEDGER", CariId = account, Tutar = 9_999_999m, Tahsilat = 123_456_789m });
 
-        Assert.Equal(satirOnce, await SatirSayisiAsync());  // defter büyümedi
-        Assert.Equal(bakiyeOnce, await BakiyeAsync());      // cari bakiye kıpırdamadı
+        Assert.Equal(rowBefore, await RowCountAsync());  // defter büyümedi
+        Assert.Equal(balanceBefore, await BalanceAsync());      // cari bakiye kıpırdamadı
     }
 
     /// <summary>

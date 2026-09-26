@@ -21,7 +21,7 @@
     <label>İşlem Şubesi
         <select name="sube">
             <option value="">— tümü —</option>
-            @foreach (var o in _subeOpts) { <option value="@o" selected="@(o == Sube)">@o</option> }
+            @foreach (var o in _branchOpts) { <option value="@o" selected="@(o == Sube)">@o</option> }
         </select>
     </label>
     <button type="submit">Göster</button>
@@ -37,7 +37,7 @@
 }
 </div>
 
-<p class="muted small">@_gun.ToString("dd.MM.yyyy") günü</p>
+<p class="muted small">@_day.ToString("dd.MM.yyyy") günü</p>
 
 <div class="cards">
     <div class="card">
@@ -78,8 +78,8 @@
     [SupplyParameterFromQuery(Name = "gun")] public string? GunStr { get; set; }
     [SupplyParameterFromQuery(Name = "sube")] public string? Sube { get; set; }
 
-    private string[] _subeOpts = [];
-    private DateTimeOffset _gun;
+    private string[] _branchOpts = [];
+    private DateTimeOffset _day;
     private GunlukFaaliyetDto _data = new(0, 0, 0, 0, 0, 0, 0, 0);
 
     protected override async Task OnInitializedAsync()
@@ -87,9 +87,9 @@
         var parsed = DateTimeOffset.TryParse(GunStr, out var d)
             ? new DateTimeOffset(d.Date, TimeSpan.Zero)
             : new DateTimeOffset(DateTimeOffset.Now.Date, TimeSpan.Zero);
-        _gun = parsed;
+        _day = parsed;
         GunStr ??= parsed.ToString("yyyy-MM-dd");
         _data = await Reports.GetDailyActivityAsync(parsed, Sube);
-        _subeOpts = (await Subeler.ListActiveAsync()).Select(b => b.Ad).OrderBy(a => a).ToArray();
+        _branchOpts = (await Subeler.ListActiveAsync()).Select(b => b.Ad).OrderBy(a => a).ToArray();
     }
 }

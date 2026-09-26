@@ -49,11 +49,11 @@ public sealed class RaporEksik1Tests(PostgresFixture fx)
             .CreateAsync(new VehicleInput { Plaka = "34 KM 02", Durum = VehicleStatus.Musait });
 
         var rentals = sp.GetRequiredService<RentalService>();
-        var bas = new DateTimeOffset(2026, 5, 1, 9, 0, 0, TimeSpan.Zero);
-        var bit = bas.AddDays(3);
+        var start = new DateTimeOffset(2026, 5, 1, 9, 0, 0, TimeSpan.Zero);
+        var bit = start.AddDays(3);
         var rId = await rentals.CreateDirectAsync(new BookingInput
         {
-            MusteriId = custId, VehicleId = vId, BasTar = bas, BitTar = bit,
+            MusteriId = custId, VehicleId = vId, BasTar = start, BitTar = bit,
             GunlukUcret = 100m, KmLimit = 300, FazlaKmUcret = 5m
         });
         await rentals.DeliverAsync(rId, pickupKm: 50000, pickupFuel: 12);

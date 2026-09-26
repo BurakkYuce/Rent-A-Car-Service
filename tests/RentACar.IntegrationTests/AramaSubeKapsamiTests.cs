@@ -19,47 +19,47 @@ namespace RentACar.IntegrationTests;
 [Collection("postgres")]
 public sealed class AramaSubeKapsamiTests(PostgresFixture fx)
 {
-    private static async Task YazAsync(IServiceScope scope, Action<AppDbContext> yaz)
+    private static async Task WriteAsync(IServiceScope scope, Action<AppDbContext> write)
     {
         var f = scope.ServiceProvider.GetRequiredService<IDbContextFactory<AppDbContext>>();
         await using var db = await f.CreateDbContextAsync();
-        yaz(db);
+        write(db);
         await db.SaveChangesAsync();
     }
 
     /// <summary>İki şubeye ait araç/kira/rezervasyon/fatura; hepsinin numarası ortak "F16ARA" önekini taşır.</summary>
-    private static async Task IkiSubeKurAsync(TestHost host, Guid tenant)
+    private static async Task SetupTwoBranchesAsync(TestHost host, Guid tenant)
     {
         using var seed = host.ScopeFor(tenant);
-        var kiraA = Guid.NewGuid();
-        var kiraB = Guid.NewGuid();
-        await YazAsync(seed, db =>
+        var rentalA = Guid.NewGuid();
+        var rentalB = Guid.NewGuid();
+        await WriteAsync(seed, db =>
         {
             db.Vehicles.Add(new Vehicle { Plaka = "34 F16ARA A", Sube = "SubeA", Durum = VehicleStatus.Musait });
             db.Vehicles.Add(new Vehicle { Plaka = "06 F16ARA B", Sube = "SubeB", Durum = VehicleStatus.Musait });
             db.Rentals.Add(new RentalContract
             {
-                Id = kiraA, SozlesmeNo = "F16ARA-KA", CikisOfisi = "SubeA", MusteriId = Guid.NewGuid(), VehicleId = Guid.NewGuid(),
+                Id = rentalA, SozlesmeNo = "F16ARA-KA", CikisOfisi = "SubeA", MusteriId = Guid.NewGuid(), VehicleId = Guid.NewGuid(),
                 BasTar = DateTimeOffset.UtcNow, BitTar = DateTimeOffset.UtcNow.AddDays(1), Doviz = "TRY",
             });
             db.Rentals.Add(new RentalContract
             {
-                Id = kiraB, SozlesmeNo = "F16ARA-KB", CikisOfisi = "SubeB", MusteriId = Guid.NewGuid(), VehicleId = Guid.NewGuid(),
+                Id = rentalB, SozlesmeNo = "F16ARA-KB", CikisOfisi = "SubeB", MusteriId = Guid.NewGuid(), VehicleId = Guid.NewGuid(),
                 BasTar = DateTimeOffset.UtcNow, BitTar = DateTimeOffset.UtcNow.AddDays(1), Doviz = "TRY",
             });
             db.Reservations.Add(new Reservation { ReservationNo = "F16ARA-RA", CikisOfisi = "SubeA", Durum = ReservationStatus.Rezerv });
             db.Reservations.Add(new Reservation { ReservationNo = "F16ARA-RB", CikisOfisi = "SubeB", Durum = ReservationStatus.Rezerv });
-            Invoice Fatura(string no, Guid? kira, Guid? farkKira, string? islemSube) => new()
+            Invoice MakeInvoice(string no, Guid? rental, Guid? differentRental, string? operationBranch) => new()
             {
-                No = no, Durum = InvoiceStatus.Kesildi, CariId = Guid.NewGuid(), RentalId = kira, KaynakKiraId = farkKira,
-                IslemSube = islemSube, Tarih = DateTimeOffset.UtcNow, NetTutar = 100m, KdvTutar = 20m, GenelToplam = 120m,
+                No = no, Durum = InvoiceStatus.Kesildi, CariId = Guid.NewGuid(), RentalId = rental, KaynakKiraId = differentRental,
+                IslemSube = operationBranch, Tarih = DateTimeOffset.UtcNow, NetTutar = 100m, KdvTutar = 20m, GenelToplam = 120m,
                 Currency = "TRY", Kur = 1m,
             };
-            db.Invoices.Add(Fatura("F16ARA-FA", kiraA, null, null));      // A kirasının faturası
-            db.Invoices.Add(Fatura("F16ARA-FB", kiraB, null, null));      // B kirasının faturası
-            db.Invoices.Add(Fatura("F16ARA-FFB", null, kiraB, null));     // B kirasının FARK faturası (RentalId null)
-            db.Invoices.Add(Fatura("F16ARA-FMA", null, null, "SubeA"));   // kirasız manuel, A işlem şubesi
-            db.Invoices.Add(Fatura("F16ARA-FMB", null, null, "SubeB"));   // kirasız manuel, B işlem şubesi
+            db.Invoices.Add(MakeInvoice("F16ARA-FA", rentalA, null, null));      // A kirasının faturası
+            db.Invoices.Add(MakeInvoice("F16ARA-FB", rentalB, null, null));      // B kirasının faturası
+            db.Invoices.Add(MakeInvoice("F16ARA-FFB", null, rentalB, null));     // B kirasının FARK faturası (RentalId null)
+            db.Invoices.Add(MakeInvoice("F16ARA-FMA", null, null, "SubeA"));   // kirasız manuel, A işlem şubesi
+            db.Invoices.Add(MakeInvoice("F16ARA-FMB", null, null, "SubeB"));   // kirasız manuel, B işlem şubesi
             db.Customers.Add(new Customer { Tip = CustomerType.Bireysel, Ad = "F16ARA", Soyad = "Cari" }); // cari kiracı geneli (şube alanı yok)
         });
     }
@@ -69,13 +69,13 @@ public sealed class AramaSubeKapsamiTests(PostgresFixture fx)
     {
         using var host = new TestHost(fx.AppConnectionString);
         var tenant = Guid.NewGuid();
-        await IkiSubeKurAsync(host, tenant);
+        await SetupTwoBranchesAsync(host, tenant);
 
         using var op = host.ScopeFor(tenant, Guid.NewGuid(), "opa", UserRole.Operator, assignedBranch: "SubeA");
         var hits = await op.ServiceProvider.GetRequiredService<SearchService>().SearchAsync("F16ARA");
-        var basliklar = hits.Select(h => h.Baslik).Order(StringComparer.Ordinal).ToArray();
+        var headers = hits.Select(h => h.Baslik).Order(StringComparer.Ordinal).ToArray();
 
-        Assert.Equal(new[] { "34 F16ARA A", "F16ARA", "F16ARA-FA", "F16ARA-FMA", "F16ARA-KA", "F16ARA-RA" }, basliklar);
+        Assert.Equal(new[] { "34 F16ARA A", "F16ARA", "F16ARA-FA", "F16ARA-FMA", "F16ARA-KA", "F16ARA-RA" }, headers);
     }
 
     [Fact]
@@ -83,13 +83,13 @@ public sealed class AramaSubeKapsamiTests(PostgresFixture fx)
     {
         using var host = new TestHost(fx.AppConnectionString);
         var tenant = Guid.NewGuid();
-        await IkiSubeKurAsync(host, tenant);
+        await SetupTwoBranchesAsync(host, tenant);
 
         using (var admin = host.ScopeFor(tenant, Guid.NewGuid(), "ad", UserRole.Admin, assignedBranch: "SubeA"))
             Assert.Equal(12, (await admin.ServiceProvider.GetRequiredService<SearchService>().SearchAsync("F16ARA")).Count);
 
-        using var subesiz = host.ScopeFor(tenant, Guid.NewGuid(), "op", UserRole.Operator, assignedBranch: null);
-        Assert.Equal(12, (await subesiz.ServiceProvider.GetRequiredService<SearchService>().SearchAsync("F16ARA")).Count);
+        using var withoutBranch = host.ScopeFor(tenant, Guid.NewGuid(), "op", UserRole.Operator, assignedBranch: null);
+        Assert.Equal(12, (await withoutBranch.ServiceProvider.GetRequiredService<SearchService>().SearchAsync("F16ARA")).Count);
     }
 
     [Fact]
@@ -97,13 +97,13 @@ public sealed class AramaSubeKapsamiTests(PostgresFixture fx)
     {
         using var host = new TestHost(fx.AppConnectionString);
         var tenant = Guid.NewGuid();
-        await IkiSubeKurAsync(host, tenant);
+        await SetupTwoBranchesAsync(host, tenant);
 
         using var op = host.ScopeFor(tenant, Guid.NewGuid(), "opb", UserRole.Operator, assignedBranch: "SubeB");
-        var basliklar = (await op.ServiceProvider.GetRequiredService<SearchService>().SearchAsync("F16ARA"))
+        var headers = (await op.ServiceProvider.GetRequiredService<SearchService>().SearchAsync("F16ARA"))
             .Select(h => h.Baslik).Order(StringComparer.Ordinal).ToArray();
 
-        Assert.Equal(new[] { "06 F16ARA B", "F16ARA", "F16ARA-FB", "F16ARA-FFB", "F16ARA-FMB", "F16ARA-KB", "F16ARA-RB" }, basliklar);
+        Assert.Equal(new[] { "06 F16ARA B", "F16ARA", "F16ARA-FB", "F16ARA-FFB", "F16ARA-FMB", "F16ARA-KB", "F16ARA-RB" }, headers);
     }
 
     // ------------------------------------------------------------ seçim servisi: servis-katmanı savunması
@@ -112,8 +112,8 @@ public sealed class AramaSubeKapsamiTests(PostgresFixture fx)
     public async Task Secim_servisi_izinsiz_rolde_YetkiYok_firlatir()
     {
         using var host = new TestHost(fx.AppConnectionString);
-        using var muh = host.ScopeFor(Guid.NewGuid(), Guid.NewGuid(), "muh", UserRole.Muhasebe);
-        var s = muh.ServiceProvider.GetRequiredService<SelectionService>();
+        using var acct = host.ScopeFor(Guid.NewGuid(), Guid.NewGuid(), "muh", UserRole.Muhasebe);
+        var s = acct.ServiceProvider.GetRequiredService<SelectionService>();
 
         // Operasyonel seçimler Muhasebe'ye kapalı.
         await Assert.ThrowsAsync<NoPermissionException>(() => s.VehicleAsync(null, null));
@@ -122,7 +122,7 @@ public sealed class AramaSubeKapsamiTests(PostgresFixture fx)
         // F4.4: müşteri ve kur seçimi FinanceWrite ile de açık (sabit finans paneli; PII'sız alanlar).
         Assert.NotNull(await s.CustomerAsync(null, null));
         Assert.NotNull(await s.ExchangeRateAsync(null, null));
-        Assert.NotNull(await muh.ServiceProvider.GetRequiredService<CustomerService>().SearchSelectionAsync(null, 20));
+        Assert.NotNull(await acct.ServiceProvider.GetRequiredService<CustomerService>().SearchSelectionAsync(null, 20));
     }
 
     [Fact]
@@ -131,7 +131,7 @@ public sealed class AramaSubeKapsamiTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         var tenant = Guid.NewGuid();
         using (var seed = host.ScopeFor(tenant))
-            await YazAsync(seed, db =>
+            await WriteAsync(seed, db =>
             {
                 db.Customers.Add(new Customer { Tip = CustomerType.Kurumsal, Unvan = "ÇİĞDEM Şirketi" });
                 db.Customers.Add(new Customer { Tip = CustomerType.Bireysel, Ad = "Çiğdem", Soyad = "Öztürk" });
@@ -161,5 +161,5 @@ public sealed class AramaSubeKapsamiTests(PostgresFixture fx)
     [InlineData(20, 20)]
     [InlineData(21, 20)]
     [InlineData(500, 20)]
-    public void Limit_normalizasyonu(int? limit, int beklenen) => Assert.Equal(beklenen, SelectionService.Limit(limit));
+    public void Limit_normalizasyonu(int? limit, int expected) => Assert.Equal(expected, SelectionService.Limit(limit));
 }

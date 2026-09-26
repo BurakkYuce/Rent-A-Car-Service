@@ -38,9 +38,9 @@ public static class FinancialAccountEndpoints
         return app;
     }
 
-    private static async Task<IResult> Run(Func<Task> action, string mesaj)
+    private static async Task<IResult> Run(Func<Task> action, string message)
     {
-        try { await action(); return Sonuc.Tamam("/hesaplar", mesaj); }
+        try { await action(); return Result.Ok("/hesaplar", message); }
         catch (ValidationException ex) { return Results.Redirect($"/hesaplar?hata={Uri.EscapeDataString(ex.Message)}"); }
     }
 }

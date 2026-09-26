@@ -124,9 +124,9 @@ public sealed class KiraSozlesmesiDto
     /// </summary>
     public string? Surum { get; init; }
 
-    public static KiraSozlesmesiDto From(RentalContract c, string? surum = null) => new()
+    public static KiraSozlesmesiDto From(RentalContract c, string? version = null) => new()
     {
-        Surum = surum,
+        Surum = version,
         Id = c.Id,
         SozlesmeNo = c.SozlesmeNo,
         Durum = c.Durum.ToString(),

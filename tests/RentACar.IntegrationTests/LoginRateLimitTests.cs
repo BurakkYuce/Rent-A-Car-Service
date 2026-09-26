@@ -12,7 +12,7 @@ namespace RentACar.IntegrationTests;
 [Collection("postgres")]
 public sealed class LoginRateLimitTests(PostgresFixture fx)
 {
-    private static object YanlisKimlik => new { firma = "olmayan", kullanici = "kimse", sifre = "yanlis" };
+    private static object WrongCredentials => new { firma = "olmayan", kullanici = "kimse", sifre = "yanlis" };
 
     [Fact]
     public async Task Limit_asilinca_429_ve_pencere_sonrasi_tekrar_degerlendirilir()
@@ -26,16 +26,16 @@ public sealed class LoginRateLimitTests(PostgresFixture fx)
 
         for (var i = 1; i <= 3; i++)
         {
-            var r = await c.PostAsJsonAsync("/api/v1/auth/login", YanlisKimlik);
+            var r = await c.PostAsJsonAsync("/api/v1/auth/login", WrongCredentials);
             Assert.Equal(HttpStatusCode.Unauthorized, r.StatusCode); // deneme 1-3: kimlik hatası (limit değil)
         }
 
-        var blocked = await c.PostAsJsonAsync("/api/v1/auth/login", YanlisKimlik);
+        var blocked = await c.PostAsJsonAsync("/api/v1/auth/login", WrongCredentials);
         Assert.Equal(HttpStatusCode.TooManyRequests, blocked.StatusCode); // 4. deneme: 429
         Assert.True(blocked.Headers.Contains("Retry-After"));
 
         await Task.Delay(TimeSpan.FromSeconds(2.5)); // pencere geçsin
-        var again = await c.PostAsJsonAsync("/api/v1/auth/login", YanlisKimlik);
+        var again = await c.PostAsJsonAsync("/api/v1/auth/login", WrongCredentials);
         Assert.Equal(HttpStatusCode.Unauthorized, again.StatusCode); // kalıcı blok değil, pencere bazlı
     }
 

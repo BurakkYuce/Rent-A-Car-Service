@@ -12,7 +12,7 @@ namespace RentACar.Web.Api.FinansHub;
 /// cari virman, tek cari/çok cari toplu tahsilat, toplu gider, depozito, cari ekstre, otomatik tahsilat, dönem
 /// kapanışı, kurlar. İş mantığı MEVCUT servislerde (Blazor karşılıklarıyla aynı yol); burada yalnız uç kuralları:
 /// izin, kapsam, giriş sınırları (<c>errors[alan]</c>), idempotency anahtarı, KVKK görünen ad.
-/// <para>Tahsilat/ödeme/depozito al/irat F4.4 uçlarıdır (<see cref="FinansApi"/>) — burada KOPYALANMAZ.</para>
+/// <para>Tahsilat/ödeme/depozito al/irat F4.4 uçlarıdır (<see cref="FinanceOpsApi"/>) — burada KOPYALANMAZ.</para>
 /// <para><b>Idempotency (docs/api/idempotency-envanteri.md):</b> para yazan her uç işlem başına
 /// <c>Idempotency-Key</c> ister (<see cref="IdempotencyBasligi.ZorunluAnahtar"/>; yoksa 400) — yapısal satırlar
 /// (E08 ters kayıt, E20 otomatik tahsilat, E36 dönem kapanışı) hariç. Anahtarın sonucu envanter satırıdır:
@@ -62,12 +62,12 @@ public static partial class FinanceHubApi
     /// pozitif, sığan kur; baz (tutar × kur) sınırı. Normalize döviz kodunu döner.</summary>
     internal static string MoneyInput(decimal amount, string? currency, decimal? rate, string amountField = "tutar")
     {
-        FinansApi.Tutar(amount, amountField);
+        FinanceOpsApi.Amount(amount, amountField);
         AmountScale(amount, amountField);
-        var code = FinansApi.Doviz(currency);
-        FinansApi.Kur(rate);
+        var code = FinanceOpsApi.NormalizeCurrency(currency);
+        FinanceOpsApi.Setup(rate);
         RateScale(rate);
-        FinansApi.BazSiniri(amount, rate, amountField);
+        FinanceOpsApi.BaseLimit(amount, rate, amountField);
         return code;
     }
 
@@ -93,7 +93,7 @@ public static partial class FinanceHubApi
     /// <summary>İsteğe bağlı metin: boş → null, aksi Trim; kolon uzunluğu aşılırsa alan hatası.</summary>
     internal static string? Text(string? value, int max, string field)
     {
-        FinansApi.Metin(value, max, field);
+        FinanceOpsApi.Text(value, max, field);
         return string.IsNullOrWhiteSpace(value) ? null : value.Trim();
     }
 

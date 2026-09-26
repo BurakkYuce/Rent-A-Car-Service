@@ -27,18 +27,18 @@ public sealed record ReportPeriod(DateOnly? Bas, DateOnly? Bit)
     public const int MaxYear = 2100;
 
     /// <summary>Doğrulanmış dönem. <paramref name="maxDays"/> verilirse iki uç dolu olduğunda gün sayısı sınırlanır.</summary>
-    public static ReportPeriod Validate(DateOnly? bas, DateOnly? bit, int? maxDays = null,
-        string basField = "bas", string bitField = "bit")
+    public static ReportPeriod Validate(DateOnly? start, DateOnly? bit, int? maxDays = null,
+        string startField = "bas", string bitField = "bit")
     {
-        Year(bas, basField);
+        Year(start, startField);
         Year(bit, bitField);
-        if (bas is { } b && bit is { } t)
+        if (start is { } b && bit is { } t)
         {
             if (b > t) throw new ValidationException("Bitiş tarihi başlangıçtan önce olamaz.", bitField);
             if (maxDays is { } max && t.DayNumber - b.DayNumber + 1 > max)
                 throw new ValidationException($"Tarih aralığı en fazla {max} gün olabilir.", bitField);
         }
-        return new ReportPeriod(bas, bit);
+        return new ReportPeriod(start, bit);
     }
 
     /// <summary>Tek gün parametresi (günlük faaliyet, araç günlük durum, yaşlandırma tarihi) için aynı yıl sınırı.</summary>
@@ -55,10 +55,10 @@ public sealed record ReportPeriod(DateOnly? Bas, DateOnly? Bit)
     }
 
     /// <summary>Başlangıç gününün İstanbul gece yarısı (UTC an).</summary>
-    public DateTimeOffset? FromUtc => Bas is { } b ? F5Ortak.GunBasi(b) : null;
+    public DateTimeOffset? FromUtc => Bas is { } b ? F5Shared.DayStart(b) : null;
 
     /// <summary>Bitiş gününün SONU (ertesi İstanbul gece yarısı − 1 µs; Postgres çözünürlüğü µs).</summary>
-    public DateTimeOffset? ToUtc => Bit is { } t ? F5Ortak.GunBasi(t.AddDays(1)).AddMicroseconds(-1) : null;
+    public DateTimeOffset? ToUtc => Bit is { } t ? F5Shared.DayStart(t.AddDays(1)).AddMicroseconds(-1) : null;
 
     /// <summary>Takvim günü çıpası: günün UTC gece yarısı (servis <c>.UtcDateTime.Date</c> ile güne indiriyorsa).</summary>
     public static DateTimeOffset Anchor(DateOnly day) => new(day.ToDateTime(TimeOnly.MinValue), TimeSpan.Zero);
@@ -99,7 +99,7 @@ public sealed class ReportPageQuery
     private const int MaxPage = 1_000_000;
 
     public Sayfa<T> Apply<T>(IReadOnlyList<T> rows, SortFieldMap<T> map)
-        => F5Ortak.Sayfala(rows, map, Math.Min(Sayfa ?? 1, MaxPage), Boyut, Sirala);
+        => F5Shared.Paginate(rows, map, Math.Min(Sayfa ?? 1, MaxPage), Boyut, Sirala);
 }
 
 /// <summary>Yanıttaki dönem (istenen günler; boş = sınırsız).</summary>

@@ -18,12 +18,12 @@ public sealed class BlogServiceTests(PostgresFixture fx)
         "iVBORw0KGgoAAAANSUhEUgAAAAoAAAAICAIAAABPmPnhAAAAFElEQVR4nGM8YWTEgBsw4ZEb0tIAKaUBPDvSacQAAAAASUVORK5CYII=");
     private static readonly byte[] NotAnImage = "bu bir görsel değil"u8.ToArray();
 
-    private static async Task<Guid> CreateAsync(TestHost host, Guid tenantId, string baslik,
-        BlogPostDurum durum = BlogPostDurum.Taslak, string icerik = "İçerik metni.")
+    private static async Task<Guid> CreateAsync(TestHost host, Guid tenantId, string title,
+        BlogPostDurum status = BlogPostDurum.Taslak, string content = "İçerik metni.")
     {
         using var scope = host.ScopeFor(tenantId);
         var svc = scope.ServiceProvider.GetRequiredService<BlogService>();
-        return await svc.CreateAsync(new BlogInput { Baslik = baslik, Icerik = icerik, Durum = durum });
+        return await svc.CreateAsync(new BlogInput { Baslik = title, Icerik = content, Durum = status });
     }
 
     [Fact]
@@ -31,23 +31,23 @@ public sealed class BlogServiceTests(PostgresFixture fx)
     {
         using var host = new TestHost(fx.AppConnectionString);
         var tenantId = Guid.NewGuid();
-        var taslakId = await CreateAsync(host, tenantId, "Taslak Yazı");
+        var draftId = await CreateAsync(host, tenantId, "Taslak Yazı");
         await CreateAsync(host, tenantId, "Yayında Yazı", BlogPostDurum.Yayinda);
 
         // Taslağa kapak yükle — public kapak ucu YİNE görmemeli (RLS taslak/yayında ayrımını BİLMEZ,
         // bu app-seviyesi bir durum; postId'yi bilen biri taslak kapağını çekememeli).
         using (var staff = host.ScopeFor(tenantId))
-            await staff.ServiceProvider.GetRequiredService<BlogService>().SetCoverAsync(taslakId, TinyPng);
+            await staff.ServiceProvider.GetRequiredService<BlogService>().SetCoverAsync(draftId, TinyPng);
 
         using var pub = host.ScopeFor(tenantId, role: null);
         var svc = pub.ServiceProvider.GetRequiredService<BlogService>();
 
-        var liste = await svc.ListPublishedAsync();
-        Assert.Single(liste);
-        Assert.Equal("Yayında Yazı", liste[0].Baslik);
+        var list = await svc.ListPublishedAsync();
+        Assert.Single(list);
+        Assert.Equal("Yayında Yazı", list[0].Baslik);
 
         Assert.Null(await svc.GetPublishedBySlugAsync("taslak-yazi"));
-        Assert.Null(await svc.GetPublishedCoverAsync(taslakId)); // KAPAK UCU da taslağı reddeder
+        Assert.Null(await svc.GetPublishedCoverAsync(draftId)); // KAPAK UCU da taslağı reddeder
     }
 
     [Fact]
@@ -78,16 +78,16 @@ public sealed class BlogServiceTests(PostgresFixture fx)
 
         using var scope = host.ScopeFor(tenantId);
         var svc = scope.ServiceProvider.GetRequiredService<BlogService>();
-        var ilkSlug = (await svc.GetAsync(id))!.Slug;
-        Assert.Equal("ilk-baslik", ilkSlug);
+        var firstSlug = (await svc.GetAsync(id))!.Slug;
+        Assert.Equal("ilk-baslik", firstSlug);
 
         // Başlığı VE slug'ı değiştirmeye çalış — yayınlandığı için slug DEĞİŞMEMELİ.
         await svc.UpdateAsync(id, new BlogInput
         { Baslik = "Tamamen Farkli Baslik", Slug = "yeni-adres", Icerik = "y", Durum = BlogPostDurum.Yayinda });
 
-        var sonra = await svc.GetAsync(id);
-        Assert.Equal("Tamamen Farkli Baslik", sonra!.Baslik); // başlık değişti
-        Assert.Equal(ilkSlug, sonra.Slug);                     // adres DONDU
+        var after = await svc.GetAsync(id);
+        Assert.Equal("Tamamen Farkli Baslik", after!.Baslik); // başlık değişti
+        Assert.Equal(firstSlug, after.Slug);                     // adres DONDU
     }
 
     [Fact]
@@ -132,10 +132,10 @@ public sealed class BlogServiceTests(PostgresFixture fx)
         await CreateAsync(host, tenantId, "Sonra Yayinlanan", BlogPostDurum.Yayinda);
 
         using var pub = host.ScopeFor(tenantId, role: null);
-        var liste = await pub.ServiceProvider.GetRequiredService<BlogService>().ListPublishedAsync();
+        var list = await pub.ServiceProvider.GetRequiredService<BlogService>().ListPublishedAsync();
 
-        Assert.Equal(2, liste.Count);
-        Assert.Equal("Sonra Yayinlanan", liste[0].Baslik); // en yeni ÖNCE
+        Assert.Equal(2, list.Count);
+        Assert.Equal("Sonra Yayinlanan", list[0].Baslik); // en yeni ÖNCE
     }
 
     [Fact]
@@ -153,8 +153,8 @@ public sealed class BlogServiceTests(PostgresFixture fx)
         var tenantId = Guid.NewGuid();
         await CreateAsync(host, tenantId, "Muhasebe Testi", BlogPostDurum.Yayinda);
 
-        using var muhasebe = host.ScopeFor(tenantId, role: UserRole.Muhasebe); // OperationsWrite YOK
-        var svc = muhasebe.ServiceProvider.GetRequiredService<BlogService>();
+        using var accounting = host.ScopeFor(tenantId, role: UserRole.Muhasebe); // OperationsWrite YOK
+        var svc = accounting.ServiceProvider.GetRequiredService<BlogService>();
 
         await Assert.ThrowsAsync<NoPermissionException>(
             () => svc.CreateAsync(new BlogInput { Baslik = "Olmaz", Icerik = "x" }));

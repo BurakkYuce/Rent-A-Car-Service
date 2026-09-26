@@ -14,23 +14,23 @@ namespace RentACar.IntegrationTests;
 /// </summary>
 public sealed class BelgeNoTests
 {
-    private static readonly DateOnly Ornek = new(2026, 8, 26);   // 26 Ağustos 2026
+    private static readonly DateOnly Sample = new(2026, 8, 26);   // 26 Ağustos 2026
 
     [Fact]
     public void Kullanicinin_verdigi_ornek()
     {
         // Kullanıcının mesajındaki birebir örnek: "sözleşme no : 2026260801001"
         //   2026 | 26 (gün) | 08 (ay) | 01 (kira sözleşmesi) | 001 (günün ilk belgesi)
-        Assert.Equal("2026260801001", DocumentNo.Format(DocumentNoType.KiraSozlesmesi, Ornek, 1));
+        Assert.Equal("2026260801001", DocumentNo.Format(DocumentNoType.KiraSozlesmesi, Sample, 1));
     }
 
     [Fact]
     public void Ayni_gun_ikinci_belge()
-        => Assert.Equal("2026260801002", DocumentNo.Format(DocumentNoType.KiraSozlesmesi, Ornek, 2));
+        => Assert.Equal("2026260801002", DocumentNo.Format(DocumentNoType.KiraSozlesmesi, Sample, 2));
 
     [Fact]
     public void Farkli_tip_ayni_gun_kendi_sirasindan_baslar()
-        => Assert.Equal("2026260802001", DocumentNo.Format(DocumentNoType.Rezervasyon, Ornek, 1));
+        => Assert.Equal("2026260802001", DocumentNo.Format(DocumentNoType.Rezervasyon, Sample, 1));
 
     [Fact]
     public void Tek_haneli_gun_ve_ay_sifirla_doldurulur()
@@ -40,7 +40,7 @@ public sealed class BelgeNoTests
     [Fact]
     public void Numara_13_hane_ve_tamami_rakam()
     {
-        var no = DocumentNo.Format(DocumentNoType.Gider, Ornek, 42);
+        var no = DocumentNo.Format(DocumentNoType.Gider, Sample, 42);
         Assert.Equal(13, no.Length);
         Assert.All(no, c => Assert.InRange(c, '0', '9'));
     }
@@ -49,15 +49,15 @@ public sealed class BelgeNoTests
     public void Tasma_999_ustu_14_haneye_cikar()
     {
         // {sira:D3} MİNİMUM 3 hane demek; 1000 doğal olarak "1000" yazar. Elle sayıldı: 2026|26|08|01|1000
-        Assert.Equal("20262608011000", DocumentNo.Format(DocumentNoType.KiraSozlesmesi, Ornek, 1000));
-        Assert.Equal(14, DocumentNo.Format(DocumentNoType.KiraSozlesmesi, Ornek, 1000).Length);
+        Assert.Equal("20262608011000", DocumentNo.Format(DocumentNoType.KiraSozlesmesi, Sample, 1000));
+        Assert.Equal(14, DocumentNo.Format(DocumentNoType.KiraSozlesmesi, Sample, 1000).Length);
     }
 
     [Fact]
     public void Sifir_veya_negatif_sira_reddedilir()
     {
-        Assert.Throws<ArgumentOutOfRangeException>(() => DocumentNo.Format(DocumentNoType.Gider, Ornek, 0));
-        Assert.Throws<ArgumentOutOfRangeException>(() => DocumentNo.Format(DocumentNoType.Gider, Ornek, -1));
+        Assert.Throws<ArgumentOutOfRangeException>(() => DocumentNo.Format(DocumentNoType.Gider, Sample, 0));
+        Assert.Throws<ArgumentOutOfRangeException>(() => DocumentNo.Format(DocumentNoType.Gider, Sample, -1));
     }
 
     [Fact]
@@ -65,14 +65,14 @@ public sealed class BelgeNoTests
     {
         // Anahtar yyyyMMdd taşır (numaradaki yyyyddMM'den FARKLI): anahtar insan için değil,
         // gün başına tek satır üretmek için — sıralanabilir olması tercih edilir.
-        Assert.Equal("01:20260826", DocumentNo.CounterKey(DocumentNoType.KiraSozlesmesi, Ornek));
-        Assert.Equal("05:20260826", DocumentNo.CounterKey(DocumentNoType.Tahsilat, Ornek));
+        Assert.Equal("01:20260826", DocumentNo.CounterKey(DocumentNoType.KiraSozlesmesi, Sample));
+        Assert.Equal("05:20260826", DocumentNo.CounterKey(DocumentNoType.Tahsilat, Sample));
         Assert.Equal("17:20270101", DocumentNo.CounterKey(DocumentNoType.MaliyetTeklifi, new DateOnly(2027, 1, 1)));
     }
 
     [Fact]
     public void Sayac_anahtari_TenantSequences_Name_kolonuna_sigar()
-        => Assert.True(DocumentNo.CounterKey(DocumentNoType.MaliyetTeklifi, Ornek).Length <= 64);
+        => Assert.True(DocumentNo.CounterKey(DocumentNoType.MaliyetTeklifi, Sample).Length <= 64);
 
     // ───────────────────────── Tip kodu sözleşmesi ─────────────────────────
 
@@ -94,15 +94,15 @@ public sealed class BelgeNoTests
     [InlineData(DocumentNoType.AracKredi, 15)]
     [InlineData(DocumentNoType.FiloKiralama, 16)]
     [InlineData(DocumentNoType.MaliyetTeklifi, 17)]
-    public void Tip_kodlari_KALICI(DocumentNoType tur, int beklenenKod)
-        => Assert.Equal(beklenenKod, (int)tur);
+    public void Tip_kodlari_KALICI(DocumentNoType type, int expectedCode)
+        => Assert.Equal(expectedCode, (int)type);
 
     [Fact]
     public void Tip_kodlari_benzersiz_ve_gecerli_aralikta()
     {
-        var kodlar = Enum.GetValues<DocumentNoType>().Select(t => (int)t).ToList();
-        Assert.Equal(kodlar.Count, kodlar.Distinct().Count());
-        Assert.All(kodlar, k => Assert.InRange(k, 1, 99));
+        var codes = Enum.GetValues<DocumentNoType>().Select(t => (int)t).ToList();
+        Assert.Equal(codes.Count, codes.Distinct().Count());
+        Assert.All(codes, k => Assert.InRange(k, 1, 99));
     }
 
     [Fact]
@@ -146,8 +146,8 @@ public sealed class BelgeNoTests
     [InlineData("İRN", false)]
     [InlineData(null, false)]
     [InlineData("", false)]
-    public void Seri_kodu_dogrulamasi(string? seri, bool gecerli)
-        => Assert.Equal(gecerli, DocumentNo.IsSeriesValid(seri));
+    public void Seri_kodu_dogrulamasi(string? series, bool valid)
+        => Assert.Equal(valid, DocumentNo.IsSeriesValid(series));
 
     [Fact]
     public void Gecersiz_seri_ile_fatura_numarasi_uretilmez()
@@ -161,15 +161,15 @@ public sealed class BelgeNoTests
         // Eski numaralar HARF içerir (KS-000001, FT-000042); genel yeni desen TAMAMI RAKAM.
         // İki uzay kesişemediği için (TenantId, No) unique indeksleri güvende → geriye dönük
         // yeniden numaralandırma gerekmez (ki rc_prevent_mutation zaten buna izin vermezdi).
-        string[] eskiler = ["KS-000001", "RZ-000042", "FT-000108", "TH-000007", "BAF-000003"];
-        Assert.All(eskiler, e => Assert.Contains(e, c => char.IsLetter(c)));
+        string[] oldOnes = ["KS-000001", "RZ-000042", "FT-000108", "TH-000007", "BAF-000003"];
+        Assert.All(oldOnes, e => Assert.Contains(e, c => char.IsLetter(c)));
 
-        foreach (var tur in Enum.GetValues<DocumentNoType>())
+        foreach (var type in Enum.GetValues<DocumentNoType>())
         {
-            if (tur == DocumentNoType.Fatura) continue;               // fatura GİB formatında (harf içerir)
-            var yeni = DocumentNo.Format(tur, Ornek, 1);
-            Assert.DoesNotContain(yeni, char.IsLetter);
-            Assert.DoesNotContain(yeni, eskiler);
+            if (type == DocumentNoType.Fatura) continue;               // fatura GİB formatında (harf içerir)
+            var newItem = DocumentNo.Format(type, Sample, 1);
+            Assert.DoesNotContain(newItem, char.IsLetter);
+            Assert.DoesNotContain(newItem, oldOnes);
         }
     }
 
@@ -178,8 +178,8 @@ public sealed class BelgeNoTests
     {
         // Fatura yeni formatta da harf içeriyor → "tamamı rakam" ayrımı burada işlemez.
         // Ayrım şu: eski numaralar '-' taşır, GİB formatı taşımaz ve tam 16 hanedir.
-        var yeni = DocumentNo.FormatInvoice("RNT", 2026, 1);
-        Assert.DoesNotContain('-', yeni);
+        var newItem = DocumentNo.FormatInvoice("RNT", 2026, 1);
+        Assert.DoesNotContain('-', newItem);
         Assert.Contains('-', "FT-000108");
     }
 }

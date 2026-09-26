@@ -34,8 +34,8 @@ public sealed class CokluKapsamTests(PostgresFixture fx)
     [InlineData(null, "EKO", false)]              // kısıt yok ≠ her şeyi kapsar
     [InlineData("", "EKO", false)]
     [InlineData("EKO,STD", null, false)]
-    public void KapsarMi_sozlesmesi(string? csv, string? deger, bool beklenen)
-        => Assert.Equal(beklenen, BrokerBanService.IsCovered(csv, deger));
+    public void KapsarMi_sozlesmesi(string? csv, string? value, bool expected)
+        => Assert.Equal(expected, BrokerBanService.IsCovered(csv, value));
 
     [Fact]
     public async Task Coklu_secim_CSVye_normalize_edilir()
@@ -107,19 +107,19 @@ public sealed class CokluKapsamTests(PostgresFixture fx)
         });
 
         var motor = sp.GetRequiredService<RentalQuoteEngine>();
-        var bas = TestZaman.Simdi().AddDays(1);
+        var start = TestZaman.Now().AddDays(1);
 
         // 10 gün: A hâlâ aday (10 ≤ 14) → sıralama kuralı A'yı seçer (Kod alfabetik ilk).
-        var kisa = await motor.QuoteAsync(new QuoteRequest
-        { AracGrupKod = "EKO", BasTar = bas, BitTar = bas.AddDays(10) });
-        Assert.Equal(1000m, kisa.GunlukUcret);
-        Assert.DoesNotContain(kisa.Notlar, n => n.Contains("elendi"));
+        var brief = await motor.QuoteAsync(new QuoteRequest
+        { AracGrupKod = "EKO", BasTar = start, BitTar = start.AddDays(10) });
+        Assert.Equal(1000m, brief.GunlukUcret);
+        Assert.DoesNotContain(brief.Notlar, n => n.Contains("elendi"));
 
         // 20 gün: A elenir (20 > 14) → B ile fiyatlanır ve NOT düşülür.
-        var uzun = await motor.QuoteAsync(new QuoteRequest
-        { AracGrupKod = "EKO", BasTar = bas, BitTar = bas.AddDays(20) });
-        Assert.Equal(700m, uzun.GunlukUcret);
-        Assert.Contains(uzun.Notlar, n => n.Contains("A-KISA") && n.Contains("elendi"));
+        var longText = await motor.QuoteAsync(new QuoteRequest
+        { AracGrupKod = "EKO", BasTar = start, BitTar = start.AddDays(20) });
+        Assert.Equal(700m, longText.GunlukUcret);
+        Assert.Contains(longText.Notlar, n => n.Contains("A-KISA") && n.Contains("elendi"));
     }
 
     [Fact]
@@ -139,9 +139,9 @@ public sealed class CokluKapsamTests(PostgresFixture fx)
             GunHaftalik = 900m, GunAylik = 900m, OnayDurumu = TariffApprovalStatus.Onayli
         });
 
-        var bas = TestZaman.Simdi().AddDays(1);
+        var start = TestZaman.Now().AddDays(1);
         var q = await sp.GetRequiredService<RentalQuoteEngine>().QuoteAsync(new QuoteRequest
-        { AracGrupKod = "EKO", BasTar = bas, BitTar = bas.AddDays(30) });
+        { AracGrupKod = "EKO", BasTar = start, BitTar = start.AddDays(30) });
 
         // İstisna ATILMAZ: mevcut "tarife bulunamadı" davranışı korunur (sessiz-güvenli).
         Assert.Equal(0m, q.GunlukUcret);

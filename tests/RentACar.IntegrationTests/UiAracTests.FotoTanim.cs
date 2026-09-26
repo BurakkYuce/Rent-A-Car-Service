@@ -5,62 +5,62 @@ namespace RentACar.IntegrationTests;
 
 public sealed partial class UiAracTests
 {
-    /// <summary>PNG imzalı (içerikten tür tespiti) sahte görsel; <paramref name="boyut"/> bayt.</summary>
-    private static byte[] Png(int boyut = 64)
+    /// <summary>PNG imzalı (içerikten tür tespiti) sahte görsel; <paramref name="size"/> bayt.</summary>
+    private static byte[] Png(int size = 64)
     {
-        var b = new byte[boyut];
+        var b = new byte[size];
         new byte[] { 0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A }.CopyTo(b, 0);
         return b;
     }
 
-    private static MultipartFormDataContent Foto(byte[] icerik, string ad = "a.png")
+    private static MultipartFormDataContent Photo(byte[] content, string name = "a.png")
     {
-        var f = new ByteArrayContent(icerik);
+        var f = new ByteArrayContent(content);
         f.Headers.ContentType = new MediaTypeHeaderValue("image/png");
-        return new MultipartFormDataContent { { f, "foto", ad } };
+        return new MultipartFormDataContent { { f, "foto", name } };
     }
 
     [Fact]
     public async Task Foto_yukle_sirala_sil_sinirlar_ve_kapsam()
     {
-        var o = await OrtamKurAsync();
-        var id = await AracAsync(o, Plaka("34F"));
-        var opA = await GirisAsync(o, Kim.OperatorA);
-        var yol = $"{Arac}/{id}/fotograflar";
+        var o = await SetUpEnvironmentAsync();
+        var id = await VehicleAsync(o, Plate("34F"));
+        var opA = await LoginAsync(o, Kim.OperatorA);
+        var path = $"{SampleVehicle}/{id}/fotograflar";
 
-        var f1 = (await Json(await Gonder(opA, HttpMethod.Post, yol, Foto(Png())), HttpStatusCode.Created)).GetProperty("id").GetGuid();
-        var f2 = (await Json(await Gonder(opA, HttpMethod.Post, yol, Foto(Png(128))), HttpStatusCode.Created)).GetProperty("id").GetGuid();
+        var f1 = (await Json(await Gonder(opA, HttpMethod.Post, path, Photo(Png())), HttpStatusCode.Created)).GetProperty("id").GetGuid();
+        var f2 = (await Json(await Gonder(opA, HttpMethod.Post, path, Photo(Png(128))), HttpStatusCode.Created)).GetProperty("id").GetGuid();
 
         // Tür içerikten: metin dosyası 400; 2 MB üstü (istek sınırının altında) 400.
-        await ProblemBekle(await Gonder(opA, HttpMethod.Post, yol, Foto("merhaba"u8.ToArray(), "a.txt")), HttpStatusCode.BadRequest, "dogrulama", "foto");
-        await ProblemBekle(await Gonder(opA, HttpMethod.Post, yol, Foto(Png(2 * 1024 * 1024 + 10))), HttpStatusCode.BadRequest, "dogrulama", "foto");
+        await ExpectProblem(await Gonder(opA, HttpMethod.Post, path, Photo("merhaba"u8.ToArray(), "a.txt")), HttpStatusCode.BadRequest, "dogrulama", "foto");
+        await ExpectProblem(await Gonder(opA, HttpMethod.Post, path, Photo(Png(2 * 1024 * 1024 + 10))), HttpStatusCode.BadRequest, "dogrulama", "foto");
 
-        var liste = await Json(await Gonder(opA, HttpMethod.Get, yol));
-        Assert.Equal([f1, f2], liste.EnumerateArray().Select(x => x.GetProperty("id").GetGuid()).ToList());
+        var list = await Json(await Gonder(opA, HttpMethod.Get, path));
+        Assert.Equal([f1, f2], list.EnumerateArray().Select(x => x.GetProperty("id").GetGuid()).ToList());
         // f2 yukarı → sıra [f2, f1].
-        var yeni = await Json(await Gonder(opA, HttpMethod.Post, $"{yol}/{f2}/yukari"));
-        Assert.Equal([f2, f1], yeni.EnumerateArray().Select(x => x.GetProperty("id").GetGuid()).ToList());
+        var newItem = await Json(await Gonder(opA, HttpMethod.Post, $"{path}/{f2}/yukari"));
+        Assert.Equal([f2, f1], newItem.EnumerateArray().Select(x => x.GetProperty("id").GetGuid()).ToList());
 
-        var icerik = await Gonder(opA, HttpMethod.Get, $"{yol}/{f1}");
-        Assert.Equal(HttpStatusCode.OK, icerik.StatusCode);
-        Assert.Equal("image/png", icerik.Content.Headers.ContentType?.MediaType);
-        Assert.Equal(64, (await icerik.Content.ReadAsByteArrayAsync()).Length);
+        var content = await Gonder(opA, HttpMethod.Get, $"{path}/{f1}");
+        Assert.Equal(HttpStatusCode.OK, content.StatusCode);
+        Assert.Equal("image/png", content.Content.Headers.ContentType?.MediaType);
+        Assert.Equal(64, (await content.Content.ReadAsByteArrayAsync()).Length);
 
         // Başka aracın foto kimliği bu araç yolunda 404; başka şube operatörü 403; Muhasebe yükleyemez 403.
-        var diger = await AracAsync(o, Plaka("34G"));
-        await ProblemBekle(await Gonder(opA, HttpMethod.Delete, $"{Arac}/{diger}/fotograflar/{f1}"), HttpStatusCode.NotFound, null);
-        var opB = await GirisAsync(o, Kim.OperatorB);
-        await ProblemBekle(await Gonder(opB, HttpMethod.Get, yol), HttpStatusCode.Forbidden, "yetki_yok");
-        await ProblemBekle(await Gonder(opB, HttpMethod.Delete, $"{yol}/{f1}"), HttpStatusCode.Forbidden, "yetki_yok");
-        var muh = await GirisAsync(o, Kim.Muhasebe);
-        await ProblemBekle(await Gonder(muh, HttpMethod.Post, yol, Foto(Png())), HttpStatusCode.Forbidden, "yetki_yok");
+        var other = await VehicleAsync(o, Plate("34G"));
+        await ExpectProblem(await Gonder(opA, HttpMethod.Delete, $"{SampleVehicle}/{other}/fotograflar/{f1}"), HttpStatusCode.NotFound, null);
+        var opB = await LoginAsync(o, Kim.OperatorB);
+        await ExpectProblem(await Gonder(opB, HttpMethod.Get, path), HttpStatusCode.Forbidden, "yetki_yok");
+        await ExpectProblem(await Gonder(opB, HttpMethod.Delete, $"{path}/{f1}"), HttpStatusCode.Forbidden, "yetki_yok");
+        var acct = await LoginAsync(o, Kim.Muhasebe);
+        await ExpectProblem(await Gonder(acct, HttpMethod.Post, path, Photo(Png())), HttpStatusCode.Forbidden, "yetki_yok");
 
         // CSRF başlığı yoksa yükleme reddedilir (form bağlama antiforgery'si kapalı; grup filtresi korur).
-        var cplak = new HttpRequestMessage(HttpMethod.Post, yol) { Content = Foto(Png()) };
-        await ProblemBekle(await opA.C.SendAsync(cplak), HttpStatusCode.BadRequest, "xsrf_gecersiz");
+        var cplate = new HttpRequestMessage(HttpMethod.Post, path) { Content = Photo(Png()) };
+        await ExpectProblem(await opA.C.SendAsync(cplate), HttpStatusCode.BadRequest, "xsrf_gecersiz");
 
-        var sonra = await Json(await Gonder(opA, HttpMethod.Delete, $"{yol}/{f1}"));
-        Assert.Equal([f2], sonra.EnumerateArray().Select(x => x.GetProperty("id").GetGuid()).ToList());
+        var after = await Json(await Gonder(opA, HttpMethod.Delete, $"{path}/{f1}"));
+        Assert.Equal([f2], after.EnumerateArray().Select(x => x.GetProperty("id").GetGuid()).ToList());
     }
 
     /// <summary>
@@ -71,11 +71,11 @@ public sealed partial class UiAracTests
     [Fact]
     public async Task Photo_content_is_inline_and_401_has_no_redirect()
     {
-        var o = await OrtamKurAsync();
-        var vehicleId = await AracAsync(o, Plaka("34P"));
-        var op = await GirisAsync(o, Kim.OperatorA);
-        var path = $"{Arac}/{vehicleId}/fotograflar";
-        var photoId = (await Json(await Gonder(op, HttpMethod.Post, path, Foto(Png())), HttpStatusCode.Created)).GetProperty("id").GetGuid();
+        var o = await SetUpEnvironmentAsync();
+        var vehicleId = await VehicleAsync(o, Plate("34P"));
+        var op = await LoginAsync(o, Kim.OperatorA);
+        var path = $"{SampleVehicle}/{vehicleId}/fotograflar";
+        var photoId = (await Json(await Gonder(op, HttpMethod.Post, path, Photo(Png())), HttpStatusCode.Created)).GetProperty("id").GetGuid();
 
         foreach (var url in new[] { $"{path}/{photoId}", $"{path}/{photoId}/kucuk" })
         {
@@ -83,8 +83,8 @@ public sealed partial class UiAracTests
             Assert.Equal(HttpStatusCode.OK, ok.StatusCode);
             Assert.Null(ok.Content.Headers.ContentDisposition);
 
-            var anonymous = await fx.Web.Istemci().GetAsync(url);
-            await ProblemBekle(anonymous, HttpStatusCode.Unauthorized, "oturum_yok");
+            var anonymous = await fx.Web.Client().GetAsync(url);
+            await ExpectProblem(anonymous, HttpStatusCode.Unauthorized, "oturum_yok");
             Assert.Null(anonymous.Headers.Location);
         }
     }
@@ -92,33 +92,33 @@ public sealed partial class UiAracTests
     [Fact]
     public async Task Tanimlar_crud_kod_normalize_surum_ve_izin()
     {
-        var o = await OrtamKurAsync();
-        var opA = await GirisAsync(o, Kim.OperatorA);
-        const string Yol = V1 + "/arac-sahipleri";
+        var o = await SetUpEnvironmentAsync();
+        var opA = await LoginAsync(o, Kim.OperatorA);
+        const string Path = V1 + "/arac-sahipleri";
 
-        var s = await Json(await Gonder(opA, HttpMethod.Post, Yol, new { kod = " bzm ", ad = "Bizim Filo", tur = "Şirket" }), HttpStatusCode.Created);
+        var s = await Json(await Gonder(opA, HttpMethod.Post, Path, new { kod = " bzm ", ad = "Bizim Filo", tur = "Şirket" }), HttpStatusCode.Created);
         var id = s.GetProperty("id").GetGuid();
         Assert.Equal("BZM", s.GetProperty("kod").GetString());
-        var surum = s.GetProperty("surum").GetString();
-        await ProblemBekle(await Gonder(opA, HttpMethod.Post, Yol, new { kod = "BZM", ad = "İkinci" }), HttpStatusCode.BadRequest, "dogrulama", "kod");
-        await ProblemBekle(await Gonder(opA, HttpMethod.Post, Yol, new { kod = "X", ad = "" }), HttpStatusCode.BadRequest, "dogrulama", "ad");
-        await ProblemBekle(await Gonder(opA, HttpMethod.Post, Yol, new { kod = "Y", ad = new string('a', 129) }), HttpStatusCode.BadRequest, "dogrulama", "ad");
+        var version = s.GetProperty("surum").GetString();
+        await ExpectProblem(await Gonder(opA, HttpMethod.Post, Path, new { kod = "BZM", ad = "İkinci" }), HttpStatusCode.BadRequest, "dogrulama", "kod");
+        await ExpectProblem(await Gonder(opA, HttpMethod.Post, Path, new { kod = "X", ad = "" }), HttpStatusCode.BadRequest, "dogrulama", "ad");
+        await ExpectProblem(await Gonder(opA, HttpMethod.Post, Path, new { kod = "Y", ad = new string('a', 129) }), HttpStatusCode.BadRequest, "dogrulama", "ad");
 
-        await ProblemBekle(await Gonder(opA, HttpMethod.Put, $"{Yol}/{id}", new { kod = "BZM", ad = "Yeni" }), HttpStatusCode.BadRequest, "dogrulama", "surum");
-        var g = await Json(await Gonder(opA, HttpMethod.Put, $"{Yol}/{id}", new { kod = "BZM", ad = "Yeni Ad", aktif = false, surum }));
+        await ExpectProblem(await Gonder(opA, HttpMethod.Put, $"{Path}/{id}", new { kod = "BZM", ad = "Yeni" }), HttpStatusCode.BadRequest, "dogrulama", "surum");
+        var g = await Json(await Gonder(opA, HttpMethod.Put, $"{Path}/{id}", new { kod = "BZM", ad = "Yeni Ad", aktif = false, surum = version }));
         Assert.Equal("Yeni Ad", g.GetProperty("ad").GetString());
         Assert.False(g.GetProperty("aktif").GetBoolean());
-        await ProblemBekle(await Gonder(opA, HttpMethod.Put, $"{Yol}/{id}", new { kod = "BZM", ad = "Bayat", surum }), HttpStatusCode.Conflict, "cakisma");
+        await ExpectProblem(await Gonder(opA, HttpMethod.Put, $"{Path}/{id}", new { kod = "BZM", ad = "Bayat", surum = version }), HttpStatusCode.Conflict, "cakisma");
 
         // Liste + sıralama; Muhasebe 403; başka kiracı 404.
-        var liste = await Json(await Gonder(opA, HttpMethod.Get, Yol + "?sirala=kod"));
-        Assert.Equal(1, liste.GetProperty("toplam").GetInt32());
-        var muh = await GirisAsync(o, Kim.Muhasebe);
-        await ProblemBekle(await Gonder(muh, HttpMethod.Get, Yol), HttpStatusCode.Forbidden, "yetki_yok");
-        var o2 = await OrtamKurAsync();
-        var yabanci = await GirisAsync(o2, Kim.Admin);
-        await ProblemBekle(await Gonder(yabanci, HttpMethod.Get, $"{Yol}/{id}"), HttpStatusCode.NotFound, null);
-        await ProblemBekle(await Gonder(yabanci, HttpMethod.Delete, $"{Yol}/{id}"), HttpStatusCode.NotFound, null);
+        var list = await Json(await Gonder(opA, HttpMethod.Get, Path + "?sirala=kod"));
+        Assert.Equal(1, list.GetProperty("toplam").GetInt32());
+        var acct = await LoginAsync(o, Kim.Muhasebe);
+        await ExpectProblem(await Gonder(acct, HttpMethod.Get, Path), HttpStatusCode.Forbidden, "yetki_yok");
+        var o2 = await SetUpEnvironmentAsync();
+        var foreign = await LoginAsync(o2, Kim.Admin);
+        await ExpectProblem(await Gonder(foreign, HttpMethod.Get, $"{Path}/{id}"), HttpStatusCode.NotFound, null);
+        await ExpectProblem(await Gonder(foreign, HttpMethod.Delete, $"{Path}/{id}"), HttpStatusCode.NotFound, null);
 
         // Segment + tip: aynı desen (oluştur, surum'lu güncelle, sil).
         var seg = await Json(await Gonder(opA, HttpMethod.Post, V1 + "/segmentler", new { kod = "c", ad = "C Segment" }), HttpStatusCode.Created);
@@ -130,15 +130,15 @@ public sealed partial class UiAracTests
         Assert.Equal(HttpStatusCode.NoContent, (await Gonder(opA, HttpMethod.Delete, $"{V1}/arac-tipleri/{tip.GetProperty("id").GetGuid()}")).StatusCode);
 
         // Seçim: tanımlı sahip (kodlu) + araç kaydında geçen serbest değer; q süzgeci; limit en çok 20.
-        await AracAsync(o, Plaka("34S"));
-        await VeriYazAsync(o.TenantId, db => db.Vehicles.Add(new RentACar.Domain.Entities.Vehicle
-        { Plaka = Plaka("34T"), Sube = "SubeA", AracSahibi = "Dış Leasing" }));
-        var sahipler = await Json(await Gonder(opA, HttpMethod.Get, Arac + "/secim/sahip"));
-        var degerler = sahipler.EnumerateArray().Select(x => x.GetProperty("deger").GetString()).ToList();
+        await VehicleAsync(o, Plate("34S"));
+        await WriteDataAsync(o.TenantId, db => db.Vehicles.Add(new RentACar.Domain.Entities.Vehicle
+        { Plaka = Plate("34T"), Sube = "SubeA", AracSahibi = "Dış Leasing" }));
+        var owners = await Json(await Gonder(opA, HttpMethod.Get, SampleVehicle + "/secim/sahip"));
+        var values = owners.EnumerateArray().Select(x => x.GetProperty("deger").GetString()).ToList();
         // "Yeni Ad" pasife alındı → tanımlı öneriden düşer; yalnız kayıtta geçen değer kalır.
-        Assert.Equal(["Dış Leasing"], degerler);
-        Assert.Single((await Json(await Gonder(opA, HttpMethod.Get, Arac + "/secim/sahip?q=leas"))).EnumerateArray());
-        var markalar = await Json(await Gonder(opA, HttpMethod.Get, Arac + "/secim/marka?limit=500"));
-        Assert.Contains(markalar.EnumerateArray(), x => x.GetProperty("deger").GetString() == "Fiat");
+        Assert.Equal(["Dış Leasing"], values);
+        Assert.Single((await Json(await Gonder(opA, HttpMethod.Get, SampleVehicle + "/secim/sahip?q=leas"))).EnumerateArray());
+        var brands = await Json(await Gonder(opA, HttpMethod.Get, SampleVehicle + "/secim/marka?limit=500"));
+        Assert.Contains(brands.EnumerateArray(), x => x.GetProperty("deger").GetString() == "Fiat");
     }
 }

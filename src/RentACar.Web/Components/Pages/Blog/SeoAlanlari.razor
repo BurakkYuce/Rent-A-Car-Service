@@ -15,17 +15,17 @@
 
 @* Post null = "Yeni Yazı" formu (henüz kaydedilmiş değer yok). *@
 @{
-    var seoBaslikUz = (Post?.SeoBaslik ?? string.Empty).Length;
+    var seoTitleLength = (Post?.SeoBaslik ?? string.Empty).Length;
     var metaUz = (Post?.MetaAciklama ?? string.Empty).Length;
 
     // Önizlemenin SUNUCUDAN basılan ilk hâli. JS yüklenmese de (ya da kapalıysa) kutu
     // DOLU gelir — kaydedilmiş değerlerle. JS varsa yazdıkça aynı kurallarla tazelenir.
     // Fallback zinciri PublicSite/BlogYaziDetay.razor ile BİREBİR aynı sırada tutulur:
     // yazarın meta açıklaması > kart özeti > gövdeden türetilen özet.
-    var onizBaslik = Bos(Post?.SeoBaslik) ?? Bos(Post?.Baslik) ?? "(başlık yok)";
-    var onizAciklama = Bos(Post?.MetaAciklama) ?? Bos(Post?.Ozet) ?? ContentText.Summary(Post?.Icerik)
+    var previewTitle = Empty(Post?.SeoBaslik) ?? Empty(Post?.Baslik) ?? "(başlık yok)";
+    var previewDescription = Empty(Post?.MetaAciklama) ?? Empty(Post?.Ozet) ?? ContentText.Summary(Post?.Icerik)
         ?? "(açıklama yok — arama motoru sayfadan rastgele bir cümle seçer)";
-    var onizAdres = "siteniz.com/blog/" + (Bos(Post?.Slug) ?? "yazi-adresi");
+    var previewUrl = "siteniz.com/blog/" + (Empty(Post?.Slug) ?? "yazi-adresi");
 }
 
 <fieldset class="seo-alanlar u-col-full" data-seo>
@@ -46,7 +46,7 @@
                data-seo-alan="seoBaslik" placeholder="Aramada görünecek başlık" />
         <span class="seo-yardim">Arama sonucunda görünen başlık. Boşsa yazının başlığı kullanılır.
             <span data-seo-sayac="seoBaslik" data-seo-limit="@BlogService.MaxSeoTitle"
-                  class="@(seoBaslikUz > BlogService.MaxSeoTitle ? "seo-sayac uyari" : "seo-sayac")">@seoBaslikUz / @BlogService.MaxSeoTitle</span>
+                  class="@(seoTitleLength > BlogService.MaxSeoTitle ? "seo-sayac uyari" : "seo-sayac")">@seoTitleLength / @BlogService.MaxSeoTitle</span>
         </span>
     </label>
 
@@ -90,9 +90,9 @@
     <div class="seo-onizleme u-col-full">
         <span class="muted small">Arama sonucunda böyle görünür (yaklaşık):</span>
         <div class="serp">
-            <div class="serp-adres" data-seo-oniz="adres">@onizAdres</div>
-            <div class="serp-baslik" data-seo-oniz="baslik">@onizBaslik</div>
-            <div class="serp-aciklama" data-seo-oniz="aciklama">@onizAciklama</div>
+            <div class="serp-adres" data-seo-oniz="adres">@previewUrl</div>
+            <div class="serp-baslik" data-seo-oniz="baslik">@previewTitle</div>
+            <div class="serp-aciklama" data-seo-oniz="aciklama">@previewDescription</div>
         </div>
         <span class="muted small">Adres örnektir; gerçek alan adınız halka açık site ayarlarınızdan gelir.
             Yazı adresi (slug) yayınlandıktan sonra değişmez.</span>
@@ -103,5 +103,5 @@
     /// <summary>Düzenlenen yazı; "Yeni Yazı" formunda <c>null</c>.</summary>
     [Parameter] public BlogPost? Post { get; set; }
 
-    private static string? Bos(string? s) => string.IsNullOrWhiteSpace(s) ? null : s.Trim();
+    private static string? Empty(string? s) => string.IsNullOrWhiteSpace(s) ? null : s.Trim();
 }

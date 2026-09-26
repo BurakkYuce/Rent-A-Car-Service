@@ -9,9 +9,9 @@
 <div class="page-head"><h1>Rezervasyon Takvimi</h1><div class="actions"></div></div>
 
 <div class="filter-bar">
-    <a href="@AyUrl(_prev)">← @_prevLabel</a>
+    <a href="@MonthUrl(_prev)">← @_prevLabel</a>
     <strong>@_monthStart.ToString("MMMM yyyy")</strong>
-    <a href="@AyUrl(_next)">@_nextLabel →</a>
+    <a href="@MonthUrl(_next)">@_nextLabel →</a>
 </div>
 
 @* FAZ-11: canlı arac_rac_takvim'in AracGrubu/Bölge/arama filtreleri. Doluluk sorgusu
@@ -24,7 +24,7 @@
         <input name="grup" value="@Grup" list="takvim-grup-list" placeholder="Grup" />
         <select name="sube">
             <option value="">Şube / bölge (tümü)</option>
-            @foreach (var b in _subeAdlari)
+            @foreach (var b in _branchNames)
             {
                 <option value="@b" selected="@(Sube == b)">@b</option>
             }
@@ -39,7 +39,7 @@
 </div>
 
 <datalist id="takvim-grup-list">
-    @foreach (var g in _grupAdlari)
+    @foreach (var g in _groupNames)
     {
         <option value="@g"></option>
     }
@@ -99,8 +99,8 @@
     private int _days;
     private string _prev = "", _next = "", _prevLabel = "", _nextLabel = "";
     private IReadOnlyList<Vehicle> _vehicles = [];
-    private IReadOnlyList<string> _subeAdlari = [];
-    private IReadOnlyList<string> _grupAdlari = [];
+    private IReadOnlyList<string> _branchNames = [];
+    private IReadOnlyList<string> _groupNames = [];
     // (VehicleId, gün) → tip; çakışmada Kira önceliklidir.
     private readonly Dictionary<(Guid, int), string> _grid = new();
 
@@ -121,18 +121,18 @@
 
         // FAZ-11: araç kümesi filtreli çekilir. PageSize 500 — takvim satır satır çizilen bir
         // ızgara; daha fazlası zaten okunamaz, sessizce kırpmak yerine kullanıcı filtreye yönlendirilir.
-        var filtre = new VehicleFilter
+        var filter = new VehicleFilter
         {
             Query = string.IsNullOrWhiteSpace(Plaka) ? null : Plaka,
             Grup = string.IsNullOrWhiteSpace(Grup) ? null : Grup,
             Sube = string.IsNullOrWhiteSpace(Sube) ? null : Sube,
             Page = 1, PageSize = 200
         };
-        _vehicles = (await Vehicles.SearchAsync(filtre)).Items;
+        _vehicles = (await Vehicles.SearchAsync(filter)).Items;
 
         // Filtre kutularının önerileri: şube master + araçlarda geçen grup adları.
-        _subeAdlari = (await Subeler.ListActiveAsync()).Select(s => s.Ad).ToList();
-        _grupAdlari = (await Vehicles.ListAsync()).Select(v => v.Grup)
+        _branchNames = (await Subeler.ListActiveAsync()).Select(s => s.Ad).ToList();
+        _groupNames = (await Vehicles.ListAsync()).Select(v => v.Grup)
             .Where(g => !string.IsNullOrWhiteSpace(g)).Select(g => g!.Trim())
             .Distinct(StringComparer.OrdinalIgnoreCase).OrderBy(g => g, StringComparer.CurrentCulture).ToList();
 
@@ -158,9 +158,9 @@
 
     /// <summary>Ay gezinme bağlantısı — aktif araç filtrelerini KORUR (ay değiştirince filtre
     /// sıfırlansaydı kullanıcı her ayda filtreyi yeniden kurardı).</summary>
-    private string AyUrl(string ay)
+    private string MonthUrl(string month)
     {
-        var qs = new List<string> { $"ay={Uri.EscapeDataString(ay)}" };
+        var qs = new List<string> { $"ay={Uri.EscapeDataString(month)}" };
         if (!string.IsNullOrEmpty(Plaka)) qs.Add($"plaka={Uri.EscapeDataString(Plaka)}");
         if (!string.IsNullOrEmpty(Grup)) qs.Add($"grup={Uri.EscapeDataString(Grup)}");
         if (!string.IsNullOrEmpty(Sube)) qs.Add($"sube={Uri.EscapeDataString(Sube)}");

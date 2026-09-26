@@ -18,7 +18,7 @@
 @if (!string.IsNullOrEmpty(Hata)) { <p class="error">@Hata</p> }
 
 <form method="post" action="/filo-plan/create" class="grid-form"><AntiforgeryToken />
-    <ComboBox Name="aracGrupAdi" Label="Araç Grubu" Options="_grupOpts" Placeholder="(ops.)" />
+    <ComboBox Name="aracGrupAdi" Label="Araç Grubu" Options="_groupOpts" Placeholder="(ops.)" />
     <label>SIPP<input name="sipp" maxlength="16" placeholder="(ops.) ör. EDMR" /></label>
     <label>Dönem<input name="donem" maxlength="32" placeholder="(ops.) 2026-Q1" /></label>
     <label>Hedef Adet<input name="hedefAdet" type="number" min="0" required value="0" /></label>
@@ -68,7 +68,7 @@
                         <summary class="link">Düzenle</summary>
                         <form method="post" action="/filo-plan/update" class="grid-form"><AntiforgeryToken />
                             <input type="hidden" name="id" value="@s.Hedef.Id" />
-                            <ComboBox Name="aracGrupAdi" Label="Araç Grubu" Value="@s.Hedef.AracGrupAdi" Options="_grupOpts" ListId="dl-grup-edit" />
+                            <ComboBox Name="aracGrupAdi" Label="Araç Grubu" Value="@s.Hedef.AracGrupAdi" Options="_groupOpts" ListId="dl-grup-edit" />
                             <label>SIPP<input name="sipp" value="@s.Hedef.Sipp" maxlength="16" /></label>
                             <label>Dönem<input name="donem" value="@s.Hedef.Donem" maxlength="32" /></label>
                             <label>Hedef Adet<input name="hedefAdet" type="number" min="0" value="@s.Hedef.HedefAdet" required /></label>
@@ -110,12 +110,12 @@
     [SupplyParameterFromQuery(Name = "hata")] public string? Hata { get; set; }
 
     private IReadOnlyList<FiloPlanSatir> _list = [];
-    private List<string> _grupOpts = [];
+    private List<string> _groupOpts = [];
 
     protected override async Task OnInitializedAsync()
     {
         _list = await Planlar.ListWithCountAsync();
-        _grupOpts = (await Gruplar.ListActiveAsync()).Select(g => g.Kod)
+        _groupOpts = (await Gruplar.ListActiveAsync()).Select(g => g.Kod)
             .Where(x => !string.IsNullOrWhiteSpace(x))
             .OrderBy(x => x, StringComparer.CurrentCulture).ToList();
     }

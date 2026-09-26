@@ -19,14 +19,14 @@
 @* DİKKAT: `KanonikUrl="_kanonik"` yazmak Razor'da DÜZ METİN geçirir (string tipli
    parametrede tırnak içi literaldir). İlk yazımda öyleydi ve JSON-LD'ye `"url":"_kanonik"`
    basılıyordu — arama motorlarına çöp adres yayınlanacaktı. İfade için `@@` ZORUNLU. *@
-<YapisalVeri Marka="_branding" Sorular="_sss" KanonikUrl="@_kanonik" />
+<YapisalVeri Marka="_branding" Sorular="_faq" KanonikUrl="@_canonical" />
 @* Açıklama tenant verisinden KURULUR, sabit metin yazılmaz: her firma için farklı olmalı
    (çok-kiracılı site). Filo sayısı varsa cümleye girer — "3 araçlık filo" somut bir bilgi. *@
 <SayfaMeta Baslik="@($"{_branding?.Marka ?? "RentPro"} — Araç Kiralama")"
-           Aciklama="@AnaAciklama" Yol="/" Marka="_branding"
-           KanonikKok="@_kanonikKok" Gorsel="@KapakGorsel" />
+           Aciklama="@MainDescription" Yol="/" Marka="_branding"
+           KanonikKok="@_canonicalRoot" Gorsel="@CoverImage" />
 
-<BolumHero Marka="@_branding?.Marka" Subeler="_subeler" />
+<BolumHero Marka="@_branding?.Marka" Subeler="_branches" />
 
 <BolumGuvenSeridi />
 
@@ -82,63 +82,63 @@
 
 <BolumNasilCalisir />
 
-<BolumFiyatNasil KosulSayfasi="@_kosulSayfasi" />
+<BolumFiyatNasil KosulSayfasi="@_termsPage" />
 
-<BolumSss Sorular="_sss" Adet="SssOzetAdet" />
+<BolumSss Sorular="_faq" Adet="FaqSummaryCount" />
 
 <BolumCta Telefon="@_branding?.Tel" WhatsApp="@_branding?.WhatsApp" />
 
 @code {
     /// <summary>Ana sayfada gösterilen SSS adedi — ERP yönetim ekranındaki nota karşılık gelir.</summary>
-    public const int SssOzetAdet = 4;
+    public const int FaqSummaryCount = 4;
 
     /// <summary>"Kiralama koşulları" için aranan slug'lar — firma bunlardan birini yazdıysa
     /// fiyat bölümünden oraya bağlantı verilir; yoksa bağlantı hiç basılmaz (T2).</summary>
-    private static readonly string[] KosulSluglari = ["kiralama-kosullari", "kosullar", "sartlar"];
+    private static readonly string[] ConditionSlugs = ["kiralama-kosullari", "kosullar", "sartlar"];
 
     private IReadOnlyList<FleetShowcaseCard>? _cards;
-    private IReadOnlyList<SssSatiri> _sss = [];
+    private IReadOnlyList<SssSatiri> _faq = [];
     private FleetBranding? _branding;
     /// <summary>Ana sayfa açıklaması — tenant verisinden kurulur (marka, şehir, filo adedi).</summary>
-    private string AnaAciklama
+    private string MainDescription
     {
         get
         {
-            var marka = _branding?.Marka ?? "Firmamız";
-            var adet = _cards?.Count ?? 0;
-            var filo = adet > 0 ? $"{adet} araç seçeneğiyle " : "";
-            var yer = string.IsNullOrWhiteSpace(_branding?.Adres) ? "" : $"{_branding!.Adres} ve çevresinde ";
-            return $"{marka} {yer}{filo}günlük ve uzun dönem araç kiralama. "
+            var brand = _branding?.Marka ?? "Firmamız";
+            var count = _cards?.Count ?? 0;
+            var fleet = count > 0 ? $"{count} araç seçeneğiyle " : "";
+            var place = string.IsNullOrWhiteSpace(_branding?.Adres) ? "" : $"{_branding!.Adres} ve çevresinde ";
+            return $"{brand} {place}{fleet}günlük ve uzun dönem araç kiralama. "
                  + "Tarihlerinizi girin, müsait araçları ve net fiyatı görün.";
         }
     }
 
     /// <summary>Paylaşım görseli: ilk ilanın kapağı. Ayrı bir "site görseli" alanı YOK —
     /// olmayan bir alanı uydurmaktansa var olan gerçek görseli kullanmak doğru.</summary>
-    private string? KapakGorsel => _cards?.FirstOrDefault(c => c.CoverPhotoId is not null) is { } k
+    private string? CoverImage => _cards?.FirstOrDefault(c => c.CoverPhotoId is not null) is { } k
         ? $"/foto/{k.CoverPhotoId}/thumb" : null;
-    private IReadOnlyList<string> _subeler = [];
-    private string? _kanonik;
-    private string? _kanonikKok;
-    private string? _kosulSayfasi;
+    private IReadOnlyList<string> _branches = [];
+    private string? _canonical;
+    private string? _canonicalRoot;
+    private string? _termsPage;
 
     protected override async Task OnInitializedAsync()
     {
         _branding = await Showcase.GetBrandingAsync();
         _cards = await Showcase.ListShowcaseGroupsAsync();
-        _sss = await Icerik.PublishedFaqAsync();
+        _faq = await Icerik.PublishedFaqAsync();
 
         // Şube listesi Hero'daki arama kutusu için; boşsa AramaFormu seçim kutusunu hiç basmaz.
-        try { _subeler = [.. (await Subeler.ListAsync()).Select(b => b.Ad)]; }
-        catch { _subeler = []; }
+        try { _branches = [.. (await Subeler.ListAsync()).Select(b => b.Ad)]; }
+        catch { _branches = []; }
 
         var host = await Showcase.GetCanonicalHostAsync();
-        _kanonik = host is null ? null : $"https://{host}/";
+        _canonical = host is null ? null : $"https://{host}/";
         // og:image mutlak adres ister; kanonik KÖK (sondaki eğik çizgisiz) ondan türer.
-        _kanonikKok = host is null ? null : $"https://{host}";
+        _canonicalRoot = host is null ? null : $"https://{host}";
 
-        var sayfalar = await Icerik.PublishedPagesAsync();
-        _kosulSayfasi = sayfalar.FirstOrDefault(s => KosulSluglari.Contains(s.Slug)) is { } k
+        var pages = await Icerik.PublishedPagesAsync();
+        _termsPage = pages.FirstOrDefault(s => ConditionSlugs.Contains(s.Slug)) is { } k
             ? $"/{k.Slug}" : null;
     }
 }

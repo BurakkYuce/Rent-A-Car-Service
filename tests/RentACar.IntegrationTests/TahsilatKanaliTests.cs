@@ -23,9 +23,9 @@ namespace RentACar.IntegrationTests;
 [Collection("postgres")]
 public sealed class TahsilatKanaliTests(PostgresFixture fx)
 {
-    private static async Task<Guid> SeedCariAsync(IServiceProvider sp, string ad)
+    private static async Task<Guid> SeedCustomerAsync(IServiceProvider sp, string name)
         => await sp.GetRequiredService<CustomerService>()
-            .CreateAsync(new CustomerInput { Tip = CustomerType.Bireysel, Ad = ad, Soyad = "Test" });
+            .CreateAsync(new CustomerInput { Tip = CustomerType.Bireysel, Ad = name, Soyad = "Test" });
 
     private static IDbContextFactory<AppDbContext> Factory(IServiceProvider sp)
         => sp.GetRequiredService<IDbContextFactory<AppDbContext>>();
@@ -37,9 +37,9 @@ public sealed class TahsilatKanaliTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
         var cash = scope.ServiceProvider.GetRequiredService<CashService>();
-        var cari = await SeedCariAsync(scope.ServiceProvider, "KanalYazim");
+        var account = await SeedCustomerAsync(scope.ServiceProvider, "KanalYazim");
 
-        var id = await cash.CollectAsync(new CashInput { CariId = cari, Tutar = 250m, Kanal = "Mobil" });
+        var id = await cash.CollectAsync(new CashInput { CariId = account, Tutar = 250m, Kanal = "Mobil" });
 
         var tx = await cash.GetAsync(id);
         Assert.NotNull(tx);
@@ -51,14 +51,14 @@ public sealed class TahsilatKanaliTests(PostgresFixture fx)
     [InlineData(null)]
     [InlineData("")]
     [InlineData("   ")]
-    public async Task Bos_kanal_Masaustu_varsayilanina_duser(string? girilen)
+    public async Task Bos_kanal_Masaustu_varsayilanina_duser(string? entered)
     {
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
         var cash = scope.ServiceProvider.GetRequiredService<CashService>();
-        var cari = await SeedCariAsync(scope.ServiceProvider, "KanalBos");
+        var account = await SeedCustomerAsync(scope.ServiceProvider, "KanalBos");
 
-        var id = await cash.CollectAsync(new CashInput { CariId = cari, Tutar = 100m, Kanal = girilen });
+        var id = await cash.CollectAsync(new CashInput { CariId = account, Tutar = 100m, Kanal = entered });
 
         var tx = await cash.GetAsync(id);
         Assert.Equal(CashKanal.Masaustu, tx!.Kanal);
@@ -71,9 +71,9 @@ public sealed class TahsilatKanaliTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
         var cash = scope.ServiceProvider.GetRequiredService<CashService>();
-        var cari = await SeedCariAsync(scope.ServiceProvider, "KanalKucuk");
+        var account = await SeedCustomerAsync(scope.ServiceProvider, "KanalKucuk");
 
-        var id = await cash.CollectAsync(new CashInput { CariId = cari, Tutar = 100m, Kanal = "tablet" });
+        var id = await cash.CollectAsync(new CashInput { CariId = account, Tutar = 100m, Kanal = "tablet" });
 
         var tx = await cash.GetAsync(id);
         Assert.Equal("Tablet", tx!.Kanal);
@@ -86,13 +86,13 @@ public sealed class TahsilatKanaliTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
         var cash = scope.ServiceProvider.GetRequiredService<CashService>();
-        var cari = await SeedCariAsync(scope.ServiceProvider, "KanalGecersiz");
+        var account = await SeedCustomerAsync(scope.ServiceProvider, "KanalGecersiz");
 
         await Assert.ThrowsAsync<ValidationException>(
-            () => cash.CollectAsync(new CashInput { CariId = cari, Tutar = 100m, Kanal = "Drone" }));
+            () => cash.CollectAsync(new CashInput { CariId = account, Tutar = 100m, Kanal = "Drone" }));
 
         // Reddedilen giriş HİÇ yazılmamalı (yarım/hatalı kayıt kalmaz).
-        Assert.Equal(0m, await cash.GetAccountBalanceAsync(cari));
+        Assert.Equal(0m, await cash.GetAccountBalanceAsync(account));
     }
 
     // ---- 5. ZORUNLU kırılgan regresyon: kanal doldurulunca defter/bakiye/özet BİT-BİREBİR aynı ----
@@ -104,49 +104,49 @@ public sealed class TahsilatKanaliTests(PostgresFixture fx)
         // İki AYRI tenant/senaryo: biri kanalsız (kontrol), biri "Mobil" kanallı. Aynı tutar/hesap/
         // döviz ile TIPATIP aynı işlemi yapıp defter+bakiye+özeti karşılaştırıyoruz — kanalın
         // deftere/bakiyeye/kasa özetine hiç sızmadığının ampirik kanıtı.
-        decimal debitKontrol, creditKontrol, bakiyeKontrol;
-        CashboxSummaryDto ozetKontrol;
-        using (var kontrol = host.ScopeFor(Guid.NewGuid()))
+        decimal debitCheck, creditCheck, balanceCheck;
+        CashboxSummaryDto summaryCheck;
+        using (var check = host.ScopeFor(Guid.NewGuid()))
         {
-            var cash = kontrol.ServiceProvider.GetRequiredService<CashService>();
-            var reports = kontrol.ServiceProvider.GetRequiredService<ReportService>();
-            var cari = await SeedCariAsync(kontrol.ServiceProvider, "KontrolKanalsiz");
-            await cash.CollectAsync(new CashInput { CariId = cari, Tutar = 1234.56m, Hesap = LedgerAccountType.Banka });
+            var cash = check.ServiceProvider.GetRequiredService<CashService>();
+            var reports = check.ServiceProvider.GetRequiredService<ReportService>();
+            var account = await SeedCustomerAsync(check.ServiceProvider, "KontrolKanalsiz");
+            await cash.CollectAsync(new CashInput { CariId = account, Tutar = 1234.56m, Hesap = LedgerAccountType.Banka });
 
-            await using var db = await Factory(kontrol.ServiceProvider).CreateDbContextAsync();
+            await using var db = await Factory(check.ServiceProvider).CreateDbContextAsync();
             var rows = await db.AccountLedgerEntries.AsNoTracking().ToListAsync();
-            debitKontrol = rows.Where(r => r.Direction == LedgerDirection.Debit).Sum(r => r.Amount.AmountInBase);
-            creditKontrol = rows.Where(r => r.Direction == LedgerDirection.Credit).Sum(r => r.Amount.AmountInBase);
-            bakiyeKontrol = await cash.GetAccountBalanceAsync(cari);
-            ozetKontrol = await reports.GetCashBankSummaryAsync();
+            debitCheck = rows.Where(r => r.Direction == LedgerDirection.Debit).Sum(r => r.Amount.AmountInBase);
+            creditCheck = rows.Where(r => r.Direction == LedgerDirection.Credit).Sum(r => r.Amount.AmountInBase);
+            balanceCheck = await cash.GetAccountBalanceAsync(account);
+            summaryCheck = await reports.GetCashBankSummaryAsync();
         }
 
-        decimal debitMobil, creditMobil, bakiyeMobil;
-        CashboxSummaryDto ozetMobil;
-        using (var mobil = host.ScopeFor(Guid.NewGuid()))
+        decimal debitMobile, creditMobile, balanceMobile;
+        CashboxSummaryDto summaryMobile;
+        using (var mobile = host.ScopeFor(Guid.NewGuid()))
         {
-            var cash = mobil.ServiceProvider.GetRequiredService<CashService>();
-            var reports = mobil.ServiceProvider.GetRequiredService<ReportService>();
-            var cari = await SeedCariAsync(mobil.ServiceProvider, "KanalMobil");
+            var cash = mobile.ServiceProvider.GetRequiredService<CashService>();
+            var reports = mobile.ServiceProvider.GetRequiredService<ReportService>();
+            var account = await SeedCustomerAsync(mobile.ServiceProvider, "KanalMobil");
             await cash.CollectAsync(new CashInput
-            { CariId = cari, Tutar = 1234.56m, Hesap = LedgerAccountType.Banka, Kanal = "Mobil" });
+            { CariId = account, Tutar = 1234.56m, Hesap = LedgerAccountType.Banka, Kanal = "Mobil" });
 
-            await using var db = await Factory(mobil.ServiceProvider).CreateDbContextAsync();
+            await using var db = await Factory(mobile.ServiceProvider).CreateDbContextAsync();
             var rows = await db.AccountLedgerEntries.AsNoTracking().ToListAsync();
-            debitMobil = rows.Where(r => r.Direction == LedgerDirection.Debit).Sum(r => r.Amount.AmountInBase);
-            creditMobil = rows.Where(r => r.Direction == LedgerDirection.Credit).Sum(r => r.Amount.AmountInBase);
-            bakiyeMobil = await cash.GetAccountBalanceAsync(cari);
-            ozetMobil = await reports.GetCashBankSummaryAsync();
+            debitMobile = rows.Where(r => r.Direction == LedgerDirection.Debit).Sum(r => r.Amount.AmountInBase);
+            creditMobile = rows.Where(r => r.Direction == LedgerDirection.Credit).Sum(r => r.Amount.AmountInBase);
+            balanceMobile = await cash.GetAccountBalanceAsync(account);
+            summaryMobile = await reports.GetCashBankSummaryAsync();
         }
 
         // Ayrı tenant'lar (izole) — mutlak değerler değil, ŞEKİL bit-birebir aynı olmalı.
-        Assert.Equal(debitKontrol, creditKontrol); // kontrol dengeli
-        Assert.Equal(debitMobil, creditMobil);     // Mobil de dengeli
-        Assert.Equal(debitKontrol, debitMobil);    // aynı tutar → aynı defter büyüklüğü
-        Assert.Equal(bakiyeKontrol, bakiyeMobil);
-        Assert.Equal(ozetKontrol.BankaGiris, ozetMobil.BankaGiris);
-        Assert.Equal(ozetKontrol.BankaBakiye, ozetMobil.BankaBakiye);
-        Assert.Equal(ozetKontrol.KasaBakiye, ozetMobil.KasaBakiye);
+        Assert.Equal(debitCheck, creditCheck); // kontrol dengeli
+        Assert.Equal(debitMobile, creditMobile);     // Mobil de dengeli
+        Assert.Equal(debitCheck, debitMobile);    // aynı tutar → aynı defter büyüklüğü
+        Assert.Equal(balanceCheck, balanceMobile);
+        Assert.Equal(summaryCheck.BankaGiris, summaryMobile.BankaGiris);
+        Assert.Equal(summaryCheck.BankaBakiye, summaryMobile.BankaBakiye);
+        Assert.Equal(summaryCheck.KasaBakiye, summaryMobile.KasaBakiye);
 
         // AccountLedgerEntry satırlarında "Kanal" diye bir kolon YOK — şemaya hiç dokunulmadığının
         // yapısal kanıtı (derleme-zamanı: tip üzerinde böyle bir üye yok; burada isim listesiyle
@@ -163,9 +163,9 @@ public sealed class TahsilatKanaliTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
         var cash = scope.ServiceProvider.GetRequiredService<CashService>();
-        var cari = await SeedCariAsync(scope.ServiceProvider, "TersKanal");
+        var account = await SeedCustomerAsync(scope.ServiceProvider, "TersKanal");
 
-        var id = await cash.PayAsync(new CashInput { CariId = cari, Tutar = 500m, Kanal = "Tablet" });
+        var id = await cash.PayAsync(new CashInput { CariId = account, Tutar = 500m, Kanal = "Tablet" });
         var revId = await cash.ReverseAsync(id);
 
         var rev = await cash.GetAsync(revId);
@@ -179,24 +179,24 @@ public sealed class TahsilatKanaliTests(PostgresFixture fx)
     {
         using var host = new TestHost(fx.AppConnectionString);
         var tenant = Guid.NewGuid();
-        Guid cari;
-        using (var seed = host.ScopeFor(tenant)) cari = await SeedCariAsync(seed.ServiceProvider, "IdempKanal");
+        Guid account;
+        using (var seed = host.ScopeFor(tenant)) account = await SeedCustomerAsync(seed.ServiceProvider, "IdempKanal");
 
         var token = Guid.NewGuid();
         using var s1 = host.ScopeFor(tenant);
         var id = await s1.ServiceProvider.GetRequiredService<CashService>().CollectAsync(
-            new CashInput { CariId = cari, Tutar = 100m, IslemAnahtari = token, Kanal = "Masaüstü" });
+            new CashInput { CariId = account, Tutar = 100m, IslemAnahtari = token, Kanal = "Masaüstü" });
 
         using var s2 = host.ScopeFor(tenant);
         await Assert.ThrowsAsync<DuplicateOperationException>(() =>
             s2.ServiceProvider.GetRequiredService<CashService>().CollectAsync(
-                new CashInput { CariId = cari, Tutar = 100m, IslemAnahtari = token, Kanal = "Mobil" }));
+                new CashInput { CariId = account, Tutar = 100m, IslemAnahtari = token, Kanal = "Mobil" }));
 
         using var check = host.ScopeFor(tenant);
         var sp = check.ServiceProvider;
         var tx = await sp.GetRequiredService<CashService>().GetAsync(id);
         Assert.Equal("Masaüstü", tx!.Kanal); // ikinci (Mobil) denemesi hiç yazılmadı
-        Assert.Equal(-100m, await sp.GetRequiredService<CashService>().GetAccountBalanceAsync(cari)); // tek kayıt
+        Assert.Equal(-100m, await sp.GetRequiredService<CashService>().GetAccountBalanceAsync(account)); // tek kayıt
     }
 
     // ---- 8. Toplu tahsilat: satır-bazlı kanal doğru satıra yazılır ----
@@ -206,8 +206,8 @@ public sealed class TahsilatKanaliTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
         var cash = scope.ServiceProvider.GetRequiredService<CashService>();
-        var c1 = await SeedCariAsync(scope.ServiceProvider, "Toplu1");
-        var c2 = await SeedCariAsync(scope.ServiceProvider, "Toplu2");
+        var c1 = await SeedCustomerAsync(scope.ServiceProvider, "Toplu1");
+        var c2 = await SeedCustomerAsync(scope.ServiceProvider, "Toplu2");
 
         await cash.BatchCollectAsync(
         [
@@ -228,21 +228,21 @@ public sealed class TahsilatKanaliTests(PostgresFixture fx)
         using var scope = host.ScopeFor(Guid.NewGuid());
         var cash = scope.ServiceProvider.GetRequiredService<CashService>();
         var invoices = scope.ServiceProvider.GetRequiredService<InvoiceService>();
-        var cari = await SeedCariAsync(scope.ServiceProvider, "TekCariKanal");
+        var account = await SeedCustomerAsync(scope.ServiceProvider, "TekCariKanal");
 
         // Basit borç kalemi: manuel fatura (Borç Cari) — TekCariTopluKapat bunu ekstreden okur.
         await invoices.CreateManualAsync(new ManualInvoiceInput
-        { CariId = cari, NetTutar = 1000m, KdvOrani = 0m, Aciklama = "Kanal test borcu" });
+        { CariId = account, NetTutar = 1000m, KdvOrani = 0m, Aciklama = "Kanal test borcu" });
 
-        var ekstre = await cash.GetStatementAsync(cari);
-        var borc = ekstre.Satirlar.Single(s => s.Direction == LedgerDirection.Debit);
+        var statement = await cash.GetStatementAsync(account);
+        var debit = statement.Satirlar.Single(s => s.Direction == LedgerDirection.Debit);
 
-        var tutar = await cash.CloseSingleAccountBulkAsync(
-            cari, [borc.Id], LedgerAccountType.Kasa, channel: "Tablet");
-        Assert.Equal(1000m, tutar);
+        var amount = await cash.CloseSingleAccountBulkAsync(
+            account, [debit.Id], LedgerAccountType.Kasa, channel: "Tablet");
+        Assert.Equal(1000m, amount);
 
         var all = await cash.ListAsync();
-        var tx = all.Single(t => t.CariId == cari && t.Tip == CashTransactionType.Tahsilat);
+        var tx = all.Single(t => t.CariId == account && t.Tip == CashTransactionType.Tahsilat);
         Assert.Equal("Tablet", tx.Kanal);
     }
 
@@ -257,8 +257,8 @@ public sealed class TahsilatKanaliTests(PostgresFixture fx)
         using (var a = host.ScopeFor(tenantA))
         {
             var cash = a.ServiceProvider.GetRequiredService<CashService>();
-            var cari = await SeedCariAsync(a.ServiceProvider, "IzoleA");
-            await cash.CollectAsync(new CashInput { CariId = cari, Tutar = 500m, Kanal = "Mobil" });
+            var account = await SeedCustomerAsync(a.ServiceProvider, "IzoleA");
+            await cash.CollectAsync(new CashInput { CariId = account, Tutar = 500m, Kanal = "Mobil" });
         }
 
         using var b = host.ScopeFor(tenantB);

@@ -38,8 +38,8 @@ public sealed class CircuitTenantContext : ITenantContext, ICurrentUser
         AssignedBranch = string.IsNullOrWhiteSpace(branch) ? null : branch;
         AssignedBranchId = Guid.TryParse(user.FindFirst(IdentityClaims.AssignedBranchId)?.Value, out var bid)
             ? bid : null; // FAZ 5-C1 (eski oturum claim'siz → null, hatasız)
-        EkIzinler = user.FindAll(IdentityClaims.IzinEk).Select(c => c.Value).ToArray();
-        YasakIzinler = user.FindAll(IdentityClaims.IzinYasak).Select(c => c.Value).ToArray();
+        EkIzinler = user.FindAll(IdentityClaims.PermissionExtra).Select(c => c.Value).ToArray();
+        YasakIzinler = user.FindAll(IdentityClaims.PermissionDenied).Select(c => c.Value).ToArray();
         IsSet = true;
     }
 }

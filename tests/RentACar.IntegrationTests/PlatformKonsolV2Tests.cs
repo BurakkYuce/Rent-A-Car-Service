@@ -43,11 +43,11 @@ public sealed class PlatformKonsolV2Tests(PostgresFixture fx)
     }
 
     /// <summary>Owner bağlantısıyla ham tenant güncellemesi (DB anomali simülasyonu için).</summary>
-    private async Task OwnerUpdateAsync(Func<AppDbContext, Task> islem)
+    private async Task OwnerUpdateAsync(Func<AppDbContext, Task> operation)
     {
         var options = new DbContextOptionsBuilder<AppDbContext>().UseNpgsql(fx.OwnerConnectionString).Options;
         await using var db = new AppDbContext(options, NullTenantContext.Instance, NullCurrentUser.Instance);
-        await islem(db);
+        await operation(db);
     }
 
     // ---- 1. Kapat → login engellenir + iki bayrak set; Yeniden Aç → login çalışır + temiz ----
@@ -214,9 +214,9 @@ public sealed class PlatformKonsolV2Tests(PostgresFixture fx)
 
         var once = DateTimeOffset.UtcNow.AddSeconds(-2);
         Assert.NotNull(await login.ValidateAsync(code, "admin", "sifre123"));
-        var son = (await svc.GetTenantAsync(id))!.SonGiris;
-        Assert.NotNull(son);                                                // başarılı → yazdı
-        Assert.True(son > once && son <= DateTimeOffset.UtcNow.AddSeconds(2));
+        var last = (await svc.GetTenantAsync(id))!.SonGiris;
+        Assert.NotNull(last);                                                // başarılı → yazdı
+        Assert.True(last > once && last <= DateTimeOffset.UtcNow.AddSeconds(2));
     }
 
     // ---- 7. Close, aktif-durum cache'ini invalidate eder (anlık kesme) ----

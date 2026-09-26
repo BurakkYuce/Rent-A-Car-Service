@@ -46,19 +46,19 @@ public static partial class ReportApi
     {
         ReportScope.RequireFirmWide(user);
         var p = q.Validate();
-        var kdv = f.KdvDahil == true ? VatStatus.KdvDahil : VatStatus.Kdvsiz;
+        var vat = f.KdvDahil == true ? VatStatus.KdvDahil : VatStatus.Kdvsiz;
         var d = await reports.GetProfitabilityAsync(p.FromUtc, p.ToUtc, F(f.Sube), F(f.Grup), F(f.Plaka), F(f.Kaynak),
-            F(f.Sipp), kdv, ct);
+            F(f.Sipp), vat, ct);
         var mask = await CustomerMask.LoadAsync(dbf, null, ct);
         var rows = d.Satirlar.Select(r => r.CariAd is null ? r : r with { CariAd = mask.Name(r.CariAd) }).ToList();
-        var ozet = new ProfitabilitySummary(d.ToplamGelir, d.ToplamGider, d.ToplamNetKar, kdv == VatStatus.KdvDahil,
+        var summary = new ProfitabilitySummary(d.ToplamGelir, d.ToplamGider, d.ToplamNetKar, vat == VatStatus.KdvDahil,
             d.ToplamPotansiyelGelir, d.ToplamReferansMaliyet, d.ToplamHesaplananKdv);
         var export = ReportExport.Links(http, user, "karlilik",
         [
             .. ReportExport.Period(p), ("sube", f.Sube), ("grup", f.Grup), ("plaka", f.Plaka), ("kaynak", f.Kaynak),
             ("sipp", f.Sipp), ("kdv", f.KdvDahil == true ? "dahil" : null),
         ]);
-        return TypedResults.Ok(new ReportResult<ProfitabilitySummary, KarlilikSatirDto>(p.ToDto(), ozet,
+        return TypedResults.Ok(new ReportResult<ProfitabilitySummary, KarlilikSatirDto>(p.ToDto(), summary,
             page.Apply(rows, ProfitabilityMap), export));
     }
 
@@ -117,15 +117,15 @@ public static partial class ReportApi
     {
         ReportScope.RequireFirmWide(user);
         var p = q.Validate();
-        var satirlar = await reports.GetAddOnDetailAsync(new EkHizmetDetayFilter
+        var rowList = await reports.GetAddOnDetailAsync(new EkHizmetDetayFilter
         {
             Bas = p.FromUtc, Bit = p.ToUtc, Ara = F(ara), PersonelId = personelId, Ofis = F(ofis),
             RezKaynagi = F(kaynak), SistemKalemleriniGizle = sistemGizle == true,
         }, ct);
         var mask = await CustomerMask.LoadAsync(dbf, null, ct);
-        var rows = satirlar.Select(r => r with { MusteriAd = mask.Name(r.MusteriAd) }).ToList();
-        var ozet = new AddOnDetailSummary(rows.Count, rows.Sum(r => r.Net), rows.Sum(r => r.Kdv), rows.Sum(r => r.Brut));
-        return TypedResults.Ok(new ReportResult<AddOnDetailSummary, EkHizmetDetayRow>(p.ToDto(), ozet,
+        var rows = rowList.Select(r => r with { MusteriAd = mask.Name(r.MusteriAd) }).ToList();
+        var summary = new AddOnDetailSummary(rows.Count, rows.Sum(r => r.Net), rows.Sum(r => r.Kdv), rows.Sum(r => r.Brut));
+        return TypedResults.Ok(new ReportResult<AddOnDetailSummary, EkHizmetDetayRow>(p.ToDto(), summary,
             page.Apply(rows, AddOnDetailMap), null));
     }
 

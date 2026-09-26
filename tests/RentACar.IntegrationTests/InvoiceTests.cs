@@ -12,9 +12,9 @@ namespace RentACar.IntegrationTests;
 [Collection("postgres")]
 public sealed class InvoiceTests(PostgresFixture fx)
 {
-    private static BookingInput Rental(Guid cari, Guid vehicle) => new()
+    private static BookingInput Rental(Guid account, Guid vehicle) => new()
     {
-        MusteriId = cari, VehicleId = vehicle,
+        MusteriId = account, VehicleId = vehicle,
         BasTar = new DateTimeOffset(2026, 12, 1, 9, 0, 0, TimeSpan.Zero),
         BitTar = new DateTimeOffset(2026, 12, 5, 9, 0, 0, TimeSpan.Zero),
         GunlukUcret = 100m // 4 gün → GenelToplam 400 (KDV dahil)
@@ -29,13 +29,13 @@ public sealed class InvoiceTests(PostgresFixture fx)
         var invoices = scope.ServiceProvider.GetRequiredService<InvoiceService>();
         var cash = scope.ServiceProvider.GetRequiredService<CashService>();
 
-        var cari = await TestCari.YeniAsync(scope.ServiceProvider);
-        var rentalId = await rentals.CreateDirectAsync(Rental(cari, await TestArac.YeniAsync(scope.ServiceProvider)));
+        var account = await TestCustomer.NewAsync(scope.ServiceProvider);
+        var rentalId = await rentals.CreateDirectAsync(Rental(account, await TestVehicle.NewAsync(scope.ServiceProvider)));
 
         var invId = await invoices.CreateFromRentalAsync(rentalId);
         var inv = await invoices.GetAsync(invId);
 
-        Assert.Equal(BelgeNoOracle.FaturaBekle(RentACar.Domain.Common.DocumentNo.DefaultSeries, 1), inv!.No);   // GİB: seri+yıl+9 hane
+        Assert.Equal(DocumentNoOracle.ExpectInvoice(RentACar.Domain.Common.DocumentNo.DefaultSeries, 1), inv!.No);   // GİB: seri+yıl+9 hane
         Assert.Equal(400m, inv.GenelToplam);
         Assert.Equal(333.33m, inv.NetTutar);
         Assert.Equal(66.67m, inv.KdvTutar);
@@ -44,7 +44,7 @@ public sealed class InvoiceTests(PostgresFixture fx)
         Assert.Single(inv.Lines);
 
         // Borç Cari 400 → cari bakiye +400 (müşteri borçlu).
-        Assert.Equal(400m, await cash.GetAccountBalanceAsync(cari));
+        Assert.Equal(400m, await cash.GetAccountBalanceAsync(account));
 
         // Defter dengeli: 1 borç (Cari 400) + 2 alacak (Gelir 333.33 + KDV 66.67) = 400.
         var factory = scope.ServiceProvider.GetRequiredService<IDbContextFactory<AppDbContext>>();
@@ -62,8 +62,8 @@ public sealed class InvoiceTests(PostgresFixture fx)
         var invoices = scope.ServiceProvider.GetRequiredService<InvoiceService>();
         var cash = scope.ServiceProvider.GetRequiredService<CashService>();
 
-        var cari = await TestCari.YeniAsync(scope.ServiceProvider);
-        var rentalId = await rentals.CreateDirectAsync(Rental(cari, await TestArac.YeniAsync(scope.ServiceProvider)));
+        var account = await TestCustomer.NewAsync(scope.ServiceProvider);
+        var rentalId = await rentals.CreateDirectAsync(Rental(account, await TestVehicle.NewAsync(scope.ServiceProvider)));
 
         // Vergi metadata ile fatura kes (bilgi amaçlı — postlamayı değiştirmemeli).
         var invId = await invoices.CreateFromRentalAsync(rentalId, tax: new InvoiceTaxInfo(
@@ -83,7 +83,7 @@ public sealed class InvoiceTests(PostgresFixture fx)
         Assert.Equal(400m, inv.GenelToplam);
         Assert.Equal(333.33m, inv.NetTutar);
         Assert.Equal(66.67m, inv.KdvTutar);
-        Assert.Equal(400m, await cash.GetAccountBalanceAsync(cari));
+        Assert.Equal(400m, await cash.GetAccountBalanceAsync(account));
 
         // Defter base bazında DENGELİ: Σ Borç(base) == Σ Alacak(base), hâlâ 3 kayıt.
         var factory = scope.ServiceProvider.GetRequiredService<IDbContextFactory<AppDbContext>>();
@@ -91,10 +91,10 @@ public sealed class InvoiceTests(PostgresFixture fx)
         var entries = await db.AccountLedgerEntries.AsNoTracking()
             .Where(e => e.SourceType == "Fatura").ToListAsync();
         Assert.Equal(3, entries.Count);
-        var borc = entries.Where(e => e.Direction == LedgerDirection.Debit).Sum(e => e.Amount.Amount * e.Amount.Rate);
-        var alacak = entries.Where(e => e.Direction == LedgerDirection.Credit).Sum(e => e.Amount.Amount * e.Amount.Rate);
-        Assert.Equal(borc, alacak);
-        Assert.Equal(400m, borc);
+        var debit = entries.Where(e => e.Direction == LedgerDirection.Debit).Sum(e => e.Amount.Amount * e.Amount.Rate);
+        var credit = entries.Where(e => e.Direction == LedgerDirection.Credit).Sum(e => e.Amount.Amount * e.Amount.Rate);
+        Assert.Equal(debit, credit);
+        Assert.Equal(400m, debit);
     }
 
     [Fact]
@@ -105,11 +105,11 @@ public sealed class InvoiceTests(PostgresFixture fx)
         var rentals = scope.ServiceProvider.GetRequiredService<RentalService>();
         var invoices = scope.ServiceProvider.GetRequiredService<InvoiceService>();
 
-        var rentalId = await rentals.CreateDirectAsync(Rental(await TestCari.YeniAsync(scope.ServiceProvider), await TestArac.YeniAsync(scope.ServiceProvider)));
+        var rentalId = await rentals.CreateDirectAsync(Rental(await TestCustomer.NewAsync(scope.ServiceProvider), await TestVehicle.NewAsync(scope.ServiceProvider)));
         await Assert.ThrowsAsync<ValidationException>(
             () => invoices.CreateFromRentalAsync(rentalId, tax: new InvoiceTaxInfo(Otv: -1m)));
         // Negatif vergi reddedildi → fatura POSTLANMADI; kira faturasız kalmalı (retry mümkün).
-        var rentalId2 = await rentals.CreateDirectAsync(Rental(await TestCari.YeniAsync(scope.ServiceProvider), await TestArac.YeniAsync(scope.ServiceProvider)));
+        var rentalId2 = await rentals.CreateDirectAsync(Rental(await TestCustomer.NewAsync(scope.ServiceProvider), await TestVehicle.NewAsync(scope.ServiceProvider)));
         await Assert.ThrowsAsync<ValidationException>(
             () => invoices.CreateFromRentalAsync(rentalId2, tax: new InvoiceTaxInfo(TevkifatOran: 150m)));
     }
@@ -123,12 +123,12 @@ public sealed class InvoiceTests(PostgresFixture fx)
         var invoices = scope.ServiceProvider.GetRequiredService<InvoiceService>();
         var cash = scope.ServiceProvider.GetRequiredService<CashService>();
 
-        var cari = await TestCari.YeniAsync(scope.ServiceProvider);
-        var rentalId = await rentals.CreateDirectAsync(Rental(cari, await TestArac.YeniAsync(scope.ServiceProvider)));
+        var account = await TestCustomer.NewAsync(scope.ServiceProvider);
+        var rentalId = await rentals.CreateDirectAsync(Rental(account, await TestVehicle.NewAsync(scope.ServiceProvider)));
         await invoices.CreateFromRentalAsync(rentalId);          // Borç 400
-        await cash.CollectAsync(new CashInput { CariId = cari, RentalId = rentalId, Tutar = 400m }); // Alacak 400
+        await cash.CollectAsync(new CashInput { CariId = account, RentalId = rentalId, Tutar = 400m }); // Alacak 400
 
-        Assert.Equal(0m, await cash.GetAccountBalanceAsync(cari));  // mahsuplaşır
+        Assert.Equal(0m, await cash.GetAccountBalanceAsync(account));  // mahsuplaşır
     }
 
     [Fact]
@@ -139,7 +139,7 @@ public sealed class InvoiceTests(PostgresFixture fx)
         var rentals = scope.ServiceProvider.GetRequiredService<RentalService>();
         var invoices = scope.ServiceProvider.GetRequiredService<InvoiceService>();
 
-        var rentalId = await rentals.CreateDirectAsync(Rental(await TestCari.YeniAsync(scope.ServiceProvider), await TestArac.YeniAsync(scope.ServiceProvider)));
+        var rentalId = await rentals.CreateDirectAsync(Rental(await TestCustomer.NewAsync(scope.ServiceProvider), await TestVehicle.NewAsync(scope.ServiceProvider)));
         await invoices.CreateFromRentalAsync(rentalId);
 
         var factory = scope.ServiceProvider.GetRequiredService<IDbContextFactory<AppDbContext>>();

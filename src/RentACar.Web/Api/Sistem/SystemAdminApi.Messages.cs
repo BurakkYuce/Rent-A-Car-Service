@@ -26,21 +26,21 @@ public static partial class SystemAdminApi
         t.MapPut("/{tur}/{kanal}", async Task<Ok<MessageTemplateDto>> (string tur, string kanal, MessageTemplateRequest i,
             CustomerNotificationService s, CancellationToken ct) =>
         {
-            var type = F5Ortak.EnumAdi<MessageType>(tur, "tur") ?? throw new ValidationException("Şablon türü zorunludur.", "tur");
-            var channel = F5Ortak.EnumAdi<MessageChannel>(kanal, "kanal") ?? throw new ValidationException("Kanal zorunludur.", "kanal");
-            Sinirlar.Metin(i.Konu, 256, "konu", "Konu");
-            Sinirlar.Metin(i.Govde, 8192, "govde", "Gövde");
+            var type = F5Shared.EnumAdi<MessageType>(tur, "tur") ?? throw new ValidationException("Şablon türü zorunludur.", "tur");
+            var channel = F5Shared.EnumAdi<MessageChannel>(kanal, "kanal") ?? throw new ValidationException("Kanal zorunludur.", "kanal");
+            RentalLimits.Text(i.Konu, 256, "konu", "Konu");
+            RentalLimits.Text(i.Govde, 8192, "govde", "Gövde");
             // Satır varsa sürüm zorunlu (bayat sekme başka oturumun şablonunu sessizce ezmesin); yoksa ilk kayıt.
             if ((await TemplatesAsync(s, ct)).Any(x => x.Tur == type.ToString() && x.Kanal == channel.ToString() && x.Surum is not null))
                 SystemApiCommon.RequireVersion(i.Surum);
             await s.SaveTemplateAsync(new MesajSablonInput { Tur = type, Kanal = channel, Konu = i.Konu, Govde = i.Govde ?? "", Aktif = i.Aktif },
                 SystemApiCommon.Clean(i.Surum), ct);
             return TypedResults.Ok((await TemplatesAsync(s, ct)).First(x => x.Tur == type.ToString() && x.Kanal == channel.ToString()));
-        }).AlanlariEsle([("Mesaj gövdesi", "govde"), ("SMS gövdesi", "govde"), ("E-posta şablonunda konu", "konu")]);
+        }).MapFields([("Mesaj gövdesi", "govde"), ("SMS gövdesi", "govde"), ("E-posta şablonunda konu", "konu")]);
 
         // ---- bildirim merkezi
         var n = v1.MapGroup("/bildirimler").WithTags(SystemApiCommon.Tag)
-            .IzinMuaf("Bildirim merkezi: oturum yeter (Blazor [Authorize] paritesi); kiracı izolasyonu RLS.");
+            .PermissionExempt("Bildirim merkezi: oturum yeter (Blazor [Authorize] paritesi); kiracı izolasyonu RLS.");
 
         n.MapGet("", async Task<Ok<NotificationCenterDto>> (bool? okundu, InAppNotificationService s, CancellationToken ct) =>
         {
@@ -65,11 +65,11 @@ public static partial class SystemAdminApi
         // ---- genel arama (şube kapsamı SearchService'te)
         v1.MapGet("/ara", async Task<Ok<IReadOnlyList<SearchHitDto>>> (string? q, SearchService s, CancellationToken ct) =>
         {
-            Sinirlar.Metin(q, 100, "q", "Arama metni");
+            RentalLimits.Text(q, 100, "q", "Arama metni");
             return TypedResults.Ok<IReadOnlyList<SearchHitDto>>((await s.SearchAsync(q, ct))
                 .Select(h => new SearchHitDto(h.Tur, h.Baslik, h.Alt, h.Url)).ToList());
         }).WithTags(SystemApiCommon.Tag)
-          .IzinMuaf("Genel arama: oturum yeter (Blazor [Authorize] paritesi); şube kapsamı SearchService'te, kiracı RLS.");
+          .PermissionExempt("Genel arama: oturum yeter (Blazor [Authorize] paritesi); şube kapsamı SearchService'te, kiracı RLS.");
     }
 
     /// <summary>Tüm (tür × kanal) birleşimleri döner; kayıtlı olmayanlar <c>Kayitli=false</c>, <c>Surum=null</c>.</summary>

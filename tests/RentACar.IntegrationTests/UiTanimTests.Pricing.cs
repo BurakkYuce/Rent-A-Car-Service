@@ -53,7 +53,7 @@ public sealed partial class UiTanimTests
         var env = await SetUpAsync();
         var op = await LoginAsync(env, Who.OperatorA);
         const string Root = V1 + "/doluluk-kurallari";
-        var start = DateOnly.FromDateTime(TestZaman.GunSonra(10).DateTime);
+        var start = DateOnly.FromDateTime(TestZaman.DaysLater(10).DateTime);
         var end = start.AddDays(30);
 
         var r = await Json(await Send(op, HttpMethod.Post, Root, new

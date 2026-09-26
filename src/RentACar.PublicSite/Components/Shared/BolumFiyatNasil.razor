@@ -10,14 +10,14 @@
     <div class="container">
         <h2 class="section-title">Fiyatlar nasıl gösteriliyor?</h2>
         <ul class="madde-liste">
-            @foreach (var m in Maddeler)
+            @foreach (var m in Items)
             {
                 <li>@m</li>
             }
         </ul>
-        @if (KosulSayfasi is { Length: > 0 } yol)
+        @if (KosulSayfasi is { Length: > 0 } path)
         {
-            <p class="ust-linkler"><a href="@yol">Kiralama koşullarımızın tamamı →</a></p>
+            <p class="ust-linkler"><a href="@path">Kiralama koşullarımızın tamamı →</a></p>
         }
     </div>
 </section>
@@ -26,7 +26,7 @@
     /// <summary>Firmanın kendi yazdığı koşullar sayfası (varsa). Yoksa bağlantı basılmaz (T2).</summary>
     [Parameter] public string? KosulSayfasi { get; set; }
 
-    private static readonly string[] Maddeler =
+    private static readonly string[] Items =
     [
         "Her araç için günlük, haftalık ve aylık fiyat ayrı ayrı yazılıdır.",
         "Fiyatın KDV dahil mi hariç mi olduğu ilanın üzerinde belirtilir.",

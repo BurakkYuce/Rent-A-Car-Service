@@ -40,7 +40,7 @@ public sealed partial class UiServiceInsuranceTests(WebFixture fx)
     {
         var e = new Env
         {
-            TenantId = Guid.NewGuid(), Code = Unique("f91"), Password = WebFixture.RastgeleParola(),
+            TenantId = Guid.NewGuid(), Code = Unique("f91"), Password = WebFixture.RandomPassword(),
             Users = Enum.GetValues<Who>().ToDictionary(k => k, _ => Unique("u")),
         };
         var opts = new DbContextOptionsBuilder<AppDbContext>().UseNpgsql(fx.Pg.OwnerConnectionString).Options;
@@ -63,7 +63,7 @@ public sealed partial class UiServiceInsuranceTests(WebFixture fx)
             }
             await db.SaveChangesAsync();
         }
-        await fx.PilotYapAsync(e.TenantId, true);
+        await fx.MakePilotAsync(e.TenantId, true);
         var c = new Customer { Tip = CustomerType.Bireysel, Ad = "Ece", Soyad = "Tan", CepTel = "05321119988" };
         await WriteAsync(e.TenantId, db => db.Customers.Add(c));
         e.CustomerId = c.Id;
@@ -121,7 +121,7 @@ public sealed partial class UiServiceInsuranceTests(WebFixture fx)
 
     private async Task<Session> LoginAsync(Env e, Who who)
     {
-        var c = fx.Web.Istemci();
+        var c = fx.Web.Client();
         var before = CookieValue(await c.GetAsync(V1 + "/oturum/xsrf"), "XSRF-TOKEN")!;
         var req = new HttpRequestMessage(HttpMethod.Post, V1 + "/oturum/giris")
         { Content = JsonContent.Create(new { firma = e.Code, kullanici = e.Users[who], sifre = e.Password }) };

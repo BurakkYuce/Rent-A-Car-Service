@@ -28,22 +28,22 @@ namespace RentACar.IntegrationTests;
 public sealed class LowTemizligiBTests(PostgresFixture fx)
 {
     // Sabit tarih yok (TestTarihBombasiTests): göreli, whole-second hizalı başlangıç.
-    private static readonly DateTimeOffset Start = TestZaman.GunSonra(10);
+    private static readonly DateTimeOffset Start = TestZaman.DaysLater(10);
 
     /// <summary>Oracle: first period = calendar days from start to the same day next month, × 100 per day.</summary>
     private static decimal FirstPeriodGross(DateTimeOffset start) =>
         (start.AddMonths(1).UtcDateTime.Date - start.UtcDateTime.Date).Days * 100m;
 
-    private static async Task<(Guid kira, Guid cari)> KiraAsync(IServiceProvider sp, string plaka, DateTimeOffset bas,
-        bool donemsel = false)
+    private static async Task<(Guid kira, Guid cari)> RentalAsync(IServiceProvider sp, string plate, DateTimeOffset start,
+        bool periodic = false)
     {
-        var v = await sp.GetRequiredService<VehicleService>().CreateAsync(new VehicleInput { Plaka = plaka });
+        var v = await sp.GetRequiredService<VehicleService>().CreateAsync(new VehicleInput { Plaka = plate });
         var m = await sp.GetRequiredService<CustomerService>().CreateAsync(new CustomerInput
         { Tip = CustomerType.Bireysel, Ad = "LB", Soyad = "M" });
         var id = await sp.GetRequiredService<RentalService>().CreateDirectAsync(new BookingInput
         {
-            MusteriId = m, VehicleId = v, BasTar = bas, BitTar = bas.AddDays(90), GunlukUcret = 100m,
-            DonemselFaturalama = donemsel
+            MusteriId = m, VehicleId = v, BasTar = start, BitTar = start.AddDays(90), GunlukUcret = 100m,
+            DonemselFaturalama = periodic
         });
         return (id, m);
     }
@@ -56,26 +56,26 @@ public sealed class LowTemizligiBTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
         var sp = scope.ServiceProvider;
-        var (kira, cari) = await KiraAsync(sp, "34 LB 01", Start);
+        var (rental, account) = await RentalAsync(sp, "34 LB 01", Start);
         var firstPeriod = FirstPeriodGross(Start);
-        var kasa = sp.GetRequiredService<CashService>();
+        var cash = sp.GetRequiredService<CashService>();
 
         // Blazor ham anahtar yolu: AYNI kiraya 1 TL, dönem tahsilatının deterministik anahtarıyla.
-        await kasa.CollectAsync(new CashInput
+        await cash.CollectAsync(new CashInput
         {
-            CariId = cari, RentalId = kira, Tutar = 1m, Doviz = "TRY", Kur = 1m, Hesap = LedgerAccountType.Kasa,
-            Aciklama = "onden", IslemAnahtari = CashService.RowKey(kira, 1)
+            CariId = account, RentalId = rental, Tutar = 1m, Doviz = "TRY", Kur = 1m, Hesap = LedgerAccountType.Kasa,
+            Aciklama = "onden", IslemAnahtari = CashService.RowKey(rental, 1)
         });
 
         var ex = await Assert.ThrowsAsync<DuplicateOperationException>(() => sp.GetRequiredService<PeriodCollectionService>()
-            .IssueAndCollectDetailAsync(kira, 1, true, LedgerAccountType.Kasa));
+            .IssueAndCollectDetailAsync(rental, 1, true, LedgerAccountType.Kasa));
         Assert.NotNull(ex.Existing);
         Assert.False(ex.Existing!.AyniIcerik);
         Assert.Equal(1m, ex.Existing.Tutar);
         Assert.Contains("YAZILMADI", ex.Message);
 
         // Fatura kesildi (D1 borç), yalnız ön-alınan 1 TL alacak: bakiye D1 − 1 — dönem tahsilatı YOK.
-        Assert.Equal(firstPeriod - 1m, await kasa.GetAccountBalanceAsync(cari));
+        Assert.Equal(firstPeriod - 1m, await cash.GetAccountBalanceAsync(account));
     }
 
     [Fact]
@@ -84,19 +84,19 @@ public sealed class LowTemizligiBTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
         var sp = scope.ServiceProvider;
-        var (kira, cari) = await KiraAsync(sp, "34 LB 02", Start);
+        var (rental, account) = await RentalAsync(sp, "34 LB 02", Start);
         var firstPeriod = FirstPeriodGross(Start);
-        var kasa = sp.GetRequiredService<CashService>();
-        await kasa.CollectAsync(new CashInput
+        var cash = sp.GetRequiredService<CashService>();
+        await cash.CollectAsync(new CashInput
         {
-            CariId = cari, RentalId = kira, Tutar = firstPeriod, Doviz = "TRY", Kur = 1m, Hesap = LedgerAccountType.Kasa,
-            IslemAnahtari = CashService.RowKey(kira, 1)
+            CariId = account, RentalId = rental, Tutar = firstPeriod, Doviz = "TRY", Kur = 1m, Hesap = LedgerAccountType.Kasa,
+            IslemAnahtari = CashService.RowKey(rental, 1)
         });
 
-        var (_, yazildi) = await sp.GetRequiredService<PeriodCollectionService>()
-            .IssueAndCollectDetailAsync(kira, 1, true, LedgerAccountType.Kasa);
-        Assert.False(yazildi);
-        Assert.Equal(0m, await kasa.GetAccountBalanceAsync(cari)); // D1 borç − D1 alacak
+        var (_, written) = await sp.GetRequiredService<PeriodCollectionService>()
+            .IssueAndCollectDetailAsync(rental, 1, true, LedgerAccountType.Kasa);
+        Assert.False(written);
+        Assert.Equal(0m, await cash.GetAccountBalanceAsync(account)); // D1 borç − D1 alacak
     }
 
     // ------------------------------------------------------------ N4
@@ -110,18 +110,18 @@ public sealed class LowTemizligiBTests(PostgresFixture fx)
         var sp = scope.ServiceProvider;
         await sp.GetRequiredService<ITenantSettingsRepository>().UpsertAsync(s =>
         { s.DonemselFaturalamaJob = true; s.DonemselOtomatikTahsilat = true; });
-        var bas = new DateTimeOffset(DateTime.UtcNow.Date, TimeSpan.Zero).AddDays(-65);
-        var (kira, _) = await KiraAsync(sp, "34 LB 03", bas, donemsel: true);
+        var start = new DateTimeOffset(DateTime.UtcNow.Date, TimeSpan.Zero).AddDays(-65);
+        var (rental, _) = await RentalAsync(sp, "34 LB 03", start, periodic: true);
         var factory = sp.GetRequiredService<IDbContextFactory<AppDbContext>>();
-        var kilitAnahtari = $"fatura:{tenant}:{kira}";
+        var lockKey = $"fatura:{tenant}:{rental}";
 
         // Kira iptali (KiraKilitleri sırası): önce fatura advisory kilidi, sonra durum yazımı — commit'e dek tutulur.
-        await using var iptal = await factory.CreateDbContextAsync();
-        await using var tx = await iptal.Database.BeginTransactionAsync();
-        await iptal.Database.ExecuteSqlInterpolatedAsync($"SELECT pg_advisory_xact_lock(hashtextextended({kilitAnahtari}, 42))");
-        var r = await iptal.Rentals.FirstAsync(x => x.Id == kira);
+        await using var cancel = await factory.CreateDbContextAsync();
+        await using var tx = await cancel.Database.BeginTransactionAsync();
+        await cancel.Database.ExecuteSqlInterpolatedAsync($"SELECT pg_advisory_xact_lock(hashtextextended({lockKey}, 42))");
+        var r = await cancel.Rentals.FirstAsync(x => x.Id == rental);
         r.Durum = RentalStatus.Iptal;
-        await iptal.SaveChangesAsync();
+        await cancel.SaveChangesAsync();
 
         // Job adayları kilitsiz okur (kira hâlâ Kirada görünür) → ilk dönemde kilide takılır.
         var job = Task.Run(async () =>
@@ -129,23 +129,23 @@ public sealed class LowTemizligiBTests(PostgresFixture fx)
             await using var db = await factory.CreateDbContextAsync();
             return await PeriodInvoiceGenerator.RunAsync(db, tenant, DateTimeOffset.UtcNow);
         });
-        Assert.True(await KilitBekleniyorAsync(kilitAnahtari), "job kilide ulaşmadı — yarış kurulamadı");
+        Assert.True(await WaitsForLockAsync(lockKey), "job kilide ulaşmadı — yarış kurulamadı");
         await tx.CommitAsync();
 
-        var sonuc = await job;
-        Assert.Equal(0, sonuc.Kesilen);
-        Assert.Equal(0, sonuc.Tahsilat);
-        Assert.Contains(sonuc.Atlananlar, a => a.Contains("iptal"));
+        var result = await job;
+        Assert.Equal(0, result.Kesilen);
+        Assert.Equal(0, result.Tahsilat);
+        Assert.Contains(result.Atlananlar, a => a.Contains("iptal"));
 
-        await using var kontrol = await factory.CreateDbContextAsync();
-        Assert.False(await kontrol.Invoices.AnyAsync(i => i.KaynakKiraId == kira || i.RentalId == kira));
-        Assert.False(await kontrol.CashTransactions.AnyAsync(c => c.RentalId == kira));
-        Assert.All(await kontrol.FaturaDonemleri.Where(d => d.RentalId == kira).ToListAsync(),
+        await using var check = await factory.CreateDbContextAsync();
+        Assert.False(await check.Invoices.AnyAsync(i => i.KaynakKiraId == rental || i.RentalId == rental));
+        Assert.False(await check.CashTransactions.AnyAsync(c => c.RentalId == rental));
+        Assert.All(await check.FaturaDonemleri.Where(d => d.RentalId == rental).ToListAsync(),
             d => Assert.Equal(InvoicePeriodStatus.Planlandi, d.Durum));
     }
 
     /// <summary>Verilen advisory anahtarı için BEKLEYEN (granted=false) bir kilit görünene dek bekler (≤10 sn).</summary>
-    private async Task<bool> KilitBekleniyorAsync(string anahtar)
+    private async Task<bool> WaitsForLockAsync(string key)
     {
         await using var conn = new NpgsqlConnection(fx.AppConnectionString);
         await conn.OpenAsync();
@@ -154,7 +154,7 @@ public sealed class LowTemizligiBTests(PostgresFixture fx)
             await using var cmd = new NpgsqlCommand(
                 "SELECT count(*) FROM pg_locks l WHERE l.locktype = 'advisory' AND NOT l.granted " +
                 "AND ((l.classid::bigint << 32) | l.objid::bigint) = hashtextextended(@k, 42)", conn);
-            cmd.Parameters.AddWithValue("k", anahtar);
+            cmd.Parameters.AddWithValue("k", key);
             if ((long)(await cmd.ExecuteScalarAsync())! > 0) return true;
             await Task.Delay(50);
         }
@@ -165,51 +165,51 @@ public sealed class LowTemizligiBTests(PostgresFixture fx)
 
     private static async Task<Guid> IdAsync(HttpResponseMessage r)
     {
-        var metin = await r.Content.ReadAsStringAsync();
-        Assert.True(r.StatusCode == HttpStatusCode.Created, $"{(int)r.StatusCode}: {metin}");
-        return JsonDocument.Parse(metin).RootElement.GetProperty("id").GetGuid();
+        var text = await r.Content.ReadAsStringAsync();
+        Assert.True(r.StatusCode == HttpStatusCode.Created, $"{(int)r.StatusCode}: {text}");
+        return JsonDocument.Parse(text).RootElement.GetProperty("id").GetGuid();
     }
 
-    private static async Task HataBekleAsync(HttpResponseMessage r, string alanMetni)
+    private static async Task ExpectErrorAsync(HttpResponseMessage r, string fieldText)
     {
-        var metin = await r.Content.ReadAsStringAsync();
-        Assert.True(r.StatusCode == HttpStatusCode.BadRequest, $"{(int)r.StatusCode}: {metin}");
-        var kok = JsonDocument.Parse(metin).RootElement;
-        Assert.Equal("validation", kok.GetProperty("error").GetString());
-        Assert.Contains(alanMetni, kok.GetProperty("message").GetString());
+        var text = await r.Content.ReadAsStringAsync();
+        Assert.True(r.StatusCode == HttpStatusCode.BadRequest, $"{(int)r.StatusCode}: {text}");
+        var root = JsonDocument.Parse(text).RootElement;
+        Assert.Equal("validation", root.GetProperty("error").GetString());
+        Assert.Contains(fieldText, root.GetProperty("message").GetString());
     }
 
     [Theory]
     [InlineData("/api/v1/rentals")]
     [InlineData("/api/v1/reservations")]
-    public async Task Harici_api_yabanci_ya_da_olmayan_musteri_arac_400_ve_kayit_yazilmaz(string uc)
+    public async Task Harici_api_yabanci_ya_da_olmayan_musteri_arac_400_ve_kayit_yazilmaz(string endpoint)
     {
-        var sifre = Guid.NewGuid().ToString("N") + "Aa1!";
-        var kodA = "lba" + Guid.NewGuid().ToString("N")[..10];
-        var kodB = "lbb" + Guid.NewGuid().ToString("N")[..10];
-        await ApiSeed.TenantUserAsync(fx.OwnerConnectionString, kodA, "u", sifre);
-        await ApiSeed.TenantUserAsync(fx.OwnerConnectionString, kodB, "u", sifre);
+        var password = Guid.NewGuid().ToString("N") + "Aa1!";
+        var codeA = "lba" + Guid.NewGuid().ToString("N")[..10];
+        var codeB = "lbb" + Guid.NewGuid().ToString("N")[..10];
+        await ApiSeed.TenantUserAsync(fx.OwnerConnectionString, codeA, "u", password);
+        await ApiSeed.TenantUserAsync(fx.OwnerConnectionString, codeB, "u", password);
         using var api = new ApiFactory(fx.AppConnectionString);
-        var ca = await api.LoginClientAsync(kodA, "u", sifre);
-        var cb = await api.LoginClientAsync(kodB, "u", sifre);
+        var ca = await api.LoginClientAsync(codeA, "u", password);
+        var cb = await api.LoginClientAsync(codeB, "u", password);
 
-        var aArac = await IdAsync(await ca.PostAsJsonAsync("/api/v1/vehicles", new { plaka = "34LBA" + Random.Shared.Next(100, 999), durum = "Musait", km = 0, yakit = "Benzin" }));
-        var aCari = await IdAsync(await ca.PostAsJsonAsync("/api/v1/customers", new { tip = "Bireysel", ad = "A" }));
-        var bArac = await IdAsync(await cb.PostAsJsonAsync("/api/v1/vehicles", new { plaka = "34LBB" + Random.Shared.Next(100, 999), durum = "Musait", km = 0, yakit = "Benzin" }));
-        var bCari = await IdAsync(await cb.PostAsJsonAsync("/api/v1/customers", new { tip = "Bireysel", ad = "B" }));
+        var aVehicle = await IdAsync(await ca.PostAsJsonAsync("/api/v1/vehicles", new { plaka = "34LBA" + Random.Shared.Next(100, 999), durum = "Musait", km = 0, yakit = "Benzin" }));
+        var aAccount = await IdAsync(await ca.PostAsJsonAsync("/api/v1/customers", new { tip = "Bireysel", ad = "A" }));
+        var bVehicle = await IdAsync(await cb.PostAsJsonAsync("/api/v1/vehicles", new { plaka = "34LBB" + Random.Shared.Next(100, 999), durum = "Musait", km = 0, yakit = "Benzin" }));
+        var bAccount = await IdAsync(await cb.PostAsJsonAsync("/api/v1/customers", new { tip = "Bireysel", ad = "B" }));
 
-        var bas = DateTimeOffset.UtcNow.AddDays(5);
-        object Govde(Guid m, Guid v) => new { musteriId = m, vehicleId = v, basTar = bas, bitTar = bas.AddDays(2), gunlukUcret = 100m };
+        var start = DateTimeOffset.UtcNow.AddDays(5);
+        object Body(Guid m, Guid v) => new { musteriId = m, vehicleId = v, basTar = start, bitTar = start.AddDays(2), gunlukUcret = 100m };
 
-        await HataBekleAsync(await ca.PostAsJsonAsync(uc, Govde(bCari, aArac)), "Müşteri");      // başka kiracının carisi
-        await HataBekleAsync(await ca.PostAsJsonAsync(uc, Govde(Guid.NewGuid(), aArac)), "Müşteri"); // olmayan cari
-        await HataBekleAsync(await ca.PostAsJsonAsync(uc, Govde(aCari, bArac)), "Araç");         // başka kiracının aracı
-        await HataBekleAsync(await ca.PostAsJsonAsync(uc, Govde(aCari, Guid.NewGuid())), "Araç");    // olmayan araç
+        await ExpectErrorAsync(await ca.PostAsJsonAsync(endpoint, Body(bAccount, aVehicle)), "Müşteri");      // başka kiracının carisi
+        await ExpectErrorAsync(await ca.PostAsJsonAsync(endpoint, Body(Guid.NewGuid(), aVehicle)), "Müşteri"); // olmayan cari
+        await ExpectErrorAsync(await ca.PostAsJsonAsync(endpoint, Body(aAccount, bVehicle)), "Araç");         // başka kiracının aracı
+        await ExpectErrorAsync(await ca.PostAsJsonAsync(endpoint, Body(aAccount, Guid.NewGuid())), "Araç");    // olmayan araç
 
-        var liste = await ca.GetFromJsonAsync<JsonElement>(uc);
-        Assert.Equal(0, liste.GetArrayLength());
+        var list = await ca.GetFromJsonAsync<JsonElement>(endpoint);
+        Assert.Equal(0, list.GetArrayLength());
 
         // Kendi kiracısının kayıtlarıyla meşru yol hâlâ 201.
-        await IdAsync(await ca.PostAsJsonAsync(uc, Govde(aCari, aArac)));
+        await IdAsync(await ca.PostAsJsonAsync(endpoint, Body(aAccount, aVehicle)));
     }
 }

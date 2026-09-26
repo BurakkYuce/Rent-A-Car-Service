@@ -139,15 +139,15 @@
     @* 6. Web Api Bilgisi (OTA kanalı — görsel-tam, veri kaynağı TODO) *@
     <div data-panel-group="alt" data-panel="webapi" hidden>
         <div class="grid-form">
-            @{ var rez = Vm.KaynakRezervasyon; }
-            @foreach (var (ad, deger) in new (string, decimal?)[]
+            @{ var res = Vm.KaynakRezervasyon; }
+            @foreach (var (name, value) in new (string, decimal?)[]
             {
-                ("Kira Bedeli", rez?.OtaKiraBedeli), ("Drop Bedeli", rez?.OtaDropBedeli),
-                ("Bebek Koltuğu", rez?.OtaBebekKoltugu), ("Navigasyon", rez?.OtaNavigasyon),
-                ("LCF", rez?.OtaLcf), ("CDW", rez?.OtaCdw), ("SCDW", rez?.OtaScdw), ("Ek Sürücü", rez?.OtaEkSurucu)
+                ("Kira Bedeli", res?.OtaKiraBedeli), ("Drop Bedeli", res?.OtaDropBedeli),
+                ("Bebek Koltuğu", res?.OtaBebekKoltugu), ("Navigasyon", res?.OtaNavigasyon),
+                ("LCF", res?.OtaLcf), ("CDW", res?.OtaCdw), ("SCDW", res?.OtaScdw), ("Ek Sürücü", res?.OtaEkSurucu)
             })
             {
-                <label>@ad<input readonly value="@(deger?.ToString("N2") ?? "—")"
+                <label>@name<input readonly value="@(value?.ToString("N2") ?? "—")"
                     title="Kaynak rezervasyonun OTA bileşen fiyatı (bilgi); manuel kirada boş" /></label>
             }
         </div>
@@ -246,6 +246,6 @@
     </div>
 </section>
 @code {
-    [Parameter, EditorRequired] public KiraFormVm Vm { get; set; } = default!;
+    [Parameter, EditorRequired] public RentalFormVm Vm { get; set; } = default!;
     [Parameter] public IReadOnlyList<RentACar.Domain.Entities.BelgeSablon> Sablonlar { get; set; } = [];
 }

@@ -17,11 +17,11 @@ namespace RentACar.IntegrationTests;
 [Collection("postgres")]
 public sealed class RepriceGrossUpProbeTests(PostgresFixture fx)
 {
-    private static readonly DateTimeOffset Bas = new DateTimeOffset(DateTime.UtcNow.Date, TimeSpan.Zero).AddDays(5);
+    private static readonly DateTimeOffset Start = new DateTimeOffset(DateTime.UtcNow.Date, TimeSpan.Zero).AddDays(5);
 
-    private static async Task<(Guid m, Guid v)> SeedAsync(IServiceProvider sp, string plaka)
+    private static async Task<(Guid m, Guid v)> SeedAsync(IServiceProvider sp, string plate)
     {
-        var v = await sp.GetRequiredService<VehicleService>().CreateAsync(new VehicleInput { Plaka = plaka });
+        var v = await sp.GetRequiredService<VehicleService>().CreateAsync(new VehicleInput { Plaka = plate });
         var m = await sp.GetRequiredService<CustomerService>().CreateAsync(new CustomerInput
         { Tip = CustomerType.Bireysel, Ad = "Reprice", Soyad = "Probe" });
         return (m, v);
@@ -33,29 +33,29 @@ public sealed class RepriceGrossUpProbeTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
         var sp = scope.ServiceProvider;
-        var rez = sp.GetRequiredService<ReservationService>();
+        var res = sp.GetRequiredService<ReservationService>();
         var (m, v) = await SeedAsync(sp, "34 RP 01");
 
-        var id = await rez.CreateAsync(new BookingInput
+        var id = await res.CreateAsync(new BookingInput
         {
-            MusteriId = m, VehicleId = v, BasTar = Bas, BitTar = Bas.AddDays(3),
+            MusteriId = m, VehicleId = v, BasTar = Start, BitTar = Start.AddDays(3),
             GunlukUcret = 1000m, FiyatTuru = "Günlük",
         });
 
-        var olusan = (await rez.GetAsync(id))!;
-        Assert.Equal(1200m, olusan.GunlukUcret);   // 1.000 × 1,20 (elle)
-        Assert.Equal(3600m, olusan.Tutar);         // 3 × 1.200 (elle)
+        var created = (await res.GetAsync(id))!;
+        Assert.Equal(1200m, created.GunlukUcret);   // 1.000 × 1,20 (elle)
+        Assert.Equal(3600m, created.Tutar);         // 3 × 1.200 (elle)
 
         // Düzenleme ekranı ücreti KAYITLI değerle doldurur ve fiyat türünü aynen geri gönderir
         // (ReservationList.razor: value="@r.GunlukUcret" + <select name="fiyatTuru">).
-        await rez.UpdateAsync(id, new BookingInput
+        await res.UpdateAsync(id, new BookingInput
         {
-            MusteriId = m, VehicleId = v, BasTar = Bas, BitTar = Bas.AddDays(4),
-            GunlukUcret = olusan.GunlukUcret, FiyatTuru = olusan.FiyatTuru,
+            MusteriId = m, VehicleId = v, BasTar = Start, BitTar = Start.AddDays(4),
+            GunlukUcret = created.GunlukUcret, FiyatTuru = created.FiyatTuru,
         });
 
-        var guncel = (await rez.GetAsync(id))!;
-        Assert.Equal(1200m, guncel.GunlukUcret);   // kullanıcı ücrete dokunmadı → DEĞİŞMEMELİ
-        Assert.Equal(4800m, guncel.Tutar);         // 4 × 1.200 (elle)
+        var current = (await res.GetAsync(id))!;
+        Assert.Equal(1200m, current.GunlukUcret);   // kullanıcı ücrete dokunmadı → DEĞİŞMEMELİ
+        Assert.Equal(4800m, current.Tutar);         // 4 × 1.200 (elle)
     }
 }

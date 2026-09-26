@@ -15,7 +15,7 @@
 @if (Ok == "1") { <p class="ok">Kaydedildi.</p> }
 @if (!string.IsNullOrEmpty(Hata)) { <p class="error">@Hata</p> }
 
-<details class="new-vehicle" open="@(_satirlar.Count == 0)">
+<details class="new-vehicle" open="@(_rows.Count == 0)">
     <summary>+ Yeni Belge Yükle</summary>
     <form method="post" action="/platform/belgeler/yukle" enctype="multipart/form-data" class="grid-form">
         <AntiforgeryToken />
@@ -31,7 +31,7 @@
         <div class="tam-genislik">
             <span class="muted small">Hedef firmalar — <strong>hiçbiri seçilmezse belge TÜM firmalara açıktır.</strong></span>
             <div class="chips">
-                @foreach (var t in _tenantlar)
+                @foreach (var t in _tenants)
                 {
                     <label class="chip"><input type="checkbox" name="hedef" value="@t.Id" /> @t.Code</label>
                 }
@@ -44,7 +44,7 @@
     </form>
 </details>
 
-@if (_satirlar.Count == 0)
+@if (_rows.Count == 0)
 {
     <p class="empty-state">Henüz belge yüklenmedi.</p>
 }
@@ -59,7 +59,7 @@ else
             </tr>
         </thead>
         <tbody>
-            @foreach (var b in _satirlar)
+            @foreach (var b in _rows)
             {
                 <tr>
                     <td>
@@ -125,12 +125,12 @@ else
     [SupplyParameterFromQuery(Name = "ok")] public string? Ok { get; set; }
     [SupplyParameterFromQuery(Name = "hata")] public string? Hata { get; set; }
 
-    private IReadOnlyList<PlatformAdminService.PlatformBelgeSatiri> _satirlar = [];
-    private IReadOnlyList<PlatformTenantRow> _tenantlar = [];
+    private IReadOnlyList<PlatformAdminService.PlatformBelgeSatiri> _rows = [];
+    private IReadOnlyList<PlatformTenantRow> _tenants = [];
 
     protected override async Task OnInitializedAsync()
     {
-        _satirlar = await Platform.ListBelgelerAsync();
-        _tenantlar = await Platform.ListTenantsAsync();
+        _rows = await Platform.ListDocumentsAsync();
+        _tenants = await Platform.ListTenantsAsync();
     }
 }

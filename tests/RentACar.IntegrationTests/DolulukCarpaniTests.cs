@@ -24,9 +24,9 @@ namespace RentACar.IntegrationTests;
 [Collection("postgres")]
 public sealed class DolulukCarpaniTests(PostgresFixture fx)
 {
-    private static readonly DateTimeOffset Bas = new DateTimeOffset(DateTime.UtcNow.Date, TimeSpan.Zero).AddDays(10);
+    private static readonly DateTimeOffset Start = new DateTimeOffset(DateTime.UtcNow.Date, TimeSpan.Zero).AddDays(10);
 
-    private static async Task<Guid> SeedFiloAsync(IServiceProvider sp) // 10 araç, 42/50 dolu → %84
+    private static async Task<Guid> SeedFleetAsync(IServiceProvider sp) // 10 araç, 42/50 dolu → %84
     {
         await sp.GetRequiredService<VehicleGroupService>().CreateAsync(new VehicleGroupInput
         { Kod = "EKO", Ad = "Ekonomik", GunlukKmLimiti = 300, AsimKmUcreti = 5m });
@@ -37,23 +37,23 @@ public sealed class DolulukCarpaniTests(PostgresFixture fx)
             OnayDurumu = TariffApprovalStatus.Onayli, Onaylayan = "t"
         });
         var veh = sp.GetRequiredService<VehicleService>();
-        var araclar = new List<Guid>();
+        var vehicles = new List<Guid>();
         for (var i = 1; i <= 10; i++)
-            araclar.Add(await veh.CreateAsync(new VehicleInput { Plaka = $"34 DK {i:00}", Grup = "EKO" }));
+            vehicles.Add(await veh.CreateAsync(new VehicleInput { Plaka = $"34 DK {i:00}", Grup = "EKO" }));
         var m = await sp.GetRequiredService<CustomerService>().CreateAsync(new CustomerInput
         { Tip = CustomerType.Bireysel, Ad = "Dolu", Soyad = "M" });
         var rentals = sp.GetRequiredService<RentalService>();
         for (var i = 0; i < 8; i++)   // 8 araç tam 5 gün = 40 araç-gün
             await rentals.CreateDirectAsync(new BookingInput
-            { MusteriId = m, VehicleId = araclar[i], BasTar = Bas, BitTar = Bas.AddDays(5), GunlukUcret = 100m });
+            { MusteriId = m, VehicleId = vehicles[i], BasTar = Start, BitTar = Start.AddDays(5), GunlukUcret = 100m });
         await rentals.CreateDirectAsync(new BookingInput // 9. araç 2 gün = 2 → toplam 42
-        { MusteriId = m, VehicleId = araclar[8], BasTar = Bas, BitTar = Bas.AddDays(2), GunlukUcret = 100m });
-        return araclar[9];            // 10. araç boş (rez/teklif testleri için)
+        { MusteriId = m, VehicleId = vehicles[8], BasTar = Start, BitTar = Start.AddDays(2), GunlukUcret = 100m });
+        return vehicles[9];            // 10. araç boş (rez/teklif testleri için)
     }
 
-    private static Task<Guid> KuralAsync(IServiceProvider sp, int esik, decimal carpan) =>
+    private static Task<Guid> RuleAsync(IServiceProvider sp, int threshold, decimal multiplier) =>
         sp.GetRequiredService<OccupancyPriceRuleService>().CreateAsync(new DolulukFiyatKuralInput
-        { Kod = $"D{esik}", Ad = $"Doluluk {esik}", EsikYuzde = esik, CarpanYuzde = carpan });
+        { Kod = $"D{threshold}", Ad = $"Doluluk {threshold}", EsikYuzde = threshold, CarpanYuzde = multiplier });
 
     [Fact]
     public async Task Esik_asiminda_carpan_iskonto_matrahi_surgelu()
@@ -61,12 +61,12 @@ public sealed class DolulukCarpaniTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
         var sp = scope.ServiceProvider;
-        await SeedFiloAsync(sp);
-        await KuralAsync(sp, esik: 80, carpan: 15m);
+        await SeedFleetAsync(sp);
+        await RuleAsync(sp, threshold: 80, multiplier: 15m);
 
         // %84 ≥ %80 → 1000 → 1150 (elle); 5 gün baz 5750.
         var engine = sp.GetRequiredService<RentalQuoteEngine>();
-        var q = await engine.QuoteAsync(new QuoteRequest { AracGrupKod = "EKO", BasTar = Bas, BitTar = Bas.AddDays(5) });
+        var q = await engine.QuoteAsync(new QuoteRequest { AracGrupKod = "EKO", BasTar = Start, BitTar = Start.AddDays(5) });
         Assert.Equal(1150m, q.GunlukUcret);
         Assert.Equal(5750m, q.BazTutar);
         Assert.Contains(q.Notlar, n => n.Contains("Doluluk %84") && n.Contains("+%15"));
@@ -74,7 +74,7 @@ public sealed class DolulukCarpaniTests(PostgresFixture fx)
         // İskonto matrahı SURGE'LÜ baz: %10 kural → 5750 × 0.90 = 5175 (elle).
         await sp.GetRequiredService<RentACar.Application.RentalRules.RentalRuleService>()
             .CreateAsync(new RentACar.Application.RentalRules.RentalRuleInput { Kod = "GENEL", Ad = "G", Iskonto = 10m });
-        var q2 = await engine.QuoteAsync(new QuoteRequest { AracGrupKod = "EKO", BasTar = Bas, BitTar = Bas.AddDays(5) });
+        var q2 = await engine.QuoteAsync(new QuoteRequest { AracGrupKod = "EKO", BasTar = Start, BitTar = Start.AddDays(5) });
         Assert.Equal(575m, q2.IskontoTutar);
         Assert.Equal(5175m, q2.GenelToplam);
     }
@@ -85,16 +85,16 @@ public sealed class DolulukCarpaniTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
         var sp = scope.ServiceProvider;
-        await SeedFiloAsync(sp);
+        await SeedFleetAsync(sp);
         var engine = sp.GetRequiredService<RentalQuoteEngine>();
 
         // Hiç kural yok → kısa devre (doluluk sorgusu yok) → 1000.
-        var q0 = await engine.QuoteAsync(new QuoteRequest { AracGrupKod = "EKO", BasTar = Bas, BitTar = Bas.AddDays(5) });
+        var q0 = await engine.QuoteAsync(new QuoteRequest { AracGrupKod = "EKO", BasTar = Start, BitTar = Start.AddDays(5) });
         Assert.Equal(1000m, q0.GunlukUcret);
 
         // Eşik %90 kural: %84 altında kalır → bayt-özdeş 1000, not yok.
-        await KuralAsync(sp, esik: 90, carpan: 15m);
-        var q1 = await engine.QuoteAsync(new QuoteRequest { AracGrupKod = "EKO", BasTar = Bas, BitTar = Bas.AddDays(5) });
+        await RuleAsync(sp, threshold: 90, multiplier: 15m);
+        var q1 = await engine.QuoteAsync(new QuoteRequest { AracGrupKod = "EKO", BasTar = Start, BitTar = Start.AddDays(5) });
         Assert.Equal(1000m, q1.GunlukUcret);
         Assert.DoesNotContain(q1.Notlar, n => n.Contains("Doluluk"));
     }
@@ -105,36 +105,36 @@ public sealed class DolulukCarpaniTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
         var sp = scope.ServiceProvider;
-        var bosArac = await SeedFiloAsync(sp);
-        await KuralAsync(sp, esik: 80, carpan: 15m);
+        var idleVehicle = await SeedFleetAsync(sp);
+        await RuleAsync(sp, threshold: 80, multiplier: 15m);
         var m = await sp.GetRequiredService<CustomerService>().CreateAsync(new CustomerInput
         { Tip = CustomerType.Bireysel, Ad = "Rez", Soyad = "M" });
-        var rez = sp.GetRequiredService<ReservationService>();
+        var res = sp.GetRequiredService<ReservationService>();
 
-        BookingInput Girdi(int gun, string? aciklama = null) => new()
+        BookingInput Input(int day, string? description = null) => new()
         {
-            MusteriId = m, VehicleId = bosArac, BasTar = Bas, BitTar = Bas.AddDays(gun),
-            FiyatTuru = "Otomatik", Aciklama = aciklama
+            MusteriId = m, VehicleId = idleVehicle, BasTar = Start, BitTar = Start.AddDays(day),
+            FiyatTuru = "Otomatik", Aciklama = description
         };
 
         // Create'te surge UYGULANIR (fiyat o an kilitlenir): 1150×5 = 5750.
-        var id = await rez.CreateAsync(Girdi(5));
-        var r0 = (await rez.GetAsync(id))!;
+        var id = await res.CreateAsync(Input(5));
+        var r0 = (await res.GetAsync(id))!;
         Assert.Equal(5750m, r0.Tutar);
 
         // NOT/no-op düzenlemesi fiyatı SESSİZCE DÜŞÜREMEZ (düzeltme öncesi surge'süz 5000'e iniyordu):
         // fiyat-etkileyen girdiler (form prefill'li ücret dahil) aynı → reprice atlanır → 5750 korunur.
-        await rez.UpdateAsync(id, new BookingInput
+        await res.UpdateAsync(id, new BookingInput
         {
-            MusteriId = m, VehicleId = bosArac, BasTar = Bas, BitTar = Bas.AddDays(5),
+            MusteriId = m, VehicleId = idleVehicle, BasTar = Start, BitTar = Start.AddDays(5),
             FiyatTuru = "Otomatik", GunlukUcret = r0.GunlukUcret, Aciklama = "not düzeltmesi"
         });
-        Assert.Equal(5750m, (await rez.GetAsync(id))!.Tutar);
+        Assert.Equal(5750m, (await res.GetAsync(id))!.Tutar);
 
         // Fiyat-etkileyen girdi (tarih) değişince reprice — ama SURGE'SÜZ (Karar (4), 2026-09-25):
         // 3 günlük pencere doluluğu 8×3+2=26 / 30 → %86,67 ≥ 80 olsa da çarpan uygulanmaz → 1000×3 = 3000 (elle).
-        await rez.UpdateAsync(id, Girdi(3));
-        Assert.Equal(3000m, (await rez.GetAsync(id))!.Tutar);
+        await res.UpdateAsync(id, Input(3));
+        Assert.Equal(3000m, (await res.GetAsync(id))!.Tutar);
     }
 
     [Fact]
@@ -143,28 +143,28 @@ public sealed class DolulukCarpaniTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
         var sp = scope.ServiceProvider;
-        var bosArac = await SeedFiloAsync(sp);
+        var idleVehicle = await SeedFleetAsync(sp);
         var m = await sp.GetRequiredService<CustomerService>().CreateAsync(new CustomerInput
         { Tip = CustomerType.Bireysel, Ad = "Rez", Soyad = "K" });
-        var rez = sp.GetRequiredService<ReservationService>();
+        var res = sp.GetRequiredService<ReservationService>();
 
-        BookingInput Girdi(int gun) => new()
-        { MusteriId = m, VehicleId = bosArac, BasTar = Bas, BitTar = Bas.AddDays(gun), FiyatTuru = "Otomatik" };
+        BookingInput Input(int day) => new()
+        { MusteriId = m, VehicleId = idleVehicle, BasTar = Start, BitTar = Start.AddDays(day), FiyatTuru = "Otomatik" };
 
         // Kural YOKKEN açılan rezervasyon: 1000×5 = 5000 (elle).
-        var id = await rez.CreateAsync(Girdi(5));
-        Assert.Equal(5000m, (await rez.GetAsync(id))!.Tutar);
+        var id = await res.CreateAsync(Input(5));
+        Assert.Equal(5000m, (await res.GetAsync(id))!.Tutar);
 
         // Sonra uygulanabilir surge kuralı eklenir (eşik 80, +%15) — motor artık yeni teklifte surge'lü fiyat verir:
         // 4 günlük pencere doluluğu 8×4+2=34 / 40 → %85 ≥ 80 → 1150/gün (elle).
-        await KuralAsync(sp, esik: 80, carpan: 15m);
+        await RuleAsync(sp, threshold: 80, multiplier: 15m);
         var q = await sp.GetRequiredService<RentalQuoteEngine>()
-            .QuoteAsync(new QuoteRequest { AracGrupKod = "EKO", BasTar = Bas, BitTar = Bas.AddDays(4) });
+            .QuoteAsync(new QuoteRequest { AracGrupKod = "EKO", BasTar = Start, BitTar = Start.AddDays(4) });
         Assert.Equal(1150m, q.GunlukUcret);
 
         // Rezervasyon tarihi düzenlenir (aynı sınıf) → reprice surge'süz: 1000×4 = 4000 (elle), 4600 DEĞİL.
-        await rez.UpdateAsync(id, Girdi(4));
-        var r = (await rez.GetAsync(id))!;
+        await res.UpdateAsync(id, Input(4));
+        var r = (await res.GetAsync(id))!;
         Assert.Equal(4000m, r.Tutar);
         Assert.Equal(1000m, r.GunlukUcret);
     }
@@ -183,7 +183,7 @@ public sealed class DolulukCarpaniTests(PostgresFixture fx)
             Gun1 = 1000m, Gun2 = 1000m, Gun3 = 1000m, Gun4 = 1000m, Gun5 = 1000m,
             OnayDurumu = TariffApprovalStatus.Onayli, Onaylayan = "t"
         });
-        await KuralAsync(sp, esik: 60, carpan: 20m);
+        await RuleAsync(sp, threshold: 60, multiplier: 20m);
         var veh = sp.GetRequiredService<VehicleService>();
 
         // B1: 4 araçtan 2'si SATILMIŞ — payda kiralanabilir filodur (2). 2 aktif araç tam rezerve →
@@ -197,17 +197,17 @@ public sealed class DolulukCarpaniTests(PostgresFixture fx)
 
         // B3: doluluk sinyali REZERVASYONLARDAN da gelir (ileri tarihli talebin ana kaynağı) —
         // düzeltme öncesi tam rezerve grup %0 görünüyordu.
-        var rez = sp.GetRequiredService<ReservationService>();
-        await rez.CreateAsync(new BookingInput { MusteriId = m, VehicleId = v1, BasTar = Bas, BitTar = Bas.AddDays(5), GunlukUcret = 100m });
-        await rez.CreateAsync(new BookingInput { MusteriId = m, VehicleId = v2, BasTar = Bas, BitTar = Bas.AddDays(5), GunlukUcret = 100m });
+        var res = sp.GetRequiredService<ReservationService>();
+        await res.CreateAsync(new BookingInput { MusteriId = m, VehicleId = v1, BasTar = Start, BitTar = Start.AddDays(5), GunlukUcret = 100m });
+        await res.CreateAsync(new BookingInput { MusteriId = m, VehicleId = v2, BasTar = Start, BitTar = Start.AddDays(5), GunlukUcret = 100m });
 
         var engine = sp.GetRequiredService<RentalQuoteEngine>();
-        var q = await engine.QuoteAsync(new QuoteRequest { AracGrupKod = "EKO", BasTar = Bas, BitTar = Bas.AddDays(5) });
+        var q = await engine.QuoteAsync(new QuoteRequest { AracGrupKod = "EKO", BasTar = Start, BitTar = Start.AddDays(5) });
         Assert.Equal(1200m, q.GunlukUcret);   // 1000 × 1.20 (elle)
 
         // B5: aynı-takvim-günü penceresi 1 gün sayılır (gece-yarısı atlatması yok) — %100 → surge.
         var q2 = await engine.QuoteAsync(new QuoteRequest
-        { AracGrupKod = "EKO", BasTar = Bas.AddHours(10), BitTar = Bas.AddHours(18) });
+        { AracGrupKod = "EKO", BasTar = Start.AddHours(10), BitTar = Start.AddHours(18) });
         Assert.Equal(1200m, q2.GunlukUcret);
     }
 
@@ -225,7 +225,7 @@ public sealed class DolulukCarpaniTests(PostgresFixture fx)
             Gun1 = 1000m, Gun2 = 1000m, Gun3 = 1000m, Gun4 = 1000m, Gun5 = 1000m,
             OnayDurumu = TariffApprovalStatus.Onayli, Onaylayan = "t"
         });
-        await KuralAsync(sp, esik: 40, carpan: 15m);
+        await RuleAsync(sp, threshold: 40, multiplier: 15m);
         var veh = sp.GetRequiredService<VehicleService>();
         var v1 = await veh.CreateAsync(new VehicleInput { Plaka = "34 DE 01", Grup = "EKO" });
         await veh.CreateAsync(new VehicleInput { Plaka = "34 DE 02", Grup = "EKO" });
@@ -236,12 +236,12 @@ public sealed class DolulukCarpaniTests(PostgresFixture fx)
         // 5 günlük kira ANINDA erken dönüşle kapanır (efektif bitiş = başlangıç günü) — planlı BitTar
         // hayalet doluluk üretmez: %0 → surge YOK (düzeltme öncesi %50 ≥ 40 → yanlış +%15).
         var id = await rentals.CreateDirectAsync(new BookingInput
-        { MusteriId = m, VehicleId = v1, BasTar = Bas, BitTar = Bas.AddDays(5), GunlukUcret = 100m });
+        { MusteriId = m, VehicleId = v1, BasTar = Start, BitTar = Start.AddDays(5), GunlukUcret = 100m });
         await rentals.DeliverAsync(id, pickupKm: 0, pickupFuel: 8);
-        await rentals.ReturnAsync(id, returnKm: 0, returnFuel: 8, Bas);
+        await rentals.ReturnAsync(id, returnKm: 0, returnFuel: 8, Start);
 
         var q = await sp.GetRequiredService<RentalQuoteEngine>().QuoteAsync(new QuoteRequest
-        { AracGrupKod = "EKO", BasTar = Bas, BitTar = Bas.AddDays(5) });
+        { AracGrupKod = "EKO", BasTar = Start, BitTar = Start.AddDays(5) });
         Assert.Equal(1000m, q.GunlukUcret);
         Assert.DoesNotContain(q.Notlar, n => n.Contains("Doluluk"));
     }
@@ -259,7 +259,7 @@ public sealed class DolulukCarpaniTests(PostgresFixture fx)
             { Kod = "D99", Ad = "Aşırı", EsikYuzde = 80, CarpanYuzde = 70m }));
 
         // Servis atlanıp repo'dan yazılsa bile DB CHECK reddeder (pantolon askısı; şemadaki ilk CHECK).
-        var id = await KuralAsync(sp, esik: 80, carpan: 15m);
+        var id = await RuleAsync(sp, threshold: 80, multiplier: 15m);
         var repo = sp.GetRequiredService<IOccupancyPriceRuleRepository>();
         await Assert.ThrowsAsync<DbUpdateException>(
             () => repo.UpdateAsync(id, k => k.CarpanYuzde = 70m));

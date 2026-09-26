@@ -14,12 +14,12 @@ namespace RentACar.IntegrationTests;
 [Collection("postgres")]
 public sealed class FiloKiralamaTests(PostgresFixture fx)
 {
-    private static async Task<(Guid cust, Guid veh)> Seed(IServiceProvider sp, string plaka)
+    private static async Task<(Guid cust, Guid veh)> Seed(IServiceProvider sp, string plate)
     {
         var cust = await sp.GetRequiredService<CustomerService>()
             .CreateAsync(new CustomerInput { Tip = CustomerType.Bireysel, Ad = "Filo Müşteri" });
         var veh = await sp.GetRequiredService<VehicleService>()
-            .CreateAsync(new VehicleInput { Plaka = plaka, Durum = VehicleStatus.Musait });
+            .CreateAsync(new VehicleInput { Plaka = plate, Durum = VehicleStatus.Musait });
         return (cust, veh);
     }
 
@@ -36,16 +36,16 @@ public sealed class FiloKiralamaTests(PostgresFixture fx)
         { MusteriId = cust, VehicleId = veh, SureAy = 12, AylikUcret = 1000m, KdvOrani = 0.20m });
 
         var k = await svc.GetAsync(id);
-        BelgeNoOracle.BeklenenlerdenBiri(16, 1, k!.No);   // 16 = FiloKiralama
+        DocumentNoOracle.OneOfExpected(16, 1, k!.No);   // 16 = FiloKiralama
         Assert.Equal(12, k.SureAy);
 
-        var ozet = FleetRentalService.InstallmentPlan(k);
-        Assert.Equal(12, ozet.Taksitler.Count);
-        Assert.Equal(12000m, ozet.ToplamNet);    // 1000 × 12 (elle oracle)
-        Assert.Equal(2400m, ozet.ToplamKdv);     // 12000 × 0.20
-        Assert.Equal(14400m, ozet.GenelToplam);  // 12000 + 2400
+        var summary = FleetRentalService.InstallmentPlan(k);
+        Assert.Equal(12, summary.Taksitler.Count);
+        Assert.Equal(12000m, summary.ToplamNet);    // 1000 × 12 (elle oracle)
+        Assert.Equal(2400m, summary.ToplamKdv);     // 12000 × 0.20
+        Assert.Equal(14400m, summary.GenelToplam);  // 12000 + 2400
         // İlk taksit vadesi = başlangıç; 12. taksit = +11 ay.
-        Assert.Equal(1200m, ozet.Taksitler[0].Toplam);
+        Assert.Equal(1200m, summary.Taksitler[0].Toplam);
     }
 
     [Fact]

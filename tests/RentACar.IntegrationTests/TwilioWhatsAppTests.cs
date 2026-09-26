@@ -32,8 +32,8 @@ public sealed class TwilioWhatsAppTests
         {
             Cagri++;
             Istek = request;
-            var ham = await request.Content!.ReadAsStringAsync(ct);
-            Govde = ham.Split('&')
+            var raw = await request.Content!.ReadAsStringAsync(ct);
+            Govde = raw.Split('&')
                 .Select(p => p.Split('=', 2))
                 .ToDictionary(p => Uri.UnescapeDataString(p[0]),
                               p => Uri.UnescapeDataString(p[1].Replace('+', ' ')));
@@ -46,15 +46,15 @@ public sealed class TwilioWhatsAppTests
         public HttpClient CreateClient(string name) => new(h, disposeHandler: false);
     }
 
-    private static TwilioWhatsAppService Servis(YakalayiciHandler h, params (string K, string V)[] ayarlar)
+    private static TwilioWhatsAppService Service(YakalayiciHandler h, params (string K, string V)[] settings)
     {
         var cfg = new ConfigurationBuilder().AddInMemoryCollection(
-            ayarlar.ToDictionary(a => a.K, a => (string?)a.V)).Build();
+            settings.ToDictionary(a => a.K, a => (string?)a.V)).Build();
         return new TwilioWhatsAppService(new TekHandlerFactory(h), cfg,
             NullLogger<TwilioWhatsAppService>.Instance);
     }
 
-    private static readonly (string, string)[] Temel =
+    private static readonly (string, string)[] Base =
     [
         ("Twilio:AccountSid", "ACtest"),
         ("Twilio:AuthToken", "token"),
@@ -67,7 +67,7 @@ public sealed class TwilioWhatsAppTests
     public async Task Sablon_tanimliysa_ContentSid_ile_gonderilir()
     {
         var h = new YakalayiciHandler();
-        var svc = Servis(h, [.. Temel, ("Twilio:Templates:operasyon_ozet", "HX123")]);
+        var svc = Service(h, [.. Base, ("Twilio:Templates:operasyon_ozet", "HX123")]);
 
         var ok = await svc.SendTemplateAsync("+905321112233", "operasyon_ozet",
             new Dictionary<string, string> { ["1"] = "Bugün 3 çıkış" });
@@ -77,9 +77,9 @@ public sealed class TwilioWhatsAppTests
         // ContentVariables ham metin olarak DEĞİL, ÇÖZÜLMÜŞ hâliyle sınanır: JsonSerializer
         // Türkçe karakterleri \u00FC gibi kaçırır — bu geçerli JSON'dur ve Twilio aynı dizeye
         // geri çözer. Ham dizeye bakan bir iddia, kodu değil kaçırma biçimini test ederdi.
-        var degiskenler = System.Text.Json.JsonSerializer
+        var variables = System.Text.Json.JsonSerializer
             .Deserialize<Dictionary<string, string>>(h.Govde["ContentVariables"]);
-        Assert.Equal(new Dictionary<string, string> { ["1"] = "Bugün 3 çıkış" }, degiskenler);
+        Assert.Equal(new Dictionary<string, string> { ["1"] = "Bugün 3 çıkış" }, variables);
         Assert.False(h.Govde.ContainsKey("Body"));           // şablon yolunda serbest metin YOK
         Assert.Equal("whatsapp:+14155238886", h.Govde["From"]);
         Assert.Equal("whatsapp:+905321112233", h.Govde["To"]);
@@ -90,7 +90,7 @@ public sealed class TwilioWhatsAppTests
     public async Task Bayrak_acikken_bile_sablon_varsa_sablon_kullanilir()
     {
         var h = new YakalayiciHandler();
-        var svc = Servis(h, [.. Temel,
+        var svc = Service(h, [.. Base,
             ("Twilio:Templates:operasyon_ozet", "HX123"), ("Twilio:AllowFreeform", "true")]);
 
         await svc.SendTemplateAsync("+905321112233", "operasyon_ozet",
@@ -106,7 +106,7 @@ public sealed class TwilioWhatsAppTests
     public async Task Sablon_yok_bayrak_acik_ise_serbest_metin_gonderilir()
     {
         var h = new YakalayiciHandler();
-        var svc = Servis(h, [.. Temel, ("Twilio:AllowFreeform", "true")]);
+        var svc = Service(h, [.. Base, ("Twilio:AllowFreeform", "true")]);
 
         var ok = await svc.SendTemplateAsync("+905321112233", "operasyon_ozet",
             new Dictionary<string, string> { ["1"] = "Bugün 3 çıkış, 2 dönüş." });
@@ -126,7 +126,7 @@ public sealed class TwilioWhatsAppTests
     public async Task Sablon_yok_bayrak_yok_ise_HIC_istek_atilmaz()
     {
         var h = new YakalayiciHandler();
-        var svc = Servis(h, Temel);
+        var svc = Service(h, Base);
 
         var ok = await svc.SendTemplateAsync("+905321112233", "operasyon_ozet",
             new Dictionary<string, string> { ["1"] = "x" });
@@ -139,7 +139,7 @@ public sealed class TwilioWhatsAppTests
     public async Task Kimlik_eksikse_bayrak_acik_olsa_bile_gonderilmez()
     {
         var h = new YakalayiciHandler();
-        var svc = Servis(h, ("Twilio:AccountSid", "ACtest"), ("Twilio:AllowFreeform", "true"));
+        var svc = Service(h, ("Twilio:AccountSid", "ACtest"), ("Twilio:AllowFreeform", "true"));
 
         Assert.False(await svc.SendTemplateAsync("+905321112233", "ops_alert",
             new Dictionary<string, string> { ["1"] = "x" }));
@@ -155,23 +155,23 @@ public sealed class TwilioWhatsAppTests
     [Fact]
     public void Metin_degiskenleri_SAYISAL_sirayla_birlestirir()
     {
-        var girdi = new Dictionary<string, string>
+        var input = new Dictionary<string, string>
         {
             ["10"] = "on", ["2"] = "iki", ["1"] = "bir",
         };
-        Assert.Equal("bir iki on", TwilioWhatsAppService.Metin(girdi));
+        Assert.Equal("bir iki on", TwilioWhatsAppService.Text(input));
     }
 
     [Fact]
     public void Metin_bos_degerleri_atlar()
-        => Assert.Equal("dolu", TwilioWhatsAppService.Metin(
+        => Assert.Equal("dolu", TwilioWhatsAppService.Text(
             new Dictionary<string, string> { ["1"] = "dolu", ["2"] = "   ", ["3"] = "" }));
 
     [Fact]
     public async Task Twilio_hata_donerse_false_doner_job_cokmez()
     {
         var h = new YakalayiciHandler(HttpStatusCode.BadRequest);
-        var svc = Servis(h, [.. Temel, ("Twilio:AllowFreeform", "true")]);
+        var svc = Service(h, [.. Base, ("Twilio:AllowFreeform", "true")]);
 
         Assert.False(await svc.SendTemplateAsync("+905321112233", "operasyon_ozet",
             new Dictionary<string, string> { ["1"] = "x" }));

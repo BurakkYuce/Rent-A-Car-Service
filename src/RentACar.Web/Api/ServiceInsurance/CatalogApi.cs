@@ -64,8 +64,8 @@ internal static partial class CatalogApi
             S.IntRange(r.MinGun, 0, 1_000_000, "minGun");
             S.IntRange(r.MaxGun, 0, 1_000_000, "maxGun");
             S.CatalogAmount(r.GunlukUcret, old?.GunlukUcret, "gunlukUcret");
-            if (!string.Equals(F5Ortak.Nz(r.Doviz), old?.Doviz, StringComparison.OrdinalIgnoreCase))
-                AracFinansOrtak.Doviz(r.Doviz); // NormalizeKodStrict — only when changed (legacy codes stay editable)
+            if (!string.Equals(F5Shared.Nz(r.Doviz), old?.Doviz, StringComparison.OrdinalIgnoreCase))
+                VehicleFinanceShared.Currency(r.Doviz); // NormalizeKodStrict — only when changed (legacy codes stay editable)
             S.Text(r.Doviz, 3, "doviz");
         },
         Matches = (d, q) => Has(d.Kod, q) || Has(d.Ad, q) || Has(d.Grup, q),
@@ -111,7 +111,7 @@ internal static partial class CatalogApi
     private static CoverageProductInput CoverageInput(CoverageProductRequest r) => new()
     {
         Kod = r.Kod ?? "", Ad = r.Ad ?? "", AdEn = r.AdEn, Aciklama = r.Aciklama,
-        Tur = F5Ortak.EnumAdi<CoverageProductType>(r.Tur, "tur") ?? CoverageProductType.Diger,
+        Tur = F5Shared.EnumAdi<CoverageProductType>(r.Tur, "tur") ?? CoverageProductType.Diger,
         GunlukUcret = r.GunlukUcret, KdvOrani = r.KdvOrani, MaxGun = r.MaxGun, Doviz = r.Doviz, Zorunlu = r.Zorunlu, Aktif = r.Aktif,
     };
 
@@ -133,7 +133,7 @@ internal static partial class CatalogApi
             S.IntRange(r.MaxGun, 0, 1_000_000, "maxGun");
             S.CatalogAmount(r.GunlukUcret, old?.GunlukUcret, "gunlukUcret");
             S.Ratio(r.KdvOrani, old?.KdvOrani, "kdvOrani");
-            F5Ortak.EnumAdi<CoverageProductType>(r.Tur, "tur");
+            F5Shared.EnumAdi<CoverageProductType>(r.Tur, "tur");
         },
         Matches = (d, q) => Has(d.Kod, q) || Has(d.Ad, q) || Has(d.AdEn, q),
         Sort = SortFieldMap<CoverageProductDto>.Create(x => x.Id).Alan("kod", x => x.Kod).Alan("ad", x => x.Ad)

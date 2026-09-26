@@ -16,7 +16,7 @@ namespace RentACar.IntegrationTests;
 [Collection("postgres")]
 public sealed class SozlesmeViewTests(PostgresFixture fx)
 {
-    private static readonly DateTimeOffset Bas =
+    private static readonly DateTimeOffset Start =
         new DateTimeOffset(DateTime.UtcNow.Date, TimeSpan.Zero).AddDays(-7).AddHours(9);
 
     [Fact]
@@ -26,7 +26,7 @@ public sealed class SozlesmeViewTests(PostgresFixture fx)
         using var scope = host.ScopeFor(Guid.NewGuid());
         var sp = scope.ServiceProvider;
 
-        var cari = await sp.GetRequiredService<CustomerService>().CreateAsync(new CustomerInput
+        var account = await sp.GetRequiredService<CustomerService>().CreateAsync(new CustomerInput
         {
             Tip = CustomerType.Bireysel, Ad = "Deneme", Soyad = "Musteri", CepTel = "05320000000",
             EhliyetNo = "35030", EhliyetSinifi = "B", EhliyetYeri = "BURDUR",
@@ -39,9 +39,9 @@ public sealed class SozlesmeViewTests(PostgresFixture fx)
 
         var rentals = sp.GetRequiredService<RentalService>();
         var rental = await rentals.CreateDirectAsync(new BookingInput
-        { MusteriId = cari, VehicleId = veh, BasTar = Bas, BitTar = Bas.AddDays(3), GunlukUcret = 100m, KmLimit = 300, FazlaKmUcret = 2m });
+        { MusteriId = account, VehicleId = veh, BasTar = Start, BitTar = Start.AddDays(3), GunlukUcret = 100m, KmLimit = 300, FazlaKmUcret = 2m });
         await rentals.DeliverAsync(rental, pickupKm: 10000, pickupFuel: 8);
-        await rentals.ReturnAsync(rental, returnKm: 10400, returnFuel: 6, Bas.AddDays(3),
+        await rentals.ReturnAsync(rental, returnKm: 10400, returnFuel: 6, Start.AddDays(3),
             freeKm: 50, endReason: "Normal", receivingStaffId: pid);
 
         var s = await sp.GetRequiredService<ContractService>().GetAsync(rental);
@@ -70,20 +70,20 @@ public sealed class SozlesmeViewTests(PostgresFixture fx)
         var sp = scope.ServiceProvider;
 
         // Bağımsız oracle: metinleri BURADA kuruyoruz; SozlesmeView aynen taşımalı.
-        var sablonId = await sp.GetRequiredService<DocumentTemplateService>().CreateAsync(new BelgeSablonInput
+        var templateId = await sp.GetRequiredService<DocumentTemplateService>().CreateAsync(new BelgeSablonInput
         {
             BelgeTuru = BelgeTuru.KiraSozlesmesi, Ad = "Test",
             BelgeBasligi = "TEST-BASLIK", HukukiMetinSol = "TEST-SOL", EkKosullarVarsayilan = "SABLON-EK-KOSUL"
         });
 
-        var cari = await sp.GetRequiredService<CustomerService>().CreateAsync(new CustomerInput
+        var account = await sp.GetRequiredService<CustomerService>().CreateAsync(new CustomerInput
         { Tip = CustomerType.Bireysel, Ad = "A", Soyad = "B", CepTel = "05320000001" });
         var veh = await sp.GetRequiredService<VehicleService>().CreateAsync(new VehicleInput
         { Plaka = "07 AA 001", Marka = "Fiat", Tip = "Egea", Km = 100 });
 
         var rentals = sp.GetRequiredService<RentalService>();
         var rental = await rentals.CreateDirectAsync(new BookingInput
-        { MusteriId = cari, VehicleId = veh, BasTar = Bas, BitTar = Bas.AddDays(2), GunlukUcret = 100m, BelgeSablonId = sablonId });
+        { MusteriId = account, VehicleId = veh, BasTar = Start, BitTar = Start.AddDays(2), GunlukUcret = 100m, BelgeSablonId = templateId });
 
         var s = await sp.GetRequiredService<ContractService>().GetAsync(rental);
         Assert.NotNull(s);

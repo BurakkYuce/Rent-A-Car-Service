@@ -16,7 +16,7 @@ namespace RentACar.IntegrationTests;
 [Collection("postgres")]
 public sealed class TahsilatFaturaTests(PostgresFixture fx)
 {
-    private static DateTimeOffset At(int gun) => new(2026, 6, gun, 10, 0, 0, TimeSpan.Zero);
+    private static DateTimeOffset At(int day) => new(2026, 6, day, 10, 0, 0, TimeSpan.Zero);
 
     [Fact]
     public async Task Reconciliation_excludes_cancelled_reversed_and_out_of_period()

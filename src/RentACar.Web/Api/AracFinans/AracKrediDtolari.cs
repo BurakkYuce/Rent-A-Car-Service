@@ -48,15 +48,15 @@ public sealed record AracKrediDetayYaniti(
     string Doviz, decimal Kur, string Durum, string? Aciklama, AracKrediOzet Ozet, SonrakiTaksit? SonrakiTaksit,
     AracKrediYetkileri Yetkiler)
 {
-    public static AracKrediDetayYaniti From(AracKredi k, string? plaka, string? cariAd, AracKrediYetkileri y)
+    public static AracKrediDetayYaniti From(AracKredi k, string? plate, string? customerName, AracKrediYetkileri y)
     {
         var oz = VehicleLoanService.Calculate(k);
-        var sonraki = k.Durum == Domain.Enums.LoanStatus.Aktif && k.OdenenTaksit < k.TaksitSayisi && oz.Taksitler.Count > 0
+        var next = k.Durum == Domain.Enums.LoanStatus.Aktif && k.OdenenTaksit < k.TaksitSayisi && oz.Taksitler.Count > 0
             ? oz.Taksitler[k.OdenenTaksit] is var t ? new SonrakiTaksit(t.Sira, t.Vade, t.Tutar) : null
             : null;
-        return new(k.Id, k.No, k.BankaAdi, k.VehicleId, plaka, k.CariId, cariAd, k.DosyaNo, k.KrediTutari, k.FaizOran,
+        return new(k.Id, k.No, k.BankaAdi, k.VehicleId, plate, k.CariId, customerName, k.DosyaNo, k.KrediTutari, k.FaizOran,
             k.TaksitSayisi, k.OdenenTaksit, k.BaslangicTarihi, k.Currency, k.Kur, k.Durum.ToString(), k.Aciklama, oz,
-            sonraki, y with { TaksitOde = y.TaksitOde && sonraki is not null });
+            next, y with { TaksitOde = y.TaksitOde && next is not null });
     }
 }
 

@@ -8,14 +8,14 @@
         @if (Degerler.Count >= 2)
         {
             <line x1="@PadL" y1="@S(Y(Min))" x2="@(W - PadR)" y2="@S(Y(Min))" class="ch-axis" />
-            <polygon points="@AlanNoktalar()" class="ch-area dv-a@(RenkIndeks)" />
-            <polyline points="@CizgiNoktalar()" class="ch-line dv-s@(RenkIndeks)" fill="none" />
-            @foreach (var (i, sinif) in Vurgular())
+            <polygon points="@AreaPoints()" class="ch-area dv-a@(RenkIndeks)" />
+            <polyline points="@LinePoints()" class="ch-line dv-s@(RenkIndeks)" fill="none" />
+            @foreach (var (i, cssClass) in Highlights())
             {
                 <circle cx="@S(X(i))" cy="@S(Y(Degerler[i]))" r="3" class="dv-f@(RenkIndeks)">
                     <title>@Etiketler[i]: @Fmt(Degerler[i])</title>
                 </circle>
-                @SvgText(X(i), Y(Degerler[i]) - 7, "ch-nokta-etiket", sinif, Fmt(Degerler[i]))
+                @SvgText(X(i), Y(Degerler[i]) - 7, "ch-nokta-etiket", cssClass, Fmt(Degerler[i]))
             }
             @SvgText(PadL, H - 4, "ch-xtick", "start", Etiketler[0])
             @SvgText(W - PadR, H - 4, "ch-xtick", "end", Etiketler[^1])
@@ -54,14 +54,14 @@
     private double X(int i) => PadL + (double)i / Math.Max(1, Degerler.Count - 1) * (W - PadL - PadR);
     private double Y(decimal v) => (H - PadB) - (double)((v - Min) / (Max - Min)) * (H - PadB - PadT);
 
-    private string CizgiNoktalar() => string.Join(" ",
+    private string LinePoints() => string.Join(" ",
         Enumerable.Range(0, Degerler.Count).Select(i => $"{S(X(i))},{S(Y(Degerler[i]))}"));
 
-    private string AlanNoktalar()
-        => $"{S(X(0))},{S(Y(Min))} {CizgiNoktalar()} {S(X(Degerler.Count - 1))},{S(Y(Min))}";
+    private string AreaPoints()
+        => $"{S(X(0))},{S(Y(Min))} {LinePoints()} {S(X(Degerler.Count - 1))},{S(Y(Min))}";
 
     /// <summary>Vurgu noktaları: min + max (ilk/son eksen etiketleriyle zaten var). Çakışırsa tek.</summary>
-    private IEnumerable<(int, string)> Vurgular()
+    private IEnumerable<(int, string)> Highlights()
     {
         if (Degerler.Count == 0) yield break;
         int iMax = 0, iMin = 0;
@@ -79,6 +79,6 @@
     private static string S(double v) => v.ToString("0.##", CultureInfo.InvariantCulture); // SVG invariant ister
 
     // Razor'da <text> özel anahtar-etiket (RZ1023) → MarkupString ile basılır; içerik HtmlEncode'lu.
-    private static MarkupString SvgText(double x, double y, string cls, string anchor, string icerik)
-        => (MarkupString)$"<text x=\"{S(x)}\" y=\"{S(y)}\" class=\"{cls}\" text-anchor=\"{anchor}\">{System.Net.WebUtility.HtmlEncode(icerik)}</text>";
+    private static MarkupString SvgText(double x, double y, string cls, string anchor, string content)
+        => (MarkupString)$"<text x=\"{S(x)}\" y=\"{S(y)}\" class=\"{cls}\" text-anchor=\"{anchor}\">{System.Net.WebUtility.HtmlEncode(content)}</text>";
 }

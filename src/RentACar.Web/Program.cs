@@ -192,20 +192,20 @@ builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationSc
         options.Events.OnRedirectToLogin = ctx =>
         {
             // F1.2: yeni arayüz API'si 302 İZLEMEZ (izlerse /login HTML'ini JSON diye okur) → 401 ProblemDetails.
-            if (RentACar.Web.Api.UiApiExtensions.UiYolu(ctx.Request.Path))
-                return RentACar.Web.Api.UiApiExtensions.YazAsync(ctx.HttpContext,
-                    RentACar.Web.Api.UiHata.OturumYok, "Oturum açık değil ya da süresi doldu.");
-            ctx.Response.Redirect(YetkiYonlendirme.GirisYonlendirmesi(
+            if (RentACar.Web.Api.UiApiExtensions.UiPath(ctx.Request.Path))
+                return RentACar.Web.Api.UiApiExtensions.WriteAsync(ctx.HttpContext,
+                    RentACar.Web.Api.UiError.NoSession, "Oturum açık değil ya da süresi doldu.");
+            ctx.Response.Redirect(PermissionRedirect.LoginRedirect(
                 ctx.Request.Method, ctx.Request.Path, ctx.Request.QueryString,
-                YetkiYonlendirme.AyniKokenYolu(ctx.Request.Headers.Referer, ctx.Request.Host)));
+                PermissionRedirect.SameOriginPath(ctx.Request.Headers.Referer, ctx.Request.Host)));
             return Task.CompletedTask;
         };
         options.Events.OnRedirectToAccessDenied = ctx =>
         {
-            if (RentACar.Web.Api.UiApiExtensions.UiYolu(ctx.Request.Path)) // F1.2: /yetkisiz HTML'i değil
-                return RentACar.Web.Api.UiApiExtensions.YazAsync(ctx.HttpContext,
-                    RentACar.Web.Api.UiHata.YetkiYok, "Bu işlem için yetkiniz yok.");
-            ctx.Response.Redirect(YetkiYonlendirme.YetkisizHedefi(ctx.Request.Path));
+            if (RentACar.Web.Api.UiApiExtensions.UiPath(ctx.Request.Path)) // F1.2: /yetkisiz HTML'i değil
+                return RentACar.Web.Api.UiApiExtensions.WriteAsync(ctx.HttpContext,
+                    RentACar.Web.Api.UiError.Forbidden, "Bu işlem için yetkiniz yok.");
+            ctx.Response.Redirect(PermissionRedirect.UnauthorizedTarget(ctx.Request.Path));
             return Task.CompletedTask;
         };
     });
@@ -220,8 +220,8 @@ builder.Services.AddAuthorization(o =>
 
 // ---- Login brute-force koruması (P0): IP başına sabit-pencere limiti (yalnız /auth/login) ----
 var loginPermit = builder.Configuration.GetValue("RateLimit:LoginPermit", 10);
-var loginWindowSec = builder.Configuration.GetValue("RateLimit:LoginWindowSeconds", 60);
-var istemciHataPermit = builder.Configuration.GetValue("RateLimit:IstemciHataPermit", 30);
+var loginWindowSeconds = builder.Configuration.GetValue("RateLimit:LoginWindowSeconds", 60);
+var clientErrorPermit = builder.Configuration.GetValue("RateLimit:IstemciHataPermit", 30);
 builder.Services.AddRateLimiter(o =>
 {
     o.AddPolicy("login", http => RateLimitPartition.GetFixedWindowLimiter(
@@ -229,27 +229,27 @@ builder.Services.AddRateLimiter(o =>
         _ => new FixedWindowRateLimiterOptions
         {
             PermitLimit = loginPermit,
-            Window = TimeSpan.FromSeconds(loginWindowSec),
+            Window = TimeSpan.FromSeconds(loginWindowSeconds),
             QueueLimit = 0,
         }));
     // F3.3: yeni arayüzün istemci hata raporu (POST /api/ui/v1/istemci-hata) — IP başına; limiter kimlik
     // doğrulamadan ÖNCE koştuğu için kullanıcıya göre bölünemez. İstemci de sayfa başına 10 raporla sınırlı.
-    o.AddPolicy(RentACar.Web.Api.IstemciHata.IstemciHataApi.HizPolitikasi, http => RateLimitPartition.GetFixedWindowLimiter(
+    o.AddPolicy(RentACar.Web.Api.IstemciHata.ClientErrorApi.RatePolicy, http => RateLimitPartition.GetFixedWindowLimiter(
         http.Connection.RemoteIpAddress?.ToString() ?? "unknown",
         _ => new FixedWindowRateLimiterOptions
         {
-            PermitLimit = istemciHataPermit,
+            PermitLimit = clientErrorPermit,
             Window = TimeSpan.FromSeconds(60),
             QueueLimit = 0,
         }));
     // F11.1b güvenlik: dış çağrı yapan ayar eylemleri (SMTP/SMS/WhatsApp test gönderimi, alan adı ekle/doğrula) —
     // girişten AYRI kova (bu eylemler girişi kilitlemesin, giriş denemeleri de bunları tüketmesin). IP başına.
-    var disEylemPermit = builder.Configuration.GetValue("RateLimit:ExternalActionPermit", 20);
+    var externalActionPermit = builder.Configuration.GetValue("RateLimit:ExternalActionPermit", 20);
     o.AddPolicy(RentACar.Web.Api.Sistem.SystemAdminApi.ExternalActionRatePolicy, http => RateLimitPartition.GetFixedWindowLimiter(
         http.Connection.RemoteIpAddress?.ToString() ?? "unknown",
         _ => new FixedWindowRateLimiterOptions
         {
-            PermitLimit = disEylemPermit,
+            PermitLimit = externalActionPermit,
             Window = TimeSpan.FromSeconds(60),
             QueueLimit = 0,
         }));
@@ -261,14 +261,14 @@ builder.Services.AddRateLimiter(o =>
     // belleğe almak brute-force'u bellek saldırısına çevirirdi. Değer GüvenliDonus'tan geçer.
     o.OnRejected = async (ctx, ct) =>
     {
-        var politika = ctx.HttpContext.GetEndpoint()?.Metadata.GetMetadata<EnableRateLimitingAttribute>()?.PolicyName ?? "login";
-        RentACar.Application.Observability.RacarMetrics.RateLimitRejected(politika); // metrik: rate-limit reddi
+        var policy = ctx.HttpContext.GetEndpoint()?.Metadata.GetMetadata<EnableRateLimitingAttribute>()?.PolicyName ?? "login";
+        RentACar.Application.Observability.RacarMetrics.RateLimitRejected(policy); // metrik: rate-limit reddi
         var req = ctx.HttpContext.Request;
         // F1.2: yeni arayüz API'si yönlendirme değil 429 ProblemDetails alır (SPA formu korur, bekletir).
-        if (RentACar.Web.Api.UiApiExtensions.UiYolu(req.Path))
+        if (RentACar.Web.Api.UiApiExtensions.UiPath(req.Path))
         {
-            await RentACar.Web.Api.UiApiExtensions.YazAsync(ctx.HttpContext, RentACar.Web.Api.UiHata.CokIstek,
-                politika == "login" ? "Çok fazla deneme; biraz sonra tekrar deneyin." : "Çok fazla istek; biraz sonra tekrar deneyin.");
+            await RentACar.Web.Api.UiApiExtensions.WriteAsync(ctx.HttpContext, RentACar.Web.Api.UiError.TooManyRequests,
+                policy == "login" ? "Çok fazla deneme; biraz sonra tekrar deneyin." : "Çok fazla istek; biraz sonra tekrar deneyin.");
             return;
         }
         if (req.Path.StartsWithSegments("/platform"))
@@ -276,15 +276,15 @@ builder.Services.AddRateLimiter(o =>
             ctx.HttpContext.Response.Redirect("/platform/login?hata=limit");
             return;
         }
-        string? donus = null;
+        string? returnInfo = null;
         if (req.HasFormContentType && req.ContentLength is > 0 and <= 8 * 1024)
         {
-            try { donus = (await req.ReadFormAsync(ct))[YetkiYonlendirme.DonusParametresi]; }
+            try { returnInfo = (await req.ReadFormAsync(ct))[PermissionRedirect.ReturnParameter]; }
             catch (Exception ex) when (ex is InvalidDataException or IOException
                                           or BadHttpRequestException or OperationCanceledException)
-            { donus = null; } // bozuk/yarım gövde: dönüşsüz limit sayfası yeter
+            { returnInfo = null; } // bozuk/yarım gövde: dönüşsüz limit sayfası yeter
         }
-        ctx.HttpContext.Response.Redirect(YetkiYonlendirme.LimitHedefi(donus));
+        ctx.HttpContext.Response.Redirect(PermissionRedirect.LimitTarget(returnInfo));
     };
 });
 
@@ -310,14 +310,14 @@ builder.Services.AddScoped<RentACar.Web.Components.Layout.ShellState>();
 // Kimlik config'ten; ÜRETİMDE ZORUNLU (Pii:HmacKey deseni — yoksa açılış reddeder, arka kapı yok).
 var platformUser = builder.Configuration["Platform:AdminUser"];
 var platformHash = builder.Configuration["Platform:AdminPasswordHash"];
-string? platformDevParola = null; // Development'ta hash yoksa bu açılışa özel üretilir (repoda sabit parola YOK)
+string? platformDevPassword = null; // Development'ta hash yoksa bu açılışa özel üretilir (repoda sabit parola YOK)
 if (builder.Environment.IsDevelopment())
 {
     platformUser ??= "admin";
     if (string.IsNullOrWhiteSpace(platformHash))
     {
-        platformDevParola = GelistirmeParolasi.Uret();
-        platformHash = PlatformCredentials.HashPassword(platformDevParola);
+        platformDevPassword = DevelopmentPassword.Generate();
+        platformHash = PlatformCredentials.HashPassword(platformDevPassword);
     }
 }
 else if (string.IsNullOrWhiteSpace(platformUser) || string.IsNullOrWhiteSpace(platformHash))
@@ -329,7 +329,7 @@ builder.Services.AddScoped<PlatformAdminService>();
 builder.Services.AddScoped<TenantStatusCache>();
 builder.Services.AddScoped<TenantActiveMiddleware>(); // anlık kesme (IMiddleware)
 builder.Services.AddScoped<PlatformIsolationMiddleware>(); // platform admin → tenant sayfası ayrımı
-builder.Services.AddScoped<RentACar.Web.Common.DogrulamaHatasiMiddleware>(); // ValidationException → 500 DEĞİL, kullanıcıya gösterilebilir hata
+builder.Services.AddScoped<RentACar.Web.Common.ValidationErrorMiddleware>(); // ValidationException → 500 DEĞİL, kullanıcıya gösterilebilir hata
 builder.Services.AddScoped<RentACar.Web.Observability.RequestEnrichment.Middleware>(); // log: tenant/user/req-id
 
 // Readiness health-check'leri (tag "ready"): DB (CanConnect) + Migrator + DataProtection keyring.
@@ -344,7 +344,7 @@ builder.Services.AddRacarObservability(builder.Configuration, "rentacar-web");
 // iCal takvim feed (kimliksiz abonelik) + token yönetimi (owner conn).
 builder.Services.AddScoped<CalendarFeedService>();
 // PR-C: anonim sözleşme görüntüleme (iki-fazlı tenant çözümü — CalendarFeedService ile aynı desen).
-builder.Services.AddScoped<RentACar.Web.Bookings.SozlesmeGoruntuleService>();
+builder.Services.AddScoped<RentACar.Web.Bookings.ContractViewService>();
 builder.Services.AddScoped<CalendarTokenService>();
 
 // ---- Uygulama + altyapı ----
@@ -359,11 +359,11 @@ if (!builder.Environment.IsDevelopment() && string.IsNullOrWhiteSpace(Environmen
     throw new InvalidOperationException("RACAR_DP_KEYS bu ortamda zorunludur (DataProtection key-ring kalıcı dizini; yoksa redeploy'da PII çözülemez).");
 builder.Services.AddApplication();
 builder.Services.AddInfrastructure(appConn, piiKey);
-builder.Services.AddHostedService<RentACar.Web.Jobs.VadeBildirimJob>(); // scheduler: vade→bildirim (kimliksiz)
-builder.Services.AddHostedService<RentACar.Web.Jobs.DonemFaturaJob>(); // FAZ 4.2-B4: dönemsel fatura job'ı (ayar-kapılı)
+builder.Services.AddHostedService<RentACar.Web.Jobs.DueNotificationJob>(); // scheduler: vade→bildirim (kimliksiz)
+builder.Services.AddHostedService<RentACar.Web.Jobs.PeriodInvoiceJob>(); // FAZ 4.2-B4: dönemsel fatura job'ı (ayar-kapılı)
 builder.Services.AddHttpClient(); // TCMB kur çekimi
-builder.Services.AddSingleton<RentACar.Web.Kur.TcmbKurService>(); // TCMB kur çek/upsert (paylaşımlı KurKayitlari)
-builder.Services.AddHostedService<RentACar.Web.Jobs.TcmbKurJob>(); // scheduler: TCMB günlük kur (kimliksiz)
+builder.Services.AddSingleton<RentACar.Web.Kur.TcmbExchangeRateService>(); // TCMB kur çek/upsert (paylaşımlı KurKayitlari)
+builder.Services.AddHostedService<RentACar.Web.Jobs.TcmbExchangeRateJob>(); // scheduler: TCMB günlük kur (kimliksiz)
 builder.Services.AddHostedService<RentACar.Web.Jobs.OpsWatchdogJob>(); // Grafana'sız kritik alarm (config-gated: Twilio:AlertPhone)
 builder.Services.AddHostedService<RentACar.Web.Jobs.PendingDomainExpireJob>(); // PR-5: ACME kota-koruması (48s süre aşımı)
 // WhatsApp: Twilio config VARSA gerçek gönderici stub'ı override eder (son kayıt kazanır); yoksa stub no-op kalır.
@@ -393,10 +393,10 @@ if (builder.Configuration.GetSection("TutSat").Exists())
 
 var app = builder.Build();
 
-if (platformDevParola is not null)
+if (platformDevPassword is not null)
     app.Logger.LogWarning(
         "Platform operatörü parolası (Development, yalnız bu açılış): {Kullanici:l} / {Parola:l} — sabitlemek için "
-        + "Platform:AdminPasswordHash (bkz. --platform-hash)", platformUser, platformDevParola);
+        + "Platform:AdminPasswordHash (bkz. --platform-hash)", platformUser, platformDevPassword);
 
 // ---- Şema + seed (owner bağlantısı) ----
 await DbInitializer.MigrateAndSeedAsync(app.Services, migratorConn);
@@ -409,7 +409,7 @@ if (!app.Environment.IsDevelopment())
 }
 app.UseStatusCodePagesWithReExecute("/not-found", createScopeForStatusCodePages: true);
 // F1.2: /api/ui için no-store + StatusCodePages/istisna HTML'i yerine ProblemDetails (ikisinin İÇİNDE durmalı).
-app.UseUiApiBoruHatti();
+app.UseUiApiPipeline();
 
 app.UseRequestLocalization(); // tr-TR (yukarıda Configure edildi) — Radzen tarih/sayı formatı tutarlı
 
@@ -467,14 +467,14 @@ app.UseAuthorization();
 // Log zenginleştirme (auth SONRASI — claim'ler dolu): sonraki tüm istek-içi loglar tenant/user/req-id taşır.
 // ValidationException'ı sayfa yolunda da yakala (POST uçları kendi ?hata= yolunu kullanıyor;
 // sayfa render'ında yakalayan yoktu → kullanıcı 500 görüyordu). Aşağıdaki her şeyi sarar.
-app.UseMiddleware<RentACar.Web.Common.DogrulamaHatasiMiddleware>();
+app.UseMiddleware<RentACar.Web.Common.ValidationErrorMiddleware>();
 app.UseMiddleware<RentACar.Web.Observability.RequestEnrichment.Middleware>();
 // Anlık kesme: kapatılan tenant'ın authenticated isteği (açık oturum) bir sonraki istekte /login'e düşer.
 app.UseMiddleware<TenantActiveMiddleware>();
 app.UseMiddleware<PlatformIsolationMiddleware>(); // platform operatörü tenant UI'ına giremez (konsola yönlendir)
 // F4.6 ilk kesiş: GET /login → /app/giris (tek giriş) + pilot kiracıda F4 sayfaları → /app (yalnız GET, açık
 // şablon listesi — PDF/hesap/export yönlenmez). Kapalı firma ve platform ayrımı ÖNCE çalışsın diye onlardan sonra.
-app.UseMiddleware<RentACar.Web.Spa.IlkKesisMiddleware>();
+app.UseMiddleware<RentACar.Web.Spa.CutoverMiddleware>();
 app.UseAntiforgery();
 
 // roadmap E2: antiforgery yalnız PROD'da zorunlu (dev/test gevşek). Map'lerden ÖNCE set edilir
@@ -535,14 +535,14 @@ app.MapPost("/internal/alert", async (HttpContext ctx, IConfiguration cfg, IServ
 app.MapStaticAssets();
 // F1.5 — yeni arayüz kabuğu /app altında ANONİM (cookie challenge yok → /login döngüsü yok); Spa:Dizin
 // content root'a göreli (varsayılan ../app/browser). Güvenlik başlıkları/CSP yukarıdaki genel middleware'den.
-RentACar.Web.Spa.SpaBarindirma.MapSpaBarindirma(app);
+RentACar.Web.Spa.SpaHosting.MapSpaHosting(app);
 app.MapAuthEndpoints();
 app.MapUiApi();                   // F1.2 — /api/ui/v1 (yeni arayüz JSON katmanı: CSRF + pilot kapısı + ProblemDetails)
 app.MapPlatformAuthEndpoints();   // platform operatörü login/logout
 app.MapPlatformTenantEndpoints(); // tenant aç/kapa/oluştur (PlatformAdmin policy)
-app.MapPlatformBelgeEndpoints();  // PR-B — Belge Merkezi (PlatformAdmin policy)
+app.MapPlatformDocumentEndpoints();  // PR-B — Belge Merkezi (PlatformAdmin policy)
 app.MapCalendarFeedEndpoints();   // kimliksiz iCal feed + token yenile
-app.MapKurEndpoints();            // TCMB yenile + sabit kur CRUD
+app.MapExchangeRateEndpoints();            // TCMB yenile + sabit kur CRUD
 app.MapVehicleEndpoints();
 app.MapVehiclePhotoEndpoints(); // PR-3
 app.MapCustomerEndpoints();
@@ -550,21 +550,21 @@ app.MapBookingEndpoints();
 app.MapRentalAddOnEndpoints();
 app.MapQuotationEndpoints();
 app.MapFinanceEndpoints();
-app.MapGelenEFaturaEndpoints();
-app.MapDepozitoEndpoints(); // roadmap I3
+app.MapIncomingEInvoiceEndpoints();
+app.MapDepositEndpoints(); // roadmap I3
 app.MapExpenseEndpoints();
 app.MapRegulationEndpoints();
 app.MapPenaltyEndpoints();
 app.MapVehicleSaleEndpoints();
-app.MapFiloKiralamaEndpoints(); // roadmap L1
-app.MapAracSiparisEndpoints(); // roadmap L3
-app.MapAracKrediEndpoints(); // roadmap L4
+app.MapFleetRentalEndpoints(); // roadmap L1
+app.MapVehicleOrderEndpoints(); // roadmap L3
+app.MapVehicleLoanEndpoints(); // roadmap L4
 app.MapBafEndpoints(); // roadmap L5
-app.MapHesapKoduEndpoints(); // roadmap N1
-app.MapServisTanimEndpoints(); // roadmap N1
-app.MapDropTanimEndpoints(); // roadmap N2
-app.MapDolulukFiyatEndpoints(); // FAZ 3.A7
-app.MapBelgeSablonEndpoints(); // marka-özel PDF metin şablonları
+app.MapAccountCodeEndpoints(); // roadmap N1
+app.MapServiceDefinitionEndpoints(); // roadmap N1
+app.MapDropDefinitionEndpoints(); // roadmap N2
+app.MapOccupancyPriceEndpoints(); // FAZ 3.A7
+app.MapDocumentTemplateEndpoints(); // marka-özel PDF metin şablonları
 app.MapDamageFileEndpoints();
 app.MapServiceRecordEndpoints();
 app.MapUserEndpoints();
@@ -593,41 +593,41 @@ app.MapCustomCodeEndpoints();
 app.MapBrandEndpoints();
 app.MapCurrencyEndpoints();
 app.MapPenaltyTypeEndpoints();
-app.MapKdvRateEndpoints();
+app.MapVatRateEndpoints();
 app.MapVehicleGroupEndpoints();
 app.MapReportExportEndpoints();
 app.MapListExportEndpoints(); // roadmap G6: liste export
 app.MapPdfEndpoints();
 app.MapImportEndpoints(); // veri göçü içe-aktarım (ManageUsers)
 app.MapTenantSettingsEndpoints();
-app.MapMesajSablonEndpoints();
-app.MapPersonelEndpoints();
-app.MapHukukEndpoints();
+app.MapMessageTemplateEndpoints();
+app.MapPersonnelEndpoints();
+app.MapLegalEndpoints();
 app.MapCrmEndpoints();
-app.MapAssistansTalepEndpoints();   // FAZ-44
-app.MapFiloPlanEndpoints();         // FAZ-19
-app.MapMusteriTaksitEndpoints();    // FAZ-66
+app.MapAssistanceRequestEndpoints();   // FAZ-44
+app.MapFleetPlanEndpoints();         // FAZ-19
+app.MapCustomerInstallmentEndpoints();    // FAZ-66
 app.MapBlogEndpoints(); // PR-6 — halka açık site blog yönetimi
-app.MapGelenTalepEndpoints(); // PR-8 — site talepleri (lead) dönüştür/reddet
+app.MapIncomingRequestEndpoints(); // PR-8 — site talepleri (lead) dönüştür/reddet
 app.MapWebSiteEndpoints();    // PR-12 — Web Sitesi modülü (modül+rol kapılı)
-app.MapFirmaBelgeEndpoints(); // PR-B — tenant tarafı belge indirme (salt-okur, dört koşullu)
-app.MapFirmaDokumanEndpoints(); // firmanın KENDİ yüklediği PDF dokümanları (yükle/sil/indir)
-app.MapSozlesmePaylasimEndpoints();  // PR-C — paylaş / yeni sürüm / iptal (girişli, OperationsWrite)
-app.MapSozlesmeGoruntuleEndpoints(); // PR-C — GET /sozlesme/{token} ANONİM (ERP host'unda, PublicSite'ta değil)
-app.MapSiteIcerikEndpoints();        // PR-16 — halka açık site içerik sayfaları + SSS yönetimi
-app.MapDonemKapanisEndpoints();
-app.MapYetkiEndpoints();
-app.MapBildirimEndpoints();
+app.MapCompanyDocumentEndpoints(); // PR-B — tenant tarafı belge indirme (salt-okur, dört koşullu)
+app.MapCompanyFileEndpoints(); // firmanın KENDİ yüklediği PDF dokümanları (yükle/sil/indir)
+app.MapContractShareEndpoints();  // PR-C — paylaş / yeni sürüm / iptal (girişli, OperationsWrite)
+app.MapContractViewEndpoints(); // PR-C — GET /sozlesme/{token} ANONİM (ERP host'unda, PublicSite'ta değil)
+app.MapSiteContentEndpoints();        // PR-16 — halka açık site içerik sayfaları + SSS yönetimi
+app.MapPeriodClosingEndpoints();
+app.MapPermissionEndpoints();
+app.MapNotificationEndpoints();
 app.MapRateMatrixEndpoints();
 app.MapCoverageProductEndpoints();
 app.MapRentalRuleEndpoints();
-app.MapBrokerYasakEndpoints();
-app.MapRezSartEndpoints();
-app.MapVardiyaEndpoints();   // FAZ-45
-app.MapTarifeGrubuEndpoints();
+app.MapBrokerBanEndpoints();
+app.MapReservationTermEndpoints();
+app.MapShiftEndpoints();   // FAZ-45
+app.MapTariffGroupEndpoints();
 app.MapQuoteEndpoints();
-app.MapMaliyetTeklifiEndpoints();   // FAZ-74 — kayıtlı maliyet teklifi (deftere yazmaz)
-app.MapEkHizmetEndpoints();
+app.MapCostQuotationEndpoints();   // FAZ-74 — kayıtlı maliyet teklifi (deftere yazmaz)
+app.MapAddOnEndpoints();
 app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode();
 

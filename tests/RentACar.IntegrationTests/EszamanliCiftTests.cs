@@ -21,7 +21,7 @@ namespace RentACar.IntegrationTests;
 [Collection("postgres")]
 public sealed class EszamanliCiftTests(PostgresFixture fx)
 {
-    private static readonly DateTimeOffset Bas = new(2026, 11, 1, 9, 0, 0, TimeSpan.Zero);
+    private static readonly DateTimeOffset Start = new(2026, 11, 1, 9, 0, 0, TimeSpan.Zero);
 
     private static async Task<(bool ok, Exception? ex)> Wrap(Task t)
     {
@@ -35,16 +35,16 @@ public sealed class EszamanliCiftTests(PostgresFixture fx)
     {
         using var host = new TestHost(fx.AppConnectionString);
         var tenant = Guid.NewGuid();
-        Guid rentalId, cari;
+        Guid rentalId, account;
         using (var s0 = host.ScopeFor(tenant))
         {
             var sp = s0.ServiceProvider;
-            cari = await sp.GetRequiredService<CustomerService>()
+            account = await sp.GetRequiredService<CustomerService>()
                 .CreateAsync(new CustomerInput { Tip = CustomerType.Bireysel, Ad = "Yarış Fatura" });
             var veh = await sp.GetRequiredService<VehicleService>()
                 .CreateAsync(new VehicleInput { Plaka = "34 YC 01", Durum = VehicleStatus.Musait });
             rentalId = await sp.GetRequiredService<RentalService>().CreateDirectAsync(new BookingInput
-            { MusteriId = cari, VehicleId = veh, BasTar = Bas, BitTar = Bas.AddDays(3), GunlukUcret = 100m });
+            { MusteriId = account, VehicleId = veh, BasTar = Start, BitTar = Start.AddDays(3), GunlukUcret = 100m });
         }
 
         using var s1 = host.ScopeFor(tenant);
@@ -63,7 +63,7 @@ public sealed class EszamanliCiftTests(PostgresFixture fx)
             Assert.Equal(1, await db.Invoices.AsNoTracking().CountAsync(i => i.RentalId == rentalId)); // TEK fatura
 
         // Cari borç TEK fatura tutarı: 3 gün × 100 = 300 (çift borç 600 OLMAZ).
-        Assert.Equal(300m, await sp3.GetRequiredService<CashService>().GetAccountBalanceAsync(cari));
+        Assert.Equal(300m, await sp3.GetRequiredService<CashService>().GetAccountBalanceAsync(account));
     }
 
     // ---- O9b — aynı araca İKİ PARALEL satış: tek kazanan, alıcı TEK satış borçlanır ----
@@ -72,23 +72,23 @@ public sealed class EszamanliCiftTests(PostgresFixture fx)
     {
         using var host = new TestHost(fx.AppConnectionString);
         var tenant = Guid.NewGuid();
-        Guid vehId, alici;
+        Guid vehId, recipient;
         using (var s0 = host.ScopeFor(tenant))
         {
             var sp = s0.ServiceProvider;
-            alici = await sp.GetRequiredService<CustomerService>()
+            recipient = await sp.GetRequiredService<CustomerService>()
                 .CreateAsync(new CustomerInput { Tip = CustomerType.Bireysel, Ad = "Yarış Alıcı" });
             vehId = await sp.GetRequiredService<VehicleService>()
                 .CreateAsync(new VehicleInput { Plaka = "34 YC 02", Durum = VehicleStatus.Musait });
         }
 
-        VehicleSaleInput Satis() => new()
-        { VehicleId = vehId, AliciCariId = alici, SatisNet = 100000m, KdvOrani = 0.20m };
+        VehicleSaleInput Sale() => new()
+        { VehicleId = vehId, AliciCariId = recipient, SatisNet = 100000m, KdvOrani = 0.20m };
 
         using var s1 = host.ScopeFor(tenant);
         using var s2 = host.ScopeFor(tenant);
-        var t1 = Task.Run(() => s1.ServiceProvider.GetRequiredService<VehicleSaleService>().CreateAsync(Satis()));
-        var t2 = Task.Run(() => s2.ServiceProvider.GetRequiredService<VehicleSaleService>().CreateAsync(Satis()));
+        var t1 = Task.Run(() => s1.ServiceProvider.GetRequiredService<VehicleSaleService>().CreateAsync(Sale()));
+        var t2 = Task.Run(() => s2.ServiceProvider.GetRequiredService<VehicleSaleService>().CreateAsync(Sale()));
         var results = await Task.WhenAll(Wrap(t1), Wrap(t2));
 
         Assert.Equal(1, results.Count(r => r.ok));                        // tam BİRİ kazanır
@@ -105,7 +105,7 @@ public sealed class EszamanliCiftTests(PostgresFixture fx)
         }
 
         // Alıcı borcu TEK satış brütü: 100.000 + %20 KDV = 120.000 (çift 240.000 OLMAZ).
-        Assert.Equal(120000m, await sp3.GetRequiredService<CashService>().GetAccountBalanceAsync(alici));
+        Assert.Equal(120000m, await sp3.GetRequiredService<CashService>().GetAccountBalanceAsync(recipient));
     }
 
     // ---- O10b — SequenceAllocator eşzamanlılık: 8 paralel tahsilat → No'lar BENZERSİZ ve boşluksuz ----
@@ -114,16 +114,16 @@ public sealed class EszamanliCiftTests(PostgresFixture fx)
     {
         using var host = new TestHost(fx.AppConnectionString);
         var tenant = Guid.NewGuid();
-        Guid cari;
+        Guid account;
         using (var s0 = host.ScopeFor(tenant))
-            cari = await s0.ServiceProvider.GetRequiredService<CustomerService>()
+            account = await s0.ServiceProvider.GetRequiredService<CustomerService>()
                 .CreateAsync(new CustomerInput { Tip = CustomerType.Bireysel, Ad = "Sıra No" });
 
         var tasks = Enumerable.Range(0, 8).Select(_ => Task.Run(async () =>
         {
             using var s = host.ScopeFor(tenant);
             await s.ServiceProvider.GetRequiredService<CashService>().CollectAsync(
-                new CashInput { CariId = cari, Tutar = 100m, Hesap = LedgerAccountType.Kasa });
+                new CashInput { CariId = account, Tutar = 100m, Hesap = LedgerAccountType.Kasa });
         }));
         await Task.WhenAll(tasks);
 
@@ -132,11 +132,11 @@ public sealed class EszamanliCiftTests(PostgresFixture fx)
         Assert.Equal(8, list.Count);
 
         // Küme karşılaştırması (sıra garantisi değil, BOŞLUKSUZLUK): TH-000001..TH-000008, tekrarsız.
-        var beklenen = Enumerable.Range(1, 8).Select(i => BelgeNoOracle.Bekle(5, i)).OrderBy(x => x, StringComparer.Ordinal).ToArray();
-        var gercek = list.Select(t => t.No).OrderBy(x => x, StringComparer.Ordinal).ToArray();
-        Assert.Equal(beklenen, gercek);
+        var expected = Enumerable.Range(1, 8).Select(i => DocumentNoOracle.Wait(5, i)).OrderBy(x => x, StringComparer.Ordinal).ToArray();
+        var actual = list.Select(t => t.No).OrderBy(x => x, StringComparer.Ordinal).ToArray();
+        Assert.Equal(expected, actual);
 
         // Toplam da tutarlı: 8 × 100 tahsilat → cari −800 (alacaklandı).
-        Assert.Equal(-800m, await check.ServiceProvider.GetRequiredService<CashService>().GetAccountBalanceAsync(cari));
+        Assert.Equal(-800m, await check.ServiceProvider.GetRequiredService<CashService>().GetAccountBalanceAsync(account));
     }
 }

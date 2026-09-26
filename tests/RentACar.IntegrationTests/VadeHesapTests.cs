@@ -14,12 +14,12 @@ public sealed class VadeHesapTests
     [InlineData("2026-06-20", 19, DueBucket.OtuzGun)]
     [InlineData("2026-07-01", 30, DueBucket.OtuzGun)]  // sınır 30
     [InlineData("2026-08-01", 61, DueBucket.Ileri)]
-    public void Classify_buckets(string expiryIso, int expKalan, DueBucket expBucket)
+    public void Classify_buckets(string expiryIso, int expRemaining, DueBucket expBucket)
     {
         var now = new DateTimeOffset(2026, 6, 1, 0, 0, 0, TimeSpan.Zero);
         var expiry = DateTimeOffset.Parse(expiryIso + "T00:00:00+00:00");
-        var (kalan, bucket) = DueCalculation.Classify(now, expiry);
-        Assert.Equal(expKalan, kalan);
+        var (remaining, bucket) = DueCalculation.Classify(now, expiry);
+        Assert.Equal(expRemaining, remaining);
         Assert.Equal(expBucket, bucket);
     }
 }

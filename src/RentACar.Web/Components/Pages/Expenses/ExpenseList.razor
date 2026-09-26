@@ -68,15 +68,15 @@
             <input name="hazirAciklama" list="dl-gider-sablon" autocomplete="off" placeholder="Seç veya yaz" />
         </label>
         <datalist id="dl-gider-sablon">
-            @foreach (var t in HazirAciklamalar) { <option value="@t" /> }
+            @foreach (var t in PresetDescriptions) { <option value="@t" /> }
         </datalist>
         <label>Sözleşme
             <select name="rentalId">
                 <option value="">— yok —</option>
-                @foreach (var r in _kiralar) { <option value="@r.Id">@r.SozlesmeNo — @r.Plaka</option> }
+                @foreach (var r in _rentals) { <option value="@r.Id">@r.SozlesmeNo — @r.Plaka</option> }
             </select>
         </label>
-        <ComboBox Name="sube" Label="Şube" Options="_subeOpts" Placeholder="(opsiyonel)" />
+        <ComboBox Name="sube" Label="Şube" Options="_branchOpts" Placeholder="(opsiyonel)" />
         <label>Evrak No<input name="evrakNo" /></label>
         <label>Açıklama<input name="aciklama" /></label>
         <button type="submit">Kaydet</button>
@@ -109,7 +109,7 @@
     <label>Ofis / Şube
         <select name="sube">
             <option value="">— tümü —</option>
-            @foreach (var s in _subeOpts)
+            @foreach (var s in _branchOpts)
             {
                 <option value="@s" selected="@(s == Sube)">@s</option>
             }
@@ -145,7 +145,7 @@
                 <td>@e.Tarih.LocalDateTime.ToString("dd.MM.yyyy")</td>
                 <td>@(e.OdemeTarihi is { } ot ? ot.LocalDateTime.ToString("dd.MM.yyyy") : "—")</td>
                 <td>@RefLabel(e)</td>
-                <td>@(e.RentalId is { } rid && _kiraMap.TryGetValue(rid, out var sno) ? sno : "—")</td>
+                <td>@(e.RentalId is { } rid && _rentalMap.TryGetValue(rid, out var sno) ? sno : "—")</td>
                 <td>@(e.Sube ?? "—")</td>
                 <td>@(e.EvrakNo ?? "—")</td>
                 <td>@(e.Aciklama ?? e.HazirAciklama ?? "—")</td>
@@ -155,7 +155,7 @@
                 <td>@e.OdemeYontemi</td>
                 @* FAZ-64 — Ödenen/Kalan YALNIZ açık hesap giderinde anlamlı: nakit/banka giderinde
                    para kayıt anında çıktı (defter öyle yazıldı), borç yok. *@
-                @{ var d = _durumlar.GetValueOrDefault(e.Id); }
+                @{ var d = _statuses.GetValueOrDefault(e.Id); }
                 <td class="num">@(d is null ? "—" : d.Odenen.ToString("N2"))</td>
                 <td class="num @(d is { TakipEdilir: true, Kalan: > 0 } ? "neg" : null)">
                     @(d is null ? "—" : d.TakipEdilir ? d.Kalan.ToString("N2") : "—")</td>
@@ -194,18 +194,18 @@
     private IReadOnlyList<Expense> _list = [];
     private IReadOnlyList<Vehicle> _vehicles = [];
     private IReadOnlyList<Customer> _customers = [];
-    private IReadOnlyList<string> _subeOpts = [];
+    private IReadOnlyList<string> _branchOpts = [];
     private Dictionary<Guid, string> _vehMap = new();
     private Dictionary<Guid, string> _custMap = new();
-    private IReadOnlyList<RentalRow> _kiralar = [];
-    private Dictionary<Guid, string> _kiraMap = new();
-    private Dictionary<Guid, GiderOdemeDurumu> _durumlar = new();
+    private IReadOnlyList<RentalRow> _rentals = [];
+    private Dictionary<Guid, string> _rentalMap = new();
+    private Dictionary<Guid, GiderOdemeDurumu> _statuses = new();
 
     /// <summary>Ödeme kaydı FinanceWrite ister; operatöre buton gösterilmez (sunucu ayrıca zorlar).</summary>
     private bool FinansYetkili { get; set; }
 
     /// <summary>Sık kullanılan gider açıklamaları (canlı "Hazır Açıklama" listesi karşılığı).</summary>
-    private static readonly string[] HazirAciklamalar =
+    private static readonly string[] PresetDescriptions =
     [
         "Yakıt", "Otopark", "Köprü/Otoyol", "Temizlik", "Lastik", "Periyodik bakım",
         "Sigorta", "Vergi/Harç", "Kira", "Personel", "Kırtasiye", "Diğer"
@@ -219,7 +219,7 @@
     {
         _vehicles = await Vehicles.ListAsync();
         _customers = await Customers.ListAsync();
-        _subeOpts = (await Subeler.ListActiveAsync()).Select(s => s.Ad).ToList();
+        _branchOpts = (await Subeler.ListActiveAsync()).Select(s => s.Ad).ToList();
         _vehMap = _vehicles.ToDictionary(v => v.Id, v => v.Plaka);
         _custMap = _customers.ToDictionary(c => c.Id, c => c.DisplayName);
 
@@ -230,22 +230,22 @@
             CariId = Guid.TryParse(CariId, out var cid) ? cid : null,
             Tip = Enum.TryParse<ExpenseType>(Tip, out var t) ? t : null,
             Sube = Sube,
-            Bas = Tarih(Bas),
+            Bas = Date(Bas),
             // Üst sınır GÜN SONUNA genişletilir: tarih girişi 00:00'a düşüyor, aksi hâlde
             // "bit" günündeki giderler dışarıda kalırdı.
-            Bit = Tarih(Bit)?.AddDays(1).AddTicks(-1)
+            Bit = Date(Bit)?.AddDays(1).AddTicks(-1)
         });
 
         // FAZ-64: ödeme durumları TEK sorguda (satır başına sorgu değil).
-        _durumlar = await Expenses.PaymentStatusesAsync(_list);
-        _kiralar = await Rentals.SearchAsync(new RentalFilter());
-        _kiraMap = _kiralar.ToDictionary(r => r.Id, r => r.SozlesmeNo);
+        _statuses = await Expenses.PaymentStatusesAsync(_list);
+        _rentals = await Rentals.SearchAsync(new RentalFilter());
+        _rentalMap = _rentals.ToDictionary(r => r.Id, r => r.SozlesmeNo);
 
         var user = (await AuthState.GetAuthenticationStateAsync()).User;
         FinansYetkili = user.IsInRole("Admin") || user.IsInRole("Yonetici") || user.IsInRole("Muhasebe");
     }
 
-    private static DateTimeOffset? Tarih(string? s)
+    private static DateTimeOffset? Date(string? s)
         => DateTimeOffset.TryParse(s, System.Globalization.CultureInfo.InvariantCulture,
             System.Globalization.DateTimeStyles.None, out var d) ? d.ToUniversalTime() : null;
 
@@ -253,12 +253,12 @@
     private string Qs(string format)
     {
         var p = new List<string> { "format=" + format };
-        void Ekle(string ad, string? deger)
+        void Add(string name, string? value)
         {
-            if (!string.IsNullOrWhiteSpace(deger)) p.Add($"{ad}={Uri.EscapeDataString(deger)}");
+            if (!string.IsNullOrWhiteSpace(value)) p.Add($"{name}={Uri.EscapeDataString(value)}");
         }
-        Ekle("ara", Ara); Ekle("plaka", Plaka); Ekle("cariId", CariId);
-        Ekle("tip", Tip); Ekle("sube", Sube); Ekle("bas", Bas); Ekle("bit", Bit);
+        Add("ara", Ara); Add("plaka", Plaka); Add("cariId", CariId);
+        Add("tip", Tip); Add("sube", Sube); Add("bas", Bas); Add("bit", Bit);
         return string.Join("&", p);
     }
 

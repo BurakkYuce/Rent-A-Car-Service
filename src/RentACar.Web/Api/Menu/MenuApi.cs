@@ -9,9 +9,9 @@ using RentACar.Web.Identity;
 namespace RentACar.Web.Api.Menu;
 
 /// <summary>
-/// <c>GET /api/ui/v1/menu</c> (F1.6) — yeni arayüz kabuğunun menüsü: <see cref="MenuKaydi"/>'nin çağıranın
+/// <c>GET /api/ui/v1/menu</c> (F1.6) — yeni arayüz kabuğunun menüsü: <see cref="MenuRegistry"/>'nin çağıranın
 /// GÖREBİLECEĞİ öğeleri (etkin izin — rol matrisi + kullanıcı-bazlı ek/yasak — ve modül bayrağı) +
-/// rozet sayaçları. Uç düzeyinde izin kapısı yok (<see cref="AuthExtensions.IzinMuaf{TBuilder}"/>): her
+/// rozet sayaçları. Uç düzeyinde izin kapısı yok (<see cref="AuthExtensions.PermissionExempt{TBuilder}"/>): her
 /// oturum açmış kullanıcının bir menüsü vardır; kapı ÖĞE düzeyindedir.
 /// </summary>
 public static class MenuApi
@@ -25,7 +25,7 @@ public static class MenuApi
     public static RouteGroupBuilder MapMenuApi(this RouteGroupBuilder v1)
     {
         v1.MapGet("/menu", Menu)
-            .IzinMuaf("Menü: her oturumun bir menüsü var; kapı ÖĞE düzeyinde — her öğe kendi izniyle (kullanıcı-bazlı " +
+            .PermissionExempt("Menü: her oturumun bir menüsü var; kapı ÖĞE düzeyinde — her öğe kendi izniyle (kullanıcı-bazlı " +
                       "istisnalar dahil) ve modül bayrağıyla süzülür, çağıran yalnız görebileceği öğeleri alır.")
             .WithTags("Kabuk");
         return v1;
@@ -33,37 +33,37 @@ public static class MenuApi
 
     /// <summary>Görünürlük kuralı (test edilebilir, saf): izin yoksa herkes; varsa etkin izin; modül bayrağı açık olmalı.
     /// Bilinmeyen modül adı → gizli (güvenli varsayılan).</summary>
-    public static IEnumerable<MenuOgesi> Gorunur(ClaimsPrincipal user, bool webSitesiModulu)
-        => MenuKaydi.Ogeler.Where(o =>
-            (o.Izin is not { } izin || AuthExtensions.HasPermission(user, izin))
-            && (o.Modul is null || (o.Modul == ModulMetadata.WebSitesi && webSitesiModulu)));
+    public static IEnumerable<MenuOgesi> Visible(ClaimsPrincipal user, bool websiteModule)
+        => MenuRegistry.Items.Where(o =>
+            (o.Izin is not { } permission || AuthExtensions.HasPermission(user, permission))
+            && (o.Modul is null || (o.Modul == ModulMetadata.Website && websiteModule)));
 
     private static async Task<Ok<MenuYaniti>> Menu(
         HttpContext http, ITenantContext tenant, TenantStatusCache durum,
         InAppNotificationService bildirimler, PublicBookingRequestService talepler, ILoggerFactory log, CancellationToken ct)
     {
-        var webSitesi = tenant.TenantId is { } id && await durum.WebsiteModuleAsync(id, ct);
-        var ogeler = Gorunur(http.User, webSitesi).ToList();
+        var website = tenant.TenantId is { } id && await durum.WebsiteModuleAsync(id, ct);
+        var items = Visible(http.User, website).ToList();
 
         // Rozetler MainLayout'la AYNI kaynaktan; sayaç hatası menüyü düşürmez (0 + uyarı logu).
-        var rozetler = new Dictionary<string, int>();
+        var badges = new Dictionary<string, int>();
         var logger = log.CreateLogger("RentACar.Web.Api.Menu");
-        async Task Say(string kod, Func<Task<int>> oku)
+        async Task Say(string code, Func<Task<int>> read)
         {
-            if (ogeler.All(o => o.RozetKodu != kod)) return;
-            try { rozetler[kod] = await oku(); }
+            if (items.All(o => o.RozetKodu != code)) return;
+            try { badges[code] = await read(); }
             catch (Exception ex) when (ex is not OperationCanceledException)
             {
-                logger.LogWarning(ex, "Menü rozeti okunamadı: {Rozet}", kod);
-                rozetler[kod] = 0;
+                logger.LogWarning(ex, "Menü rozeti okunamadı: {Rozet}", code);
+                badges[code] = 0;
             }
         }
-        await Say(MenuKaydi.RozetOkunmamisBildirim, () => bildirimler.UnreadCountAsync(ct));
+        await Say(MenuRegistry.BadgeUnreadNotification, () => bildirimler.UnreadCountAsync(ct));
         // PR-17 ile aynı: talep sayacı yalnız Web Sitesi modülü açıkken sorulur.
-        if (webSitesi) await Say(MenuKaydi.RozetYeniTalep, async () => (await talepler.SummaryAsync(ct)).Yeni);
+        if (website) await Say(MenuRegistry.BadgeNewRequest, async () => (await talepler.SummaryAsync(ct)).Yeni);
 
         return TypedResults.Ok(new MenuYaniti(
-            ogeler.Select(o => new MenuOgesiYaniti(o.Rota, o.Etiket, o.Grup, o.Sira, o.Sahip, o.RozetKodu, o.HizliBaglanti)).ToList(),
-            rozetler));
+            items.Select(o => new MenuOgesiYaniti(o.Rota, o.Etiket, o.Grup, o.Sira, o.Sahip, o.RozetKodu, o.HizliBaglanti)).ToList(),
+            badges));
     }
 }

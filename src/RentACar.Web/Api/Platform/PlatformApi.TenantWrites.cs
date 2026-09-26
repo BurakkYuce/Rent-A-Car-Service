@@ -21,7 +21,7 @@ public static partial class PlatformApi
         if ((body.AdminSifre ?? "").Length > 256)
             throw new ValidationException("Admin parolası en çok 256 karakter olabilir.", "adminSifre");
         if (await svc.TenantCodeTakenAsync(code, ct))
-            return UiHata.Problem(UiHata.Cakisma, $"'{code}' kodlu firma zaten var.", alan: "kod");
+            return UiError.Problem(UiError.ConflictCode, $"'{code}' kodlu firma zaten var.", alan: "kod");
 
         Guid id;
         try
@@ -32,7 +32,7 @@ public static partial class PlatformApi
         catch (ValidationException ex) when (ex.Message.EndsWith("kodlu firma zaten var.", StringComparison.Ordinal))
         {
             // Lost the race after the pre-check: the unique index decided — same 409 as the pre-check.
-            return UiHata.Problem(UiHata.Cakisma, ex.Message, alan: "kod");
+            return UiError.Problem(UiError.ConflictCode, ex.Message, alan: "kod");
         }
         return await LoadDetailAsync(svc, id, ct) is { } d
             ? TypedResults.Created($"{Root}/kiracilar/{id}", d)
@@ -103,7 +103,7 @@ public static partial class PlatformApi
     {
         if (!await svc.TenantExistsAsync(id, ct)) return TenantNotFound();
         var on = body.Aktif ?? throw new ValidationException("Aktif (true/false) zorunludur.", "aktif");
-        await svc.SetYeniArayuzPilotAsync(id, on, OperatorName(http), ct);
+        await svc.SetNewUiPilotAsync(id, on, OperatorName(http), ct);
         return await DetailAfterWrite(svc, id, ct);
     }
 
@@ -113,7 +113,7 @@ public static partial class PlatformApi
     {
         if (!await svc.TenantExistsAsync(id, ct)) return TenantNotFound();
         var on = body.Aktif ?? throw new ValidationException("Aktif (true/false) zorunludur.", "aktif");
-        await svc.SetWebSitesiModuluAsync(id, on, OperatorName(http), ct);
+        await svc.SetWebsiteModuleAsync(id, on, OperatorName(http), ct);
         return await DetailAfterWrite(svc, id, ct);
     }
 
@@ -127,7 +127,7 @@ public static partial class PlatformApi
         var (bytes, _) = await svc.GetTenantLogoAsync(id, ct);
         return bytes is { Length: > 0 }
             ? TypedResults.File(bytes, "image/png")
-            : F5Ortak.Bulunamadi("Logo yüklü değil.");
+            : F5Shared.NotFound("Logo yüklü değil.");
     }
 
     private static async Task<Results<Ok<PlatformTenantDetailDto>, ProblemHttpResult>> UploadLogo(

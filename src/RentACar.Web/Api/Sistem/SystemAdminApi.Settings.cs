@@ -41,15 +41,15 @@ public static partial class SystemAdminApi
         {
             if (await svc.VersionAsync(ct) is not null) SystemApiCommon.RequireVersion(i.Surum);
             ValidateSettings(i);
-            if (i.VarsayilanGrupId is { } grup)
+            if (i.VarsayilanGrupId is { } group)
             {
                 await using var db = await f.CreateDbContextAsync(ct);
-                if (!await db.VehicleGroups.AsNoTracking().AnyAsync(x => x.Id == grup, ct))
+                if (!await db.VehicleGroups.AsNoTracking().AnyAsync(x => x.Id == group, ct))
                     throw new ValidationException("Varsayılan araç grubu bulunamadı.", "varsayilanGrupId");
             }
             await svc.SaveAsync(ToModel(i), SystemApiCommon.Clean(i.Surum), ct);
             return TypedResults.Ok(await BuildSettingsAsync(http.RequestServices, ct));
-        }).AlanlariEsle(SettingsRules);
+        }).MapFields(SettingsRules);
 
         // ---- PDF logosu
         g.MapGet("/logo", async Task<Results<FileContentHttpResult, ProblemHttpResult>> (HttpContext http, TenantSettingsService svc, CancellationToken ct) =>
@@ -74,7 +74,7 @@ public static partial class SystemAdminApi
             await svc.SetLogoAsync(bytes, ct);
             var size = PngSize.Read(bytes);
             return TypedResults.Ok(new LogoDto(true, size?.Genislik, size?.Yukseklik, bytes.Length));
-        }).DisableAntiforgery().WithMetadata(new RequestSizeLimitAttribute(LogoRequestLimit)).AlanlariEsle(LogoRules);
+        }).DisableAntiforgery().WithMetadata(new RequestSizeLimitAttribute(LogoRequestLimit)).MapFields(LogoRules);
 
         g.MapDelete("/logo", async Task<NoContent> (TenantSettingsService svc, CancellationToken ct) =>
         {
@@ -93,7 +93,7 @@ public static partial class SystemAdminApi
         {
             await svc.AddCustomDomainAsync(NormalizeCustomHost(i.Host), ct);
             return TypedResults.Ok(await BuildSettingsAsync(http.RequestServices, ct));
-        }).AlanlariEsle(DomainRules).RequireRateLimiting(SendTestRatePolicy); // M6: ekleme de hız sınırlı
+        }).MapFields(DomainRules).RequireRateLimiting(SendTestRatePolicy); // M6: ekleme de hız sınırlı
 
         // F11.1b güvenlik M6 — DNS TXT sahiplik doğrulaması (ancak bundan sonra alan adı etkinleşir).
         g.MapPost("/domainler/dogrula", async Task<Ok<SettingsDto>> (DomainAddRequest i, HttpContext http, TenantSettingsService svc, CancellationToken ct) =>
@@ -102,7 +102,7 @@ public static partial class SystemAdminApi
             if (!await svc.VerifyCustomDomainAsync(NormalizeCustomHost(i.Host), ct))
                 throw new ValidationException("Alan adı etkinleştirilemedi; alan adını yeniden ekleyip doğrulayın.", "host");
             return TypedResults.Ok(await BuildSettingsAsync(http.RequestServices, ct));
-        }).AlanlariEsle(DomainRules).RequireRateLimiting(SendTestRatePolicy);
+        }).MapFields(DomainRules).RequireRateLimiting(SendTestRatePolicy);
 
         MapSendTests(g);
     }

@@ -12,11 +12,11 @@ namespace RentACar.IntegrationTests;
 [Collection("postgres")]
 public sealed class ServiceRecordTests(PostgresFixture fx)
 {
-    private static async Task<Guid> SeedVehicleAsync(IServiceScope scope, string plaka = "34SRV34", VehicleStatus durum = VehicleStatus.Musait)
+    private static async Task<Guid> SeedVehicleAsync(IServiceScope scope, string plate = "34SRV34", VehicleStatus status = VehicleStatus.Musait)
     {
         var factory = scope.ServiceProvider.GetRequiredService<IDbContextFactory<AppDbContext>>();
         await using var db = await factory.CreateDbContextAsync();
-        var v = new Vehicle { Plaka = plaka, Durum = durum };
+        var v = new Vehicle { Plaka = plate, Durum = status };
         db.Vehicles.Add(v);
         await db.SaveChangesAsync();
         return v.Id;
@@ -44,7 +44,7 @@ public sealed class ServiceRecordTests(PostgresFixture fx)
         });
 
         var rec = await svc.GetAsync(id);
-        BelgeNoOracle.BeklenenlerdenBiri(9, 1, rec!.No);
+        DocumentNoOracle.OneOfExpected(9, 1, rec!.No);
         Assert.Equal(ServiceStatus.Acik, rec.Durum);
         Assert.Equal(1000m, rec.ToplamIscilik);
         Assert.Equal(2, rec.Lines.Count);

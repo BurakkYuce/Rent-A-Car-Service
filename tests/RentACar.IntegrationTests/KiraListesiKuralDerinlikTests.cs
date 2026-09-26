@@ -24,28 +24,28 @@ public sealed class KiraListesiKuralDerinlikTests(PostgresFixture fx)
 {
     /// <summary>PG timestamptz mikrosaniye, .NET tick 100ns — round-trip eşitliği Linux CI'da
     /// düşmesin diye tarih tabanı TAM SANİYEYE hizalanır.</summary>
-    private static DateTimeOffset Taban(int gunSonra)
+    private static DateTimeOffset Base(int daysLater)
     {
-        var t = new DateTimeOffset(DateTime.SpecifyKind(DateTime.UtcNow.AddDays(gunSonra), DateTimeKind.Utc), TimeSpan.Zero);
+        var t = new DateTimeOffset(DateTime.SpecifyKind(DateTime.UtcNow.AddDays(daysLater), DateTimeKind.Utc), TimeSpan.Zero);
         return t.AddTicks(-(t.Ticks % TimeSpan.TicksPerSecond));
     }
 
     private static int _no;
 
-    private static Task<Guid> CariAsync(IServiceScope s, string ad)
+    private static Task<Guid> CustomerAsync(IServiceScope s, string name)
         => s.ServiceProvider.GetRequiredService<CustomerService>()
-            .CreateAsync(new CustomerInput { Tip = CustomerType.Bireysel, Ad = ad, Soyad = "Test" });
+            .CreateAsync(new CustomerInput { Tip = CustomerType.Bireysel, Ad = name, Soyad = "Test" });
 
-    private static Task<Guid> AracAsync(IServiceScope s, string plaka, string? grup = null, string? sahip = null)
+    private static Task<Guid> VehicleAsync(IServiceScope s, string plate, string? group = null, string? owner = null)
         => s.ServiceProvider.GetRequiredService<VehicleService>()
-            .CreateAsync(new VehicleInput { Plaka = plaka, Grup = grup, AracSahibi = sahip });
+            .CreateAsync(new VehicleInput { Plaka = plate, Grup = group, AracSahibi = owner });
 
     /// <summary>Kira kurar ve yeni FAZ-46 alanlarını doldurur (repo üzerinden — mega-formu taklit etmez).</summary>
-    private static async Task<Guid> KiraAsync(
-        TestHost host, Guid tenant, Guid cari, Guid arac,
-        DateTimeOffset bas, DateTimeOffset bit,
-        string? cikisOfisi = null, string? donusOfisi = null,
-        DateTimeOffset? vade = null, string? kaynak = null, Guid? personel = null)
+    private static async Task<Guid> RentalAsync(
+        TestHost host, Guid tenant, Guid account, Guid vehicle,
+        DateTimeOffset start, DateTimeOffset bit,
+        string? pickupOffice = null, string? returnOffice = null,
+        DateTimeOffset? due = null, string? source = null, Guid? staff = null)
     {
         using var scope = host.ScopeFor(tenant);
         var factory = scope.ServiceProvider
@@ -57,11 +57,11 @@ public sealed class KiraListesiKuralDerinlikTests(PostgresFixture fx)
         var r = new RentACar.Domain.Entities.RentalContract
         {
             SozlesmeNo = $"KS-T{no:D6}",
-            MusteriId = cari, VehicleId = arac,
-            BasTar = bas, BitTar = bit, Gun = 3,
+            MusteriId = account, VehicleId = vehicle,
+            BasTar = start, BitTar = bit, Gun = 3,
             GunlukUcret = 100m, Tutar = 300m, GenelToplam = 300m, Bakiye = 300m,
-            CikisOfisi = cikisOfisi, DonusOfisi = donusOfisi,
-            VadeTar = vade, Kaynak = kaynak, TeslimAlanPersonelId = personel,
+            CikisOfisi = pickupOffice, DonusOfisi = returnOffice,
+            VadeTar = due, Kaynak = source, TeslimAlanPersonelId = staff,
             // Bilgi alanları — listede görünmeli, hiçbir toplama girmemeli.
             Provizyon = 500m, Depozito = 250m, KomisyonOran = 12.5m, KomisyonTutar = 37.5m,
             OnayKodu = "ONY-1", ProjeAdi = "Proje X", AssistFirma = "Assist A",
@@ -79,37 +79,37 @@ public sealed class KiraListesiKuralDerinlikTests(PostgresFixture fx)
     {
         var tenant = Guid.NewGuid();
         using var host = new TestHost(fx.AppConnectionString);
-        Guid cari, arac;
+        Guid account, vehicle;
         using (var s = host.ScopeFor(tenant))
         {
-            cari = await CariAsync(s, "Kolon");
-            arac = await AracAsync(s, "34 KL 01");
+            account = await CustomerAsync(s, "Kolon");
+            vehicle = await VehicleAsync(s, "34 KL 01");
         }
-        var vade = Taban(10);
-        await KiraAsync(host, tenant, cari, arac, Taban(0), Taban(3), "A Ofis", "B Ofis", vade, "Web");
+        var due = Base(10);
+        await RentalAsync(host, tenant, account, vehicle, Base(0), Base(3), "A Ofis", "B Ofis", due, "Web");
 
-        using var oku = host.ScopeFor(tenant);
-        var satir = Assert.Single(await oku.ServiceProvider.GetRequiredService<RentalService>().SearchAsync(new RentalFilter()));
+        using var read = host.ScopeFor(tenant);
+        var row = Assert.Single(await read.ServiceProvider.GetRequiredService<RentalService>().SearchAsync(new RentalFilter()));
 
         // Elle kurulan değerler AYNEN dönmeli (projeksiyon, hesap değil).
-        Assert.Equal("Web", satir.Kaynak);
-        Assert.Equal(500m, satir.Provizyon);
-        Assert.Equal(250m, satir.Depozito);
-        Assert.Equal(12.5m, satir.KomisyonOran);
-        Assert.Equal(37.5m, satir.KomisyonTutar);
-        Assert.Equal(vade, satir.VadeTar);
-        Assert.Equal("ONY-1", satir.OnayKodu);
-        Assert.Equal("Proje X", satir.ProjeAdi);
-        Assert.Equal("Assist A", satir.AssistFirma);
-        Assert.Equal("Şoförlü", satir.OzelSoforBilgisi);
-        Assert.Equal(1, satir.HediyeGun);
-        Assert.Equal(2, satir.FaturalananGun);
-        Assert.Equal("A Ofis", satir.CikisOfisi);
-        Assert.Equal("B Ofis", satir.DonusOfisi);
+        Assert.Equal("Web", row.Kaynak);
+        Assert.Equal(500m, row.Provizyon);
+        Assert.Equal(250m, row.Depozito);
+        Assert.Equal(12.5m, row.KomisyonOran);
+        Assert.Equal(37.5m, row.KomisyonTutar);
+        Assert.Equal(due, row.VadeTar);
+        Assert.Equal("ONY-1", row.OnayKodu);
+        Assert.Equal("Proje X", row.ProjeAdi);
+        Assert.Equal("Assist A", row.AssistFirma);
+        Assert.Equal("Şoförlü", row.OzelSoforBilgisi);
+        Assert.Equal(1, row.HediyeGun);
+        Assert.Equal(2, row.FaturalananGun);
+        Assert.Equal("A Ofis", row.CikisOfisi);
+        Assert.Equal("B Ofis", row.DonusOfisi);
 
         // KRİTİK: bilgi alanları tutara/bakiyeye KARIŞMADI (elle: 300 kurulmuştu).
-        Assert.Equal(300m, satir.Tutar);
-        Assert.Equal(300m, satir.Bakiye);
+        Assert.Equal(300m, row.Tutar);
+        Assert.Equal(300m, row.Bakiye);
     }
 
     [Fact]
@@ -117,39 +117,39 @@ public sealed class KiraListesiKuralDerinlikTests(PostgresFixture fx)
     {
         var tenant = Guid.NewGuid();
         using var host = new TestHost(fx.AppConnectionString);
-        Guid cari, a1, a2;
+        Guid account, a1, a2;
         using (var s = host.ScopeFor(tenant))
         {
-            cari = await CariAsync(s, "Tarih");
-            a1 = await AracAsync(s, "34 TR 01");
-            a2 = await AracAsync(s, "34 TR 02");
+            account = await CustomerAsync(s, "Tarih");
+            a1 = await VehicleAsync(s, "34 TR 01");
+            a2 = await VehicleAsync(s, "34 TR 02");
         }
         // ELLE: iki kira. Vadeler 10 ve 40 gün sonra; başlangıçlar AYNI pencerede.
-        await KiraAsync(host, tenant, cari, a1, Taban(0), Taban(3), vade: Taban(10));
-        await KiraAsync(host, tenant, cari, a2, Taban(0), Taban(3), vade: Taban(40));
+        await RentalAsync(host, tenant, account, a1, Base(0), Base(3), due: Base(10));
+        await RentalAsync(host, tenant, account, a2, Base(0), Base(3), due: Base(40));
 
         var svc = host.ScopeFor(tenant).ServiceProvider.GetRequiredService<RentalService>();
 
         // Vade penceresi [5, 20] → yalnız BİRİ.
-        var vadeli = await svc.SearchAsync(new RentalFilter
-        { TarihTuru = DateListType.Vade, BaslangicMin = Taban(5), BaslangicMax = Taban(20) });
-        Assert.Single(vadeli);
+        var withDue = await svc.SearchAsync(new RentalFilter
+        { TarihTuru = DateListType.Vade, BaslangicMin = Base(5), BaslangicMax = Base(20) });
+        Assert.Single(withDue);
 
         // AYNI pencere Başlangıç'a uygulanınca HİÇBİRİ (ikisi de bugün başlıyor) — aralık
         // gerçekten seçilen kolona uygulanıyor, sessizce BasTar'a düşmüyor.
-        var baslangicli = await svc.SearchAsync(new RentalFilter
-        { TarihTuru = DateListType.Baslangic, BaslangicMin = Taban(5), BaslangicMax = Taban(20) });
-        Assert.Empty(baslangicli);
+        var withStart = await svc.SearchAsync(new RentalFilter
+        { TarihTuru = DateListType.Baslangic, BaslangicMin = Base(5), BaslangicMax = Base(20) });
+        Assert.Empty(withStart);
 
         // Tür verilmezse eski davranış = Başlangıç.
-        Assert.Empty(await svc.SearchAsync(new RentalFilter { BaslangicMin = Taban(5), BaslangicMax = Taban(20) }));
+        Assert.Empty(await svc.SearchAsync(new RentalFilter { BaslangicMin = Base(5), BaslangicMax = Base(20) }));
 
         // Vadesi GİRİLMEMİŞ kayıt vade aralığına düşmez.
         Guid a3;
-        using (var s = host.ScopeFor(tenant)) a3 = await AracAsync(s, "34 TR 03");
-        await KiraAsync(host, tenant, cari, a3, Taban(0), Taban(3)); // vade null
+        using (var s = host.ScopeFor(tenant)) a3 = await VehicleAsync(s, "34 TR 03");
+        await RentalAsync(host, tenant, account, a3, Base(0), Base(3)); // vade null
         Assert.Single(await svc.SearchAsync(new RentalFilter
-        { TarihTuru = DateListType.Vade, BaslangicMin = Taban(5), BaslangicMax = Taban(20) }));
+        { TarihTuru = DateListType.Vade, BaslangicMin = Base(5), BaslangicMax = Base(20) }));
     }
 
     [Fact]
@@ -157,16 +157,16 @@ public sealed class KiraListesiKuralDerinlikTests(PostgresFixture fx)
     {
         var tenant = Guid.NewGuid();
         using var host = new TestHost(fx.AppConnectionString);
-        Guid cari, a1, a2;
+        Guid account, a1, a2;
         using (var s = host.ScopeFor(tenant))
         {
-            cari = await CariAsync(s, "Ofis");
-            a1 = await AracAsync(s, "34 OF 01");
-            a2 = await AracAsync(s, "34 OF 02");
+            account = await CustomerAsync(s, "Ofis");
+            a1 = await VehicleAsync(s, "34 OF 01");
+            a2 = await VehicleAsync(s, "34 OF 02");
         }
         // ELLE: 1 kira A'dan çıkıp B'ye dönüyor; 1 kira B'den çıkıp A'ya dönüyor.
-        await KiraAsync(host, tenant, cari, a1, Taban(0), Taban(3), "A Ofis", "B Ofis");
-        await KiraAsync(host, tenant, cari, a2, Taban(0), Taban(3), "B Ofis", "A Ofis");
+        await RentalAsync(host, tenant, account, a1, Base(0), Base(3), "A Ofis", "B Ofis");
+        await RentalAsync(host, tenant, account, a2, Base(0), Base(3), "B Ofis", "A Ofis");
 
         var svc = host.ScopeFor(tenant).ServiceProvider.GetRequiredService<RentalService>();
 
@@ -181,23 +181,23 @@ public sealed class KiraListesiKuralDerinlikTests(PostgresFixture fx)
     {
         var tenant = Guid.NewGuid();
         using var host = new TestHost(fx.AppConnectionString);
-        var personel = Guid.NewGuid();
-        Guid cari, ekonomik, lux;
+        var staff = Guid.NewGuid();
+        Guid account, economic, lux;
         using (var s = host.ScopeFor(tenant))
         {
-            cari = await CariAsync(s, "Suzgec");
-            ekonomik = await AracAsync(s, "34 SZ 01", grup: "EKO", sahip: "Filo A");
-            lux = await AracAsync(s, "34 SZ 02", grup: "LUX", sahip: "Filo B");
+            account = await CustomerAsync(s, "Suzgec");
+            economic = await VehicleAsync(s, "34 SZ 01", group: "EKO", owner: "Filo A");
+            lux = await VehicleAsync(s, "34 SZ 02", group: "LUX", owner: "Filo B");
         }
-        await KiraAsync(host, tenant, cari, ekonomik, Taban(0), Taban(3), kaynak: "Web", personel: personel);
-        await KiraAsync(host, tenant, cari, lux, Taban(0), Taban(3), kaynak: "Acente");
+        await RentalAsync(host, tenant, account, economic, Base(0), Base(3), source: "Web", staff: staff);
+        await RentalAsync(host, tenant, account, lux, Base(0), Base(3), source: "Acente");
 
         var svc = host.ScopeFor(tenant).ServiceProvider.GetRequiredService<RentalService>();
 
         Assert.Equal("34SZ01", Assert.Single(await svc.SearchAsync(new RentalFilter { AracGrubu = "EKO" })).Plaka.Replace(" ", ""));
         Assert.Single(await svc.SearchAsync(new RentalFilter { SahipGrup = "Filo B" }));
         Assert.Single(await svc.SearchAsync(new RentalFilter { RezKaynak = "Acente" }));
-        Assert.Single(await svc.SearchAsync(new RentalFilter { PersonelId = personel }));
+        Assert.Single(await svc.SearchAsync(new RentalFilter { PersonelId = staff }));
 
         // Eşleşmeyen araç süzgeci BOŞ döner (erken çıkış yolu).
         Assert.Empty(await svc.SearchAsync(new RentalFilter { AracGrubu = "YOK" }));
@@ -212,13 +212,13 @@ public sealed class KiraListesiKuralDerinlikTests(PostgresFixture fx)
         var t1 = Guid.NewGuid();
         var t2 = Guid.NewGuid();
 
-        Guid cari, arac;
+        Guid account, vehicle;
         using (var s = host.ScopeFor(t1))
         {
-            cari = await CariAsync(s, "T1");
-            arac = await AracAsync(s, "34 TN 01", grup: "EKO");
+            account = await CustomerAsync(s, "T1");
+            vehicle = await VehicleAsync(s, "34 TN 01", group: "EKO");
         }
-        await KiraAsync(host, t1, cari, arac, Taban(0), Taban(3), kaynak: "Web");
+        await RentalAsync(host, t1, account, vehicle, Base(0), Base(3), source: "Web");
 
         // racar_app ile bağlanan T2 bağlamı T1'in kirasını GÖRMEZ (süzgeçli sorgu dahil).
         using var s2 = host.ScopeFor(t2);
@@ -237,46 +237,46 @@ public sealed class KiraListesiKuralDerinlikTests(PostgresFixture fx)
         using var scope = host.ScopeFor(Guid.NewGuid());
         var svc = scope.ServiceProvider.GetRequiredService<RentalRuleService>();
 
-        var talepBas = Taban(1);
-        var talepBit = Taban(20);
-        var girdi = new RentalRuleInput
+        var requestStart = Base(1);
+        var requestEnd = Base(20);
+        var input = new RentalRuleInput
         {
             Kod = "erk-rez", Ad = "Erken Rezervasyon",
             Sube = "Merkez", AracGrupKod = "eko",
             Iskonto = 12.5m,
-            TalepBas = talepBas, TalepBit = talepBit,
+            TalepBas = requestStart, TalepBit = requestEnd,
             PromosyonTuru = PromotionType.Tek,
             KuponGecerlilik = CouponValidity.SadeceIlkBedel,
             HesaplamaTipi = CalculationType.Serbest,
             HizliIslem = true,
             HaftaGunKisiti = "6,0,6"   // tekrar + sırasız → normalize edilmeli
         };
-        var id = await svc.CreateAsync(girdi);
+        var id = await svc.CreateAsync(input);
 
-        var kural = Assert.Single((await svc.ListAsync()).Where(x => x.Id == id));
-        Assert.Equal(talepBas, kural.TalepBas);
-        Assert.Equal(talepBit, kural.TalepBit);
-        Assert.Equal(PromotionType.Tek, kural.PromosyonTuru);
-        Assert.Equal(CouponValidity.SadeceIlkBedel, kural.KuponGecerlilik);
-        Assert.Equal(CalculationType.Serbest, kural.HesaplamaTipi);
-        Assert.True(kural.HizliIslem);
-        Assert.Equal("0,6", kural.HaftaGunKisiti);   // tekilleştirildi + sıralandı
-        Assert.Equal("Merkez", kural.Sube);
-        Assert.Equal("EKO", kural.AracGrupKod);
+        var rule = Assert.Single((await svc.ListAsync()).Where(x => x.Id == id));
+        Assert.Equal(requestStart, rule.TalepBas);
+        Assert.Equal(requestEnd, rule.TalepBit);
+        Assert.Equal(PromotionType.Tek, rule.PromosyonTuru);
+        Assert.Equal(CouponValidity.SadeceIlkBedel, rule.KuponGecerlilik);
+        Assert.Equal(CalculationType.Serbest, rule.HesaplamaTipi);
+        Assert.True(rule.HizliIslem);
+        Assert.Equal("0,6", rule.HaftaGunKisiti);   // tekilleştirildi + sıralandı
+        Assert.Equal("Merkez", rule.Sube);
+        Assert.Equal("EKO", rule.AracGrupKod);
 
         // Aynı girdi İKİNCİ kez kaydedilince hiçbir alan kaymamalı (Normalize yeni nesne kuruyor —
         // eklenmeyen alanın sessizce kaybolduğu bilinen tuzak burada kilitleniyor).
-        await svc.UpdateAsync(id, girdi);
-        var tekrar = Assert.Single((await svc.ListAsync()).Where(x => x.Id == id));
-        Assert.Equal(kural.TalepBas, tekrar.TalepBas);
-        Assert.Equal(kural.TalepBit, tekrar.TalepBit);
-        Assert.Equal(kural.PromosyonTuru, tekrar.PromosyonTuru);
-        Assert.Equal(kural.KuponGecerlilik, tekrar.KuponGecerlilik);
-        Assert.Equal(kural.HesaplamaTipi, tekrar.HesaplamaTipi);
-        Assert.Equal(kural.HizliIslem, tekrar.HizliIslem);
-        Assert.Equal(kural.HaftaGunKisiti, tekrar.HaftaGunKisiti);
-        Assert.Equal(kural.Iskonto, tekrar.Iskonto);
-        Assert.Equal(kural.Sube, tekrar.Sube);
+        await svc.UpdateAsync(id, input);
+        var repeat = Assert.Single((await svc.ListAsync()).Where(x => x.Id == id));
+        Assert.Equal(rule.TalepBas, repeat.TalepBas);
+        Assert.Equal(rule.TalepBit, repeat.TalepBit);
+        Assert.Equal(rule.PromosyonTuru, repeat.PromosyonTuru);
+        Assert.Equal(rule.KuponGecerlilik, repeat.KuponGecerlilik);
+        Assert.Equal(rule.HesaplamaTipi, repeat.HesaplamaTipi);
+        Assert.Equal(rule.HizliIslem, repeat.HizliIslem);
+        Assert.Equal(rule.HaftaGunKisiti, repeat.HaftaGunKisiti);
+        Assert.Equal(rule.Iskonto, repeat.Iskonto);
+        Assert.Equal(rule.Sube, repeat.Sube);
     }
 
     [Fact]
@@ -299,18 +299,18 @@ public sealed class KiraListesiKuralDerinlikTests(PostgresFixture fx)
         var svc = scope.ServiceProvider.GetRequiredService<RentalRuleService>();
 
         await Assert.ThrowsAsync<ValidationException>(() => svc.CreateAsync(new RentalRuleInput
-        { Kod = "TERS", Ad = "Ters", TalepBas = Taban(20), TalepBit = Taban(1) }));
+        { Kod = "TERS", Ad = "Ters", TalepBas = Base(20), TalepBit = Base(1) }));
 
         // Talep aralığı GEÇERLİLİK aralığından bağımsız: ters geçerlilikle çakışmaz.
         var id = await svc.CreateAsync(new RentalRuleInput
         {
             Kod = "BAGIMSIZ", Ad = "Bağımsız",
-            TalepBas = Taban(1), TalepBit = Taban(5),
-            GecerlilikBas = Taban(30), GecerlilikBit = Taban(60)
+            TalepBas = Base(1), TalepBit = Base(5),
+            GecerlilikBas = Base(30), GecerlilikBit = Base(60)
         });
         var k = Assert.Single((await svc.ListAsync()).Where(x => x.Id == id));
-        Assert.Equal(Taban(1), k.TalepBas);
-        Assert.Equal(Taban(30), k.GecerlilikBas);
+        Assert.Equal(Base(1), k.TalepBas);
+        Assert.Equal(Base(30), k.GecerlilikBas);
     }
 
     [Fact]
@@ -323,7 +323,7 @@ public sealed class KiraListesiKuralDerinlikTests(PostgresFixture fx)
 
         var id = await svc.CreateAsync(new RentalRuleInput { Kod = "SADE", Ad = "Sade", Iskonto = 10m });
         var once = Assert.Single((await svc.ListAsync()).Where(x => x.Id == id));
-        var iskontoOnce = once.Iskonto;
+        var discountBefore = once.Iskonto;
 
         // Uçuk bilgi değerleri yaz — iskonto (fiyatı etkileyen TEK alan) değişmemeli.
         await svc.UpdateAsync(id, new RentalRuleInput
@@ -334,10 +334,10 @@ public sealed class KiraListesiKuralDerinlikTests(PostgresFixture fx)
             HesaplamaTipi = CalculationType.Serbest,
             HizliIslem = true,
             HaftaGunKisiti = "0,1,2,3,4,5,6",
-            TalepBas = Taban(1), TalepBit = Taban(2)
+            TalepBas = Base(1), TalepBit = Base(2)
         });
-        var sonra = Assert.Single((await svc.ListAsync()).Where(x => x.Id == id));
-        Assert.Equal(iskontoOnce, sonra.Iskonto);
-        Assert.Equal(10m, sonra.Iskonto);
+        var after = Assert.Single((await svc.ListAsync()).Where(x => x.Id == id));
+        Assert.Equal(discountBefore, after.Iskonto);
+        Assert.Equal(10m, after.Iskonto);
     }
 }

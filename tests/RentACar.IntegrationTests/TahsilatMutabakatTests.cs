@@ -25,21 +25,21 @@ namespace RentACar.IntegrationTests;
 [Collection("postgres")]
 public sealed class TahsilatMutabakatTests(PostgresFixture fx)
 {
-    private static readonly DateTimeOffset T0 = TestZaman.Simdi().AddDays(-20);
+    private static readonly DateTimeOffset T0 = TestZaman.Now().AddDays(-20);
 
-    private static async Task<(Guid kira, Guid cari)> KiraAsync(
-        IServiceProvider sp, string unvan, string plaka, decimal gunluk, int gun)
+    private static async Task<(Guid kira, Guid cari)> RentalAsync(
+        IServiceProvider sp, string title, string plate, decimal daily, int day)
     {
-        var cari = await sp.GetRequiredService<CustomerService>()
-            .CreateAsync(new CustomerInput { Tip = CustomerType.Kurumsal, Unvan = unvan });
-        var arac = await sp.GetRequiredService<VehicleService>()
-            .CreateAsync(new VehicleInput { Plaka = plaka });
-        var kira = await sp.GetRequiredService<RentalService>().CreateDirectAsync(new BookingInput
+        var account = await sp.GetRequiredService<CustomerService>()
+            .CreateAsync(new CustomerInput { Tip = CustomerType.Kurumsal, Unvan = title });
+        var vehicle = await sp.GetRequiredService<VehicleService>()
+            .CreateAsync(new VehicleInput { Plaka = plate });
+        var rental = await sp.GetRequiredService<RentalService>().CreateDirectAsync(new BookingInput
         {
-            MusteriId = cari, VehicleId = arac, BasTar = T0, BitTar = T0.AddDays(gun),
-            GunlukUcret = gunluk
+            MusteriId = account, VehicleId = vehicle, BasTar = T0, BitTar = T0.AddDays(day),
+            GunlukUcret = daily
         });
-        return (kira, cari);
+        return (kira: rental, cari: account);
     }
 
     [Fact]
@@ -52,19 +52,19 @@ public sealed class TahsilatMutabakatTests(PostgresFixture fx)
         var cash = sp.GetRequiredService<CashService>();
 
         // A: 3 gün × 1.000 = 3.000 borç → faturalandı → TAM tahsil edildi.
-        var (a, cariA) = await KiraAsync(sp, "Alfa", "34 MT 01", 1000m, 3);
+        var (a, accountA) = await RentalAsync(sp, "Alfa", "34 MT 01", 1000m, 3);
         await inv.CreateFromRentalAsync(a);
         var aTop = (await sp.GetRequiredService<RentalService>().GetAsync(a))!.GenelToplam;
-        await cash.CollectAsync(new CashInput { CariId = cariA, Tutar = aTop, RentalId = a });
+        await cash.CollectAsync(new CashInput { CariId = accountA, Tutar = aTop, RentalId = a });
 
         // B: 2 gün × 500 = 1.000 borç → faturalandı → YARISI tahsil edildi.
-        var (b, cariB) = await KiraAsync(sp, "Beta", "34 MT 02", 500m, 2);
+        var (b, accountB) = await RentalAsync(sp, "Beta", "34 MT 02", 500m, 2);
         await inv.CreateFromRentalAsync(b);
         var bTop = (await sp.GetRequiredService<RentalService>().GetAsync(b))!.GenelToplam;
-        await cash.CollectAsync(new CashInput { CariId = cariB, Tutar = bTop / 2m, RentalId = b });
+        await cash.CollectAsync(new CashInput { CariId = accountB, Tutar = bTop / 2m, RentalId = b });
 
         // C: 1 gün × 700 → HİÇ faturalanmadı, hiç tahsil edilmedi.
-        var (c, _) = await KiraAsync(sp, "Gama", "34 MT 03", 700m, 1);
+        var (c, _) = await RentalAsync(sp, "Gama", "34 MT 03", 700m, 1);
 
         var rows = await sp.GetRequiredService<ReportService>().GetCollectionReconciliationAsync();
         Assert.Equal(3, rows.Count);
@@ -102,8 +102,8 @@ public sealed class TahsilatMutabakatTests(PostgresFixture fx)
         var sp = s.ServiceProvider;
         var cash = sp.GetRequiredService<CashService>();
 
-        var (kira, cari) = await KiraAsync(sp, "Delta", "34 MT 10", 1000m, 2);
-        var txId = await cash.CollectAsync(new CashInput { CariId = cari, Tutar = 800m, RentalId = kira });
+        var (rental, account) = await RentalAsync(sp, "Delta", "34 MT 10", 1000m, 2);
+        var txId = await cash.CollectAsync(new CashInput { CariId = account, Tutar = 800m, RentalId = rental });
         await cash.ReverseAsync(txId);
 
         var row = Assert.Single(await sp.GetRequiredService<ReportService>().GetCollectionReconciliationAsync());
@@ -121,19 +121,19 @@ public sealed class TahsilatMutabakatTests(PostgresFixture fx)
         var sp = s.ServiceProvider;
         var inv = sp.GetRequiredService<InvoiceService>();
 
-        var (kira, _) = await KiraAsync(sp, "Epsilon", "34 MT 20", 1000m, 2);
-        var faturaId = await inv.CreateFromRentalAsync(kira);
-        var top = (await sp.GetRequiredService<RentalService>().GetAsync(kira))!.GenelToplam;
+        var (rental, _) = await RentalAsync(sp, "Epsilon", "34 MT 20", 1000m, 2);
+        var invoiceId = await inv.CreateFromRentalAsync(rental);
+        var top = (await sp.GetRequiredService<RentalService>().GetAsync(rental))!.GenelToplam;
 
         var once = Assert.Single(await sp.GetRequiredService<ReportService>().GetCollectionReconciliationAsync());
         Assert.Equal(top, once.Faturalanan);
 
-        await inv.CreateRefundAsync(faturaId);
+        await inv.CreateRefundAsync(invoiceId);
 
         // İade sonrası faturalanan SIFIRA döner (iade-netli) → fatura farkı tüm borç kadar.
-        var sonra = Assert.Single(await sp.GetRequiredService<ReportService>().GetCollectionReconciliationAsync());
-        Assert.Equal(0m, sonra.Faturalanan);
-        Assert.Equal(top, sonra.FaturaFarki);
+        var after = Assert.Single(await sp.GetRequiredService<ReportService>().GetCollectionReconciliationAsync());
+        Assert.Equal(0m, after.Faturalanan);
+        Assert.Equal(top, after.FaturaFarki);
     }
 
     [Fact]
@@ -142,45 +142,45 @@ public sealed class TahsilatMutabakatTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var s = host.ScopeFor(Guid.NewGuid());
         var sp = s.ServiceProvider;
-        var rapor = sp.GetRequiredService<ReportService>();
+        var report = sp.GetRequiredService<ReportService>();
         var cash = sp.GetRequiredService<CashService>();
 
-        var (a, cariA) = await KiraAsync(sp, "Alfa Lojistik", "34 FL 01", 1000m, 2);
-        var (b, _) = await KiraAsync(sp, "Beta Turizm", "06 BT 02", 500m, 1);
+        var (a, accountA) = await RentalAsync(sp, "Alfa Lojistik", "34 FL 01", 1000m, 2);
+        var (b, _) = await RentalAsync(sp, "Beta Turizm", "06 BT 02", 500m, 1);
 
         // A'yı tamamen tahsil et → bakiyesi kapanır.
         var aTop = (await sp.GetRequiredService<RentalService>().GetAsync(a))!.GenelToplam;
-        await cash.CollectAsync(new CashInput { CariId = cariA, Tutar = aTop, RentalId = a });
+        await cash.CollectAsync(new CashInput { CariId = accountA, Tutar = aTop, RentalId = a });
 
-        Assert.Equal(2, (await rapor.GetCollectionReconciliationAsync()).Count);
-        Assert.Equal(2, (await rapor.GetCollectionReconciliationAsync(new TahsilatMutabakatFilter())).Count);
+        Assert.Equal(2, (await report.GetCollectionReconciliationAsync()).Count);
+        Assert.Equal(2, (await report.GetCollectionReconciliationAsync(new TahsilatMutabakatFilter())).Count);
 
         // Metin: müşteri adı / plaka (boşluklu giriş de bulmalı) / sözleşme no
-        Assert.Equal(a, Assert.Single(await rapor.GetCollectionReconciliationAsync(
+        Assert.Equal(a, Assert.Single(await report.GetCollectionReconciliationAsync(
             new TahsilatMutabakatFilter { Ara = "alfa" })).RentalId);
-        Assert.Equal(b, Assert.Single(await rapor.GetCollectionReconciliationAsync(
+        Assert.Equal(b, Assert.Single(await report.GetCollectionReconciliationAsync(
             new TahsilatMutabakatFilter { Ara = "06 BT" })).RentalId);
 
         // Bakiye durumu
-        Assert.Equal(a, Assert.Single(await rapor.GetCollectionReconciliationAsync(
+        Assert.Equal(a, Assert.Single(await report.GetCollectionReconciliationAsync(
             new TahsilatMutabakatFilter { BakiyeDurumu = "kapali" })).RentalId);
-        Assert.Equal(b, Assert.Single(await rapor.GetCollectionReconciliationAsync(
+        Assert.Equal(b, Assert.Single(await report.GetCollectionReconciliationAsync(
             new TahsilatMutabakatFilter { BakiyeDurumu = "acik" })).RentalId);
 
         // Durum
-        Assert.Equal(2, (await rapor.GetCollectionReconciliationAsync(
+        Assert.Equal(2, (await report.GetCollectionReconciliationAsync(
             new TahsilatMutabakatFilter { Durum = RentalStatus.Kirada })).Count);
-        Assert.Empty(await rapor.GetCollectionReconciliationAsync(
+        Assert.Empty(await report.GetCollectionReconciliationAsync(
             new TahsilatMutabakatFilter { Durum = RentalStatus.Iptal }));
 
         // Sağlıklı veride "yalnız tutarsız" BOŞ dönmeli (yanlış alarm yok).
-        Assert.Empty(await rapor.GetCollectionReconciliationAsync(
+        Assert.Empty(await report.GetCollectionReconciliationAsync(
             new TahsilatMutabakatFilter { YalnizTutarsiz = true }));
 
         // Tarih aralığı (kira başlangıcına göre)
-        Assert.Equal(2, (await rapor.GetCollectionReconciliationAsync(
+        Assert.Equal(2, (await report.GetCollectionReconciliationAsync(
             new TahsilatMutabakatFilter { Bas = T0.AddDays(-1) })).Count);
-        Assert.Empty(await rapor.GetCollectionReconciliationAsync(
+        Assert.Empty(await report.GetCollectionReconciliationAsync(
             new TahsilatMutabakatFilter { Bit = T0.AddDays(-1) }));
     }
 
@@ -191,18 +191,18 @@ public sealed class TahsilatMutabakatTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var s = host.ScopeFor(Guid.NewGuid());
         var sp = s.ServiceProvider;
-        var (kira, cari) = await KiraAsync(sp, "Zeta", "34 MT 30", 1000m, 2);
-        await sp.GetRequiredService<InvoiceService>().CreateFromRentalAsync(kira);
-        var top = (await sp.GetRequiredService<RentalService>().GetAsync(kira))!.GenelToplam;
+        var (rental, account) = await RentalAsync(sp, "Zeta", "34 MT 30", 1000m, 2);
+        await sp.GetRequiredService<InvoiceService>().CreateFromRentalAsync(rental);
+        var top = (await sp.GetRequiredService<RentalService>().GetAsync(rental))!.GenelToplam;
         await sp.GetRequiredService<CashService>()
-            .CollectAsync(new CashInput { CariId = cari, Tutar = top, RentalId = kira });
+            .CollectAsync(new CashInput { CariId = account, Tutar = top, RentalId = rental });
 
-        var ozet = await sp.GetRequiredService<ReportService>().GetCollectionInvoiceAsync();
-        Assert.Equal(1, ozet.FaturaAdet);
-        Assert.Equal(top, ozet.FaturaToplam);
-        Assert.Equal(1, ozet.TahsilatAdet);
-        Assert.Equal(top, ozet.TahsilatToplam);
-        Assert.Equal(0m, ozet.Fark);
+        var summary = await sp.GetRequiredService<ReportService>().GetCollectionInvoiceAsync();
+        Assert.Equal(1, summary.FaturaAdet);
+        Assert.Equal(top, summary.FaturaToplam);
+        Assert.Equal(1, summary.TahsilatAdet);
+        Assert.Equal(top, summary.TahsilatToplam);
+        Assert.Equal(0m, summary.Fark);
     }
 
     [Fact]
@@ -210,7 +210,7 @@ public sealed class TahsilatMutabakatTests(PostgresFixture fx)
     {
         using var host = new TestHost(fx.AppConnectionString);
         using (var s1 = host.ScopeFor(Guid.NewGuid()))
-            await KiraAsync(s1.ServiceProvider, "Gizli", "34 GZ 99", 1000m, 1);
+            await RentalAsync(s1.ServiceProvider, "Gizli", "34 GZ 99", 1000m, 1);
 
         using var s2 = host.ScopeFor(Guid.NewGuid());
         Assert.Empty(await s2.ServiceProvider.GetRequiredService<ReportService>().GetCollectionReconciliationAsync());

@@ -20,11 +20,11 @@ public sealed class RateCardTests(PostgresFixture fx)
 {
     private static readonly DateTimeOffset AnyDay = new(2026, 6, 15, 12, 0, 0, TimeSpan.Zero);
 
-    private static RateCardInput Rc(string kod, string grup, int min, int max, decimal ucret,
-        DateTimeOffset? bas = null, DateTimeOffset? bit = null, bool aktif = true) => new()
+    private static RateCardInput Rc(string code, string group, int min, int max, decimal fee,
+        DateTimeOffset? start = null, DateTimeOffset? bit = null, bool active = true) => new()
     {
-        Kod = kod, Ad = kod, Grup = grup, MinGun = min, MaxGun = max, GunlukUcret = ucret,
-        GecerliBas = bas, GecerliBit = bit, Aktif = aktif
+        Kod = code, Ad = code, Grup = group, MinGun = min, MaxGun = max, GunlukUcret = fee,
+        GecerliBas = start, GecerliBit = bit, Aktif = active
     };
 
     [Fact]
@@ -94,16 +94,16 @@ public sealed class RateCardTests(PostgresFixture fx)
 
         await svc.CreateAsync(Rc("E-BASE", "E", 1, 9999, 100m)); // dönemsiz taban
         await svc.CreateAsync(Rc("E-YAZ", "E", 1, 9999, 300m,
-            bas: new DateTimeOffset(2026, 7, 1, 0, 0, 0, TimeSpan.Zero),
+            start: new DateTimeOffset(2026, 7, 1, 0, 0, 0, TimeSpan.Zero),
             bit: new DateTimeOffset(2026, 8, 31, 23, 59, 0, TimeSpan.Zero))); // yaz sezonu
 
-        var temmuz = new DateTimeOffset(2026, 7, 15, 12, 0, 0, TimeSpan.Zero);
-        var aralik = new DateTimeOffset(2026, 12, 15, 12, 0, 0, TimeSpan.Zero);
+        var july = new DateTimeOffset(2026, 7, 15, 12, 0, 0, TimeSpan.Zero);
+        var range = new DateTimeOffset(2026, 12, 15, 12, 0, 0, TimeSpan.Zero);
 
         // Yaz: sezon dönemi kapsar, aynı kademe → en güncel başlangıç (sezon) kazanır → 300.
-        Assert.Equal(300m, (await svc.GetRateAsync("E", 5, temmuz))!.GunlukUcret);
+        Assert.Equal(300m, (await svc.GetRateAsync("E", 5, july))!.GunlukUcret);
         // Aralık: sezon kapsamaz → tabana düşer → 100.
-        Assert.Equal(100m, (await svc.GetRateAsync("E", 5, aralik))!.GunlukUcret);
+        Assert.Equal(100m, (await svc.GetRateAsync("E", 5, range))!.GunlukUcret);
     }
 
     [Fact]
@@ -113,7 +113,7 @@ public sealed class RateCardTests(PostgresFixture fx)
         using var scope = host.ScopeFor(Guid.NewGuid());
         var svc = scope.ServiceProvider.GetRequiredService<RateCardService>();
 
-        await svc.CreateAsync(Rc("F-OFF", "F", 1, 9999, 50m, aktif: false));
+        await svc.CreateAsync(Rc("F-OFF", "F", 1, 9999, 50m, active: false));
         Assert.Null(await svc.GetRateAsync("F", 2, AnyDay)); // pasif → eşleşme yok
 
         await svc.CreateAsync(Rc("G1", "G", 1, 9999, 120m));
@@ -132,7 +132,7 @@ public sealed class RateCardTests(PostgresFixture fx)
         await Assert.ThrowsAsync<ValidationException>(() => svc.CreateAsync(Rc("X", "B", 5, 3, 100m)));       // max<min
         await Assert.ThrowsAsync<ValidationException>(() => svc.CreateAsync(Rc("X", "B", 1, 3, -1m)));        // negatif ücret
         await Assert.ThrowsAsync<ValidationException>(() => svc.CreateAsync(Rc("X", "B", 1, 3, 100m,
-            bas: new DateTimeOffset(2026, 8, 1, 0, 0, 0, TimeSpan.Zero),
+            start: new DateTimeOffset(2026, 8, 1, 0, 0, 0, TimeSpan.Zero),
             bit: new DateTimeOffset(2026, 7, 1, 0, 0, 0, TimeSpan.Zero))));                                   // bit<bas
     }
 

@@ -52,7 +52,7 @@
     <label>Ofis (aracın şubesi)
         <select name="ofisF">
             <option value="">— tümü —</option>
-            @foreach (var s in _subeOpts)
+            @foreach (var s in _branchOpts)
             {
                 <option value="@s" selected="@(s == OfisF)">@s</option>
             }
@@ -61,7 +61,7 @@
     <label>Tarih ≥<input name="bas" type="date" value="@Bas" /></label>
     <label>Tarih ≤<input name="bit" type="date" value="@Bit" /></label>
     <button type="submit">Filtrele</button>
-    @if (_filtreVar) { <a class="link" href="/satislar">Temizle</a> }
+    @if (_hasFilter) { <a class="link" href="/satislar">Temizle</a> }
 </form>
 
 <details class="new-vehicle" open="@(_list.Count == 0)">
@@ -70,7 +70,7 @@
         <label>Araç
             <select name="vehicleId" required>
                 <option value="">—</option>
-                @foreach (var v in _satilabilir)
+                @foreach (var v in _saleable)
                 {
                     <option value="@v.Id">@v.Plaka (@v.Durum)</option>
                 }
@@ -117,7 +117,7 @@
         <label>Liste Fiyatı Dövizi<select name="listeDoviz"><option value="">—</option><option>TRY</option><option>USD</option><option>EUR</option></select></label>
         <label>Satış Noktası<input name="satisNoktasi" list="dl-satis-noktasi" placeholder="galeri / şube / plaza" /></label>
         <datalist id="dl-satis-noktasi">
-            @foreach (var s in _subeOpts) { <option value="@s"></option> }
+            @foreach (var s in _branchOpts) { <option value="@s"></option> }
         </datalist>
         <label>Uygulanan Kampanya<input name="uygulananKampanya" placeholder="kampanya adı / kodu" /></label>
         <label>İhale Firması<input name="ihaleFirmasi" /></label>
@@ -141,7 +141,7 @@
     <tbody>
         @if (_list.Count == 0)
         {
-            <tr><td colspan="13" class="muted">@(_filtreVar ? "Filtreye uyan satış yok." : "Satış yok.")</td></tr>
+            <tr><td colspan="13" class="muted">@(_hasFilter ? "Filtreye uyan satış yok." : "Satış yok.")</td></tr>
         }
         @foreach (var s in _list)
         {
@@ -149,7 +149,7 @@
                 <td>@s.No</td>
                 <td>@s.Tarih.LocalDateTime.ToString("dd.MM.yyyy")</td>
                 @* Geçen Süre: yeni alan GEREKTİRMEZ — Tarih'ten hesaplanır (SatisHesap.GecenGun, test edilebilir). *@
-                <td class="num">@SaleCalculation.ElapsedDays(s.Tarih, _simdi) gün</td>
+                <td class="num">@SaleCalculation.ElapsedDays(s.Tarih, _now) gün</td>
                 <td>@VehLabel(s.VehicleId)</td>
                 <td>@CustLabel(s.AliciCariId)</td>
                 <td>@s.SatisNet.ToString("N2")</td>
@@ -159,8 +159,8 @@
                 <td>@(string.IsNullOrWhiteSpace(s.IhaleFirmasi) ? "—" : $"{s.IhaleFirmasi} {s.IhaleSayisi}".Trim())</td>
                 @* Kredi Firması / Poliçe kolonları BAŞKA modüllerin verisidir (bilgi). Veri yoksa
                    "—" gösterilir; hata vermez (FAZ-13/17 alanlarına bağımlı olmayan gevşek bağ). *@
-                <td>@KrediFirma(s.VehicleId)</td>
-                <td>@PoliceOzet(s.VehicleId)</td>
+                <td>@LoanCompany(s.VehicleId)</td>
+                <td>@PolicySummary(s.VehicleId)</td>
                 <td>@s.Durum</td>
             </tr>
         }
@@ -180,32 +180,32 @@
     [SupplyParameterFromQuery(Name = "bit")] public string? Bit { get; set; }
 
     private IReadOnlyList<VehicleSale> _list = [];
-    private IReadOnlyList<Vehicle> _satilabilir = [];
+    private IReadOnlyList<Vehicle> _saleable = [];
     private IReadOnlyList<Customer> _customers = [];
     private Dictionary<Guid, string> _vehMap = new();
     private Dictionary<Guid, string> _custMap = new();
-    private Dictionary<Guid, string> _krediMap = new();
+    private Dictionary<Guid, string> _loanMap = new();
     private Dictionary<Guid, string> _policeMap = new();
-    private List<string> _subeOpts = [];
-    private bool _filtreVar;
-    private DateTimeOffset _simdi = DateTimeOffset.UtcNow;
+    private List<string> _branchOpts = [];
+    private bool _hasFilter;
+    private DateTimeOffset _now = DateTimeOffset.UtcNow;
 
     protected override async Task OnInitializedAsync()
     {
-        _simdi = DateTimeOffset.UtcNow;
-        var filtre = FiltreKur();
-        _filtreVar = !filtre.Bos;
-        _list = await Sales.SearchAsync(filtre);
+        _now = DateTimeOffset.UtcNow;
+        var filter = BuildFilter();
+        _hasFilter = !filter.Bos;
+        _list = await Sales.SearchAsync(filter);
         var vehicles = await Vehicles.ListAsync();
         _customers = await Customers.ListAsync();
-        _satilabilir = vehicles.Where(v => v.Durum != VehicleStatus.Satildi).ToList();
+        _saleable = vehicles.Where(v => v.Durum != VehicleStatus.Satildi).ToList();
         _vehMap = vehicles.ToDictionary(v => v.Id, v => v.Plaka);
         _custMap = _customers.ToDictionary(c => c.Id, c => c.DisplayName);
-        _subeOpts = (await Subeler.ListActiveAsync()).Select(s => s.Ad).ToList();
+        _branchOpts = (await Subeler.ListActiveAsync()).Select(s => s.Ad).ToList();
 
         // Kredi firması + poliçe özeti: BAŞKA modüllerin bilgisi, satış tutarına etkisi YOK.
         // Araç başına EN GÜNCEL kayıt gösterilir; kayıt yoksa kolon "—" kalır (hata vermez).
-        _krediMap = (await Krediler.ListAsync())
+        _loanMap = (await Krediler.ListAsync())
             .Where(k => k.VehicleId is Guid && !string.IsNullOrWhiteSpace(k.BankaAdi))
             .GroupBy(k => k.VehicleId!.Value)
             .ToDictionary(g => g.Key, g => g.OrderByDescending(k => k.BaslangicTarihi).First().BankaAdi);
@@ -218,7 +218,7 @@
     }
 
     /// <summary>Sorgu dizesi → filtre. Tarih ≤ GÜN SONUNA alınır (aksi hâlde o günün satışları düşerdi).</summary>
-    private VehicleSaleFilter FiltreKur()
+    private VehicleSaleFilter BuildFilter()
     {
         var f = new VehicleSaleFilter
         {
@@ -237,6 +237,6 @@
 
     private string VehLabel(Guid id) => _vehMap.TryGetValue(id, out var p) ? p : "—";
     private string CustLabel(Guid id) => _custMap.TryGetValue(id, out var n) ? n : "—";
-    private string KrediFirma(Guid vehicleId) => _krediMap.TryGetValue(vehicleId, out var b) ? b : "—";
-    private string PoliceOzet(Guid vehicleId) => _policeMap.TryGetValue(vehicleId, out var p) ? p : "—";
+    private string LoanCompany(Guid vehicleId) => _loanMap.TryGetValue(vehicleId, out var b) ? b : "—";
+    private string PolicySummary(Guid vehicleId) => _policeMap.TryGetValue(vehicleId, out var p) ? p : "—";
 }

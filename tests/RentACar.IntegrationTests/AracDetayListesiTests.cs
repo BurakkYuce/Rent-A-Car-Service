@@ -24,7 +24,7 @@ namespace RentACar.IntegrationTests;
 [Collection("postgres")]
 public sealed class AracDetayListesiTests(PostgresFixture fx)
 {
-    private static readonly DateTimeOffset T0 = TestZaman.Simdi();
+    private static readonly DateTimeOffset T0 = TestZaman.Now();
 
     [Fact]
     public async Task Yeni_detay_alanlari_round_trip()
@@ -75,18 +75,18 @@ public sealed class AracDetayListesiTests(PostgresFixture fx)
         using var s = host.ScopeFor(Guid.NewGuid());
         var sp = s.ServiceProvider;
         var svc = sp.GetRequiredService<VehicleService>();
-        var arac = await svc.CreateAsync(new VehicleInput { Plaka = "34 DT 10" });
+        var vehicle = await svc.CreateAsync(new VehicleInput { Plaka = "34 DT 10" });
 
         await sp.GetRequiredService<VehicleLoanService>().CreateAsync(new AracKrediInput
-        { VehicleId = arac, BankaAdi = "X Bankası", KrediTutari = 100000m, TaksitSayisi = 12 });
+        { VehicleId = vehicle, BankaAdi = "X Bankası", KrediTutari = 100000m, TaksitSayisi = 12 });
 
         var reg = sp.GetRequiredService<RegulationService>();
         // İKİ muayene: eskisi ve yenisi. Listede YÜRÜRLÜKTEKİ (en geç biten) görünmeli.
-        await reg.AddInspectionAsync(arac, T0.AddDays(-400), T0.AddDays(-35), 500m);
-        await reg.AddInspectionAsync(arac, T0.AddDays(-30), T0.AddDays(330), 600m);
+        await reg.AddInspectionAsync(vehicle, T0.AddDays(-400), T0.AddDays(-35), 500m);
+        await reg.AddInspectionAsync(vehicle, T0.AddDays(-30), T0.AddDays(330), 600m);
         // Kasko ve Trafik AYRI poliçeler — tek kolonda karışmamalı.
-        await reg.AddInsuranceAsync(arac, InsuranceType.Kasko, T0.AddDays(-10), T0.AddDays(355), 9000m, "K1", "Sig", null);
-        await reg.AddInsuranceAsync(arac, InsuranceType.Trafik, T0.AddDays(-10), T0.AddDays(200), 3000m, "T1", "Sig", null);
+        await reg.AddInsuranceAsync(vehicle, InsuranceType.Kasko, T0.AddDays(-10), T0.AddDays(355), 9000m, "K1", "Sig", null);
+        await reg.AddInsuranceAsync(vehicle, InsuranceType.Trafik, T0.AddDays(-10), T0.AddDays(200), 3000m, "T1", "Sig", null);
 
         var row = Assert.Single(await svc.ListDetailAsync());
         Assert.Equal("X Bankası", row.KrediBanka);
@@ -104,14 +104,14 @@ public sealed class AracDetayListesiTests(PostgresFixture fx)
         var svc = sp.GetRequiredService<VehicleService>();
 
         // Araca BİLEREK yanlış bir "Kiralayan" notu yazılıyor.
-        var arac = await svc.CreateAsync(new VehicleInput
+        var vehicle = await svc.CreateAsync(new VehicleInput
         { Plaka = "34 DT 20", Kiralayan = "Eski Kiracı (not)", KiraBitTar = T0.AddDays(99) });
 
-        var gercekMusteri = await sp.GetRequiredService<CustomerService>()
+        var realCustomer = await sp.GetRequiredService<CustomerService>()
             .CreateAsync(new CustomerInput { Tip = CustomerType.Kurumsal, Unvan = "Gerçek Kiracı A.Ş." });
-        var kira = await sp.GetRequiredService<RentalService>().CreateDirectAsync(new BookingInput
+        var rental = await sp.GetRequiredService<RentalService>().CreateDirectAsync(new BookingInput
         {
-            MusteriId = gercekMusteri, VehicleId = arac,
+            MusteriId = realCustomer, VehicleId = vehicle,
             BasTar = T0.AddDays(-2), BitTar = T0.AddDays(3), GunlukUcret = 1000m
         });
 
@@ -125,11 +125,11 @@ public sealed class AracDetayListesiTests(PostgresFixture fx)
         Assert.NotEqual(row.Arac.KiraBitTar, row.AktifKiraBitis);
 
         // Kira kapanınca aktif kira alanları BOŞALMALI (depolanmadığının kanıtı).
-        await sp.GetRequiredService<RentalService>().CancelAsync(kira);
-        var sonra = Assert.Single(await svc.ListDetailAsync());
-        Assert.Null(sonra.AktifKiraMusteri);
-        Assert.Null(sonra.AktifKiraBitis);
-        Assert.Equal("Eski Kiracı (not)", sonra.Arac.Kiralayan);   // not hâlâ duruyor
+        await sp.GetRequiredService<RentalService>().CancelAsync(rental);
+        var after = Assert.Single(await svc.ListDetailAsync());
+        Assert.Null(after.AktifKiraMusteri);
+        Assert.Null(after.AktifKiraBitis);
+        Assert.Equal("Eski Kiracı (not)", after.Arac.Kiralayan);   // not hâlâ duruyor
     }
 
     [Fact]
@@ -139,13 +139,13 @@ public sealed class AracDetayListesiTests(PostgresFixture fx)
         using var s = host.ScopeFor(Guid.NewGuid());
         var sp = s.ServiceProvider;
         var svc = sp.GetRequiredService<VehicleService>();
-        var arac = await svc.CreateAsync(new VehicleInput { Plaka = "34 DT 30" });
-        var alici = await sp.GetRequiredService<CustomerService>()
+        var vehicle = await svc.CreateAsync(new VehicleInput { Plaka = "34 DT 30" });
+        var recipient = await sp.GetRequiredService<CustomerService>()
             .CreateAsync(new CustomerInput { Tip = CustomerType.Kurumsal, Unvan = "Alıcı A.Ş." });
 
         await sp.GetRequiredService<VehicleSaleService>().CreateAsync(new VehicleSaleInput
         {
-            VehicleId = arac, AliciCariId = alici, SatisNet = 500000m, KdvOrani = 0.20m,
+            VehicleId = vehicle, AliciCariId = recipient, SatisNet = 500000m, KdvOrani = 0.20m,
             HedefFiyat = 550000m,
             IhaleTarihi = T0.AddDays(-5), IhaleFirmasi = "Oto İhale A.Ş.", NoterSatisTarihi = T0.AddDays(-1)
         });

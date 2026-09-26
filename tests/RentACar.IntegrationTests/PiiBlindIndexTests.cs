@@ -22,8 +22,8 @@ namespace RentACar.IntegrationTests;
 public sealed class PiiBlindIndexTests(PostgresFixture fx)
 {
     // Checksum-geçerli test TC'leri (elle doğrulandı: d10/d11 resmî algoritma).
-    private const string Tc1 = "10000000146";
-    private const string Tc2 = "10000000214";
+    private const string NationalId1 = "10000000146";
+    private const string NationalId2 = "10000000214";
 
     /// <summary>Bağımsız oracle: HmacPiiHasher ile AYNI dev anahtarı + tenant tuzu formatı.</summary>
     private static string ExpectedHash(Guid tenant, string value)
@@ -31,9 +31,9 @@ public sealed class PiiBlindIndexTests(PostgresFixture fx)
             Encoding.UTF8.GetBytes("dev-only-pii-hmac-key-uretimde-kullanma"),
             Encoding.UTF8.GetBytes($"{tenant:N}:{value}")));
 
-    private static CustomerInput Bireysel(string tc, string ad = "Ali") => new()
+    private static CustomerInput Individual(string nationalId, string name = "Ali") => new()
     {
-        Tip = CustomerType.Bireysel, Ad = ad, Soyad = "Test", TcKimlik = tc,
+        Tip = CustomerType.Bireysel, Ad = name, Soyad = "Test", TcKimlik = nationalId,
         EhliyetNo = "EHL-123", PasaportNo = "P-456"
     };
 
@@ -44,7 +44,7 @@ public sealed class PiiBlindIndexTests(PostgresFixture fx)
         var tenant = Guid.NewGuid();
         using var scope = host.ScopeFor(tenant);
         var svc = scope.ServiceProvider.GetRequiredService<CustomerService>();
-        var id = await svc.CreateAsync(Bireysel(Tc1));
+        var id = await svc.CreateAsync(Individual(NationalId1));
 
         // HAM satır (repo şifre çözmesi devre dışı — doğrudan context)
         var factory = scope.ServiceProvider.GetRequiredService<IDbContextFactory<AppDbContext>>();
@@ -55,10 +55,10 @@ public sealed class PiiBlindIndexTests(PostgresFixture fx)
         Assert.Null(raw.EhliyetNo);
         Assert.Null(raw.PasaportNo);
         Assert.NotNull(raw.TcKimlikEnc);
-        Assert.DoesNotContain(Tc1, raw.TcKimlikEnc);     // cipher düz metni içermez
+        Assert.DoesNotContain(NationalId1, raw.TcKimlikEnc);     // cipher düz metni içermez
         Assert.NotNull(raw.EhliyetNoEnc);
         Assert.NotNull(raw.PasaportNoEnc);
-        Assert.Equal(ExpectedHash(tenant, Tc1), raw.TcKimlikHash); // bağımsız HMAC oracle (tenant tuzlu)
+        Assert.Equal(ExpectedHash(tenant, NationalId1), raw.TcKimlikHash); // bağımsız HMAC oracle (tenant tuzlu)
     }
 
     [Fact]
@@ -67,15 +67,15 @@ public sealed class PiiBlindIndexTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
         var svc = scope.ServiceProvider.GetRequiredService<CustomerService>();
-        var id = await svc.CreateAsync(Bireysel(Tc1));
+        var id = await svc.CreateAsync(Individual(NationalId1));
 
         var c = await svc.GetAsync(id);
-        Assert.Equal(Tc1, c!.TcKimlik);                  // görüntüleme çözülmüş
+        Assert.Equal(NationalId1, c!.TcKimlik);                  // görüntüleme çözülmüş
         Assert.Equal("EHL-123", c.EhliyetNo);
         Assert.Equal("P-456", c.PasaportNo);
 
         var rows = await svc.SearchRowsAsync(new CustomerFilter());
-        Assert.Equal(Tc1, rows.Items.Single().TcKimlik); // liste satırı da çözülmüş
+        Assert.Equal(NationalId1, rows.Items.Single().TcKimlik); // liste satırı da çözülmüş
     }
 
     [Fact]
@@ -86,14 +86,14 @@ public sealed class PiiBlindIndexTests(PostgresFixture fx)
         using var scope = host.ScopeFor(tenant);
         var sp = scope.ServiceProvider;
         var svc = sp.GetRequiredService<CustomerService>();
-        await svc.CreateAsync(Bireysel(Tc1));
+        await svc.CreateAsync(Individual(NationalId1));
 
         // 1) Servis ön-kontrolü (hash exists)
-        await Assert.ThrowsAsync<DuplicateCariException>(() => svc.CreateAsync(Bireysel(Tc1, ad: "Veli")));
+        await Assert.ThrowsAsync<DuplicateCariException>(() => svc.CreateAsync(Individual(NationalId1, name: "Veli")));
 
         // 2) DB savunması: ön-kontrolü ATLAYIP aynı hash'le doğrudan repo'ya yaz → kısmi unique index
         var repo = sp.GetRequiredService<ICustomerRepository>();
-        var hash = sp.GetRequiredService<IPiiHasher>().Hash(tenant, Tc1);
+        var hash = sp.GetRequiredService<IPiiHasher>().Hash(tenant, NationalId1);
         var raw = new Customer
         {
             Tip = CustomerType.Bireysel, Ad = "Yarış", TcKimlikHash = hash, TcKimlikEnc = "x"
@@ -109,9 +109,9 @@ public sealed class PiiBlindIndexTests(PostgresFixture fx)
         var t2 = Guid.NewGuid();
         using var s1 = host.ScopeFor(t1);
         using var s2 = host.ScopeFor(t2);
-        var id1 = await s1.ServiceProvider.GetRequiredService<CustomerService>().CreateAsync(Bireysel(Tc1));
+        var id1 = await s1.ServiceProvider.GetRequiredService<CustomerService>().CreateAsync(Individual(NationalId1));
         // index (TenantId, TcKimlikHash) — başka tenant'ta aynı TC engellenmez
-        var id2 = await s2.ServiceProvider.GetRequiredService<CustomerService>().CreateAsync(Bireysel(Tc1));
+        var id2 = await s2.ServiceProvider.GetRequiredService<CustomerService>().CreateAsync(Individual(NationalId1));
 
         // Tenant TUZU: aynı TC iki tenant'ta FARKLI hash üretir → dump'ta cross-tenant korelasyon yok.
         var f1 = s1.ServiceProvider.GetRequiredService<IDbContextFactory<AppDbContext>>();
@@ -122,8 +122,8 @@ public sealed class PiiBlindIndexTests(PostgresFixture fx)
         var h2 = (await db2.Customers.AsNoTracking().SingleAsync(c => c.Id == id2)).TcKimlikHash;
         Assert.NotNull(h1);
         Assert.NotEqual(h1, h2);
-        Assert.Equal(ExpectedHash(t1, Tc1), h1);
-        Assert.Equal(ExpectedHash(t2, Tc1), h2);
+        Assert.Equal(ExpectedHash(t1, NationalId1), h1);
+        Assert.Equal(ExpectedHash(t2, NationalId1), h2);
     }
 
     [Fact]
@@ -132,16 +132,16 @@ public sealed class PiiBlindIndexTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
         var svc = scope.ServiceProvider.GetRequiredService<CustomerService>();
-        await svc.CreateAsync(Bireysel(Tc1));
+        await svc.CreateAsync(Individual(NationalId1));
 
-        var tam = await svc.SearchAsync(new CustomerFilter { Query = Tc1 });
-        Assert.Equal(1, tam.Total);                       // 11 hane → blind-index eşleşmesi
+        var full = await svc.SearchAsync(new CustomerFilter { Query = NationalId1 });
+        Assert.Equal(1, full.Total);                       // 11 hane → blind-index eşleşmesi
 
-        var kismi = await svc.SearchAsync(new CustomerFilter { Query = Tc1[..7] });
-        Assert.Equal(0, kismi.Total);                     // kısmi TC bilinçli olarak aranamaz (şifreli)
+        var partial = await svc.SearchAsync(new CustomerFilter { Query = NationalId1[..7] });
+        Assert.Equal(0, partial.Total);                     // kısmi TC bilinçli olarak aranamaz (şifreli)
 
-        var adIle = await svc.SearchAsync(new CustomerFilter { Query = "Ali" });
-        Assert.Equal(1, adIle.Total);                     // ad araması etkilenmedi
+        var byName = await svc.SearchAsync(new CustomerFilter { Query = "Ali" });
+        Assert.Equal(1, byName.Total);                     // ad araması etkilenmedi
     }
 
     [Fact]
@@ -150,27 +150,27 @@ public sealed class PiiBlindIndexTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
         var svc = scope.ServiceProvider.GetRequiredService<CustomerService>();
-        var id = await svc.CreateAsync(Bireysel(Tc1));
-        await svc.UpdateAsync(id, Bireysel(Tc2)); // update yolu da audit üretir
+        var id = await svc.CreateAsync(Individual(NationalId1));
+        await svc.UpdateAsync(id, Individual(NationalId2)); // update yolu da audit üretir
 
         var factory = scope.ServiceProvider.GetRequiredService<IDbContextFactory<AppDbContext>>();
         await using var db = await factory.CreateDbContextAsync();
-        var izler = (await db.AuditLogs.AsNoTracking()
+        var traces = (await db.AuditLogs.AsNoTracking()
             .Where(a => a.EntityName == "Customers" && a.EntityId == id.ToString())
             .Select(a => new { a.OldValues, a.NewValues })
             .ToListAsync())
             .Select(a => (a.OldValues ?? "") + (a.NewValues ?? "")) // jsonb'ye SQL'de '' eklenemez → bellek-içi
             .ToList();
 
-        Assert.NotEmpty(izler);
-        Assert.All(izler, json =>
+        Assert.NotEmpty(traces);
+        Assert.All(traces, json =>
         {
-            Assert.DoesNotContain(Tc1, json);      // düz TC yok
-            Assert.DoesNotContain(Tc2, json);
+            Assert.DoesNotContain(NationalId1, json);      // düz TC yok
+            Assert.DoesNotContain(NationalId2, json);
             Assert.DoesNotContain("EHL-123", json); // ehliyet/pasaport da yok
             Assert.DoesNotContain("P-456", json);
         });
-        Assert.Contains(izler, json => json.Contains("***")); // değişiklik izi maskeli ama mevcut
+        Assert.Contains(traces, json => json.Contains("***")); // değişiklik izi maskeli ama mevcut
     }
 
     [Fact]
@@ -189,12 +189,12 @@ public sealed class PiiBlindIndexTests(PostgresFixture fx)
             db.Customers.Add(new Customer
             {
                 Id = legacyId, Tip = CustomerType.Bireysel, Ad = "Eski", Soyad = "Kayıt",
-                TcKimlik = Tc2, EhliyetNo = "EHL-OLD", PasaportNo = "P-OLD"
+                TcKimlik = NationalId2, EhliyetNo = "EHL-OLD", PasaportNo = "P-OLD"
             });
             db.AuditLogs.Add(new AuditLog // maske ÖNCESİ yazılmış tarihsel iz simülasyonu
             {
                 EntityName = "Customers", EntityId = legacyId.ToString(), Action = AuditAction.Create,
-                NewValues = $$$"""{"Ad": "Eski", "TcKimlik": "{{{Tc2}}}", "EhliyetNo": "EHL-OLD", "PasaportNo": "P-OLD"}"""
+                NewValues = $$$"""{"Ad": "Eski", "TcKimlik": "{{{NationalId2}}}", "EhliyetNo": "EHL-OLD", "PasaportNo": "P-OLD"}"""
             });
             db.AuditLogs.Add(new AuditLog // ZEHİRLİ değer: kaçışlı tırnak (adversarial Medium — regex'i kırıyordu)
             {
@@ -231,32 +231,32 @@ public sealed class PiiBlindIndexTests(PostgresFixture fx)
             Assert.Null(raw.TcKimlik);
             Assert.Null(raw.EhliyetNo);
             Assert.Null(raw.PasaportNo);
-            Assert.Equal(ExpectedHash(tenant, Tc2), raw.TcKimlikHash);
+            Assert.Equal(ExpectedHash(tenant, NationalId2), raw.TcKimlikHash);
 
             // Tarihsel audit izi SCRUB edildi: düz PII değerleri maskelendi, diğer alanlar dokunulmadı.
             // (İki Create izi var: interceptor'ın maskeli izi + elle eklenen tarihsel iz — İKİSİ de temiz olmalı.)
-            var auditler = await db.AuditLogs.AsNoTracking()
+            var audits = await db.AuditLogs.AsNoTracking()
                 .Where(a => a.EntityName == "Customers" && a.EntityId == legacyId.ToString())
                 .ToListAsync();
-            Assert.NotEmpty(auditler);
-            Assert.All(auditler, a =>
+            Assert.NotEmpty(audits);
+            Assert.All(audits, a =>
             {
                 var json = (a.OldValues ?? "") + (a.NewValues ?? "");
-                Assert.DoesNotContain(Tc2, json);
+                Assert.DoesNotContain(NationalId2, json);
                 Assert.DoesNotContain("EHL-OLD", json);
                 Assert.DoesNotContain("P-OLD", json);
                 Assert.DoesNotContain("ab\\\"cd", json); // zehirli değer de maskelendi
                 if (a.NewValues is not null)
                     System.Text.Json.JsonDocument.Parse(a.NewValues); // scrub geçerli JSON bıraktı
             });
-            Assert.Contains(auditler, a => (a.NewValues ?? "").Contains("***")
+            Assert.Contains(audits, a => (a.NewValues ?? "").Contains("***")
                                         && (a.NewValues ?? "").Contains("Eski")); // maske var, PII-dışı alan duruyor
-            Assert.Contains(auditler, a => (a.NewValues ?? "").Contains("Zehir")); // zehirli satır sağ ve temiz
+            Assert.Contains(audits, a => (a.NewValues ?? "").Contains("Zehir")); // zehirli satır sağ ve temiz
         }
         var svc = sp.GetRequiredService<CustomerService>();
-        var okunan = await svc.GetAsync(legacyId);
-        Assert.Equal(Tc2, okunan!.TcKimlik);
-        Assert.Equal("EHL-OLD", okunan.EhliyetNo);
+        var readValue = await svc.GetAsync(legacyId);
+        Assert.Equal(NationalId2, readValue!.TcKimlik);
+        Assert.Equal("EHL-OLD", readValue.EhliyetNo);
 
         // Backfill İDEMPOTENT: ikinci koşu bu kaydı yeniden İŞLEMEZ
         await using (var ownerDb = new AppDbContext(ownerOptions, NullTenantContext.Instance, NullCurrentUser.Instance))
@@ -267,7 +267,7 @@ public sealed class PiiBlindIndexTests(PostgresFixture fx)
         }
 
         // Backfill'lenmiş kayda karşı benzersizlik: aynı TC ile yeni kayıt reddedilir
-        await Assert.ThrowsAsync<DuplicateCariException>(() => svc.CreateAsync(Bireysel(Tc2, ad: "Yeni")));
+        await Assert.ThrowsAsync<DuplicateCariException>(() => svc.CreateAsync(Individual(NationalId2, name: "Yeni")));
     }
 
     [Fact]
@@ -277,19 +277,19 @@ public sealed class PiiBlindIndexTests(PostgresFixture fx)
         var tenant = Guid.NewGuid();
         using var scope = host.ScopeFor(tenant);
         var svc = scope.ServiceProvider.GetRequiredService<CustomerService>();
-        var id = await svc.CreateAsync(Bireysel(Tc1));
+        var id = await svc.CreateAsync(Individual(NationalId1));
 
-        Assert.True(await svc.UpdateAsync(id, Bireysel(Tc2)));
+        Assert.True(await svc.UpdateAsync(id, Individual(NationalId2)));
 
         var factory = scope.ServiceProvider.GetRequiredService<IDbContextFactory<AppDbContext>>();
         await using var db = await factory.CreateDbContextAsync();
         var raw = await db.Customers.AsNoTracking().SingleAsync(c => c.Id == id);
-        Assert.Equal(ExpectedHash(tenant, Tc2), raw.TcKimlikHash); // yeni TC'nin özeti
-        Assert.Equal(Tc2, (await svc.GetAsync(id))!.TcKimlik);
+        Assert.Equal(ExpectedHash(tenant, NationalId2), raw.TcKimlikHash); // yeni TC'nin özeti
+        Assert.Equal(NationalId2, (await svc.GetAsync(id))!.TcKimlik);
 
         // eski TC artık aranamaz, yenisi bulunur
-        Assert.Equal(0, (await svc.SearchAsync(new CustomerFilter { Query = Tc1 })).Total);
-        Assert.Equal(1, (await svc.SearchAsync(new CustomerFilter { Query = Tc2 })).Total);
+        Assert.Equal(0, (await svc.SearchAsync(new CustomerFilter { Query = NationalId1 })).Total);
+        Assert.Equal(1, (await svc.SearchAsync(new CustomerFilter { Query = NationalId2 })).Total);
     }
 
     [Fact]
@@ -360,7 +360,7 @@ public sealed class PiiBlindIndexTests(PostgresFixture fx)
             {
                 Id = auditId, EntityName = "Customers", EntityId = Guid.NewGuid().ToString(),
                 Action = AuditAction.Create,
-                NewValues = $$$"""{"Ad": "Onur", "TcKimlik": "{{{Tc1}}}"}"""
+                NewValues = $$$"""{"Ad": "Onur", "TcKimlik": "{{{NationalId1}}}"}"""
             });
             await db.SaveChangesAsync();
         }
@@ -373,15 +373,15 @@ public sealed class PiiBlindIndexTests(PostgresFixture fx)
             Assert.Equal(0, n); // hiç cari yok → 0; ama audit scrub çalışmış olmalı
         }
 
-        string xminSonrasi1;
+        string xminAfter1;
         await using (var db = await factory.CreateDbContextAsync())
         {
             var audit = await db.AuditLogs.AsNoTracking().SingleAsync(a => a.Id == auditId);
-            Assert.DoesNotContain(Tc1, audit.NewValues!);   // düz TC maskelendi
+            Assert.DoesNotContain(NationalId1, audit.NewValues!);   // düz TC maskelendi
             Assert.Contains("***", audit.NewValues!);
             Assert.Contains("Onur", audit.NewValues!);      // PII-dışı alan duruyor
             // Satır fiziksel sürümü (xmin) — 1. koşu maskelediği için bir kez değişti.
-            xminSonrasi1 = await db.Database
+            xminAfter1 = await db.Database
                 .SqlQuery<string>($"""SELECT xmin::text AS "Value" FROM "AuditLogs" WHERE "Id" = {auditId}""")
                 .SingleAsync();
         }
@@ -396,10 +396,10 @@ public sealed class PiiBlindIndexTests(PostgresFixture fx)
 
         await using (var db = await factory.CreateDbContextAsync())
         {
-            var xminSonrasi2 = await db.Database
+            var xminAfter2 = await db.Database
                 .SqlQuery<string>($"""SELECT xmin::text AS "Value" FROM "AuditLogs" WHERE "Id" = {auditId}""")
                 .SingleAsync();
-            Assert.Equal(xminSonrasi1, xminSonrasi2); // satır DOKUNULMADI → boş boot yazma yapmıyor
+            Assert.Equal(xminAfter1, xminAfter2); // satır DOKUNULMADI → boş boot yazma yapmıyor
         }
     }
 }

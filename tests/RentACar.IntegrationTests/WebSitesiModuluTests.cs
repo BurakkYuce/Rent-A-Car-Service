@@ -48,13 +48,13 @@ public sealed class WebSitesiModuluTests(PostgresFixture fx)
             NullLogger<PlatformAdminService>.Instance), cache);
     }
 
-    private async Task<Guid> SeedTenantAsync(bool modul = false)
+    private async Task<Guid> SeedTenantAsync(bool module = false)
     {
         await using var db = Owner();
         var t = new Tenant
         {
             Code = "wm" + Guid.NewGuid().ToString("N")[..10], Name = "WM",
-            IsActive = true, WebSitesiModulu = modul,
+            IsActive = true, WebSitesiModulu = module,
         };
         db.Tenants.Add(t);
         await db.SaveChangesAsync();
@@ -95,33 +95,33 @@ public sealed class WebSitesiModuluTests(PostgresFixture fx)
     [Fact]
     public async Task Modul_kapaliyken_site_yayinda_olsa_bile_ACILMAZ()
     {
-        var tenantId = await SeedTenantAsync(modul: false);
+        var tenantId = await SeedTenantAsync(module: false);
         var host = "modulsuz-" + Guid.NewGuid().ToString("N") + ".rentpro.com";
         await SeedSiteAsync(tenantId, host); // tenant KENDİ "Sitemi Aç"ını açmış
 
-        var sonuc = await new PublicTenantResolver(PublicCfg()).ResolveAsync(host);
+        var result = await new PublicTenantResolver(PublicCfg()).ResolveAsync(host);
 
         // İki kademe AYRI: tenant tercihi açık ama satın alma yok → site yok.
-        Assert.Equal(PublicTenantResolution.ModulKapali, sonuc.Kind);
+        Assert.Equal(PublicTenantResolution.ModulKapali, result.Kind);
     }
 
     [Fact]
     public async Task Modul_acikken_site_cozulur()
     {
-        var tenantId = await SeedTenantAsync(modul: true);
+        var tenantId = await SeedTenantAsync(module: true);
         var host = "modullu-" + Guid.NewGuid().ToString("N") + ".rentpro.com";
         await SeedSiteAsync(tenantId, host);
 
-        var sonuc = await new PublicTenantResolver(PublicCfg()).ResolveAsync(host);
+        var result = await new PublicTenantResolver(PublicCfg()).ResolveAsync(host);
 
-        Assert.Equal(PublicTenantResolution.Found, sonuc.Kind);
-        Assert.Equal(tenantId, sonuc.TenantId);
+        Assert.Equal(PublicTenantResolution.Found, result.Kind);
+        Assert.Equal(tenantId, result.TenantId);
     }
 
     [Fact]
     public async Task Modul_acik_ama_site_kapaliysa_yine_ACILMAZ()
     {
-        var tenantId = await SeedTenantAsync(modul: true);
+        var tenantId = await SeedTenantAsync(module: true);
         var host = "tercihkapali-" + Guid.NewGuid().ToString("N") + ".rentpro.com";
         using (var testHost = new TestHost(fx.AppConnectionString))
         using (var scope = testHost.ScopeFor(tenantId))
@@ -148,10 +148,10 @@ public sealed class WebSitesiModuluTests(PostgresFixture fx)
     public async Task Platform_modulu_acar_ve_cache_ANINDA_tazelenir()
     {
         var (svc, cache) = BuildPlatform();
-        var tenantId = await SeedTenantAsync(modul: false);
+        var tenantId = await SeedTenantAsync(module: false);
 
         Assert.False(await cache.WebsiteModuleAsync(tenantId)); // cache'i ISIT (kapalı değerle)
-        await svc.SetWebSitesiModuluAsync(tenantId, true, "op");
+        await svc.SetWebsiteModuleAsync(tenantId, true, "op");
 
         // Invalidate çağrılmasaydı TTL (60 sn) boyunca "modülü açtım, menü gelmedi" yaşanırdı.
         Assert.True(await cache.WebsiteModuleAsync(tenantId));
@@ -161,9 +161,9 @@ public sealed class WebSitesiModuluTests(PostgresFixture fx)
     public async Task Platform_modulu_kapatir_veri_SILINMEZ()
     {
         var (svc, cache) = BuildPlatform();
-        var tenantId = await SeedTenantAsync(modul: true);
+        var tenantId = await SeedTenantAsync(module: true);
 
-        await svc.SetWebSitesiModuluAsync(tenantId, false, "op");
+        await svc.SetWebsiteModuleAsync(tenantId, false, "op");
 
         Assert.False(await cache.WebsiteModuleAsync(tenantId));
         await using var db = Owner();
@@ -175,7 +175,7 @@ public sealed class WebSitesiModuluTests(PostgresFixture fx)
     [Fact]
     public async Task Tenant_kendi_ayarlarindan_modulu_ACAMAZ()
     {
-        var tenantId = await SeedTenantAsync(modul: false);
+        var tenantId = await SeedTenantAsync(module: false);
         using var testHost = new TestHost(fx.AppConnectionString);
         using var scope = testHost.ScopeFor(tenantId); // Admin rolü — tenant'ın en yetkilisi
 
@@ -193,10 +193,10 @@ public sealed class WebSitesiModuluTests(PostgresFixture fx)
     public async Task Modul_bayragi_tenant_izoledir()
     {
         var (svc, cache) = BuildPlatform();
-        var t1 = await SeedTenantAsync(modul: false);
-        var t2 = await SeedTenantAsync(modul: false);
+        var t1 = await SeedTenantAsync(module: false);
+        var t2 = await SeedTenantAsync(module: false);
 
-        await svc.SetWebSitesiModuluAsync(t1, true, "op");
+        await svc.SetWebsiteModuleAsync(t1, true, "op");
 
         Assert.True(await cache.WebsiteModuleAsync(t1));
         Assert.False(await cache.WebsiteModuleAsync(t2)); // T1'in lisansı T2'ye SIZMAZ

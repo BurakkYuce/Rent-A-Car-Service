@@ -18,7 +18,7 @@ public static class TenantSettingsEndpoints
     }
 
     /// <summary>FAZ-82 — üç durumlu (yapılandırılmadı / Evet / Hayır) select → <c>bool?</c>.</summary>
-    private static bool? UcDurumlu(IFormCollection f, string alan) => f[alan].ToString() switch
+    private static bool? TriState(IFormCollection f, string alan) => f[alan].ToString() switch
     {
         "true" => true,
         "false" => false,
@@ -70,7 +70,7 @@ public static class TenantSettingsEndpoints
                 // Üç durumlu (yapılandırılmadı / Evet / Hayır) → bool?. Checkbox KULLANILMADI: işaretsiz
                 // kutu "false" ile "hiç dokunulmadı"yı ayırt edemez; beklemede bir alanda bu ayrım önemli
                 // (ileride motora bağlanırsa "kullanıcı bilinçli kapattı" bilgisi kaybolmasın).
-                DropMesafeYokIseSifir = UcDurumlu(f, "dropMesafeYokIseSifir"),
+                DropMesafeYokIseSifir = TriState(f, "dropMesafeYokIseSifir"),
                 SaatFarkiToleransDk = FormParse.Int(f["saatFarkiToleransDk"].ToString()),
                 IadeIslemSaatSiniri = FormParse.Int(f["iadeIslemSaatSiniri"].ToString()),
                 KurElleGirisKilitli = f["kurElleGirisKilitli"].ToString() is "true" or "on",
@@ -114,8 +114,8 @@ public static class TenantSettingsEndpoints
             // PR-A: kural TEK kaynakta (LogoKurallari) — tür + bayt + ölçü. Servis de AYNI kuralı
             // uyguluyor (derinlik); buradaki kontrol kullanıcıya hızlı/anlaşılır hata vermek için.
             // NOT: JPEG artık kabul edilmiyor — PNG-only (şeffaf zemin), bilinçli daraltma.
-            if (RentACar.Application.Common.LogoValidationRules.Reject(bytes) is { } logoHata)
-                return Results.Redirect("/ayarlar?hata=" + Uri.EscapeDataString(logoHata));
+            if (RentACar.Application.Common.LogoValidationRules.Reject(bytes) is { } logoError)
+                return Results.Redirect("/ayarlar?hata=" + Uri.EscapeDataString(logoError));
             await svc.SetLogoAsync(bytes);
             return Results.Redirect("/ayarlar?ok=1");
         });
@@ -152,11 +152,11 @@ public static class TenantSettingsEndpoints
             // Şablon adı ÜRETİMDEKİYLE aynı (operasyon_ozet) — test, gerçek kod yolunu denemeli.
             // Şablon SID'i tanımlıysa şablon gider; tanımlı değil ve AllowFreeform açıksa serbest
             // metin gider (sandbox yolu). İkisi de yoksa gönderici false döner ve bunu görürüz.
-            var mesaj = $"RentPro test mesajı — {DateTimeOffset.UtcNow:yyyy-MM-dd HH:mm} UTC. Bu mesajı aldıysanız WhatsApp yapılandırmanız çalışıyor.";
+            var message = $"RentPro test mesajı — {DateTimeOffset.UtcNow:yyyy-MM-dd HH:mm} UTC. Bu mesajı aldıysanız WhatsApp yapılandırmanız çalışıyor.";
             // Teşhis yolu SID'e ihtiyaç duyar (durum SID ile tekil sorulur) → GonderAsync.
             var twilioSvc = wa as RentACar.Web.Integrations.TwilioWhatsAppService;
-            var pars = new Dictionary<string, string> { ["1"] = mesaj };
-            var (ok, mesajSid) = twilioSvc is not null
+            var pars = new Dictionary<string, string> { ["1"] = message };
+            var (ok, messageSid) = twilioSvc is not null
                 ? await twilioSvc.GonderAsync(no, "operasyon_ozet", pars)
                 : (await wa.SendTemplateAsync(no, "operasyon_ozet", pars), null);
             if (!ok)
@@ -167,7 +167,7 @@ public static class TenantSettingsEndpoints
             // teslim hatası saniyeler içinde mesajın durumuna düşer. Canlı denemede birebir yaşandı:
             // uç "gönderildi" dedi, mesaj `failed / 63015` idi. Test butonunun tek işi "çalışıyor mu"
             // sorusuna dürüst cevap vermek olduğu için kısa bir yoklama yapılır.
-            if (twilioSvc is { } twilio && mesajSid is { Length: > 0 })
+            if (twilioSvc is { } twilio && messageSid is { Length: > 0 })
             {
                 // 9 x 1sn: canlı denemede teslim hatası (63015) ~5-8 sn içinde düştü; 3,5 sn'lik
                 // ilk pencere ona yetişemeyip "belli değil" diyordu. Teşhis butonu için 9 sn kabul
@@ -175,12 +175,12 @@ public static class TenantSettingsEndpoints
                 for (var i = 0; i < 9; i++)
                 {
                     await Task.Delay(1000);
-                    var (durum, kod) = await twilio.SonDurumAsync(mesajSid);
-                    if (durum is "failed" or "undelivered")
+                    var (status, code) = await twilio.LastStatusAsync(messageSid);
+                    if (status is "failed" or "undelivered")
                         return Results.Redirect("/ayarlar?hata=" + Uri.EscapeDataString(
-                            $"Mesaj Twilio'ya iletildi ama TESLİM EDİLEMEDİ ({durum}). "
-                            + RentACar.Web.Integrations.TwilioWhatsAppService.HataAciklama(kod)));
-                    if (durum is "delivered" or "read")
+                            $"Mesaj Twilio'ya iletildi ama TESLİM EDİLEMEDİ ({status}). "
+                            + RentACar.Web.Integrations.TwilioWhatsAppService.ErrorDescription(code)));
+                    if (status is "delivered" or "read")
                         return Results.Redirect("/ayarlar?ok=1");
                 }
                 // Hâlâ kuyrukta: başarısız DEĞİL ama teslim de doğrulanmadı — ikisini karıştırma.
@@ -197,13 +197,13 @@ public static class TenantSettingsEndpoints
         grp.MapPost("/smtp-test", async (HttpRequest req,
             RentACar.Application.Integrations.NotificationChannelService kanal) =>
         {
-            var alici = req.Form["testMail"].ToString().Trim();
-            if (string.IsNullOrWhiteSpace(alici))
+            var recipient = req.Form["testMail"].ToString().Trim();
+            if (string.IsNullOrWhiteSpace(recipient))
                 return Results.Redirect("/ayarlar?hata=" + Uri.EscapeDataString("Test için bir e-posta adresi girin."));
 
             var zaman = DateTimeOffset.UtcNow.ToString("yyyy-MM-dd HH:mm");
-            var sonuc = await kanal.SendEmailAsync(
-                alici,
+            var result = await kanal.SendEmailAsync(
+                recipient,
                 "RentPro e-posta testi",
                 $"<p>RentPro test mesajı — {zaman} UTC.</p><p>Bu mesajı aldıysanız e-posta yapılandırmanız çalışıyor.</p>",
                 $"RentPro test mesajı — {zaman} UTC. Bu mesajı aldıysanız e-posta yapılandırmanız çalışıyor.");
@@ -211,9 +211,9 @@ public static class TenantSettingsEndpoints
             // SMTP'de gönderim SENKRONDUR: sunucu mesajı kabul ettiyse teslim sorumluluğu ona geçmiştir.
             // WhatsApp'taki "201 kabul ≠ teslim" yoklaması burada GEREKMEZ; kabul edilmeyen mesaj zaten
             // istisnaya düşer ve hata cümlesiyle geri gelir.
-            return sonuc.Ok
+            return result.Ok
                 ? Results.Redirect("/ayarlar?ok=1")
-                : Results.Redirect("/ayarlar?hata=" + Uri.EscapeDataString(sonuc.Hata ?? "E-posta gönderilemedi."));
+                : Results.Redirect("/ayarlar?hata=" + Uri.EscapeDataString(result.Hata ?? "E-posta gönderilemedi."));
         }).RequireRateLimiting(RentACar.Web.Api.Sistem.SystemAdminApi.ExternalActionRatePolicy); // F11.1b: dış çağrı kovası
 
         // SMS TEST gönderimi — gerçek gönderici yalnız Twilio kimliği + gönderen kaynağı varsa DI'ya
@@ -234,13 +234,13 @@ public static class TenantSettingsEndpoints
 
             // Gönderen başlığı ÜRETİMDEKİ yoldan çözülür (tenant başlığı → yoksa sağlayıcı varsayılanı):
             // test, gerçek kod yolunu denemeli.
-            var mesaj = $"RentPro test mesaji - {DateTimeOffset.UtcNow:yyyy-MM-dd HH:mm} UTC. "
+            var message = $"RentPro test mesaji - {DateTimeOffset.UtcNow:yyyy-MM-dd HH:mm} UTC. "
                       + "Bu mesajı aldıysanız SMS yapılandırmanız çalışıyor.";
-            var baslik = await kanal.SmsHeaderAsync();
+            var title = await kanal.SmsHeaderAsync();
             var twilioSvc = sms as RentACar.Web.Integrations.TwilioSmsService;
-            var (ok, mesajSid) = twilioSvc is not null
-                ? await twilioSvc.GonderAsync(no, mesaj, baslik)
-                : (await sms.SendAsync(no, mesaj, baslik), null);
+            var (ok, messageSid) = twilioSvc is not null
+                ? await twilioSvc.GonderAsync(no, message, title)
+                : (await sms.SendAsync(no, message, title), null);
             if (!ok)
                 return Results.Redirect("/ayarlar?hata=" + Uri.EscapeDataString(
                     "SMS gönderilemedi. Twilio yapılandırmasını, gönderen başlığını ve sunucu loglarını kontrol edin."));
@@ -248,17 +248,17 @@ public static class TenantSettingsEndpoints
             // TESLİM DOĞRULAMASI — WhatsApp'takiyle aynı ders: 201 Created "kabul edildi" demek,
             // "ulaştı" demek DEĞİL. Operatör reddi (kayıtsız alfanümerik başlık 30007, ülke izni
             // kapalı 21408) saniyeler içinde mesajın DURUMUNA düşer, HTTP yanıtına değil.
-            if (twilioSvc is { } twilio && mesajSid is { Length: > 0 })
+            if (twilioSvc is { } twilio && messageSid is { Length: > 0 })
             {
                 for (var i = 0; i < 9; i++)
                 {
                     await Task.Delay(1000);
-                    var (durum, kod) = await twilio.SonDurumAsync(mesajSid);
-                    if (durum is "failed" or "undelivered")
+                    var (status, code) = await twilio.LastStatusAsync(messageSid);
+                    if (status is "failed" or "undelivered")
                         return Results.Redirect("/ayarlar?hata=" + Uri.EscapeDataString(
-                            $"SMS Twilio'ya iletildi ama TESLİM EDİLEMEDİ ({durum}). "
-                            + RentACar.Web.Integrations.TwilioSmsService.HataAciklama(kod)));
-                    if (durum is "delivered" or "sent") return Results.Redirect("/ayarlar?ok=1");
+                            $"SMS Twilio'ya iletildi ama TESLİM EDİLEMEDİ ({status}). "
+                            + RentACar.Web.Integrations.TwilioSmsService.ErrorDescription(code)));
+                    if (status is "delivered" or "sent") return Results.Redirect("/ayarlar?ok=1");
                 }
                 return Results.Redirect("/ayarlar?hata=" + Uri.EscapeDataString(
                     "SMS Twilio'ya iletildi, teslim durumu henüz belli değil. "

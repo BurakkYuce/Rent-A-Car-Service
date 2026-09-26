@@ -9,7 +9,7 @@ namespace RentACar.Web.PublicSite;
 /// <summary>PR-8: personel tarafı — gelen site taleplerini dönüştür/reddet (OperationsWrite).</summary>
 public static class PublicBookingRequestEndpoints
 {
-    public static IEndpointRouteBuilder MapGelenTalepEndpoints(this IEndpointRouteBuilder app)
+    public static IEndpointRouteBuilder MapIncomingRequestEndpoints(this IEndpointRouteBuilder app)
     {
         var grp = app.MapGroup("/gelen-talepler").RequirePermission(Permission.OperationsWrite).AntiforgeryByEnv();
 
@@ -21,13 +21,13 @@ public static class PublicBookingRequestEndpoints
                 return Results.Redirect($"/rezervasyonlar?vurgu={reservationId}");
             }
             // AvailabilityConflictException ZATEN ValidationException'dan türüyor (araç çakışması dahil).
-            catch (ValidationException ex) { return Geri(ex); }
+            catch (ValidationException ex) { return Back(ex); }
         });
 
         grp.MapPost("/reddet", async (PublicBookingRequestService svc, [FromForm] Guid id) =>
         {
             try { await svc.RejectAsync(id); return Results.Redirect("/gelen-talepler?ok=1"); }
-            catch (ValidationException ex) { return Geri(ex); }
+            catch (ValidationException ex) { return Back(ex); }
         });
 
         // ---- PR-17: yaşam döngüsü ----
@@ -40,24 +40,24 @@ public static class PublicBookingRequestEndpoints
                 await svc.AssignStatusAsync(id, (Domain.Entities.PublicBookingRequestDurum)durum);
                 return Results.Redirect("/gelen-talepler?ok=1");
             }
-            catch (ValidationException ex) { return Geri(ex); }
+            catch (ValidationException ex) { return Back(ex); }
         });
 
         grp.MapPost("/ustlen", async (PublicBookingRequestService svc, [FromForm] Guid id, [FromForm] string ustlen) =>
         {
             try { await svc.ClaimAsync(id, ustlen == "true"); return Results.Redirect("/gelen-talepler?ok=1"); }
-            catch (ValidationException ex) { return Geri(ex); }
+            catch (ValidationException ex) { return Back(ex); }
         });
 
         grp.MapPost("/not", async (PublicBookingRequestService svc, [FromForm] Guid id, [FromForm] string metin) =>
         {
             try { await svc.AddNoteAsync(id, metin); return Results.Redirect("/gelen-talepler?ok=1"); }
-            catch (ValidationException ex) { return Geri(ex); }
+            catch (ValidationException ex) { return Back(ex); }
         });
 
         return app;
     }
 
-    private static IResult Geri(ValidationException ex)
+    private static IResult Back(ValidationException ex)
         => Results.Redirect("/gelen-talepler?hata=" + Uri.EscapeDataString(ex.Message));
 }

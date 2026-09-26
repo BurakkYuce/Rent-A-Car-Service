@@ -26,27 +26,27 @@ namespace RentACar.IntegrationTests;
 [Collection("postgres")]
 public sealed class BakiyeDuzeltmeTests(PostgresFixture fx)
 {
-    private static DateTimeOffset Gun(int fark)
+    private static DateTimeOffset Day(int difference)
     {
-        var t = new DateTimeOffset(DateTime.SpecifyKind(DateTime.UtcNow.AddDays(fark), DateTimeKind.Utc), TimeSpan.Zero);
+        var t = new DateTimeOffset(DateTime.SpecifyKind(DateTime.UtcNow.AddDays(difference), DateTimeKind.Utc), TimeSpan.Zero);
         return t.AddTicks(-(t.Ticks % TimeSpan.TicksPerSecond));
     }
 
-    private static Task<Guid> CariAsync(IServiceScope s, string ad)
+    private static Task<Guid> CustomerAsync(IServiceScope s, string name)
         => s.ServiceProvider.GetRequiredService<CustomerService>()
-            .CreateAsync(new CustomerInput { Tip = CustomerType.Bireysel, Ad = ad, Soyad = "Test" });
+            .CreateAsync(new CustomerInput { Tip = CustomerType.Bireysel, Ad = name, Soyad = "Test" });
 
     /// <summary>Cariye 1000 TL borç yükler (ödeme: Borç Cari / Alacak Kasa).</summary>
-    private static async Task Borclandır(IServiceScope s, Guid cari, decimal tutar = 1000m)
+    private static async Task Debit(IServiceScope s, Guid account, decimal amount = 1000m)
     {
-        var kasa = await s.ServiceProvider.GetRequiredService<FinancialAccountService>()
+        var cash = await s.ServiceProvider.GetRequiredService<FinancialAccountService>()
             .CreateAsync(new FinancialAccountInput { Kod = $"K{Guid.NewGuid():N}"[..8], Ad = "Kasa", Tur = "Kasa" });
         await s.ServiceProvider.GetRequiredService<CashService>().PayAsync(new CashInput
-        { CariId = cari, Tutar = tutar, Hesap = LedgerAccountType.Kasa, HesapId = kasa });
+        { CariId = account, Tutar = amount, Hesap = LedgerAccountType.Kasa, HesapId = cash });
     }
 
     private static async Task<List<(LedgerAccountType Tur, LedgerDirection Yon, decimal Baz)>>
-        DuzeltmeSatirlariAsync(TestHost host, Guid tenant)
+        AdjustmentLinesAsync(TestHost host, Guid tenant)
     {
         using var scope = host.ScopeFor(tenant);
         var factory = scope.ServiceProvider.GetRequiredService<IDbContextFactory<AppDbContext>>();
@@ -68,26 +68,26 @@ public sealed class BakiyeDuzeltmeTests(PostgresFixture fx)
         using var scope = host.ScopeFor(tenant);
         var svc = scope.ServiceProvider.GetRequiredService<BalanceAdjustmentService>();
         var cash = scope.ServiceProvider.GetRequiredService<CashService>();
-        var cari = await CariAsync(scope, "Alacak");
-        await Borclandır(scope, cari);   // 1000 borç
+        var account = await CustomerAsync(scope, "Alacak");
+        await Debit(scope, account);   // 1000 borç
 
         await svc.AdjustAsync(new BakiyeDuzeltmeInput
-        { CariId = cari, Tutar = 150m, Yon = BalanceAdjustmentDirection.Alacaklandir });
+        { CariId = account, Tutar = 150m, Yon = BalanceAdjustmentDirection.Alacaklandir });
 
         // Elle: 1000 − 150 = 850.
-        Assert.Equal(850m, await cash.GetAccountBalanceAsync(cari));
+        Assert.Equal(850m, await cash.GetAccountBalanceAsync(account));
 
-        var satirlar = await DuzeltmeSatirlariAsync(host, tenant);
-        Assert.Equal(2, satirlar.Count);
+        var rows = await AdjustmentLinesAsync(host, tenant);
+        Assert.Equal(2, rows.Count);
         // Cari ALACAK (bakiye düşer) / karşı bacak Muhasebe Düzeltmesi BORÇ.
-        Assert.Contains(satirlar, x => x.Tur == LedgerAccountType.Cari
+        Assert.Contains(rows, x => x.Tur == LedgerAccountType.Cari
             && x.Yon == LedgerDirection.Credit && x.Baz == 150m);
-        Assert.Contains(satirlar, x => x.Tur == LedgerAccountType.MuhasebeDuzeltmesi
+        Assert.Contains(rows, x => x.Tur == LedgerAccountType.MuhasebeDuzeltmesi
             && x.Yon == LedgerDirection.Debit && x.Baz == 150m);
         // Denge.
         Assert.Equal(
-            satirlar.Where(x => x.Yon == LedgerDirection.Debit).Sum(x => x.Baz),
-            satirlar.Where(x => x.Yon == LedgerDirection.Credit).Sum(x => x.Baz));
+            rows.Where(x => x.Yon == LedgerDirection.Debit).Sum(x => x.Baz),
+            rows.Where(x => x.Yon == LedgerDirection.Credit).Sum(x => x.Baz));
     }
 
     [Fact]
@@ -98,17 +98,17 @@ public sealed class BakiyeDuzeltmeTests(PostgresFixture fx)
         using var scope = host.ScopeFor(tenant);
         var svc = scope.ServiceProvider.GetRequiredService<BalanceAdjustmentService>();
         var cash = scope.ServiceProvider.GetRequiredService<CashService>();
-        var cari = await CariAsync(scope, "Borc");
-        await Borclandır(scope, cari);   // 1000
+        var account = await CustomerAsync(scope, "Borc");
+        await Debit(scope, account);   // 1000
 
         await svc.AdjustAsync(new BakiyeDuzeltmeInput
-        { CariId = cari, Tutar = 250m, Yon = BalanceAdjustmentDirection.Borclandir });
+        { CariId = account, Tutar = 250m, Yon = BalanceAdjustmentDirection.Borclandir });
 
         // Elle: 1000 + 250 = 1250.
-        Assert.Equal(1250m, await cash.GetAccountBalanceAsync(cari));
-        var satirlar = await DuzeltmeSatirlariAsync(host, tenant);
-        Assert.Contains(satirlar, x => x.Tur == LedgerAccountType.Cari && x.Yon == LedgerDirection.Debit);
-        Assert.Contains(satirlar, x => x.Tur == LedgerAccountType.MuhasebeDuzeltmesi && x.Yon == LedgerDirection.Credit);
+        Assert.Equal(1250m, await cash.GetAccountBalanceAsync(account));
+        var rows = await AdjustmentLinesAsync(host, tenant);
+        Assert.Contains(rows, x => x.Tur == LedgerAccountType.Cari && x.Yon == LedgerDirection.Debit);
+        Assert.Contains(rows, x => x.Tur == LedgerAccountType.MuhasebeDuzeltmesi && x.Yon == LedgerDirection.Credit);
     }
 
     [Fact]
@@ -119,16 +119,16 @@ public sealed class BakiyeDuzeltmeTests(PostgresFixture fx)
         using var scope = host.ScopeFor(Guid.NewGuid());
         var svc = scope.ServiceProvider.GetRequiredService<BalanceAdjustmentService>();
         var cash = scope.ServiceProvider.GetRequiredService<CashService>();
-        var cari = await CariAsync(scope, "TersKayit");
-        await Borclandır(scope, cari);
+        var account = await CustomerAsync(scope, "TersKayit");
+        await Debit(scope, account);
 
         await svc.AdjustAsync(new BakiyeDuzeltmeInput
-        { CariId = cari, Tutar = 300m, Yon = BalanceAdjustmentDirection.Alacaklandir });
-        Assert.Equal(700m, await cash.GetAccountBalanceAsync(cari));
+        { CariId = account, Tutar = 300m, Yon = BalanceAdjustmentDirection.Alacaklandir });
+        Assert.Equal(700m, await cash.GetAccountBalanceAsync(account));
 
         await svc.AdjustAsync(new BakiyeDuzeltmeInput
-        { CariId = cari, Tutar = 300m, Yon = BalanceAdjustmentDirection.Borclandir });
-        Assert.Equal(1000m, await cash.GetAccountBalanceAsync(cari));
+        { CariId = account, Tutar = 300m, Yon = BalanceAdjustmentDirection.Borclandir });
+        Assert.Equal(1000m, await cash.GetAccountBalanceAsync(account));
     }
 
     // ---------------------------------------------------------------- P&L kirlenmiyor (kararın özü)
@@ -141,28 +141,28 @@ public sealed class BakiyeDuzeltmeTests(PostgresFixture fx)
         using var scope = host.ScopeFor(tenant);
         var svc = scope.ServiceProvider.GetRequiredService<BalanceAdjustmentService>();
         var reports = scope.ServiceProvider.GetRequiredService<ReportService>();
-        var cari = await CariAsync(scope, "PnL");
-        await Borclandır(scope, cari);
+        var account = await CustomerAsync(scope, "PnL");
+        await Debit(scope, account);
 
         var ggOnce = await reports.GetRevenueExpenseAsync();
-        var karneOnce = await reports.GetFleetAnalysisAsync();
+        var scorecardBefore = await reports.GetFleetAnalysisAsync();
 
         // UÇUK bir düzeltme: Gelir/Gider'e yazılsaydı raporlar şişerdi.
         await svc.AdjustAsync(new BakiyeDuzeltmeInput
-        { CariId = cari, Tutar = 999_999m, Yon = BalanceAdjustmentDirection.Alacaklandir });
+        { CariId = account, Tutar = 999_999m, Yon = BalanceAdjustmentDirection.Alacaklandir });
 
-        var ggSonra = await reports.GetRevenueExpenseAsync();
-        Assert.Equal(ggOnce.GelirToplam, ggSonra.GelirToplam);
-        Assert.Equal(ggOnce.GiderToplam, ggSonra.GiderToplam);
-        Assert.Equal(ggOnce.NetKar, ggSonra.NetKar);
+        var plAfter = await reports.GetRevenueExpenseAsync();
+        Assert.Equal(ggOnce.GelirToplam, plAfter.GelirToplam);
+        Assert.Equal(ggOnce.GiderToplam, plAfter.GiderToplam);
+        Assert.Equal(ggOnce.NetKar, plAfter.NetKar);
 
-        var karneSonra = await reports.GetFleetAnalysisAsync();
-        Assert.Equal(karneOnce.Satirlar.Sum(x => x.Gelir), karneSonra.Satirlar.Sum(x => x.Gelir));
-        Assert.Equal(karneOnce.Satirlar.Sum(x => x.Gider), karneSonra.Satirlar.Sum(x => x.Gider));
+        var scorecardAfter = await reports.GetFleetAnalysisAsync();
+        Assert.Equal(scorecardBefore.Satirlar.Sum(x => x.Gelir), scorecardAfter.Satirlar.Sum(x => x.Gelir));
+        Assert.Equal(scorecardBefore.Satirlar.Sum(x => x.Gider), scorecardAfter.Satirlar.Sum(x => x.Gider));
 
         // …ama cari bakiyesi GERÇEKTEN değişti (düzeltme işini yaptı).
         Assert.Equal(1000m - 999_999m,
-            await scope.ServiceProvider.GetRequiredService<CashService>().GetAccountBalanceAsync(cari));
+            await scope.ServiceProvider.GetRequiredService<CashService>().GetAccountBalanceAsync(account));
     }
 
     [Fact]
@@ -172,17 +172,17 @@ public sealed class BakiyeDuzeltmeTests(PostgresFixture fx)
         using var scope = host.ScopeFor(Guid.NewGuid());
         var svc = scope.ServiceProvider.GetRequiredService<BalanceAdjustmentService>();
         var reports = scope.ServiceProvider.GetRequiredService<ReportService>();
-        var cari = await CariAsync(scope, "Kasa");
-        await Borclandır(scope, cari);   // kasa −1000
+        var account = await CustomerAsync(scope, "Kasa");
+        await Debit(scope, account);   // kasa −1000
 
         var once = await reports.GetCashBankSummaryAsync();
         await svc.AdjustAsync(new BakiyeDuzeltmeInput
-        { CariId = cari, Tutar = 400m, Yon = BalanceAdjustmentDirection.Alacaklandir });
-        var sonra = await reports.GetCashBankSummaryAsync();
+        { CariId = account, Tutar = 400m, Yon = BalanceAdjustmentDirection.Alacaklandir });
+        var after = await reports.GetCashBankSummaryAsync();
 
-        Assert.Equal(once.KasaBakiye, sonra.KasaBakiye);
-        Assert.Equal(once.BankaBakiye, sonra.BankaBakiye);
-        Assert.Equal(-1000m, sonra.KasaBakiye);   // elle: yalnız ödeme etkisi
+        Assert.Equal(once.KasaBakiye, after.KasaBakiye);
+        Assert.Equal(once.BankaBakiye, after.BankaBakiye);
+        Assert.Equal(-1000m, after.KasaBakiye);   // elle: yalnız ödeme etkisi
     }
 
     // ---------------------------------------------------------------- Adversarial kilitler
@@ -194,17 +194,17 @@ public sealed class BakiyeDuzeltmeTests(PostgresFixture fx)
         using var scope = host.ScopeFor(Guid.NewGuid());
         var svc = scope.ServiceProvider.GetRequiredService<BalanceAdjustmentService>();
         var cash = scope.ServiceProvider.GetRequiredService<CashService>();
-        var cari = await CariAsync(scope, "CiftSubmit");
-        await Borclandır(scope, cari);
+        var account = await CustomerAsync(scope, "CiftSubmit");
+        await Debit(scope, account);
 
-        var anahtar = Guid.NewGuid();
-        var girdi = () => new BakiyeDuzeltmeInput
-        { CariId = cari, Tutar = 200m, Yon = BalanceAdjustmentDirection.Alacaklandir, IslemAnahtari = anahtar };
-        await svc.AdjustAsync(girdi());
-        await svc.AdjustAsync(girdi());   // aynı token → yutulur
+        var key = Guid.NewGuid();
+        var input = () => new BakiyeDuzeltmeInput
+        { CariId = account, Tutar = 200m, Yon = BalanceAdjustmentDirection.Alacaklandir, IslemAnahtari = key };
+        await svc.AdjustAsync(input());
+        await svc.AdjustAsync(input());   // aynı token → yutulur
 
         // Elle: 1000 − 200 = 800 (600 DEĞİL).
-        Assert.Equal(800m, await cash.GetAccountBalanceAsync(cari));
+        Assert.Equal(800m, await cash.GetAccountBalanceAsync(account));
     }
 
     [Fact]
@@ -213,18 +213,18 @@ public sealed class BakiyeDuzeltmeTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
         var svc = scope.ServiceProvider.GetRequiredService<BalanceAdjustmentService>();
-        var cari = await CariAsync(scope, "Gecersiz");
+        var account = await CustomerAsync(scope, "Gecersiz");
 
         await Assert.ThrowsAsync<ValidationException>(() => svc.AdjustAsync(
-            new BakiyeDuzeltmeInput { CariId = cari, Tutar = 0m }));
+            new BakiyeDuzeltmeInput { CariId = account, Tutar = 0m }));
         await Assert.ThrowsAsync<ValidationException>(() => svc.AdjustAsync(
-            new BakiyeDuzeltmeInput { CariId = cari, Tutar = -50m }));
+            new BakiyeDuzeltmeInput { CariId = account, Tutar = -50m }));
         // Uydurma cari.
         await Assert.ThrowsAsync<ValidationException>(() => svc.AdjustAsync(
             new BakiyeDuzeltmeInput { CariId = Guid.NewGuid(), Tutar = 100m }));
         // Gelecek tarih (para-yolu simetrisi).
         await Assert.ThrowsAsync<ValidationException>(() => svc.AdjustAsync(
-            new BakiyeDuzeltmeInput { CariId = cari, Tutar = 100m, Tarih = Gun(5) }));
+            new BakiyeDuzeltmeInput { CariId = account, Tutar = 100m, Tarih = Day(5) }));
     }
 
     [Fact]
@@ -235,18 +235,18 @@ public sealed class BakiyeDuzeltmeTests(PostgresFixture fx)
         using var scope = host.ScopeFor(tenant);
         var svc = scope.ServiceProvider.GetRequiredService<BalanceAdjustmentService>();
         var cash = scope.ServiceProvider.GetRequiredService<CashService>();
-        var cari = await CariAsync(scope, "Dovizli");
+        var account = await CustomerAsync(scope, "Dovizli");
 
         // Elle: 100 EUR × kur 40 = 4000 TL bakiye artışı.
         await svc.AdjustAsync(new BakiyeDuzeltmeInput
-        { CariId = cari, Tutar = 100m, Doviz = "EUR", Kur = 40m, Yon = BalanceAdjustmentDirection.Borclandir });
+        { CariId = account, Tutar = 100m, Doviz = "EUR", Kur = 40m, Yon = BalanceAdjustmentDirection.Borclandir });
 
-        Assert.Equal(4000m, await cash.GetAccountBalanceAsync(cari));
-        var satirlar = await DuzeltmeSatirlariAsync(host, tenant);
+        Assert.Equal(4000m, await cash.GetAccountBalanceAsync(account));
+        var rows = await AdjustmentLinesAsync(host, tenant);
         Assert.Equal(
-            satirlar.Where(x => x.Yon == LedgerDirection.Debit).Sum(x => x.Baz),
-            satirlar.Where(x => x.Yon == LedgerDirection.Credit).Sum(x => x.Baz));
-        Assert.All(satirlar, x => Assert.Equal(4000m, x.Baz));
+            rows.Where(x => x.Yon == LedgerDirection.Debit).Sum(x => x.Baz),
+            rows.Where(x => x.Yon == LedgerDirection.Credit).Sum(x => x.Baz));
+        Assert.All(rows, x => Assert.Equal(4000m, x.Baz));
     }
 
     [Fact]
@@ -256,20 +256,20 @@ public sealed class BakiyeDuzeltmeTests(PostgresFixture fx)
         var t1 = Guid.NewGuid();
         var t2 = Guid.NewGuid();
 
-        Guid cari;
-        using (var s1 = host.ScopeFor(t1)) cari = await CariAsync(s1, "T1");
+        Guid account;
+        using (var s1 = host.ScopeFor(t1)) account = await CustomerAsync(s1, "T1");
 
         // Başka tenant'ın cari kimliğiyle düzeltme: cari bulunamaz.
         using (var s2 = host.ScopeFor(t2))
             await Assert.ThrowsAsync<ValidationException>(() => s2.ServiceProvider
                 .GetRequiredService<BalanceAdjustmentService>()
-                .AdjustAsync(new BakiyeDuzeltmeInput { CariId = cari, Tutar = 100m }));
+                .AdjustAsync(new BakiyeDuzeltmeInput { CariId = account, Tutar = 100m }));
 
         // Operatör düzeltme yapamaz (FinanceWrite yok).
         using var op = host.ScopeFor(t1, role: UserRole.Operator);
         await Assert.ThrowsAsync<NoPermissionException>(() => op.ServiceProvider
             .GetRequiredService<BalanceAdjustmentService>()
-            .AdjustAsync(new BakiyeDuzeltmeInput { CariId = cari, Tutar = 100m }));
+            .AdjustAsync(new BakiyeDuzeltmeInput { CariId = account, Tutar = 100m }));
     }
 
     [Fact]
@@ -280,13 +280,13 @@ public sealed class BakiyeDuzeltmeTests(PostgresFixture fx)
         using var scope = host.ScopeFor(Guid.NewGuid());
         var svc = scope.ServiceProvider.GetRequiredService<BalanceAdjustmentService>();
         var cash = scope.ServiceProvider.GetRequiredService<CashService>();
-        var cari = await CariAsync(scope, "Ekstre");
+        var account = await CustomerAsync(scope, "Ekstre");
 
         await svc.AdjustAsync(new BakiyeDuzeltmeInput
-        { CariId = cari, Tutar = 75m, Yon = BalanceAdjustmentDirection.Borclandir, Aciklama = "Yuvarlama farkı" });
+        { CariId = account, Tutar = 75m, Yon = BalanceAdjustmentDirection.Borclandir, Aciklama = "Yuvarlama farkı" });
 
-        var ekstre = await cash.GetStatementAsync(cari);
-        Assert.Contains(ekstre.Satirlar, x => x.SourceType == BalanceAdjustmentService.Source);
-        Assert.Contains(ekstre.Satirlar, x => (x.Description ?? "").Contains("Yuvarlama farkı"));
+        var statement = await cash.GetStatementAsync(account);
+        Assert.Contains(statement.Satirlar, x => x.SourceType == BalanceAdjustmentService.Source);
+        Assert.Contains(statement.Satirlar, x => (x.Description ?? "").Contains("Yuvarlama farkı"));
     }
 }

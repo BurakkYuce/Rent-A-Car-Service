@@ -14,42 +14,42 @@ public static class OpsWatchdog
 {
     /// <summary>Watchdog aktif mi: ops alarm telefonu + ops_alert şablonu tanımlı VE açıkça kapatılmamış
     /// (<c>OpsWatchdog:Enabled=false</c> zorla kapatır). Telefon yoksa gönderilecek yer yok → pasif.</summary>
-    public static bool Aktif(string? alertPhone, string? opsTemplate, string? enabledFlag)
+    public static bool IsActive(string? alertPhone, string? opsTemplate, string? enabledFlag)
     {
         if (string.Equals(enabledFlag, "false", StringComparison.OrdinalIgnoreCase)) return false;
         return !string.IsNullOrWhiteSpace(alertPhone) && !string.IsNullOrWhiteSpace(opsTemplate);
     }
 
     /// <summary>Kur bayat mı: son kur kaydı yoksa (henüz çekilmemiş/boş DB) DEĞİL (soğuk-başlangıç gürültüsü
-    /// yok); aksi halde son kayıt <paramref name="esikGun"/> günden eskiyse bayat. TCMB YALNIZ iş günü yayınlar
+    /// yok); aksi halde son kayıt <paramref name="thresholdDays"/> günden eskiyse bayat. TCMB YALNIZ iş günü yayınlar
     /// → Cuma kuru Pazartesi öğleden önce NORMALDE ~3.5 gün eskir; uzun tatil hafta sonu ~4.5 güne çıkabilir.
     /// Bu yüzden eşik bunların üstünde (varsayılan 5) seçilir → hafta sonu/tatil YANLIŞ-POZİTİF yok, gerçek
     /// (sürekli) çekim arızası yine yakalanır (arıza kalıcıdır, birkaç gün gecikme "bayat kur" uyarısı için kabul).</summary>
-    public static bool KurBayatMi(DateTimeOffset? sonTarih, DateTimeOffset now, int esikGun)
+    public static bool IsExchangeRateStale(DateTimeOffset? lastDate, DateTimeOffset now, int thresholdDays)
     {
-        if (sonTarih is null) return false;
-        return (now - sonTarih.Value).TotalDays > esikGun;
+        if (lastDate is null) return false;
+        return (now - lastDate.Value).TotalDays > thresholdDays;
     }
 
     /// <summary>Job hatası alarmı: bir job'ın kümülatif hata sayısı, en son alarm verilen sayıdan
-    /// <paramref name="esik"/> kadar (veya fazla) arttıysa alarm. Delta-tabanlı → yalnız YENİ hatalar
+    /// <paramref name="threshold"/> kadar (veya fazla) arttıysa alarm. Delta-tabanlı → yalnız YENİ hatalar
     /// tetikler, kendini sınırlar (aynı hata için tekrar tekrar spam yok). Eşik ≤0 → alarm yok.</summary>
-    public static bool JobHataAlarmi(long guncelToplam, long enSonAlarmVerilen, int esik)
-        => esik > 0 && guncelToplam - enSonAlarmVerilen >= esik;
+    public static bool JobErrorAlarm(long currentTotal, long lastAlerted, int threshold)
+        => threshold > 0 && currentTotal - lastAlerted >= threshold;
 
-    public static string KurMesaji(DateTimeOffset sonTarih, DateTimeOffset now)
+    public static string ExchangeRateMessage(DateTimeOffset lastDate, DateTimeOffset now)
     {
-        var gun = (int)Math.Floor((now - sonTarih).TotalDays);
-        return $"UYARI: TCMB döviz kuru {gun} gündür güncellenmedi (son kayıt: {sonTarih:yyyy-MM-dd}). " +
+        var day = (int)Math.Floor((now - lastDate).TotalDays);
+        return $"UYARI: TCMB döviz kuru {day} gündür güncellenmedi (son kayıt: {lastDate:yyyy-MM-dd}). " +
                "Kur çekimi (TcmbKurJob) başarısız olabilir; dövizli para hesapları BAYAT kur kullanıyor olabilir.";
     }
 
-    public static string JobMesaji(string job, long delta)
+    public static string JobMessage(string job, long delta)
         => $"UYARI: '{job}' arka plan job'ı son kontrol penceresinde {delta} kez hata verdi. Sunucu loglarına bakın.";
 
     /// <summary>En yeni TCMB kur kaydının tarihi (yoksa null). Kur PAYLAŞIMLI/ulusal tablo (RLS yok) →
     /// NullTenantContext ile okunur, GUC gerekmez.</summary>
-    public static async Task<DateTimeOffset?> SonKurTarihiAsync(AppDbContext db, CancellationToken ct = default)
+    public static async Task<DateTimeOffset?> LastExchangeRateDateAsync(AppDbContext db, CancellationToken ct = default)
         => await db.KurKayitlari.AsNoTracking()
             .OrderByDescending(k => k.Tarih)
             .Select(k => (DateTimeOffset?)k.Tarih)

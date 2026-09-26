@@ -10,10 +10,10 @@ public sealed partial class UiTanimTests
 {
     private static readonly Dictionary<string, DefinitionCase> RemainingCases = new()
     {
-        ["odeme-tipleri"] = new("/odeme-tipleri", KodAd),
-        ["yakit-turleri"] = new("/yakit-turleri", KodAd),
-        ["vites-turleri"] = new("/vites-turleri", KodAd),
-        ["renkler"] = new("/renkler", KodAd),
+        ["odeme-tipleri"] = new("/odeme-tipleri", CodeName),
+        ["yakit-turleri"] = new("/yakit-turleri", CodeName),
+        ["vites-turleri"] = new("/vites-turleri", CodeName),
+        ["renkler"] = new("/renkler", CodeName),
         ["rezervasyon-kaynaklari"] = new("/rezervasyon-kaynaklari",
             (k, a, ak, s) => new { kod = k, ad = a, tedarikci = "Broker A", kiraOrani = 12.5m, aktif = ak, surum = s }),
         ["hesap-kodlari"] = new("/hesap-kodlari",

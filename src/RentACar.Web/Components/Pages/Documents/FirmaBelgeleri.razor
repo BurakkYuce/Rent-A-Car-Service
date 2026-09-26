@@ -10,7 +10,7 @@
     sözleşme nüshası, fiyat listesi). Bu liste salt okunurdur — belgeler bizim tarafımızdan
     güncellenir, güncellendiğinde sürüm numarası artar.</p>
 
-@if (_satirlar.Count == 0)
+@if (_rows.Count == 0)
 {
     <p class="empty-state">Şu anda sizinle paylaşılmış bir belge yok.</p>
 }
@@ -22,7 +22,7 @@ else
             <tr><th>Belge</th><th class="num">Sürüm</th><th class="num">Boyut</th><th>Güncelleme</th><th></th></tr>
         </thead>
         <tbody>
-            @foreach (var b in _satirlar)
+            @foreach (var b in _rows)
             {
                 <tr>
                     <td>
@@ -49,7 +49,7 @@ else
 }
 
 @code {
-    private IReadOnlyList<FirmaBelgeSatiri> _satirlar = [];
+    private IReadOnlyList<FirmaBelgeSatiri> _rows = [];
 
-    protected override async Task OnInitializedAsync() => _satirlar = await Belgeler.ListAsync();
+    protected override async Task OnInitializedAsync() => _rows = await Belgeler.ListAsync();
 }

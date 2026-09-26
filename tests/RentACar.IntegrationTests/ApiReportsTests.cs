@@ -23,15 +23,15 @@ public sealed class ApiReportsTests(PostgresFixture fx)
         using var api = new ApiFactory(fx.AppConnectionString);
         var c = await api.LoginClientAsync(code, "umit", "p");
 
-        var filo = await c.GetAsync("/api/v1/reports/filo");
-        Assert.Equal(HttpStatusCode.OK, filo.StatusCode);
-        var filoBody = await filo.Content.ReadFromJsonAsync<JsonElement>();
-        Assert.True(filoBody.TryGetProperty("toplam", out _));
+        var fleet = await c.GetAsync("/api/v1/reports/filo");
+        Assert.Equal(HttpStatusCode.OK, fleet.StatusCode);
+        var fleetBody = await fleet.Content.ReadFromJsonAsync<JsonElement>();
+        Assert.True(fleetBody.TryGetProperty("toplam", out _));
 
-        var kasa = await c.GetAsync("/api/v1/reports/kasa-banka");
-        Assert.Equal(HttpStatusCode.OK, kasa.StatusCode);
-        var kasaBody = await kasa.Content.ReadFromJsonAsync<JsonElement>();
-        Assert.True(kasaBody.TryGetProperty("kasaBakiye", out _));
+        var cash = await c.GetAsync("/api/v1/reports/kasa-banka");
+        Assert.Equal(HttpStatusCode.OK, cash.StatusCode);
+        var cashBody = await cash.Content.ReadFromJsonAsync<JsonElement>();
+        Assert.True(cashBody.TryGetProperty("kasaBakiye", out _));
     }
 
     [Fact]

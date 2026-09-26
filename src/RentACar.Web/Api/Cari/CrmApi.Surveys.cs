@@ -16,7 +16,7 @@ namespace RentACar.Web.Api.Cari;
 
 /// <summary>
 /// <c>/api/ui/v1/anketler/*</c> — müşteri anketi (Blazor <c>AnketList</c>). İzin OperationsWrite (Blazor ile aynı);
-/// şube kapsamı <see cref="CrmScope"/>; müşteri adı <see cref="MusteriGorunumu"/> kuralıyla.
+/// şube kapsamı <see cref="CrmScope"/>; müşteri adı <see cref="CustomerView"/> kuralıyla.
 /// </summary>
 public static partial class CrmApi
 {
@@ -30,15 +30,15 @@ public static partial class CrmApi
     private static void MapSurveys(RouteGroupBuilder g)
     {
         var s = g.MapGroup("/anketler").WithTags("CRM");
-        s.MapGet("", ListSurveys).AlanlariEsle(F5Ortak.SiralamaKurallari);
+        s.MapGet("", ListSurveys).MapFields(F5Shared.SortRules);
         s.MapGet("/varsayilan-sorular", () => TypedResults.Ok<IReadOnlyList<string>>(SurveyService.DefaultQuestions));
         s.MapGet("/{id:guid}", GetSurvey);
-        s.MapPost("", CreateSurvey).AlanlariEsle(SurveyFieldRules);
-        s.MapPut("/{id:guid}", UpdateSurvey).AlanlariEsle(SurveyFieldRules);
+        s.MapPost("", CreateSurvey).MapFields(SurveyFieldRules);
+        s.MapPut("/{id:guid}", UpdateSurvey).MapFields(SurveyFieldRules);
         s.MapDelete("/{id:guid}", DeleteSurvey);
     }
 
-    private static ProblemHttpResult SurveyNotFound() => F5Ortak.Bulunamadi("Anket bulunamadı.");
+    private static ProblemHttpResult SurveyNotFound() => F5Shared.NotFound("Anket bulunamadı.");
 
     private static readonly SortFieldMap<SurveyRow> SurveySort = SortFieldMap<SurveyRow>
         .Create(r => r.Id)
@@ -59,25 +59,25 @@ public static partial class CrmApi
         [AsParameters] SurveyListFilter f, SurveyService surveys, ICurrentUser user, IDbContextFactory<AppDbContext> dbf,
         ILocationRepository locations, int? sayfa, int? boyut, string? sirala, CancellationToken ct)
     {
-        var (min, max) = F5Ortak.GunAraligi(f.TarihBas, f.TarihBit);
+        var (min, max) = F5Shared.DayRange(f.TarihBas, f.TarihBit);
         var items = await surveys.SearchAsync(new AnketFilter
         {
-            CariId = f.CariId, AnketTuru = F5Ortak.EnumAdi<SurveyType>(f.AnketTuru, "anketTuru"),
-            Durum = F5Ortak.EnumAdi<SurveyStatus>(f.Durum, "durum"), TarihMin = min, TarihMax = max,
-            CikisOfisi = F5Ortak.Nz(f.CikisOfisi),
+            CariId = f.CariId, AnketTuru = F5Shared.EnumAdi<SurveyType>(f.AnketTuru, "anketTuru"),
+            Durum = F5Shared.EnumAdi<SurveyStatus>(f.Durum, "durum"), TarihMin = min, TarihMax = max,
+            CikisOfisi = F5Shared.Nz(f.CikisOfisi),
         }, ct);
         var inScope = await CrmScope.BuildAsync(user, dbf, locations, items.Select(a => (a.RentalId, a.CikisOfisi)), ct);
         var visible = items.Where(a => inScope(a.RentalId, a.CikisOfisi)).ToList();
         var rows = await SurveyRowsAsync(dbf, visible, ct);
-        return TypedResults.Ok(F5Ortak.Sayfala(rows, SurveySort, sayfa, boyut, sirala));
+        return TypedResults.Ok(F5Shared.Paginate(rows, SurveySort, sayfa, boyut, sirala));
     }
 
     private static async Task<List<SurveyRow>> SurveyRowsAsync(IDbContextFactory<AppDbContext> dbf, IReadOnlyList<Anket> items, CancellationToken ct)
     {
-        var customers = await F5Ortak.CarilerAsync(dbf, items.Where(a => a.CariId is not null).Select(a => a.CariId!.Value), ct);
+        var customers = await F5Shared.CustomersAsync(dbf, items.Where(a => a.CariId is not null).Select(a => a.CariId!.Value), ct);
         var contracts = await ContractNumbersAsync(dbf, items.Select(a => a.RentalId), ct);
         return items.Select(a => new SurveyRow(
-            a.Id, a.Tarih, a.CariId, a.CariId is { } c ? F5Ortak.CariAdi(customers, c) : null, a.RentalId,
+            a.Id, a.Tarih, a.CariId, a.CariId is { } c ? F5Shared.CustomerName(customers, c) : null, a.RentalId,
             a.RentalId is { } r ? contracts.GetValueOrDefault(r) : null, a.AnketTuru?.ToString(), a.Durum.ToString(), a.Puan,
             a.Kaynak, a.CikisOfisi, a.Yorum)).ToList();
     }
@@ -113,23 +113,23 @@ public static partial class CrmApi
 
     private static AnketInput SurveyInput(SurveyRequest r)
     {
-        Sinirlar.Metin(r.Yorum, 1024, "yorum", "Yorum");
-        Sinirlar.Metin(r.Kaynak, 64, "kaynak", "Kaynak");
-        Sinirlar.Metin(r.CikisOfisi, 128, "cikisOfisi", "Çıkış ofisi");
+        RentalLimits.Text(r.Yorum, 1024, "yorum", "Yorum");
+        RentalLimits.Text(r.Kaynak, 64, "kaynak", "Kaynak");
+        RentalLimits.Text(r.CikisOfisi, 128, "cikisOfisi", "Çıkış ofisi");
         var answers = r.Cevaplar ?? [];
         if (answers.Count > MaxAnswers) throw new ValidationException($"En fazla {MaxAnswers} soru girilebilir.", "cevaplar");
         foreach (var a in answers)
         {
-            Sinirlar.Metin(a.Soru, 512, "cevaplar", "Soru");
-            Sinirlar.Metin(a.Cevap, 1024, "cevaplar", "Cevap");
-            Sinirlar.Metin(a.Aciklama, 1024, "cevaplar", "Açıklama");
+            RentalLimits.Text(a.Soru, 512, "cevaplar", "Soru");
+            RentalLimits.Text(a.Cevap, 1024, "cevaplar", "Cevap");
+            RentalLimits.Text(a.Aciklama, 1024, "cevaplar", "Açıklama");
         }
         return new AnketInput
         {
             CariId = r.CariId, RentalId = r.RentalId == Guid.Empty ? null : r.RentalId, Puan = r.Puan, Yorum = r.Yorum,
-            Tarih = F5Ortak.Utc(r.Tarih), Kaynak = r.Kaynak,
-            AnketTuru = F5Ortak.EnumAdi<SurveyType>(r.AnketTuru, "anketTuru"),
-            Durum = F5Ortak.EnumAdi<SurveyStatus>(r.Durum, "durum") ?? SurveyStatus.Yapildi,
+            Tarih = F5Shared.Utc(r.Tarih), Kaynak = r.Kaynak,
+            AnketTuru = F5Shared.EnumAdi<SurveyType>(r.AnketTuru, "anketTuru"),
+            Durum = F5Shared.EnumAdi<SurveyStatus>(r.Durum, "durum") ?? SurveyStatus.Yapildi,
             CikisOfisi = r.CikisOfisi,
             Cevaplar = answers.Select(a => new AnketCevapInput { SoruNo = a.SoruNo, Soru = a.Soru, Cevap = a.Cevap, Aciklama = a.Aciklama }).ToList(),
         };

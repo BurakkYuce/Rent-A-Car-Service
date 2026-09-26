@@ -21,7 +21,7 @@ public sealed partial class UiServiceInsuranceTests
 
         // ORACLE: MTV 1.000 TL → 400 + 600 (two payments), each balanced Gider(car) / Kasa.
         var mtv = await Json(await Send(s, HttpMethod.Post, $"{Reg}/mtv",
-            new { vehicleId = car, donem = "2026-1", tutar = 1000m, vade = TestZaman.GunSonra(30) }, Key()), HttpStatusCode.Created);
+            new { vehicleId = car, donem = "2026-1", tutar = 1000m, vade = TestZaman.DaysLater(30) }, Key()), HttpStatusCode.Created);
         var id = mtv.GetProperty("mtv").GetProperty("id").GetGuid();
         Assert.Equal(1000m, mtv.GetProperty("mtv").GetProperty("kalan").GetDecimal());
 
@@ -37,9 +37,9 @@ public sealed partial class UiServiceInsuranceTests
         Assert.Equal(600m, first.GetProperty("kalan").GetDecimal());
         var p1 = first.GetProperty("odemeId").GetGuid();
         Assert.Equal((400m, 400m, 2), await LedgerAsync(e.TenantId, "MtvOdeme", p1));
-        var gider = await ReadAsync(e.TenantId, db => db.AccountLedgerEntries.AsNoTracking()
+        var expense = await ReadAsync(e.TenantId, db => db.AccountLedgerEntries.AsNoTracking()
             .Where(x => x.SourceId == p1 && x.Direction == LedgerDirection.Debit).Select(x => new { x.AccountType, x.AccountRef }).SingleAsync());
-        Assert.Equal((LedgerAccountType.Gider, (Guid?)car), (gider.AccountType, gider.AccountRef));
+        Assert.Equal((LedgerAccountType.Gider, (Guid?)car), (expense.AccountType, expense.AccountRef));
 
         // Lost response → exact retry: 409 mukerrer + mevcut (same content); changed amount: ayniIcerik=false. No 2nd write.
         var again = await Problem(await Send(s, HttpMethod.Post, pay, new { hesap = "Kasa", tutar = 400m, beklenenKalan = 1000m }, k1),
@@ -83,7 +83,7 @@ public sealed partial class UiServiceInsuranceTests
 
         // ORACLE: muayene 500 + ceza 50, "pay all" → 550 paid, kalan 0, ledger 550 = 550.
         var ins = await Json(await Send(s, HttpMethod.Post, $"{Reg}/muayeneler",
-            new { vehicleId = car, muayeneTarihi = TestZaman.GunSonra(-2), bitis = TestZaman.GunSonra(700), ucret = 500m }),
+            new { vehicleId = car, muayeneTarihi = TestZaman.DaysLater(-2), bitis = TestZaman.DaysLater(700), ucret = 500m }),
             HttpStatusCode.Created);
         var iid = ins.GetProperty("muayene").GetProperty("id").GetGuid();
         var paid = await Json(await Send(s, HttpMethod.Post, $"{Reg}/muayeneler/{iid}/odeme", new { hesap = "Kasa", ceza = 50m }, Key()));
@@ -94,12 +94,12 @@ public sealed partial class UiServiceInsuranceTests
         // EUR policy 1.000 @ 30 → base 30.000 balanced; TRY-style rate on TRY policy rejected.
         var pol = await Json(await Send(s, HttpMethod.Post, $"{Reg}/sigortalar", new
         {
-            vehicleId = car, tip = "Kasko", baslangic = TestZaman.GunSonra(-1), bitis = TestZaman.GunSonra(360), prim = 1000m, doviz = "EUR",
+            vehicleId = car, tip = "Kasko", baslangic = TestZaman.DaysLater(-1), bitis = TestZaman.DaysLater(360), prim = 1000m, doviz = "EUR",
         }), HttpStatusCode.Created);
         var pid = pol.GetProperty("police").GetProperty("id").GetGuid();
         var tryPol = await Json(await Send(s, HttpMethod.Post, $"{Reg}/sigortalar", new
         {
-            vehicleId = car, tip = "Trafik", baslangic = TestZaman.GunSonra(-1), bitis = TestZaman.GunSonra(360), prim = 200m,
+            vehicleId = car, tip = "Trafik", baslangic = TestZaman.DaysLater(-1), bitis = TestZaman.DaysLater(360), prim = 200m,
         }), HttpStatusCode.Created);
         var tid = tryPol.GetProperty("police").GetProperty("id").GetGuid();
         await Problem(await Send(s, HttpMethod.Post, $"{Reg}/sigortalar/{tid}/odeme", new { hesap = "Kasa", kur = 5m }), HttpStatusCode.BadRequest, "dogrulama", "kur");
@@ -124,7 +124,7 @@ public sealed partial class UiServiceInsuranceTests
 
         // Zeyil is information only: add + delete, no ledger rows.
         var z = await Json(await Send(s, HttpMethod.Post, $"{Reg}/sigortalar/{pid}/zeyiller",
-            new { zeyilNo = "Z-1", tarih = TestZaman.GunSonra(0), brut = -50m, tipi = "Tenzil" }), HttpStatusCode.Created);
+            new { zeyilNo = "Z-1", tarih = TestZaman.DaysLater(0), brut = -50m, tipi = "Tenzil" }), HttpStatusCode.Created);
         Assert.Equal(HttpStatusCode.NoContent, (await Send(s, HttpMethod.Delete, $"{Reg}/zeyiller/{z.GetProperty("id").GetGuid()}")).StatusCode);
         Assert.Equal((30000m, 30000m, 2), await LedgerAsync(e.TenantId, "SigortaOdeme"));
     }
@@ -136,7 +136,7 @@ public sealed partial class UiServiceInsuranceTests
         var carA = await VehicleAsync(e, "SubeA");
         var a = await LoginAsync(e, Who.OperatorA);
         var mtv = await Json(await Send(a, HttpMethod.Post, $"{Reg}/mtv",
-            new { vehicleId = carA, donem = "2026-2", tutar = 100m, vade = TestZaman.GunSonra(10) }), HttpStatusCode.Created);
+            new { vehicleId = carA, donem = "2026-2", tutar = 100m, vade = TestZaman.DaysLater(10) }), HttpStatusCode.Created);
         var id = mtv.GetProperty("mtv").GetProperty("id").GetGuid();
         // Operator has no FinanceWrite → payment 403.
         Assert.Equal(HttpStatusCode.Forbidden, (await Send(a, HttpMethod.Post, $"{Reg}/mtv/{id}/odeme", new { hesap = "Kasa" }, Key())).StatusCode);
@@ -145,9 +145,9 @@ public sealed partial class UiServiceInsuranceTests
         await Problem(await b.C.GetAsync($"{Reg}/mtv/{id}"), HttpStatusCode.Forbidden, "yetki_yok");
         Assert.Equal(0, (await Json(await b.C.GetAsync($"{Reg}/mtv"))).GetProperty("toplam").GetInt32());
         await Problem(await Send(b, HttpMethod.Post, $"{Reg}/mtv",
-            new { vehicleId = carA, donem = "x", tutar = 1m, vade = TestZaman.GunSonra(1) }), HttpStatusCode.Forbidden, "yetki_yok");
+            new { vehicleId = carA, donem = "x", tutar = 1m, vade = TestZaman.DaysLater(1) }), HttpStatusCode.Forbidden, "yetki_yok");
         await Problem(await Send(a, HttpMethod.Post, $"{Reg}/mtv",
-            new { vehicleId = Guid.NewGuid(), donem = "x", tutar = 1m, vade = TestZaman.GunSonra(1) }), HttpStatusCode.BadRequest, "dogrulama", "vehicleId");
+            new { vehicleId = Guid.NewGuid(), donem = "x", tutar = 1m, vade = TestZaman.DaysLater(1) }), HttpStatusCode.BadRequest, "dogrulama", "vehicleId");
         Assert.Equal(0, (await Json(await b.C.GetAsync(V1 + "/vade"))).GetProperty("kalemler").GetProperty("toplam").GetInt32());
         Assert.True((await Json(await a.C.GetAsync(V1 + "/vade"))).GetProperty("kalemler").GetProperty("toplam").GetInt32() >= 1);
 

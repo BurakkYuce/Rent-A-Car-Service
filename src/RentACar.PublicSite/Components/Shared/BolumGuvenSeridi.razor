@@ -15,18 +15,18 @@
 
 <section class="serit" aria-label="Nasıl çalışıyoruz">
     <div class="container serit-ic">
-        @foreach (var (baslik, aciklama) in Maddeler)
+        @foreach (var (title, description) in Items)
         {
             <div class="serit-kutu">
-                <strong>@baslik</strong>
-                <span class="muted small">@aciklama</span>
+                <strong>@title</strong>
+                <span class="muted small">@description</span>
             </div>
         }
     </div>
 </section>
 
 @code {
-    private static readonly (string Baslik, string Aciklama)[] Maddeler =
+    private static readonly (string Baslik, string Aciklama)[] Items =
     [
         ("Fiyat baştan belli", "İlanda gördüğünüz fiyat sözleşmenize birebir geçer."),
         ("KDV durumu açık", "Her ilanda fiyatın KDV dahil mi hariç mi olduğu yazılıdır."),

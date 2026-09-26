@@ -28,7 +28,7 @@ namespace RentACar.IntegrationTests;
 [Collection("postgres")]
 public sealed class CezaDerinlikTests(PostgresFixture fx)
 {
-    private static async Task<List<AccountLedgerEntry>> DefterAsync(IServiceProvider sp, string sourceType)
+    private static async Task<List<AccountLedgerEntry>> LedgerAsync(IServiceProvider sp, string sourceType)
     {
         var f = sp.GetRequiredService<IDbContextFactory<AppDbContext>>();
         await using var db = await f.CreateDbContextAsync();
@@ -38,24 +38,24 @@ public sealed class CezaDerinlikTests(PostgresFixture fx)
     }
 
     /// <summary>Başlık/kalem/ödeme üçlüsünün TUTARLILIĞI — her para testinin sonunda çağrılır.</summary>
-    private static async Task TutarlilikAsync(IServiceProvider sp, Guid penaltyId)
+    private static async Task ConsistencyAsync(IServiceProvider sp, Guid penaltyId)
     {
         var svc = sp.GetRequiredService<PenaltyService>();
-        var ceza = await svc.GetAsync(penaltyId);
-        var satirlar = await svc.ListLinesAsync(penaltyId);
-        var odemeler = await svc.ListPaymentsAsync(penaltyId);
+        var penalty = await svc.GetAsync(penaltyId);
+        var rows = await svc.ListLinesAsync(penaltyId);
+        var payments = await svc.ListPaymentsAsync(penaltyId);
 
-        Assert.NotNull(ceza);
-        Assert.Equal(ceza!.Tutar, satirlar.Sum(s => s.Tutar));
-        Assert.Equal(ceza.OdenenTutar, satirlar.Sum(s => s.Odenen));
-        Assert.Equal(ceza.Kalan, satirlar.Sum(s => s.Kalan));
-        Assert.Equal(ceza.Tutar - ceza.OdenenTutar, ceza.Kalan);
-        Assert.Equal(ceza.OdenenTutar, odemeler.Sum(o => o.Tutar));
-        Assert.All(satirlar, s => Assert.True(s.Kalan >= 0m, "kalem kalanı negatif"));
-        Assert.True(ceza.Kalan >= 0m, "ceza kalanı negatif");
+        Assert.NotNull(penalty);
+        Assert.Equal(penalty!.Tutar, rows.Sum(s => s.Tutar));
+        Assert.Equal(penalty.OdenenTutar, rows.Sum(s => s.Odenen));
+        Assert.Equal(penalty.Kalan, rows.Sum(s => s.Kalan));
+        Assert.Equal(penalty.Tutar - penalty.OdenenTutar, penalty.Kalan);
+        Assert.Equal(penalty.OdenenTutar, payments.Sum(o => o.Tutar));
+        Assert.All(rows, s => Assert.True(s.Kalan >= 0m, "kalem kalanı negatif"));
+        Assert.True(penalty.Kalan >= 0m, "ceza kalanı negatif");
         // Kalem bazında da tutarlı: o kaleme yazılan ödemelerin toplamı = kalemin Odenen'i.
-        foreach (var s in satirlar)
-            Assert.Equal(s.Odenen, odemeler.Where(o => o.SatirId == s.Id).Sum(o => o.Tutar));
+        foreach (var s in rows)
+            Assert.Equal(s.Odenen, payments.Where(o => o.SatirId == s.Id).Sum(o => o.Tutar));
     }
 
     // ---------------- çok kalemli ceza ----------------
@@ -84,12 +84,12 @@ public sealed class CezaDerinlikTests(PostgresFixture fx)
         Assert.Equal(600m, p.Kalan);
         Assert.Equal(PenaltyStatus.Yeni, p.Durum);
 
-        var satirlar = await svc.ListLinesAsync(id);
-        Assert.Equal(3, satirlar.Count);
-        Assert.Equal([1, 2, 3], satirlar.Select(s => s.Sira).ToArray());
-        Assert.Equal([100m, 200m, 300m], satirlar.Select(s => s.Tutar).ToArray());
-        Assert.All(satirlar, s => Assert.Equal(s.Tutar, s.Kalan));
-        await TutarlilikAsync(scope.ServiceProvider, id);
+        var rows = await svc.ListLinesAsync(id);
+        Assert.Equal(3, rows.Count);
+        Assert.Equal([1, 2, 3], rows.Select(s => s.Sira).ToArray());
+        Assert.Equal([100m, 200m, 300m], rows.Select(s => s.Tutar).ToArray());
+        Assert.All(rows, s => Assert.Equal(s.Tutar, s.Kalan));
+        await ConsistencyAsync(scope.ServiceProvider, id);
     }
 
     [Fact]
@@ -101,11 +101,11 @@ public sealed class CezaDerinlikTests(PostgresFixture fx)
 
         // Eski (tek tutarlı) çağrı — geriye uyum: yine de 1 kalem doğar.
         var id = await svc.CreateAsync(new PenaltyInput { CezaTuru = "Park", Tutar = 250m, Sebep = "Yasak park" });
-        var satirlar = await svc.ListLinesAsync(id);
-        Assert.Single(satirlar);
-        Assert.Equal(250m, satirlar[0].Tutar);
-        Assert.Equal("Yasak park", satirlar[0].Sebep);
-        await TutarlilikAsync(scope.ServiceProvider, id);
+        var rows = await svc.ListLinesAsync(id);
+        Assert.Single(rows);
+        Assert.Equal(250m, rows[0].Tutar);
+        Assert.Equal("Yasak park", rows[0].Sebep);
+        await ConsistencyAsync(scope.ServiceProvider, id);
     }
 
     [Fact]
@@ -132,13 +132,13 @@ public sealed class CezaDerinlikTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
         var sp = scope.ServiceProvider;
-        var arac = await sp.GetRequiredService<VehicleService>()
+        var vehicle = await sp.GetRequiredService<VehicleService>()
             .CreateAsync(new VehicleInput { Plaka = "34 CZ 01", Durum = VehicleStatus.Musait });
         var svc = sp.GetRequiredService<PenaltyService>();
 
         var id = await svc.CreateAsync(new PenaltyInput
         {
-            CezaTuru = "Hız", VehicleId = arac,
+            CezaTuru = "Hız", VehicleId = vehicle,
             Satirlar =
             [
                 new PenaltySatirInput { Tutar = 100m, Sebep = "A" },
@@ -146,12 +146,12 @@ public sealed class CezaDerinlikTests(PostgresFixture fx)
                 new PenaltySatirInput { Tutar = 300m, Sebep = "C" }
             ]
         });
-        var satirlar = await svc.ListLinesAsync(id);
+        var rows = await svc.ListLinesAsync(id);
 
         // 2. kaleme (200) 200 ödeme → O KALEM kapanır, ceza kalanı 600 − 200 = 400 (ELLE).
         var s1 = await svc.PayPartialAsync(id, new CezaOdemeInput
         {
-            SatirId = satirlar[1].Id, Tutar = 200m, Hesap = LedgerAccountType.Kasa,
+            SatirId = rows[1].Id, Tutar = 200m, Hesap = LedgerAccountType.Kasa,
             MakbuzNo = " MK-1 ", IslemYapan = "Ayşe", IslemAnahtari = Guid.NewGuid()
         });
         Assert.Equal(1, s1.Sira);
@@ -162,7 +162,7 @@ public sealed class CezaDerinlikTests(PostgresFixture fx)
         // 3. kaleme (300) KISMİ 120 → kalem kalanı 180 (ELLE), ceza kalanı 400 − 120 = 280 (ELLE).
         var s2 = await svc.PayPartialAsync(id, new CezaOdemeInput
         {
-            SatirId = satirlar[2].Id, Tutar = 120m, Hesap = LedgerAccountType.Banka,
+            SatirId = rows[2].Id, Tutar = 120m, Hesap = LedgerAccountType.Banka,
             IslemAnahtari = Guid.NewGuid()
         });
         Assert.Equal(180m, s2.SatirKalan);
@@ -175,42 +175,42 @@ public sealed class CezaDerinlikTests(PostgresFixture fx)
         Assert.NotNull(p.OdenmeTarihi);
 
         // 1. kalem hiç ödenmedi — satır bazlı takibin ÖZÜ.
-        var son = await svc.ListLinesAsync(id);
-        Assert.Equal(0m, son[0].Odenen);
-        Assert.Equal(100m, son[0].Kalan);
-        Assert.Equal(200m, son[1].Odenen);
-        Assert.Equal(0m, son[1].Kalan);
-        Assert.Equal(120m, son[2].Odenen);
-        Assert.Equal(180m, son[2].Kalan);
+        var last = await svc.ListLinesAsync(id);
+        Assert.Equal(0m, last[0].Odenen);
+        Assert.Equal(100m, last[0].Kalan);
+        Assert.Equal(200m, last[1].Odenen);
+        Assert.Equal(0m, last[1].Kalan);
+        Assert.Equal(120m, last[2].Odenen);
+        Assert.Equal(180m, last[2].Kalan);
 
         // Makbuz no trim'lendi, ödeme geçmişi birbirini EZMEDİ.
-        var odemeler = await svc.ListPaymentsAsync(id);
-        Assert.Equal(2, odemeler.Count);
-        Assert.Contains(odemeler, o => o.MakbuzNo == "MK-1" && o.IslemYapan == "Ayşe");
+        var payments = await svc.ListPaymentsAsync(id);
+        Assert.Equal(2, payments.Count);
+        Assert.Contains(payments, o => o.MakbuzNo == "MK-1" && o.IslemYapan == "Ayşe");
 
         // DEFTER: adım başına 1 borç + 1 alacak, HER ADIM kendi içinde dengeli.
-        var satirlarDefter = await DefterAsync(sp, "CezaOdeme");
-        Assert.Equal(4, satirlarDefter.Count);
-        foreach (var grup in satirlarDefter.GroupBy(e => e.SourceId))
+        var ledgerLines = await LedgerAsync(sp, "CezaOdeme");
+        Assert.Equal(4, ledgerLines.Count);
+        foreach (var group in ledgerLines.GroupBy(e => e.SourceId))
         {
-            var borc = grup.Where(e => e.Direction == LedgerDirection.Debit).Sum(e => e.Amount.AmountInBase);
-            var alacak = grup.Where(e => e.Direction == LedgerDirection.Credit).Sum(e => e.Amount.AmountInBase);
-            Assert.Equal(borc, alacak);
-            Assert.NotEqual(0m, borc);
+            var debit = group.Where(e => e.Direction == LedgerDirection.Debit).Sum(e => e.Amount.AmountInBase);
+            var credit = group.Where(e => e.Direction == LedgerDirection.Credit).Sum(e => e.Amount.AmountInBase);
+            Assert.Equal(debit, credit);
+            Assert.NotEqual(0m, debit);
         }
         // 200 ve 120 AYRI AYRI postlandı (toplamları karıştırılmadı).
-        Assert.Equal([120m, 200m], satirlarDefter.Where(e => e.Direction == LedgerDirection.Debit)
+        Assert.Equal([120m, 200m], ledgerLines.Where(e => e.Direction == LedgerDirection.Debit)
             .Select(e => e.Amount.Amount).OrderBy(x => x).ToArray());
         // Gider ARACA atıflı; alacak tarafı Kasa ve Banka.
-        Assert.All(satirlarDefter.Where(e => e.AccountType == LedgerAccountType.Gider),
-            e => Assert.Equal(arac, e.AccountRef));
-        Assert.Contains(satirlarDefter, e => e.AccountType == LedgerAccountType.Kasa);
-        Assert.Contains(satirlarDefter, e => e.AccountType == LedgerAccountType.Banka);
+        Assert.All(ledgerLines.Where(e => e.AccountType == LedgerAccountType.Gider),
+            e => Assert.Equal(vehicle, e.AccountRef));
+        Assert.Contains(ledgerLines, e => e.AccountType == LedgerAccountType.Kasa);
+        Assert.Contains(ledgerLines, e => e.AccountType == LedgerAccountType.Banka);
 
         // Gider raporu toplamı: ELLE 320.
         Assert.Equal(320m, (await sp.GetRequiredService<ReportService>().GetRevenueExpenseAsync()).GiderToplam);
 
-        await TutarlilikAsync(sp, id);
+        await ConsistencyAsync(sp, id);
     }
 
     [Fact]
@@ -225,25 +225,25 @@ public sealed class CezaDerinlikTests(PostgresFixture fx)
             CezaTuru = "Hız",
             Satirlar = [new PenaltySatirInput { Tutar = 400m }, new PenaltySatirInput { Tutar = 100m }]
         });
-        var satirlar = await svc.ListLinesAsync(id);
+        var rows = await svc.ListLinesAsync(id);
 
-        await svc.PayPartialAsync(id, new CezaOdemeInput { SatirId = satirlar[0].Id, Tutar = 150m });
+        await svc.PayPartialAsync(id, new CezaOdemeInput { SatirId = rows[0].Id, Tutar = 150m });
         // Tutar null → kalemin kalanı: 400 − 150 = 250 (ELLE).
-        var kalanOdeme = await svc.PayPartialAsync(id, new CezaOdemeInput { SatirId = satirlar[0].Id });
-        Assert.Equal(250m, kalanOdeme.Tutar);
-        Assert.Equal(0m, kalanOdeme.SatirKalan);
-        Assert.Equal(100m, kalanOdeme.CezaKalan);   // 2. kalem hâlâ açık
-        Assert.Equal(PenaltyStatus.Kismi, kalanOdeme.Durum);
+        var remainingPayment = await svc.PayPartialAsync(id, new CezaOdemeInput { SatirId = rows[0].Id });
+        Assert.Equal(250m, remainingPayment.Tutar);
+        Assert.Equal(0m, remainingPayment.SatirKalan);
+        Assert.Equal(100m, remainingPayment.CezaKalan);   // 2. kalem hâlâ açık
+        Assert.Equal(PenaltyStatus.Kismi, remainingPayment.Durum);
 
-        var son = await svc.PayPartialAsync(id, new CezaOdemeInput { SatirId = satirlar[1].Id });
-        Assert.Equal(100m, son.Tutar);
-        Assert.Equal(0m, son.CezaKalan);
-        Assert.Equal(PenaltyStatus.Odendi, son.Durum);
+        var last = await svc.PayPartialAsync(id, new CezaOdemeInput { SatirId = rows[1].Id });
+        Assert.Equal(100m, last.Tutar);
+        Assert.Equal(0m, last.CezaKalan);
+        Assert.Equal(PenaltyStatus.Odendi, last.Durum);
 
-        await TutarlilikAsync(scope.ServiceProvider, id);
+        await ConsistencyAsync(scope.ServiceProvider, id);
         // Kapanmış cezaya yeni ödeme YOK.
         await Assert.ThrowsAsync<ValidationException>(() =>
-            svc.PayPartialAsync(id, new CezaOdemeInput { SatirId = satirlar[0].Id, Tutar = 1m }));
+            svc.PayPartialAsync(id, new CezaOdemeInput { SatirId = rows[0].Id, Tutar = 1m }));
     }
 
     [Fact]
@@ -266,11 +266,11 @@ public sealed class CezaDerinlikTests(PostgresFixture fx)
         Assert.Equal(350m, p.OdenenTutar);   // ELLE: 100 + 250
         Assert.Equal(0m, p.Kalan);
 
-        var defter = await DefterAsync(sp, "CezaOdeme");
-        Assert.Equal(4, defter.Count);       // kalem başına 1 borç + 1 alacak
-        Assert.Equal([100m, 250m], defter.Where(e => e.Direction == LedgerDirection.Debit)
+        var ledger = await LedgerAsync(sp, "CezaOdeme");
+        Assert.Equal(4, ledger.Count);       // kalem başına 1 borç + 1 alacak
+        Assert.Equal([100m, 250m], ledger.Where(e => e.Direction == LedgerDirection.Debit)
             .Select(e => e.Amount.Amount).OrderBy(x => x).ToArray());
-        await TutarlilikAsync(sp, id);
+        await ConsistencyAsync(sp, id);
 
         await Assert.ThrowsAsync<ValidationException>(() => svc.PayAsync(id)); // ikinci kez ödenmez
     }
@@ -289,20 +289,20 @@ public sealed class CezaDerinlikTests(PostgresFixture fx)
         {
             CezaTuru = "Hız", Satirlar = [new PenaltySatirInput { Tutar = 200m }]
         });
-        var satir = (await svc.ListLinesAsync(id))[0];
+        var row = (await svc.ListLinesAsync(id))[0];
 
         await Assert.ThrowsAsync<ValidationException>(() =>
-            svc.PayPartialAsync(id, new CezaOdemeInput { SatirId = satir.Id, Tutar = 250m }));
-        Assert.Empty(await DefterAsync(sp, "CezaOdeme"));
+            svc.PayPartialAsync(id, new CezaOdemeInput { SatirId = row.Id, Tutar = 250m }));
+        Assert.Empty(await LedgerAsync(sp, "CezaOdeme"));
         Assert.Equal(200m, (await svc.GetAsync(id))!.Kalan);
 
         // Kısmi ödedikten SONRA kalanı aşan ikinci ödeme de reddedilir (120 + 100 > 200).
-        await svc.PayPartialAsync(id, new CezaOdemeInput { SatirId = satir.Id, Tutar = 120m });
+        await svc.PayPartialAsync(id, new CezaOdemeInput { SatirId = row.Id, Tutar = 120m });
         await Assert.ThrowsAsync<ValidationException>(() =>
-            svc.PayPartialAsync(id, new CezaOdemeInput { SatirId = satir.Id, Tutar = 100m }));
+            svc.PayPartialAsync(id, new CezaOdemeInput { SatirId = row.Id, Tutar = 100m }));
         Assert.Equal(80m, (await svc.GetAsync(id))!.Kalan);   // ELLE: 200 − 120
-        Assert.Equal(2, (await DefterAsync(sp, "CezaOdeme")).Count);
-        await TutarlilikAsync(sp, id);
+        Assert.Equal(2, (await LedgerAsync(sp, "CezaOdeme")).Count);
+        await ConsistencyAsync(sp, id);
     }
 
     [Fact]
@@ -317,18 +317,18 @@ public sealed class CezaDerinlikTests(PostgresFixture fx)
         {
             CezaTuru = "Hız", Satirlar = [new PenaltySatirInput { Tutar = 500m }]
         });
-        var satir = (await svc.ListLinesAsync(id))[0];
-        var anahtar = Guid.NewGuid();
+        var row = (await svc.ListLinesAsync(id))[0];
+        var key = Guid.NewGuid();
 
-        await svc.PayPartialAsync(id, new CezaOdemeInput { SatirId = satir.Id, Tutar = 200m, IslemAnahtari = anahtar });
+        await svc.PayPartialAsync(id, new CezaOdemeInput { SatirId = row.Id, Tutar = 200m, IslemAnahtari = key });
         // Kullanıcı "geri"ye basıp AYNI formu tekrar gönderdi.
         await Assert.ThrowsAsync<DuplicateOperationException>(() =>
-            svc.PayPartialAsync(id, new CezaOdemeInput { SatirId = satir.Id, Tutar = 200m, IslemAnahtari = anahtar }));
+            svc.PayPartialAsync(id, new CezaOdemeInput { SatirId = row.Id, Tutar = 200m, IslemAnahtari = key }));
 
         Assert.Equal(300m, (await svc.GetAsync(id))!.Kalan);   // ELLE: 500 − 200 (tek kez)
         Assert.Single(await svc.ListPaymentsAsync(id));
-        Assert.Equal(2, (await DefterAsync(sp, "CezaOdeme")).Count);
-        await TutarlilikAsync(sp, id);
+        Assert.Equal(2, (await LedgerAsync(sp, "CezaOdeme")).Count);
+        await ConsistencyAsync(sp, id);
     }
 
     [Fact]
@@ -336,7 +336,7 @@ public sealed class CezaDerinlikTests(PostgresFixture fx)
     {
         using var host = new TestHost(fx.AppConnectionString);
         var tenant = Guid.NewGuid();
-        Guid id, satirId;
+        Guid id, lineId;
         using (var scope = host.ScopeFor(tenant))
         {
             var svc = scope.ServiceProvider.GetRequiredService<PenaltyService>();
@@ -344,7 +344,7 @@ public sealed class CezaDerinlikTests(PostgresFixture fx)
             {
                 CezaTuru = "Hız", Satirlar = [new PenaltySatirInput { Tutar = 300m }]
             });
-            satirId = (await svc.ListLinesAsync(id))[0].Id;
+            lineId = (await svc.ListLinesAsync(id))[0].Id;
         }
 
         // 4 paralel 100'lük ödeme. Kilitsiz "önce oku sonra yaz" olsaydı hepsi 300 kalanı görüp
@@ -355,23 +355,23 @@ public sealed class CezaDerinlikTests(PostgresFixture fx)
             try
             {
                 await s.ServiceProvider.GetRequiredService<PenaltyService>()
-                    .PayPartialAsync(id, new CezaOdemeInput { SatirId = satirId, Tutar = 100m });
+                    .PayPartialAsync(id, new CezaOdemeInput { SatirId = lineId, Tutar = 100m });
                 return true;
             }
             catch (ValidationException) { return false; }
         }));
-        var sonuclar = await Task.WhenAll(tasks);
+        var results = await Task.WhenAll(tasks);
 
         using var check = host.ScopeFor(tenant);
         var svc2 = check.ServiceProvider.GetRequiredService<PenaltyService>();
         var p = await svc2.GetAsync(id);
-        Assert.Equal(3, sonuclar.Count(x => x));   // ELLE: 300 / 100 = tam 3 ödeme sığar
+        Assert.Equal(3, results.Count(x => x));   // ELLE: 300 / 100 = tam 3 ödeme sığar
         Assert.Equal(300m, p!.OdenenTutar);
         Assert.Equal(0m, p.Kalan);
         Assert.Equal(PenaltyStatus.Odendi, p.Durum);
         Assert.Equal(3, (await svc2.ListPaymentsAsync(id)).Count);
-        Assert.Equal(6, (await DefterAsync(check.ServiceProvider, "CezaOdeme")).Count);
-        await TutarlilikAsync(check.ServiceProvider, id);
+        Assert.Equal(6, (await LedgerAsync(check.ServiceProvider, "CezaOdeme")).Count);
+        await ConsistencyAsync(check.ServiceProvider, id);
     }
 
     [Fact]
@@ -383,7 +383,7 @@ public sealed class CezaDerinlikTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         var tenant = Guid.NewGuid();
         Guid id;
-        List<Guid> satirIds;
+        List<Guid> lineIds;
         using (var scope = host.ScopeFor(tenant))
         {
             var svc = scope.ServiceProvider.GetRequiredService<PenaltyService>();
@@ -397,10 +397,10 @@ public sealed class CezaDerinlikTests(PostgresFixture fx)
                     new PenaltySatirInput { Tutar = 100m }
                 ]
             });
-            satirIds = (await svc.ListLinesAsync(id)).Select(s => s.Id).ToList();
+            lineIds = (await svc.ListLinesAsync(id)).Select(s => s.Id).ToList();
         }
 
-        var tasks = satirIds.Select(sid => Task.Run(async () =>
+        var tasks = lineIds.Select(sid => Task.Run(async () =>
         {
             using var s = host.ScopeFor(tenant);
             await s.ServiceProvider.GetRequiredService<PenaltyService>()
@@ -413,7 +413,7 @@ public sealed class CezaDerinlikTests(PostgresFixture fx)
         Assert.Equal(300m, p!.OdenenTutar);   // ELLE: 3 × 100, hiçbiri kaybolmadı
         Assert.Equal(0m, p.Kalan);
         Assert.Equal(PenaltyStatus.Odendi, p.Durum);
-        await TutarlilikAsync(check.ServiceProvider, id);
+        await ConsistencyAsync(check.ServiceProvider, id);
     }
 
     [Fact]
@@ -427,16 +427,16 @@ public sealed class CezaDerinlikTests(PostgresFixture fx)
         var svc = sp.GetRequiredService<PenaltyService>();
 
         var id = await svc.CreateAsync(new PenaltyInput { CezaTuru = "Hız", Tutar = 100m });
-        var satir = (await svc.ListLinesAsync(id))[0];
+        var row = (await svc.ListLinesAsync(id))[0];
 
         await Assert.ThrowsAsync<ValidationException>(() =>
-            svc.PayPartialAsync(id, new CezaOdemeInput { SatirId = satir.Id, Tutar = 0.00004m }));
-        Assert.Empty(await DefterAsync(sp, "CezaOdeme"));
+            svc.PayPartialAsync(id, new CezaOdemeInput { SatirId = row.Id, Tutar = 0.00004m }));
+        Assert.Empty(await LedgerAsync(sp, "CezaOdeme"));
         Assert.Equal(100m, (await svc.GetAsync(id))!.Kalan);
 
         // Negatif "ödeme" de reddedilir (işaret hatası ile bakiye BÜYÜTÜLEMEZ).
         await Assert.ThrowsAsync<ValidationException>(() =>
-            svc.PayPartialAsync(id, new CezaOdemeInput { SatirId = satir.Id, Tutar = -50m }));
+            svc.PayPartialAsync(id, new CezaOdemeInput { SatirId = row.Id, Tutar = -50m }));
         Assert.Equal(100m, (await svc.GetAsync(id))!.Kalan);
 
         // Saçma büyüklükte kalem numeric(19,4) taşması yerine temiz redle karşılanır.
@@ -455,12 +455,12 @@ public sealed class CezaDerinlikTests(PostgresFixture fx)
         var svc = scope.ServiceProvider.GetRequiredService<PenaltyService>();
 
         var id = await svc.CreateAsync(new PenaltyInput { CezaTuru = "Hız", CariId = Guid.NewGuid(), Tutar = 400m });
-        var satir = (await svc.ListLinesAsync(id))[0];
-        await svc.PayPartialAsync(id, new CezaOdemeInput { SatirId = satir.Id, Tutar = 100m });
+        var row = (await svc.ListLinesAsync(id))[0];
+        await svc.PayPartialAsync(id, new CezaOdemeInput { SatirId = row.Id, Tutar = 100m });
 
         await Assert.ThrowsAsync<ValidationException>(() => svc.ReflectAsync(id));
-        Assert.Equal(2, (await DefterAsync(scope.ServiceProvider, "CezaOdeme")).Count);
-        Assert.Empty(await DefterAsync(scope.ServiceProvider, "Ceza"));
+        Assert.Equal(2, (await LedgerAsync(scope.ServiceProvider, "CezaOdeme")).Count);
+        Assert.Empty(await LedgerAsync(scope.ServiceProvider, "Ceza"));
     }
 
     [Fact]
@@ -473,14 +473,14 @@ public sealed class CezaDerinlikTests(PostgresFixture fx)
 
         var a = await svc.CreateAsync(new PenaltyInput { CezaTuru = "Hız", Tutar = 100m });
         var b = await svc.CreateAsync(new PenaltyInput { CezaTuru = "Park", Tutar = 900m });
-        var bSatir = (await svc.ListLinesAsync(b))[0];
+        var bRow = (await svc.ListLinesAsync(b))[0];
 
         // Crafted POST: A cezası + B'nin kalemi → B'nin bakiyesi A üzerinden düşürülemez.
         await Assert.ThrowsAsync<ValidationException>(() =>
-            svc.PayPartialAsync(a, new CezaOdemeInput { SatirId = bSatir.Id, Tutar = 50m }));
+            svc.PayPartialAsync(a, new CezaOdemeInput { SatirId = bRow.Id, Tutar = 50m }));
         Assert.Equal(100m, (await svc.GetAsync(a))!.Kalan);
         Assert.Equal(900m, (await svc.GetAsync(b))!.Kalan);
-        Assert.Empty(await DefterAsync(sp, "CezaOdeme"));
+        Assert.Empty(await LedgerAsync(sp, "CezaOdeme"));
     }
 
     [Fact]
@@ -496,12 +496,12 @@ public sealed class CezaDerinlikTests(PostgresFixture fx)
         var svc = sp.GetRequiredService<PenaltyService>();
 
         var id = await svc.CreateAsync(new PenaltyInput { CezaTuru = "Hız", Tutar = 500m });
-        var satirId = (await svc.ListLinesAsync(id))[0].Id;
+        var lineId = (await svc.ListLinesAsync(id))[0].Id;
 
         var factory = sp.GetRequiredService<IDbContextFactory<AppDbContext>>();
         await using (var db = await factory.CreateDbContextAsync())
         {
-            var s = await db.PenaltySatirlari.FirstAsync(x => x.Id == satirId);
+            var s = await db.PenaltySatirlari.FirstAsync(x => x.Id == lineId);
             s.Odenen = 500m; s.Kalan = 0m;                       // backfill'in yazdığı hâl
             var c = await db.Penalties.FirstAsync(x => x.Id == id);
             c.OdenenTutar = 500m; c.Kalan = 0m; c.Durum = PenaltyStatus.Odendi;
@@ -509,9 +509,9 @@ public sealed class CezaDerinlikTests(PostgresFixture fx)
         }
 
         await Assert.ThrowsAsync<ValidationException>(() =>
-            svc.PayPartialAsync(id, new CezaOdemeInput { SatirId = satirId, Tutar = 100m }));
+            svc.PayPartialAsync(id, new CezaOdemeInput { SatirId = lineId, Tutar = 100m }));
         await Assert.ThrowsAsync<ValidationException>(() => svc.PayAsync(id));
-        Assert.Empty(await DefterAsync(sp, "CezaOdeme"));   // ikinci gider YAZILMADI
+        Assert.Empty(await LedgerAsync(sp, "CezaOdeme"));   // ikinci gider YAZILMADI
     }
 
     [Fact]
@@ -522,8 +522,8 @@ public sealed class CezaDerinlikTests(PostgresFixture fx)
         var svc = scope.ServiceProvider.GetRequiredService<PenaltyService>();
 
         var id = await svc.CreateAsync(new PenaltyInput { CezaTuru = "Hız", Tutar = 500m });
-        var satir = (await svc.ListLinesAsync(id))[0];
-        await svc.PayPartialAsync(id, new CezaOdemeInput { SatirId = satir.Id, Tutar = 100m });
+        var row = (await svc.ListLinesAsync(id))[0];
+        await svc.PayPartialAsync(id, new CezaOdemeInput { SatirId = row.Id, Tutar = 100m });
 
         // Defterde gider/kasa hareketi var — iptal onları ters kayıtsız görünmez kılardı.
         await Assert.ThrowsAsync<ValidationException>(() => svc.CancelAsync(id));
@@ -538,12 +538,12 @@ public sealed class CezaDerinlikTests(PostgresFixture fx)
         var svc = scope.ServiceProvider.GetRequiredService<PenaltyService>();
 
         var id = await svc.CreateAsync(new PenaltyInput { CezaTuru = "Hız", Tutar = 500m });
-        var satir = (await svc.ListLinesAsync(id))[0];
+        var row = (await svc.ListLinesAsync(id))[0];
         Assert.True(await svc.CancelAsync(id));
 
         await Assert.ThrowsAsync<ValidationException>(() =>
-            svc.PayPartialAsync(id, new CezaOdemeInput { SatirId = satir.Id, Tutar = 100m }));
-        Assert.Empty(await DefterAsync(scope.ServiceProvider, "CezaOdeme"));
+            svc.PayPartialAsync(id, new CezaOdemeInput { SatirId = row.Id, Tutar = 100m }));
+        Assert.Empty(await LedgerAsync(scope.ServiceProvider, "CezaOdeme"));
     }
 
     [Fact]
@@ -554,14 +554,14 @@ public sealed class CezaDerinlikTests(PostgresFixture fx)
         var svc = scope.ServiceProvider.GetRequiredService<PenaltyService>();
 
         var id = await svc.CreateAsync(new PenaltyInput { CezaTuru = "Hız", Tutar = 500m });
-        var satir = (await svc.ListLinesAsync(id))[0];
+        var row = (await svc.ListLinesAsync(id))[0];
 
         // CI-vs-lokal zaman: tam saniyeye hizalı taban.
         var t = new DateTimeOffset(DateTime.SpecifyKind(DateTime.UtcNow.AddDays(3), DateTimeKind.Utc), TimeSpan.Zero);
         t = t.AddTicks(-(t.Ticks % TimeSpan.TicksPerSecond));
 
         await Assert.ThrowsAsync<ValidationException>(() =>
-            svc.PayPartialAsync(id, new CezaOdemeInput { SatirId = satir.Id, Tutar = 100m, Tarih = t }));
+            svc.PayPartialAsync(id, new CezaOdemeInput { SatirId = row.Id, Tutar = 100m, Tarih = t }));
         Assert.Equal(500m, (await svc.GetAsync(id))!.Kalan);
     }
 
@@ -570,21 +570,21 @@ public sealed class CezaDerinlikTests(PostgresFixture fx)
     {
         using var host = new TestHost(fx.AppConnectionString);
         var tenant = Guid.NewGuid();
-        Guid id, satirId;
+        Guid id, lineId;
         using (var admin = host.ScopeFor(tenant))
         {
             var svc = admin.ServiceProvider.GetRequiredService<PenaltyService>();
             id = await svc.CreateAsync(new PenaltyInput { CezaTuru = "Hız", Tutar = 500m });
-            satirId = (await svc.ListLinesAsync(id))[0].Id;
+            lineId = (await svc.ListLinesAsync(id))[0].Id;
         }
 
         // Operatör OperationsWrite taşır, FinanceWrite TAŞIMAZ → para yolu kapalı.
         using var op = host.ScopeFor(tenant, Guid.NewGuid(), "operator", UserRole.Operator);
         var opSvc = op.ServiceProvider.GetRequiredService<PenaltyService>();
         await Assert.ThrowsAsync<NoPermissionException>(() =>
-            opSvc.PayPartialAsync(id, new CezaOdemeInput { SatirId = satirId, Tutar = 100m }));
+            opSvc.PayPartialAsync(id, new CezaOdemeInput { SatirId = lineId, Tutar = 100m }));
         await Assert.ThrowsAsync<NoPermissionException>(() => opSvc.PayAsync(id));
-        Assert.Empty(await DefterAsync(op.ServiceProvider, "CezaOdeme"));
+        Assert.Empty(await LedgerAsync(op.ServiceProvider, "CezaOdeme"));
     }
 
     // ---------------- izolasyon / değişmezlik ----------------
@@ -595,7 +595,7 @@ public sealed class CezaDerinlikTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         var t1 = Guid.NewGuid();
         var t2 = Guid.NewGuid();
-        Guid id, satirId;
+        Guid id, lineId;
 
         using (var s1 = host.ScopeFor(t1))
         {
@@ -604,8 +604,8 @@ public sealed class CezaDerinlikTests(PostgresFixture fx)
             {
                 CezaTuru = "Hız", Satirlar = [new PenaltySatirInput { Tutar = 700m }]
             });
-            satirId = (await svc.ListLinesAsync(id))[0].Id;
-            await svc.PayPartialAsync(id, new CezaOdemeInput { SatirId = satirId, Tutar = 300m });
+            lineId = (await svc.ListLinesAsync(id))[0].Id;
+            await svc.PayPartialAsync(id, new CezaOdemeInput { SatirId = lineId, Tutar = 300m });
         }
 
         using var s2 = host.ScopeFor(t2);
@@ -615,7 +615,7 @@ public sealed class CezaDerinlikTests(PostgresFixture fx)
         Assert.Empty(await svc2.ListRowsAsync());
         // Ve ödeyemez de (kalem "bulunamadı").
         await Assert.ThrowsAsync<ValidationException>(() =>
-            svc2.PayPartialAsync(id, new CezaOdemeInput { SatirId = satirId, Tutar = 100m }));
+            svc2.PayPartialAsync(id, new CezaOdemeInput { SatirId = lineId, Tutar = 100m }));
 
         using var back = host.ScopeFor(t1);
         Assert.Equal(400m, (await back.ServiceProvider.GetRequiredService<PenaltyService>()
@@ -631,13 +631,13 @@ public sealed class CezaDerinlikTests(PostgresFixture fx)
         var svc = sp.GetRequiredService<PenaltyService>();
 
         var id = await svc.CreateAsync(new PenaltyInput { CezaTuru = "Hız", Tutar = 500m });
-        var satir = (await svc.ListLinesAsync(id))[0];
-        await svc.PayPartialAsync(id, new CezaOdemeInput { SatirId = satir.Id, Tutar = 200m });
+        var row = (await svc.ListLinesAsync(id))[0];
+        await svc.PayPartialAsync(id, new CezaOdemeInput { SatirId = row.Id, Tutar = 200m });
 
         var factory = sp.GetRequiredService<IDbContextFactory<AppDbContext>>();
         await using var db = await factory.CreateDbContextAsync();
-        var odeme = await db.PenaltyOdemeleri.FirstAsync();
-        odeme.Tutar = 1m;   // tahrif denemesi
+        var payment = await db.PenaltyOdemeleri.FirstAsync();
+        payment.Tutar = 1m;   // tahrif denemesi
         await Assert.ThrowsAnyAsync<DbUpdateException>(() => db.SaveChangesAsync());
 
         db.ChangeTracker.Clear();
@@ -656,34 +656,34 @@ public sealed class CezaDerinlikTests(PostgresFixture fx)
         var sp = scope.ServiceProvider;
         var svc = sp.GetRequiredService<PenaltyService>();
         var cash = sp.GetRequiredService<CashService>();
-        var cari = Guid.NewGuid();
+        var account = Guid.NewGuid();
 
         var id = await svc.CreateAsync(new PenaltyInput
         {
-            CezaTuru = "Hız", CariId = cari,
+            CezaTuru = "Hız", CariId = account,
             Satirlar = [new PenaltySatirInput { Tutar = 400m }, new PenaltySatirInput { Tutar = 200m }]
         });
         Assert.True(await svc.ReflectAsync(id));
 
         // Yansıtma: Borç Cari 600 (ELLE: 400 + 200) / Alacak Gelir 600 — kalem sayısından bağımsız.
-        Assert.Equal(600m, await cash.GetAccountBalanceAsync(cari));
-        var yansitma = await DefterAsync(sp, "Ceza");
-        Assert.Equal(2, yansitma.Count);
-        Assert.Equal(600m, yansitma.Where(e => e.Direction == LedgerDirection.Debit).Sum(e => e.Amount.AmountInBase));
-        Assert.Equal(LedgerAccountType.Gelir, yansitma.Single(e => e.Direction == LedgerDirection.Credit).AccountType);
+        Assert.Equal(600m, await cash.GetAccountBalanceAsync(account));
+        var reflection = await LedgerAsync(sp, "Ceza");
+        Assert.Equal(2, reflection.Count);
+        Assert.Equal(600m, reflection.Where(e => e.Direction == LedgerDirection.Debit).Sum(e => e.Amount.AmountInBase));
+        Assert.Equal(LedgerAccountType.Gelir, reflection.Single(e => e.Direction == LedgerDirection.Credit).AccountType);
 
         // Kısmi ödeme yansıtma defterine DOKUNMAZ ve cari bakiyeyi DEĞİŞTİRMEZ (ayrı SourceType).
-        var satirlar = await svc.ListLinesAsync(id);
-        await svc.PayPartialAsync(id, new CezaOdemeInput { SatirId = satirlar[0].Id, Tutar = 400m });
-        Assert.Equal(2, (await DefterAsync(sp, "Ceza")).Count);
-        Assert.Equal(600m, await cash.GetAccountBalanceAsync(cari));
-        Assert.Equal(2, (await DefterAsync(sp, "CezaOdeme")).Count);
+        var rows = await svc.ListLinesAsync(id);
+        await svc.PayPartialAsync(id, new CezaOdemeInput { SatirId = rows[0].Id, Tutar = 400m });
+        Assert.Equal(2, (await LedgerAsync(sp, "Ceza")).Count);
+        Assert.Equal(600m, await cash.GetAccountBalanceAsync(account));
+        Assert.Equal(2, (await LedgerAsync(sp, "CezaOdeme")).Count);
 
         // Gelir 600 / Gider 400 → net 200 (ELLE). Ceza yansıtması ile ödemesi ÇİFT SAYILMAZ.
         var gg = await sp.GetRequiredService<ReportService>().GetRevenueExpenseAsync();
         Assert.Equal(600m, gg.GelirToplam);
         Assert.Equal(400m, gg.GiderToplam);
-        await TutarlilikAsync(sp, id);
+        await ConsistencyAsync(sp, id);
     }
 
     // ---------------- filtre / kolon ----------------
@@ -695,15 +695,15 @@ public sealed class CezaDerinlikTests(PostgresFixture fx)
         using var scope = host.ScopeFor(Guid.NewGuid());
         var sp = scope.ServiceProvider;
         var svc = sp.GetRequiredService<PenaltyService>();
-        var arac = await sp.GetRequiredService<VehicleService>()
+        var vehicle = await sp.GetRequiredService<VehicleService>()
             .CreateAsync(new VehicleInput { Plaka = "06 AB 123", Durum = VehicleStatus.Musait });
 
-        var ocak = new DateTimeOffset(2026, 1, 10, 0, 0, 0, TimeSpan.Zero);
+        var january = new DateTimeOffset(2026, 1, 10, 0, 0, 0, TimeSpan.Zero);
         var mart = new DateTimeOffset(2026, 3, 10, 0, 0, 0, TimeSpan.Zero);
 
         var a = await svc.CreateAsync(new PenaltyInput
         {
-            CezaTuru = "Hız", TebligTarihi = ocak, VehicleId = arac,
+            CezaTuru = "Hız", TebligTarihi = january, VehicleId = vehicle,
             MakbuzNo = "MK-100", IslemSube = "Merkez", Tutar = 500m
         });
         await svc.CreateAsync(new PenaltyInput
@@ -734,8 +734,8 @@ public sealed class CezaDerinlikTests(PostgresFixture fx)
 
         // Ödeme durumu: hepsi ödenmemiş → 3; kısmi ödeme sonrası 2 ödenmemiş + 1 kısmi (ELLE).
         Assert.Equal(3, (await svc.ListRowsAsync(new PenaltyFilter { OdemeDurum = PenaltyPaymentStatus.Odenmemis })).Count);
-        var aSatir = (await svc.ListLinesAsync(a))[0];
-        await svc.PayPartialAsync(a, new CezaOdemeInput { SatirId = aSatir.Id, Tutar = 100m });
+        var aRow = (await svc.ListLinesAsync(a))[0];
+        await svc.PayPartialAsync(a, new CezaOdemeInput { SatirId = aRow.Id, Tutar = 100m });
         Assert.Equal(2, (await svc.ListRowsAsync(new PenaltyFilter { OdemeDurum = PenaltyPaymentStatus.Odenmemis })).Count);
         Assert.Single(await svc.ListRowsAsync(new PenaltyFilter { OdemeDurum = PenaltyPaymentStatus.Kismi }));
         Assert.Empty(await svc.ListRowsAsync(new PenaltyFilter { OdemeDurum = PenaltyPaymentStatus.Odendi }));
@@ -756,9 +756,9 @@ public sealed class CezaDerinlikTests(PostgresFixture fx)
         using var scope = host.ScopeFor(Guid.NewGuid());
         var sp = scope.ServiceProvider;
         var svc = sp.GetRequiredService<PenaltyService>();
-        var arac = await sp.GetRequiredService<VehicleService>()
+        var vehicle = await sp.GetRequiredService<VehicleService>()
             .CreateAsync(new VehicleInput { Plaka = "34 XY 99", Durum = VehicleStatus.Musait });
-        var cari = await sp.GetRequiredService<RentACar.Application.Customers.CustomerService>()
+        var account = await sp.GetRequiredService<RentACar.Application.Customers.CustomerService>()
             .CreateAsync(new RentACar.Application.Customers.CustomerInput
             {
                 Tip = CustomerType.Bireysel, Ad = "Ali", Soyad = "Veli", Email = "ali@example.com"
@@ -766,7 +766,7 @@ public sealed class CezaDerinlikTests(PostgresFixture fx)
 
         await svc.CreateAsync(new PenaltyInput
         {
-            CezaTuru = "Hız", VehicleId = arac, CariId = cari, Tutar = 250m,
+            CezaTuru = "Hız", VehicleId = vehicle, CariId = account, Tutar = 250m,
             Saat = "14:35", Yer = "E-5 Kartal", CepTel = "05551112233", MakbuzNo = "MK-777", IslemSube = "Merkez"
         });
 

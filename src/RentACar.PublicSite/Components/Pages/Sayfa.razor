@@ -14,9 +14,9 @@
    parametreli segmenti YENER. Buna ek kemer olarak rezerve slug'lar yazma anında reddedilir
    (`SiteIcerikService.RezerveSluglar`). *@
 
-<PageTitle>@(_sayfa?.Baslik ?? "Sayfa bulunamadı") — @(_marka ?? "RentPro")</PageTitle>
+<PageTitle>@(_page?.Baslik ?? "Sayfa bulunamadı") — @(_brand ?? "RentPro")</PageTitle>
 
-@if (_sayfa is { } s)
+@if (_page is { } s)
 {
     <HeadContent>
         @if (!string.IsNullOrWhiteSpace(s.MetaAciklama))
@@ -27,7 +27,7 @@
 }
 
 <div class="container">
-    @if (_sayfa is null)
+    @if (_page is null)
     {
         <h1>Sayfa bulunamadı</h1>
         <p class="empty-state">Aradığınız sayfa yayından kaldırılmış ya da adres yanlış olabilir.</p>
@@ -35,12 +35,12 @@
     }
     else
     {
-        <header class="site-header"><h1>@_sayfa.Baslik</h1></header>
+        <header class="site-header"><h1>@_page.Baslik</h1></header>
         <article class="blog-icerik">
             @* MarkupString KULLANILMAZ: @p normal bir Razor ifadesi olduğu için otomatik HTML-encode
                edilir. İçerik düz metin saklandığından personel gövdeye <script> yazsa ekranda METİN
                görünür — XSS risk sınıfı tasarım gereği yok (blog ile aynı kural, IcerikMetni ortak). *@
-            @foreach (var p in ContentText.Paragraphs(_sayfa.Govde))
+            @foreach (var p in ContentText.Paragraphs(_page.Govde))
             {
                 <p>@p</p>
             }
@@ -52,8 +52,8 @@
     [Parameter] public string Slug { get; set; } = string.Empty;
     [CascadingParameter] public HttpContext? Http { get; set; }
 
-    private SayfaGoster? _sayfa;
-    private string? _marka;
+    private SayfaGoster? _page;
+    private string? _brand;
 
     /// <summary>
     /// NOKTALI yol asla bir içerik sayfası olamaz: <c>TurkishText.Slugify</c> yalnız harf/rakam
@@ -76,11 +76,11 @@
             return;
         }
 
-        _sayfa = await Icerik.PageAsync(Slug);
-        if (_sayfa is null && Http is not null)
+        _page = await Icerik.PageAsync(Slug);
+        if (_page is null && Http is not null)
             Http.Response.StatusCode = StatusCodes.Status404NotFound; // GERÇEK 404 (soft-404 değil)
 
-        try { _marka = (await Showcase.GetBrandingAsync()).Marka; }
+        try { _brand = (await Showcase.GetBrandingAsync()).Marka; }
         catch { /* marka çözülemezse sayfa yine basılır */ }
     }
 }

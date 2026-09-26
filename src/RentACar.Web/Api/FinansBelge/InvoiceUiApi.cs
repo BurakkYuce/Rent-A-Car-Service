@@ -34,14 +34,14 @@ public static partial class InvoiceUiApi
     {
         var g = v1.MapGroup("/faturalar").WithTags("Fatura");
         var read = g.MapGroup("").RequireAnyPermission(Permission.FinanceWrite, Permission.ViewReports);
-        read.MapGet("", List).AlanlariEsle(SortRules);
+        read.MapGet("", List).MapFields(SortRules);
         read.MapGet("/ozet", Summary);
         read.MapGet("/{id:guid}", Detail);
-        g.MapGet("/satirlar", Lines).RequirePermission(Permission.ViewReports).AlanlariEsle(SortRules);
+        g.MapGet("/satirlar", Lines).RequirePermission(Permission.ViewReports).MapFields(SortRules);
 
         var write = g.MapGroup("").RequirePermission(Permission.FinanceWrite);
         write.MapPost("/manuel", CreateManual)
-            .Produces<UiHata.MukerrerProblemi>(StatusCodes.Status409Conflict, "application/problem+json");
+            .Produces<UiError.MukerrerProblemi>(StatusCodes.Status409Conflict, "application/problem+json");
         write.MapPost("/toplu", CreateBatch);
         g.MapPost("/{id:guid}/iade", CreateRefund).RequirePermission(Permission.FinanceReverse);
         return g;
@@ -70,7 +70,7 @@ public static partial class InvoiceUiApi
     private static async Task<Ok<Sayfa<InvoiceListRow>>> List(
         [AsParameters] InvoiceListFilter f, InvoiceService invoices, ICurrentUser user,
         IDbContextFactory<AppDbContext> dbf, int? sayfa, int? boyut, string? sirala, CancellationToken ct)
-        => TypedResults.Ok(F5Ortak.Sayfala(await ListRowsAsync(f, invoices, user, dbf, ct), ListSort, sayfa, boyut, sirala));
+        => TypedResults.Ok(F5Shared.Paginate(await ListRowsAsync(f, invoices, user, dbf, ct), ListSort, sayfa, boyut, sirala));
 
     /// <summary>
     /// Döviz bazında özet (#300; Blazor listesinin "Σ … TL · … USD" satırı). Liste ile AYNI süzgeçler ve AYNI küme
@@ -96,21 +96,21 @@ public static partial class InvoiceUiApi
     {
         Text(f.Q, 128, "q");
         Text(f.Ofis, 128, "ofis");
-        var (bas, bit) = F5Ortak.GunAraligi(f.Bas, f.Bit);
+        var (start, bit) = F5Shared.DayRange(f.Bas, f.Bit);
         var rows = await invoices.SearchAsync(new InvoiceFilter
         {
-            Ara = F5Ortak.Nz(f.Q), CariId = f.CariId, Iptal = f.Iptal, Bas = bas, Bit = bit,
-            Ofis = F5Ortak.Nz(f.Ofis), Doviz = string.IsNullOrWhiteSpace(f.Doviz) ? null : Currency(f.Doviz),
+            Ara = F5Shared.Nz(f.Q), CariId = f.CariId, Iptal = f.Iptal, Bas = start, Bit = bit,
+            Ofis = F5Shared.Nz(f.Ofis), Doviz = string.IsNullOrWhiteSpace(f.Doviz) ? null : Currency(f.Doviz),
             EnFazla = 500, // ölçek sınırı: repo en yeni 500 belgeyi döner
         }, ct);
 
         await using var db = await dbf.CreateDbContextAsync(ct);
         var branches = await InvoiceBranchesAsync(db, rows.Select(r => r.Fatura).ToList(), ct);
         var visible = rows.Where(r => InScope(user, branches[r.Fatura.Id])).ToList();
-        var names = await F5Ortak.CarilerAsync(dbf, visible.Select(r => r.Fatura.CariId), ct);
+        var names = await F5Shared.CustomersAsync(dbf, visible.Select(r => r.Fatura.CariId), ct);
         return visible.Select(r => new InvoiceListRow(
             r.Fatura.Id, r.Fatura.No, r.Fatura.Tarih, r.Fatura.VadeTarihi, r.Fatura.Durum.ToString(), r.Fatura.IadeMi,
-            r.Fatura.ManuelMi, r.Fatura.CariId, F5Ortak.CariAdi(names, r.Fatura.CariId),
+            r.Fatura.ManuelMi, r.Fatura.CariId, F5Shared.CustomerName(names, r.Fatura.CariId),
             r.Fatura.RentalId ?? r.Fatura.KaynakKiraId, r.SozlesmeNo, r.Plaka, r.Ofis,
             r.Fatura.NetTutar, r.Fatura.KdvTutar, r.Fatura.GenelToplam, r.Fatura.Currency, r.Fatura.Kur,
             r.Fatura.EFaturaGonderildi, r.Fatura.EFaturaEttn, r.Fatura.KaynakFaturaId)).ToList();
@@ -120,16 +120,16 @@ public static partial class InvoiceUiApi
         Guid id, InvoiceService invoices, ICurrentUser user, IDbContextFactory<AppDbContext> dbf, CancellationToken ct)
     {
         var inv = await invoices.GetAsync(id, ct);
-        if (inv is null) return F5Ortak.Bulunamadi("Fatura bulunamadı.");
+        if (inv is null) return F5Shared.NotFound("Fatura bulunamadı.");
         await using var db = await dbf.CreateDbContextAsync(ct);
         RequireInScope(user, (await InvoiceBranchesAsync(db, [inv], ct))[inv.Id]);
 
         var refundId = await db.Invoices.AsNoTracking().Where(i => i.KaynakFaturaId == inv.Id)
             .Select(i => (Guid?)i.Id).FirstOrDefaultAsync(ct);
-        var names = await F5Ortak.CarilerAsync(dbf, [inv.CariId], ct);
+        var names = await F5Shared.CustomersAsync(dbf, [inv.CariId], ct);
         return TypedResults.Ok(new InvoiceDetail(
             inv.Id, inv.No, inv.Tarih, inv.VadeTarihi, inv.Durum.ToString(), inv.IadeMi, inv.ManuelMi,
-            inv.CariId, F5Ortak.CariAdi(names, inv.CariId), inv.RentalId ?? inv.KaynakKiraId, inv.KaynakFaturaId, refundId,
+            inv.CariId, F5Shared.CustomerName(names, inv.CariId), inv.RentalId ?? inv.KaynakKiraId, inv.KaynakFaturaId, refundId,
             inv.NetTutar, inv.KdvTutar, inv.GenelToplam, inv.Currency, inv.Kur,
             inv.Otv, inv.TevkifatOran, inv.TevkifatTutar, inv.DamgaVergisi,
             inv.IslemSube, inv.EvrakNo, inv.FaturaOzelKod, inv.OdemeTuru, inv.GonderimSekli, inv.KdvSifirSebep,
@@ -160,25 +160,25 @@ public static partial class InvoiceUiApi
     {
         Text(f.Q, 128, "q");
         Text(f.Plaka, 16, "plaka");
-        var (bas, bit) = F5Ortak.GunAraligi(f.Bas, f.Bit);
+        var (start, bit) = F5Shared.DayRange(f.Bas, f.Bit);
         var rows = await invoices.ListLinesAsync(new FaturaSatirFilter
         {
-            Ara = F5Ortak.Nz(f.Q), CariId = f.CariId, Plaka = F5Ortak.Nz(f.Plaka), Ofis = F5Ortak.Nz(f.Ofis),
-            Bas = bas, Bit = bit, IptalleriGizle = f.IptalleriGizle ?? false, EnFazla = 2000, // ölçek sınırı
+            Ara = F5Shared.Nz(f.Q), CariId = f.CariId, Plaka = F5Shared.Nz(f.Plaka), Ofis = F5Shared.Nz(f.Ofis),
+            Bas = start, Bit = bit, IptalleriGizle = f.IptalleriGizle ?? false, EnFazla = 2000, // ölçek sınırı
         }, ct);
 
         await using var db = await dbf.CreateDbContextAsync(ct);
-        var faturaIds = rows.Select(r => r.FaturaId).Distinct().ToList();
-        var heads = await db.Invoices.AsNoTracking().Where(i => faturaIds.Contains(i.Id)).ToListAsync(ct);
+        var invoiceIds = rows.Select(r => r.FaturaId).Distinct().ToList();
+        var heads = await db.Invoices.AsNoTracking().Where(i => invoiceIds.Contains(i.Id)).ToListAsync(ct);
         var branches = await InvoiceBranchesAsync(db, heads, ct);
         var visible = rows.Where(r => branches.TryGetValue(r.FaturaId, out var b) && InScope(user, b)).ToList();
-        var names = await F5Ortak.CarilerAsync(dbf, visible.Select(r => r.CariId), ct);
+        var names = await F5Shared.CustomersAsync(dbf, visible.Select(r => r.CariId), ct);
         var list = visible.Select(r => new InvoiceLineListRow(
             r.FaturaId, r.FaturaNo, r.Tarih, r.Durum.ToString(), r.IadeMi, r.ManuelMi, r.Doviz, r.Kur,
-            r.CariId, F5Ortak.CariAdi(names, r.CariId), r.Aciklama, r.Miktar, r.BirimNetFiyat, r.KdvOrani,
+            r.CariId, F5Shared.CustomerName(names, r.CariId), r.Aciklama, r.Miktar, r.BirimNetFiyat, r.KdvOrani,
             r.SatirNet, r.SatirKdv, r.SatirToplam, r.IsaretliToplamTl, r.RentalId, r.SozlesmeNo, r.Plaka,
             r.CikisOfisi)).ToList();
-        return TypedResults.Ok(F5Ortak.Sayfala(list, LineSort, sayfa, boyut, sirala));
+        return TypedResults.Ok(F5Shared.Paginate(list, LineSort, sayfa, boyut, sirala));
     }
 
     /// <summary>Fatura → şube (kirası üzerinden). Kira: <c>RentalId</c> ?? fark faturasının <c>KaynakKiraId</c>;

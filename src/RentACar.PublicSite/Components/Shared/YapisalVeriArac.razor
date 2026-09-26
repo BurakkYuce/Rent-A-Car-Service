@@ -36,22 +36,22 @@
     {
         if (Detay is null) { _json = null; return; }
 
-        var kok = string.IsNullOrWhiteSpace(KanonikKok) ? null : KanonikKok.TrimEnd('/');
+        var root = string.IsNullOrWhiteSpace(KanonikKok) ? null : KanonikKok.TrimEnd('/');
 
-        var dugum = new Dictionary<string, object?>
+        var node = new Dictionary<string, object?>
         {
             ["@context"] = "https://schema.org",
             ["@type"] = "Car",
             ["name"] = Detay.Baslik,
-            ["url"] = kok is null ? null : $"{kok}/araclar/{Detay.Slug}",
+            ["url"] = root is null ? null : $"{root}/araclar/{Detay.Slug}",
             // Kapak görseli MUTLAK adres olmalı (arama motoru göreli yolu çözemez).
-            ["image"] = kok is null || Detay.PhotoIds.Count == 0
+            ["image"] = root is null || Detay.PhotoIds.Count == 0
                 ? null
-                : $"{kok}/foto/{Detay.PhotoIds[0]}",
+                : $"{root}/foto/{Detay.PhotoIds[0]}",
             ["offers"] = new Dictionary<string, object?>
             {
                 ["@type"] = "Offer",
-                ["url"] = kok is null ? null : $"{kok}/araclar/{Detay.Slug}",
+                ["url"] = root is null ? null : $"{root}/araclar/{Detay.Slug}",
                 ["priceCurrency"] = "TRY",
                 ["priceSpecification"] = new Dictionary<string, object?>
                 {
@@ -64,6 +64,6 @@
             },
         };
 
-        _json = JsonSerializer.Serialize(dugum, Opt);
+        _json = JsonSerializer.Serialize(node, Opt);
     }
 }

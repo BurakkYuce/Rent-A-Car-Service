@@ -27,9 +27,9 @@ public static class PaymentTypeEndpoints
         return app;
     }
 
-    private static async Task<IResult> Run(Func<Task> action, string mesaj)
+    private static async Task<IResult> Run(Func<Task> action, string message)
     {
-        try { await action(); return Sonuc.Tamam("/odeme-tipleri", mesaj); }
+        try { await action(); return Result.Ok("/odeme-tipleri", message); }
         catch (ValidationException ex) { return Results.Redirect($"/odeme-tipleri?hata={Uri.EscapeDataString(ex.Message)}"); }
     }
 }

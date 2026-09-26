@@ -65,8 +65,8 @@ public static class MasterDefinitions
     /// Kod is also checked by the service (same message); Ad is not, so without this a 129-char name is a 22001.</summary>
     public static void Limits(DefinitionRequest r)
     {
-        Sinirlar.Metin(r.Kod, 32, "kod", "Kod");
-        Sinirlar.Metin(r.Ad, 128, "ad", "Ad");
+        RentalLimits.Text(r.Kod, 32, "kod", "Kod");
+        RentalLimits.Text(r.Ad, 128, "ad", "Ad");
     }
 
     private static TService S<T, TService>(IServiceProvider sp) where T : class, IMasterDefinition, new() where TService : MasterDefinitionService<T>

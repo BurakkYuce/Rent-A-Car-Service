@@ -23,21 +23,21 @@ public sealed class ApiModulesTests(PostgresFixture fx)
         using var api = new ApiFactory(fx.AppConnectionString);
         var c = await api.LoginClientAsync(code, "umit", "p");
 
-        var karlilik = await c.GetAsync("/api/v1/reports/karlilik");
-        Assert.Equal(HttpStatusCode.OK, karlilik.StatusCode);
-        Assert.True((await karlilik.Content.ReadFromJsonAsync<JsonElement>()).TryGetProperty("toplamGelir", out _));
+        var profitability = await c.GetAsync("/api/v1/reports/karlilik");
+        Assert.Equal(HttpStatusCode.OK, profitability.StatusCode);
+        Assert.True((await profitability.Content.ReadFromJsonAsync<JsonElement>()).TryGetProperty("toplamGelir", out _));
 
         var legal = await c.GetAsync("/api/v1/legal");
         Assert.Equal(HttpStatusCode.OK, legal.StatusCode);
         Assert.Equal(JsonValueKind.Array, (await legal.Content.ReadFromJsonAsync<JsonElement>()).ValueKind);
 
-        var donem = await c.GetAsync("/api/v1/donem-kapanis");
-        Assert.Equal(HttpStatusCode.OK, donem.StatusCode);
-        Assert.True((await donem.Content.ReadFromJsonAsync<JsonElement>()).TryGetProperty("kapanisTarihi", out _));
+        var period = await c.GetAsync("/api/v1/donem-kapanis");
+        Assert.Equal(HttpStatusCode.OK, period.StatusCode);
+        Assert.True((await period.Content.ReadFromJsonAsync<JsonElement>()).TryGetProperty("kapanisTarihi", out _));
 
-        var personel = await c.GetAsync("/api/v1/personel");
-        Assert.Equal(HttpStatusCode.OK, personel.StatusCode);
-        var pBody = await personel.Content.ReadAsStringAsync();
+        var staff = await c.GetAsync("/api/v1/personel");
+        Assert.Equal(HttpStatusCode.OK, staff.StatusCode);
+        var pBody = await staff.Content.ReadAsStringAsync();
         Assert.DoesNotContain("tcKimlik", pBody, StringComparison.OrdinalIgnoreCase); // PII sızmaz
         Assert.DoesNotContain("maas", pBody, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("Enc", pBody, StringComparison.Ordinal);

@@ -31,7 +31,7 @@ internal static partial class RegulationApi
     {
         S.Text(r.EvrakNo, 64, "evrakNo"); S.Text(r.IslemYapan, 128, "islemYapan"); S.Text(r.KasaKodu, 64, "kasaKodu");
         S.Text(r.HesapNo, 64, "hesapNo"); S.Text(r.Aciklama, 512, "aciklama");
-        if (r.BeklenenKalan is { } bk) AracFinansOrtak.EnsureMaxScale(bk, 4, "beklenenKalan");
+        if (r.BeklenenKalan is { } bk) VehicleFinanceShared.EnsureMaxScale(bk, 4, "beklenenKalan");
     }
 
     private static RegulasyonOdemeInput PaymentInput(InstallmentPaymentRequest r, Guid key) => new()
@@ -53,7 +53,7 @@ internal static partial class RegulationApi
         Guid id, InstallmentPaymentRequest r, HttpContext http, RegulationService reg, AccountResolver accounts,
         IDbContextFactory<AppDbContext> dbf, ICurrentUser user, CancellationToken ct)
     {
-        var key = IdempotencyBasligi.ZorunluAnahtar(http);
+        var key = IdempotencyHeader.RequiredKey(http);
         if (await ScopedMtvAsync(id, dbf, user, ct) is not { } m) return S.NotFound("MTV kaydı bulunamadı.");
         var account = S.CashAccount(r.Hesap);
         var date = S.Date(r.OdemeTarihi, "odemeTarihi");
@@ -79,7 +79,7 @@ internal static partial class RegulationApi
         Guid id, InstallmentPaymentRequest r, HttpContext http, RegulationService reg, AccountResolver accounts,
         IDbContextFactory<AppDbContext> dbf, ICurrentUser user, CancellationToken ct)
     {
-        var key = IdempotencyBasligi.ZorunluAnahtar(http);
+        var key = IdempotencyHeader.RequiredKey(http);
         if (await ScopedInspectionAsync(id, dbf, user, ct) is not { } m) return S.NotFound("Muayene kaydı bulunamadı.");
         var account = S.CashAccount(r.Hesap);
         var date = S.Date(r.OdemeTarihi, "odemeTarihi");
@@ -114,19 +114,19 @@ internal static partial class RegulationApi
         var mtv = await db.MtvOdemeleri.AsNoTracking().FirstOrDefaultAsync(x => x.IslemAnahtari == key, ct);
         var ins = mtv is null ? await db.MuayeneOdemeleri.AsNoTracking().FirstOrDefaultAsync(x => x.IslemAnahtari == key, ct) : null;
         if (mtv is null && ins is null) return;
-        var (pid, owner, sira, amount, fine, after, acc, when, source) = mtv is not null
+        var (pid, owner, order, amount, fine, after, acc, when, source) = mtv is not null
             ? (mtv.Id, mtv.MtvId, mtv.Sira, mtv.Tutar, 0m, mtv.KalanSonrasi, mtv.Hesap, mtv.Tarih, "MtvOdeme")
             : (ins!.Id, ins.InspectionId, ins.Sira, ins.Tutar, ins.Ceza, ins.KalanSonrasi, ins.Hesap, ins.Tarih, "MuayeneOdeme");
-        if (owner != recordId) throw new DuplicateOperationException(AnahtarBaskaIslemde);
+        if (owner != recordId) throw new DuplicateOperationException(KeyInOtherOperation);
         var cashRef = await db.AccountLedgerEntries.AsNoTracking()
             .Where(e => e.SourceType == source && e.SourceId == pid && e.Direction == LedgerDirection.Credit)
             .Select(e => e.AccountRef).FirstOrDefaultAsync(ct);
         var wantRef = r.HesapId is { } h && h != Guid.Empty ? h : (Guid?)null;
         var same = (r.Tutar is { } t ? amount == t : after == 0m) && fine == (r.Ceza ?? 0m) && acc == account
-                   && cashRef == wantRef && AracFinansOrtak.AyniAn(when, date);
-        var belge = $"{label} #{sira}";
-        throw new DuplicateOperationException(string.Format(S.Tr, same ? PaymentAlreadySaved : OtherPaymentSaved, belge, S.Money(amount), "TRY"),
-            new MevcutIslem(pid, belge, amount, "TRY", same));
+                   && cashRef == wantRef && VehicleFinanceShared.SameInstant(when, date);
+        var document = $"{label} #{order}";
+        throw new DuplicateOperationException(string.Format(S.Tr, same ? PaymentAlreadySaved : OtherPaymentSaved, document, S.Money(amount), "TRY"),
+            new MevcutIslem(pid, document, amount, "TRY", same));
     }
 
     // ------------------------------------------------------------------ sigorta (yapısal: poliçe başına tek ödeme)
@@ -139,13 +139,13 @@ internal static partial class RegulationApi
         var account = S.CashAccount(r.Hesap);
         if (p.Odendi) throw await PolicyPaidAsync(dbf, p, r, account, ct); // (1) ÖNCE mevcut ödeme
         S.RecordAmount(r.ZeyilEkPrim, "zeyilEkPrim");
-        var currency = AracFinansOrtak.Doviz(p.Currency, "kur");
-        if (r.Kur is { } k) AracFinansOrtak.Kur(k, currency);
+        var currency = VehicleFinanceShared.Currency(p.Currency, "kur");
+        if (r.Kur is { } k) VehicleFinanceShared.Setup(k, currency);
         var total = p.Prim + (r.ZeyilEkPrim ?? 0m);
         if (total <= 0m) throw new ValidationException("Sigorta ödeme tutarı pozitif olmalıdır.", "zeyilEkPrim");
         decimal rate = 1m;
         await Fielded("kur", async () => rate = await rates.ResolveAsync(currency, r.Kur, DateTimeOffset.UtcNow, ct));
-        if (total * rate >= AracFinansOrtak.TutarUstSiniri) // F8.1a M1: base limit on the RESOLVED rate too
+        if (total * rate >= VehicleFinanceShared.AmountUpperLimit) // F8.1a M1: base limit on the RESOLVED rate too
             throw new ValidationException("Ödeme tutarı × kur izin verilen büyüklüğü aşıyor.", currency == "TRY" ? "zeyilEkPrim" : "kur");
         await Fielded("hesapId", () => accounts.ResolveAsync(r.HesapId, account, ct, currency));
         try
@@ -170,9 +170,9 @@ internal static partial class RegulationApi
         var same = trace is not null && p.ZeyilPrim == (r.ZeyilEkPrim ?? 0m) && trace.Hesap == account.ToString()
                    && trace.HesapId == wantRef;
         var total = p.Prim + p.ZeyilPrim;
-        var belge = p.PoliceNo ?? p.Tip.ToString();
+        var document = p.PoliceNo ?? p.Tip.ToString();
         return new DuplicateOperationException(
-            string.Format(S.Tr, same ? PaymentAlreadySaved : OtherPaymentSaved, belge, S.Money(total), p.Currency),
-            new MevcutIslem(p.Id, belge, total, p.Currency, same));
+            string.Format(S.Tr, same ? PaymentAlreadySaved : OtherPaymentSaved, document, S.Money(total), p.Currency),
+            new MevcutIslem(p.Id, document, total, p.Currency, same));
     }
 }

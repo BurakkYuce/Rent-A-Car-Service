@@ -19,7 +19,7 @@ public sealed partial class UiFinanceDocumentTests
 
     private async Task<Session> LoginAsync(Env e, string userName, string label)
     {
-        var c = fx.Web.Istemci();
+        var c = fx.Web.Client();
         var before = CookieValue(await c.GetAsync(V1 + "/oturum/xsrf"), "XSRF-TOKEN")!;
         var req = new HttpRequestMessage(HttpMethod.Post, V1 + "/oturum/giris")
         {

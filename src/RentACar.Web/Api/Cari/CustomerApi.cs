@@ -21,7 +21,7 @@ namespace RentACar.Web.Api.Cari;
 /// kuralları: izin, KVKK görünümü, sınırlar, sunucu tarafı sayfalama/sıralama, iyimser eşzamanlılık.
 /// <list type="bullet">
 /// <item><b>KVKK:</b> TC hiçbir yanıtta dönmez (liste, kart, detay, hata). Ehliyet/pasaport maskeli. <c>Anonim*</c>
-/// bayrakları <see cref="MusteriGorunumu"/> gruplarını gizler. Kısmi TC araması YOK (yalnız 11 hane tam eşleşme,
+/// bayrakları <see cref="CustomerView"/> gruplarını gizler. Kısmi TC araması YOK (yalnız 11 hane tam eşleşme,
 /// blind-index).</item>
 /// <item><b>Okuma</b>: OperationsWrite VEYA FinanceWrite VEYA ViewReports (Blazor sayfaları yalnız <c>[Authorize]</c>).
 /// Cari firma geneli master kayıttır (şube kolonu yok); detaydaki KİRALAR şube kapsamına süzülür.</item>
@@ -38,22 +38,22 @@ public static partial class CustomerApi
         var g = v1.MapGroup("/cariler").WithTags("Cari");
 
         var read = g.MapGroup("").RequireAnyPermission(Permission.OperationsWrite, Permission.FinanceWrite, Permission.ViewReports);
-        read.MapGet("", List).AlanlariEsle(F5Ortak.SiralamaKurallari);
+        read.MapGet("", List).MapFields(F5Shared.SortRules);
         read.MapGet("/{id:guid}", Card);
         read.MapGet("/{id:guid}/detay", Detail);
         read.MapGet("/secim/il", async (string? q, int? limit, IDbContextFactory<AppDbContext> dbf, CancellationToken ct)
-            => Arac.AracApi.Oneri(q, limit, [], await AddressValuesAsync(dbf, c => c.Il, ct)));
+            => Arac.VehicleApi.Suggestion(q, limit, [], await AddressValuesAsync(dbf, c => c.Il, ct)));
         read.MapGet("/secim/ilce", async (string? q, int? limit, IDbContextFactory<AppDbContext> dbf, CancellationToken ct)
-            => Arac.AracApi.Oneri(q, limit, [], await AddressValuesAsync(dbf, c => c.Ilce, ct)));
+            => Arac.VehicleApi.Suggestion(q, limit, [], await AddressValuesAsync(dbf, c => c.Ilce, ct)));
 
         var write = g.MapGroup("").RequirePermission(Permission.OperationsWrite);
-        write.MapPost("", Create).AlanlariEsle(CustomerInputMapper.FieldRules);
-        write.MapPut("/{id:guid}", Update).AlanlariEsle(CustomerInputMapper.FieldRules);
+        write.MapPost("", Create).MapFields(CustomerInputMapper.FieldRules);
+        write.MapPut("/{id:guid}", Update).MapFields(CustomerInputMapper.FieldRules);
         g.MapDelete("/{id:guid}", Delete).RequirePermission(Permission.OperationsDelete);
         return g;
     }
 
-    private static ProblemHttpResult NotFound() => F5Ortak.Bulunamadi("Cari bulunamadı.");
+    private static ProblemHttpResult NotFound() => F5Shared.NotFound("Cari bulunamadı.");
 
     // ================================================================== liste
 
@@ -90,11 +90,11 @@ public static partial class CustomerApi
         [AsParameters] CustomerListFilter f, CustomerService customers, int? sayfa, int? boyut, string? sirala, CancellationToken ct)
     {
         var request = new ListeIstegi(Math.Min(sayfa ?? 1, MaxPage), boyut ?? 50, sirala);
-        var q = F5Ortak.Nz(f.Q);
+        var q = F5Shared.Nz(f.Q);
         if (q is { Length: > 100 }) throw new ValidationException("Arama metni en fazla 100 karakter olabilir.", "q");
         var filter = new CustomerFilter
         {
-            Query = q, Tip = F5Ortak.EnumAdi<CustomerType>(f.Tip, "tip"), IysIzinli = f.IysIzinli, Uyari = f.Uyari,
+            Query = q, Tip = F5Shared.EnumAdi<CustomerType>(f.Tip, "tip"), IysIzinli = f.IysIzinli, Uyari = f.Uyari,
             KaraListe = f.KaraListe, Pasif = f.Pasif, AracVerilmez = f.AracVerilmez,
             Page = request.Sayfa, PageSize = request.Boyut,
         };
@@ -108,7 +108,7 @@ public static partial class CustomerApi
         return TypedResults.Ok(new Sayfa<CustomerListRow>(rows, result.Total, request.Sayfa, request.Boyut));
     }
 
-    /// <summary>Satır: TC YOK; görünen ad/telefon/e-posta/adres <see cref="MusteriGorunumu"/> kuralıyla.</summary>
+    /// <summary>Satır: TC YOK; görünen ad/telefon/e-posta/adres <see cref="CustomerView"/> kuralıyla.</summary>
     private static CustomerListRow Row(CustomerRow r)
     {
         var view = new Customer
@@ -116,10 +116,10 @@ public static partial class CustomerApi
             Tip = r.Tip, CepTel = r.CepTel, Email = r.Email, AnonimAd = r.AnonimAd, AnonimTelefon = r.AnonimTelefon,
             AnonimMail = r.AnonimMail,
         };
-        var name = r.AnonimAd ? MusteriGorunumu.AnonimAdEtiketi : r.DisplayName;
+        var name = r.AnonimAd ? CustomerView.AnonymousNameLabel : r.DisplayName;
         return new CustomerListRow(
             r.Id, r.Tip.ToString(), name, r.AnonimAd, CustomerInputMapper.TaxNumberHidden(r.Tip, r.VergiNo) ? null : r.VergiNo,
-            MusteriGorunumu.Telefon(view), r.AnonimTelefon ? null : r.Gsm2, MusteriGorunumu.Eposta(view),
+            CustomerView.Phone(view), r.AnonimTelefon ? null : r.Gsm2, CustomerView.Email(view),
             r.AnonimAdres ? null : r.Il, r.AnonimAdres ? null : r.Ilce, r.Kaynak, r.MusteriTemsilcisi, r.EntegrasyonKodu,
             r.OzelKod, r.Sinif, r.Ulke, r.VadeGun, r.KiraAdet, r.Ciro, r.SonKira, r.KaraListe, r.Pasif, r.Uyari,
             r.UyariNedeni, r.IysIzinli, r.AracVerilmez);
@@ -152,7 +152,7 @@ public static partial class CustomerApi
         var finance = EffectivePermission.Has(user, Permission.FinanceWrite) || EffectivePermission.Has(user, Permission.ViewReports);
         var c = d.Customer;
         return TypedResults.Ok(new CustomerDetailView(
-            MusteriGorunumu.Ozet(c), c.KaraListe, c.Pasif, c.AracVerilmez, rentals,
+            CustomerView.Summary(c), c.KaraListe, c.Pasif, c.AracVerilmez, rentals,
             finance ? d.Bakiye : null,
             finance
                 ? d.RecentLedger.Select(e => new CustomerLedgerLine(e.EntryDateUtc, e.SourceType, e.Description,

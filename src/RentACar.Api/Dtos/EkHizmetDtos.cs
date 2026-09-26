@@ -11,7 +11,7 @@ public sealed record EkHizmetTanimResponse(
         t.Id, t.Kod, t.Ad, t.BirimUcret, t.KdvOrani, t.Aktif, t.CreatedAtUtc, t.UpdatedAtUtc);
 }
 
-public sealed class EkHizmetTanimRequest
+public sealed class AddOnDefinitionRequest
 {
     public string Kod { get; set; } = string.Empty;
     public string Ad { get; set; } = string.Empty;

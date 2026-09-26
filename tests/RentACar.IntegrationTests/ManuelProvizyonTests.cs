@@ -17,15 +17,15 @@ namespace RentACar.IntegrationTests;
 [Collection("postgres")]
 public sealed class ManuelProvizyonTests(PostgresFixture fx)
 {
-    private static readonly DateTimeOffset Bas = new DateTimeOffset(DateTime.UtcNow.Date, TimeSpan.Zero).AddDays(3);
+    private static readonly DateTimeOffset Start = new DateTimeOffset(DateTime.UtcNow.Date, TimeSpan.Zero).AddDays(3);
 
-    private static async Task<Guid> KiraAsync(IServiceProvider sp, string plaka, decimal? provizyon)
+    private static async Task<Guid> RentalAsync(IServiceProvider sp, string plate, decimal? preAuth)
     {
-        var v = await sp.GetRequiredService<VehicleService>().CreateAsync(new VehicleInput { Plaka = plaka });
+        var v = await sp.GetRequiredService<VehicleService>().CreateAsync(new VehicleInput { Plaka = plate });
         var m = await sp.GetRequiredService<CustomerService>().CreateAsync(new CustomerInput
         { Tip = CustomerType.Bireysel, Ad = "Prov", Soyad = "M" });
         return await sp.GetRequiredService<RentalService>().CreateDirectAsync(new BookingInput
-        { MusteriId = m, VehicleId = v, BasTar = Bas, BitTar = Bas.AddDays(3), GunlukUcret = 100m, Provizyon = provizyon });
+        { MusteriId = m, VehicleId = v, BasTar = Start, BitTar = Start.AddDays(3), GunlukUcret = 100m, Provizyon = preAuth });
     }
 
     [Fact]
@@ -35,7 +35,7 @@ public sealed class ManuelProvizyonTests(PostgresFixture fx)
         using var scope = host.ScopeFor(Guid.NewGuid());
         var sp = scope.ServiceProvider;
         var rentals = sp.GetRequiredService<RentalService>();
-        var id = await KiraAsync(sp, "34 PV 01", provizyon: 2000m);
+        var id = await RentalAsync(sp, "34 PV 01", preAuth: 2000m);
 
         // Yok → Kapat: RED (yalnız Alındı kapatılabilir).
         await Assert.ThrowsAsync<ValidationException>(() => rentals.ClosePreAuthAsync(id));
@@ -72,12 +72,12 @@ public sealed class ManuelProvizyonTests(PostgresFixture fx)
         var rentals = sp.GetRequiredService<RentalService>();
 
         // Provizyon tutarı girilmemiş kirada alma reddi (neyin bloke edildiği belli olmalı).
-        var tutarsiz = await KiraAsync(sp, "34 PV 02", provizyon: null);
-        var ex = await Assert.ThrowsAsync<ValidationException>(() => rentals.TakePreAuthAsync(tutarsiz));
+        var inconsistent = await RentalAsync(sp, "34 PV 02", preAuth: null);
+        var ex = await Assert.ThrowsAsync<ValidationException>(() => rentals.TakePreAuthAsync(inconsistent));
         Assert.Contains("provizyon", ex.Message);
 
         // Alındı → İadeEdildi: kapama tutarı 0 (çekim yok — serbest bırakma).
-        var id = await KiraAsync(sp, "34 PV 03", provizyon: 2000m);
+        var id = await RentalAsync(sp, "34 PV 03", preAuth: 2000m);
         await rentals.TakePreAuthAsync(id);
         await rentals.ClosePreAuthAsync(id, refund: true);
         var c = (await rentals.GetAsync(id))!;
@@ -85,7 +85,7 @@ public sealed class ManuelProvizyonTests(PostgresFixture fx)
         Assert.Equal(0m, c.ProvizyonKapamaTutar);
 
         // Negatif kapama tutarı red; kapatılmışta tekrar iade red.
-        var id2 = await KiraAsync(sp, "34 PV 04", provizyon: 500m);
+        var id2 = await RentalAsync(sp, "34 PV 04", preAuth: 500m);
         await rentals.TakePreAuthAsync(id2);
         await Assert.ThrowsAsync<ValidationException>(() => rentals.ClosePreAuthAsync(id2, closingAmount: -1m));
         await rentals.ClosePreAuthAsync(id2);           // tutar boş → bloke tutarın tamamı (500)
@@ -100,7 +100,7 @@ public sealed class ManuelProvizyonTests(PostgresFixture fx)
         using var scope = host.ScopeFor(Guid.NewGuid());
         var sp = scope.ServiceProvider;
         var rentals = sp.GetRequiredService<RentalService>();
-        var id = await KiraAsync(sp, "34 PV 05", provizyon: 2000m);
+        var id = await RentalAsync(sp, "34 PV 05", preAuth: 2000m);
         await rentals.TakePreAuthAsync(id);
 
         // Mega-form güncellemesi (RentalUpdateInput — provizyon-durum alanları TİPTE YOK) durumu

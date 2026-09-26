@@ -24,10 +24,10 @@ namespace RentACar.IntegrationTests;
 [Collection("postgres")]
 public sealed class IzinInceltmeTests(PostgresFixture fx)
 {
-    private static readonly DateTimeOffset Bas = DateTimeOffset.UtcNow.AddDays(3);
+    private static readonly DateTimeOffset Start = DateTimeOffset.UtcNow.AddDays(3);
 
-    private static BookingInput Rez(Guid vehicle, Guid customer)
-        => new() { MusteriId = customer, VehicleId = vehicle, BasTar = Bas, BitTar = Bas.AddDays(2), GunlukUcret = 100m };
+    private static BookingInput Reservation(Guid vehicle, Guid customer)
+        => new() { MusteriId = customer, VehicleId = vehicle, BasTar = Start, BitTar = Start.AddDays(2), GunlukUcret = 100m };
 
     // ---------------------------------------------------------------- OperationsDelete
 
@@ -38,15 +38,15 @@ public sealed class IzinInceltmeTests(PostgresFixture fx)
         var tenant = Guid.NewGuid();
 
         // Operatör kendi açtığı rezervasyonu bile iptal edemez (OperationsWrite yetmez).
-        Guid rezId;
-        var arac = await TestArac.YeniAsync(host, tenant); // servis müşteri/araç varlığını doğruluyor
-        var cari = await TestCari.YeniAsync(host, tenant);
+        Guid resId;
+        var vehicle = await TestVehicle.NewAsync(host, tenant); // servis müşteri/araç varlığını doğruluyor
+        var account = await TestCustomer.NewAsync(host, tenant);
         using (var op = host.ScopeFor(tenant, Guid.NewGuid(), "op", UserRole.Operator))
         {
             var svc = op.ServiceProvider.GetRequiredService<ReservationService>();
-            rezId = await svc.CreateAsync(Rez(arac, cari));
+            resId = await svc.CreateAsync(Reservation(vehicle, account));
 
-            var ex = await Assert.ThrowsAsync<NoPermissionException>(() => svc.CancelAsync(rezId));
+            var ex = await Assert.ThrowsAsync<NoPermissionException>(() => svc.CancelAsync(resId));
             Assert.Contains("OperationsDelete", ex.Message);
         }
 
@@ -54,8 +54,8 @@ public sealed class IzinInceltmeTests(PostgresFixture fx)
         using (var yon = host.ScopeFor(tenant, Guid.NewGuid(), "yon", UserRole.Yonetici))
         {
             var svc = yon.ServiceProvider.GetRequiredService<ReservationService>();
-            Assert.True(await svc.CancelAsync(rezId));
-            Assert.Equal(ReservationStatus.Iptal, (await svc.GetAsync(rezId))!.Durum);
+            Assert.True(await svc.CancelAsync(resId));
+            Assert.Equal(ReservationStatus.Iptal, (await svc.GetAsync(resId))!.Durum);
         }
     }
 
@@ -96,14 +96,14 @@ public sealed class IzinInceltmeTests(PostgresFixture fx)
         var tenant = Guid.NewGuid();
 
         // Muhasebe tahsilatı girer ve ters kaydını atabilir (FinanceReverse matristen gelir).
-        Guid islemId;
-        var cari = await TestCari.YeniAsync(host, tenant); // Muhasebe cari açamaz (OperationsWrite yok)
-        using (var muh = host.ScopeFor(tenant, Guid.NewGuid(), "muh", UserRole.Muhasebe))
+        Guid transactionId;
+        var account = await TestCustomer.NewAsync(host, tenant); // Muhasebe cari açamaz (OperationsWrite yok)
+        using (var acct = host.ScopeFor(tenant, Guid.NewGuid(), "muh", UserRole.Muhasebe))
         {
-            var cash = muh.ServiceProvider.GetRequiredService<CashService>();
-            islemId = await cash.CollectAsync(new CashInput { CariId = cari, Tutar = 250m });
-            var tersId = await cash.ReverseAsync(islemId);
-            Assert.NotEqual(Guid.Empty, tersId);
+            var cash = acct.ServiceProvider.GetRequiredService<CashService>();
+            transactionId = await cash.CollectAsync(new CashInput { CariId = account, Tutar = 250m });
+            var reverseId = await cash.ReverseAsync(transactionId);
+            Assert.NotEqual(Guid.Empty, reverseId);
         }
 
         // Operatör ters kayıt atamaz — FinanceWrite'ı zaten yok ama hata FinanceReverse'i söylemeli
@@ -111,7 +111,7 @@ public sealed class IzinInceltmeTests(PostgresFixture fx)
         using (var op = host.ScopeFor(tenant, Guid.NewGuid(), "op", UserRole.Operator))
         {
             var cash = op.ServiceProvider.GetRequiredService<CashService>();
-            var ex = await Assert.ThrowsAsync<NoPermissionException>(() => cash.ReverseAsync(islemId));
+            var ex = await Assert.ThrowsAsync<NoPermissionException>(() => cash.ReverseAsync(transactionId));
             Assert.Contains("FinanceReverse", ex.Message);
         }
     }

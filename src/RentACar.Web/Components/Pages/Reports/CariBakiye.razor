@@ -17,11 +17,11 @@
 
 <div class="cards">
     <div class="card">
-        <div class="card-num neg">@_borcluToplam.ToString("N2")</div>
+        <div class="card-num neg">@_debtorTotal.ToString("N2")</div>
         <div class="card-label">Toplam Alacağımız ₺ (müşteri borçlu)</div>
     </div>
     <div class="card">
-        <div class="card-num pos">@_alacakliToplam.ToString("N2")</div>
+        <div class="card-num pos">@_creditorTotal.ToString("N2")</div>
         <div class="card-label">Toplam Borcumuz ₺ (tedarikçi/avans)</div>
     </div>
     <div class="card">
@@ -39,19 +39,19 @@
     <label>Özel Kod
         <select name="ozelKod">
             <option value="">— tümü —</option>
-            @foreach (var o in _ozelKodlar) { <option value="@o" selected="@(o == OzelKod)">@o</option> }
+            @foreach (var o in _customCodes) { <option value="@o" selected="@(o == OzelKod)">@o</option> }
         </select>
     </label>
     <label>Sınıf
         <select name="sinif">
             <option value="">— tümü —</option>
-            @foreach (var o in _siniflar) { <option value="@o" selected="@(o == Sinif)">@o</option> }
+            @foreach (var o in _classes) { <option value="@o" selected="@(o == Sinif)">@o</option> }
         </select>
     </label>
     <label>Döviz
         <select name="doviz">
             <option value="">— tümü —</option>
-            @foreach (var o in _dovizler) { <option value="@o" selected="@(o == Doviz)">@o</option> }
+            @foreach (var o in _currencies) { <option value="@o" selected="@(o == Doviz)">@o</option> }
         </select>
     </label>
     <label>Cari Tipi
@@ -143,11 +143,11 @@
 
     private IReadOnlyList<CariBalanceDto> _balances = [];
     private IReadOnlyList<AgingRowDto> _aging = [];
-    private decimal _borcluToplam;
-    private decimal _alacakliToplam;
-    private string[] _ozelKodlar = [];
-    private string[] _siniflar = [];
-    private string[] _dovizler = [];
+    private decimal _debtorTotal;
+    private decimal _creditorTotal;
+    private string[] _customCodes = [];
+    private string[] _classes = [];
+    private string[] _currencies = [];
 
     private bool FiltreVar => !string.IsNullOrWhiteSpace(Ara) || !string.IsNullOrWhiteSpace(OzelKod)
         || !string.IsNullOrWhiteSpace(Sinif) || !string.IsNullOrWhiteSpace(Doviz)
@@ -157,12 +157,12 @@
     private string Qs(string format)
     {
         var p = new List<string> { "format=" + format };
-        void Ekle(string ad, string? deger)
+        void Add(string name, string? value)
         {
-            if (!string.IsNullOrWhiteSpace(deger)) p.Add($"{ad}={Uri.EscapeDataString(deger)}");
+            if (!string.IsNullOrWhiteSpace(value)) p.Add($"{name}={Uri.EscapeDataString(value)}");
         }
-        Ekle("ara", Ara); Ekle("ozelKod", OzelKod); Ekle("sinif", Sinif); Ekle("doviz", Doviz);
-        Ekle("tip", Tip); Ekle("bakiye", BakiyeTuru);
+        Add("ara", Ara); Add("ozelKod", OzelKod); Add("sinif", Sinif); Add("doviz", Doviz);
+        Add("tip", Tip); Add("bakiye", BakiyeTuru);
         if (Min is { } m) p.Add("min=" + m.ToString(System.Globalization.CultureInfo.InvariantCulture));
         return string.Join("&", p);
     }
@@ -179,19 +179,19 @@
 
         // KART toplamları FİLTREDEN BAĞIMSIZ: "toplam alacağımız" firmanın geneli için bir
         // rakamdır; filtrelenmiş alt kümenin toplamı olarak göstermek yanıltıcı olur.
-        var tumu = await Reports.GetAccountBalancesAsync();
-        _borcluToplam = tumu.Where(b => b.Bakiye > 0).Sum(b => b.Bakiye);
-        _alacakliToplam = -tumu.Where(b => b.Bakiye < 0).Sum(b => b.Bakiye);
+        var all = await Reports.GetAccountBalancesAsync();
+        _debtorTotal = all.Where(b => b.Bakiye > 0).Sum(b => b.Bakiye);
+        _creditorTotal = -all.Where(b => b.Bakiye < 0).Sum(b => b.Bakiye);
 
         // Açılır liste seçenekleri TÜM carilerden (filtre uygulanmış listeden türetilseydi
         // bir seçim yapıldıktan sonra diğer seçenekler kaybolurdu).
-        _ozelKodlar = Secenek(tumu, b => b.OzelKod);
-        _siniflar = Secenek(tumu, b => b.Sinif);
-        _dovizler = Secenek(tumu, b => b.Doviz);
+        _customCodes = Option(all, b => b.OzelKod);
+        _classes = Option(all, b => b.Sinif);
+        _currencies = Option(all, b => b.Doviz);
     }
 
-    private static string[] Secenek(IEnumerable<CariBalanceDto> kaynak, Func<CariBalanceDto, string?> sec)
-        => kaynak.Select(sec).Where(s => !string.IsNullOrWhiteSpace(s)).Select(s => s!.Trim())
+    private static string[] Option(IEnumerable<CariBalanceDto> source, Func<CariBalanceDto, string?> select)
+        => source.Select(select).Where(s => !string.IsNullOrWhiteSpace(s)).Select(s => s!.Trim())
             .Distinct(StringComparer.OrdinalIgnoreCase).OrderBy(s => s).ToArray();
 
     private static string Cell(decimal v) => v == 0m ? "" : v.ToString("N2");

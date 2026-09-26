@@ -26,7 +26,7 @@ public static partial class FinanceHubApi
     private static void MapBulk(RouteGroupBuilder write)
     {
         write.MapPost("/toplu-tahsilat", PostBulkCollection)
-            .Produces<UiHata.MukerrerProblemi>(StatusCodes.Status409Conflict, "application/problem+json");
+            .Produces<UiError.MukerrerProblemi>(StatusCodes.Status409Conflict, "application/problem+json");
         write.MapPost("/toplu-gider", PostBulkExpense);
     }
 
@@ -35,8 +35,8 @@ public static partial class FinanceHubApi
     private static async Task<Ok<BulkPostingResult>> PostBulkCollection(
         BulkCollectionRequest req, HttpContext http, CashService cash, CancellationToken ct)
     {
-        var key = IdempotencyBasligi.ZorunluAnahtar(http);
-        var account = FinansApi.Hesap(req.Hesap, "hesap");
+        var key = IdempotencyHeader.RequiredKey(http);
+        var account = FinanceOpsApi.Account(req.Hesap, "hesap");
         var channel = CashKanal.TryNormalize(req.Kanal)
                       ?? throw new ValidationException($"Geçersiz kanal. İzin verilenler: {string.Join(", ", CashKanal.Hepsi)}.", "kanal");
         var lines = req.Satirlar ?? [];
@@ -47,7 +47,7 @@ public static partial class FinanceHubApi
         {
             var l = lines[i];
             if (l.CariId == Guid.Empty) throw new ValidationException("Cari seçilmelidir.", $"satirlar[{i}].cariId");
-            FinansApi.Tutar(l.Tutar, $"satirlar[{i}].tutar");
+            FinanceOpsApi.Amount(l.Tutar, $"satirlar[{i}].tutar");
             AmountScale(l.Tutar, $"satirlar[{i}].tutar");
             inputs.Add(new CashInput
             {
@@ -56,7 +56,7 @@ public static partial class FinanceHubApi
             });
         }
         var sum = inputs.Sum(x => x.Tutar);
-        if (sum >= FinansApi.TutarUstSiniri) throw new ValidationException("Toplam tutar çok büyük.", "satirlar");
+        if (sum >= FinanceOpsApi.AmountUpperLimit) throw new ValidationException("Toplam tutar çok büyük.", "satirlar");
         // Var olmayan / başka kiracının carisi: servis (BatchCollectAsync) satır alanıyla reddeder — tekil kural.
         await ThrowIfBatchRecordedAsync(key, inputs, cash, ct);
         await cash.BatchCollectAsync(inputs, key, ct);
@@ -93,9 +93,9 @@ public static partial class FinanceHubApi
         BulkExpenseRequest req, HttpContext http, ExpenseService expenses, VehicleService vehicles,
         IDbContextFactory<AppDbContext> f, CancellationToken ct)
     {
-        var key = IdempotencyBasligi.ZorunluAnahtar(http);
-        var type = F5Ortak.EnumAdi<ExpenseType>(req.Tip, "tip") ?? ExpenseType.Genel;
-        var payment = F5Ortak.EnumAdi<PaymentMethod>(req.OdemeYontemi, "odemeYontemi")
+        var key = IdempotencyHeader.RequiredKey(http);
+        var type = F5Shared.EnumAdi<ExpenseType>(req.Tip, "tip") ?? ExpenseType.Genel;
+        var payment = F5Shared.EnumAdi<PaymentMethod>(req.OdemeYontemi, "odemeYontemi")
                       ?? throw new ValidationException("Ödeme yöntemi seçilmelidir.", "odemeYontemi");
         if (req.KdvOrani is < 0m or > 1m)
             throw new ValidationException("KDV oranı 0 ile 1 arasında bir kesir olmalıdır (0,20 = %20).", "kdvOrani");
@@ -111,9 +111,9 @@ public static partial class FinanceHubApi
         for (var i = 0; i < lines.Count; i++)
         {
             var l = lines[i];
-            FinansApi.Tutar(l.NetTutar, $"satirlar[{i}].netTutar");
+            FinanceOpsApi.Amount(l.NetTutar, $"satirlar[{i}].netTutar");
             AmountScale(l.NetTutar, $"satirlar[{i}].netTutar", maxDecimals: 2); // gider kuruşa yazılır
-            FinansApi.BazSiniri(l.NetTutar, 1m + req.KdvOrani, $"satirlar[{i}].netTutar");
+            FinanceOpsApi.BaseLimit(l.NetTutar, 1m + req.KdvOrani, $"satirlar[{i}].netTutar");
             if (l.AracId is { } vid && seen.Add(vid) && await vehicles.GetAsync(vid, ct) is null) // kapsam dışı → 403
                 throw new ValidationException("Araç bulunamadı.", $"satirlar[{i}].aracId");
             inputs.Add(new ExpenseInput

@@ -115,9 +115,9 @@ public sealed class ObservabilityTests(PostgresFixture fx)
         var unset = new ConfigurationBuilder().Build();
         Assert.Equal(HealthStatus.Healthy, (await new KeyringHealthCheck(unset).CheckHealthAsync(new())).Status);
 
-        var yok = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
+        var none = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
         { ["RACAR_DP_KEYS"] = "/kesinlikle/olmayan/dizin/xyz" }).Build();
-        Assert.Equal(HealthStatus.Unhealthy, (await new KeyringHealthCheck(yok).CheckHealthAsync(new())).Status);
+        Assert.Equal(HealthStatus.Unhealthy, (await new KeyringHealthCheck(none).CheckHealthAsync(new())).Status);
 
         var tmp = Path.Combine(Path.GetTempPath(), "racar-keyring-" + Guid.NewGuid().ToString("N")[..8]);
         Directory.CreateDirectory(tmp);

@@ -28,9 +28,9 @@ public static class VehicleSegmentEndpoints
         return app;
     }
 
-    private static async Task<IResult> Run(Func<Task> action, string mesaj)
+    private static async Task<IResult> Run(Func<Task> action, string message)
     {
-        try { await action(); return Sonuc.Tamam("/segmentler", mesaj); }
+        try { await action(); return Result.Ok("/segmentler", message); }
         catch (ValidationException ex) { return Results.Redirect($"/segmentler?hata={Uri.EscapeDataString(ex.Message)}"); }
     }
 }

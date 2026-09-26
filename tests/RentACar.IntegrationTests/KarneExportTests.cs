@@ -12,7 +12,7 @@ namespace RentACar.IntegrationTests;
 /// </summary>
 public sealed class KarneExportTests
 {
-    private static AracKarneDto OrnekKarne() => new(
+    private static AracKarneDto SampleScorecard() => new(
         new AracKarneHeaderDto(Guid.NewGuid(), "34KR99", "Fiat", "Egea", "EKO", "Ekonomik", "Merkez", "Bizim",
             VehicleStatus.Musait, 12000, 1000m, new DateTimeOffset(2025, 6, 15, 0, 0, 0, TimeSpan.Zero), 800m,
             null, null, null, null),
@@ -28,35 +28,35 @@ public sealed class KarneExportTests
 
     [Fact]
     public void Karne_null_ise_null_doner() // uç 404'e çevirir
-        => Assert.Null(KarneExportKatalog.AracKarne(null));
+        => Assert.Null(ScorecardExportCatalog.VehicleScorecard(null));
 
     [Fact]
     public void Karne_kv_alanlari_ve_bolumler_elle()
     {
-        var t = KarneExportKatalog.AracKarne(OrnekKarne())!;
+        var t = ScorecardExportCatalog.VehicleScorecard(SampleScorecard())!;
         Assert.Equal("Araç Karnesi 34KR99", t.Sheet);
         Assert.Equal(new[] { "Metrik", "Değer" }, t.Headers);
 
-        object? Deger(string metrik) => Assert.Single(t.Rows, r => (string?)r[0] == metrik)[1];
-        Assert.Equal("34KR99", Deger("Plaka"));
-        Assert.Equal(500m, Deger("Gelir"));
-        Assert.Equal(350m, Deger("Net Kâr (defter)"));
-        Assert.Equal(9.68m, Deger("Doluluk %"));
-        Assert.Equal(55.56m, Deger("ADR"));
-        Assert.Equal(-183.33m, Deger("Ekonomik Kâr"));
-        Assert.Equal(1150m, Deger("TCO"));
-        Assert.Equal("31 / 3 / 3 / 25", Deger("Sahiplik / Kiralanan / Servis / Boş (gün)"));
-        Assert.Equal(350m, Deger("Başabaş (aylık)"));                    // model bölümü
-        Assert.Equal("300 / 100 / 200", Deger("2024 Gelir / Gider / Net")); // yıllık satır
-        Assert.Equal(500m, Deger("Gelir: Kira/Fatura"));                 // kırılım
-        Assert.Equal(50m, Deger("Gider: MTV"));
+        object? Value(string metric) => Assert.Single(t.Rows, r => (string?)r[0] == metric)[1];
+        Assert.Equal("34KR99", Value("Plaka"));
+        Assert.Equal(500m, Value("Gelir"));
+        Assert.Equal(350m, Value("Net Kâr (defter)"));
+        Assert.Equal(9.68m, Value("Doluluk %"));
+        Assert.Equal(55.56m, Value("ADR"));
+        Assert.Equal(-183.33m, Value("Ekonomik Kâr"));
+        Assert.Equal(1150m, Value("TCO"));
+        Assert.Equal("31 / 3 / 3 / 25", Value("Sahiplik / Kiralanan / Servis / Boş (gün)"));
+        Assert.Equal(350m, Value("Başabaş (aylık)"));                    // model bölümü
+        Assert.Equal("300 / 100 / 200", Value("2024 Gelir / Gider / Net")); // yıllık satır
+        Assert.Equal(500m, Value("Gelir: Kira/Fatura"));                 // kırılım
+        Assert.Equal(50m, Value("Gider: MTV"));
     }
 
     [Fact]
     public void Karne_modelsiz_bolum_atlanir()
     {
-        var d = OrnekKarne() with { MaliyetModel = null };
-        var t = KarneExportKatalog.AracKarne(d)!;
+        var d = SampleScorecard() with { MaliyetModel = null };
+        var t = ScorecardExportCatalog.VehicleScorecard(d)!;
         Assert.DoesNotContain(t.Rows, r => (string?)r[0] == "Başabaş (aylık)");
     }
 
@@ -73,7 +73,7 @@ public sealed class KarneExportTests
             ToplamGelir: 450m, ToplamGider: 190m, ToplamNetKar: 260m,
             AtanmamisGelir: 40m, AtanmamisGider: 40m,
             YasKohortu: []);
-        var t = KarneExportKatalog.FiloAnaliz(d);
+        var t = ScorecardExportCatalog.FleetAnalysis(d);
 
         Assert.Equal(11, t.Headers.Count);
         Assert.Equal(4, t.Rows.Count);                       // 2 satır + Atanmamış + TOPLAM
@@ -89,8 +89,8 @@ public sealed class KarneExportTests
     public void Filo_atanmamis_sifirsa_satir_yok()
     {
         var d = new FiloAnalizDto([], 0m, 0m, 0m, 0m, 0m, []);
-        var t = KarneExportKatalog.FiloAnaliz(d);
-        var satir = Assert.Single(t.Rows);                   // yalnız TOPLAM
-        Assert.Equal("TOPLAM", satir[0]);
+        var t = ScorecardExportCatalog.FleetAnalysis(d);
+        var row = Assert.Single(t.Rows);                   // yalnız TOPLAM
+        Assert.Equal("TOPLAM", row[0]);
     }
 }

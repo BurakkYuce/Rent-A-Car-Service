@@ -14,7 +14,7 @@ namespace RentACar.IntegrationTests;
 [Collection("postgres")]
 public sealed class DepozitoTests(PostgresFixture fx)
 {
-    private static async Task<Guid> Cari(IServiceProvider sp)
+    private static async Task<Guid> Account(IServiceProvider sp)
         => await sp.GetRequiredService<CustomerService>().CreateAsync(new CustomerInput { Tip = CustomerType.Bireysel, Ad = "Depozito Cari" });
 
     [Fact]
@@ -23,20 +23,20 @@ public sealed class DepozitoTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
         var sp = scope.ServiceProvider;
-        var cari = await Cari(sp);
+        var account = await Account(sp);
         var dep = sp.GetRequiredService<DepositService>();
         var cash = sp.GetRequiredService<CashService>();
 
-        await dep.GetAsync(cari, 1000m, LedgerAccountType.Kasa);
-        Assert.Equal(1000m, await dep.GetBalanceAsync(cari));   // tutulan depozito
-        Assert.Equal(0m, await cash.GetAccountBalanceAsync(cari)); // al cari'ye dokunmaz
+        await dep.GetAsync(account, 1000m, LedgerAccountType.Kasa);
+        Assert.Equal(1000m, await dep.GetBalanceAsync(account));   // tutulan depozito
+        Assert.Equal(0m, await cash.GetAccountBalanceAsync(account)); // al cari'ye dokunmaz
 
-        await dep.OffsetAsync(cari, 400m);
-        Assert.Equal(600m, await dep.GetBalanceAsync(cari));     // 1000 − 400
-        Assert.Equal(-400m, await cash.GetAccountBalanceAsync(cari)); // cari alacaklandı (borç azaldı)
+        await dep.OffsetAsync(account, 400m);
+        Assert.Equal(600m, await dep.GetBalanceAsync(account));     // 1000 − 400
+        Assert.Equal(-400m, await cash.GetAccountBalanceAsync(account)); // cari alacaklandı (borç azaldı)
 
-        await dep.RefundAsync(cari, 600m, LedgerAccountType.Kasa);
-        Assert.Equal(0m, await dep.GetBalanceAsync(cari));       // tüm depozito iade
+        await dep.RefundAsync(account, 600m, LedgerAccountType.Kasa);
+        Assert.Equal(0m, await dep.GetBalanceAsync(account));       // tüm depozito iade
     }
 
     [Fact]
@@ -45,11 +45,11 @@ public sealed class DepozitoTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
         var sp = scope.ServiceProvider;
-        var cari = await Cari(sp);
+        var account = await Account(sp);
         var dep = sp.GetRequiredService<DepositService>();
-        await dep.GetAsync(cari, 500m, LedgerAccountType.Kasa);
+        await dep.GetAsync(account, 500m, LedgerAccountType.Kasa);
         await Assert.ThrowsAsync<RentACar.Application.Common.ValidationException>(
-            () => dep.RefundAsync(cari, 600m, LedgerAccountType.Kasa)); // tutulan 500
+            () => dep.RefundAsync(account, 600m, LedgerAccountType.Kasa)); // tutulan 500
     }
 
     [Fact]
@@ -58,10 +58,10 @@ public sealed class DepozitoTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
         var sp = scope.ServiceProvider;
-        var cari = await Cari(sp);
+        var account = await Account(sp);
         await sp.GetRequiredService<PeriodLockService>().LockAsync(new DateTimeOffset(2099, 1, 1, 0, 0, 0, TimeSpan.Zero));
         await Assert.ThrowsAsync<RentACar.Application.Common.ValidationException>(
-            () => sp.GetRequiredService<DepositService>().GetAsync(cari, 100m, LedgerAccountType.Kasa));
+            () => sp.GetRequiredService<DepositService>().GetAsync(account, 100m, LedgerAccountType.Kasa));
     }
 
     // Denetim O10a — negatif/sıfır tutar ve kur guard'ları: hepsi ValidationException,
@@ -72,19 +72,19 @@ public sealed class DepozitoTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
         var sp = scope.ServiceProvider;
-        var cari = await Cari(sp);
+        var account = await Account(sp);
         var dep = sp.GetRequiredService<DepositService>();
 
         await Assert.ThrowsAsync<RentACar.Application.Common.ValidationException>(
-            () => dep.GetAsync(cari, 0m, LedgerAccountType.Kasa));            // tutar = 0
+            () => dep.GetAsync(account, 0m, LedgerAccountType.Kasa));            // tutar = 0
         await Assert.ThrowsAsync<RentACar.Application.Common.ValidationException>(
-            () => dep.GetAsync(cari, -100m, LedgerAccountType.Kasa));         // tutar < 0
+            () => dep.GetAsync(account, -100m, LedgerAccountType.Kasa));         // tutar < 0
         await Assert.ThrowsAsync<RentACar.Application.Common.ValidationException>(
-            () => dep.GetAsync(cari, 100m, LedgerAccountType.Kasa, "USD", 0m));   // kur = 0
+            () => dep.GetAsync(account, 100m, LedgerAccountType.Kasa, "USD", 0m));   // kur = 0
         await Assert.ThrowsAsync<RentACar.Application.Common.ValidationException>(
-            () => dep.GetAsync(cari, 100m, LedgerAccountType.Kasa, "USD", -35m)); // kur < 0
+            () => dep.GetAsync(account, 100m, LedgerAccountType.Kasa, "USD", -35m)); // kur < 0
 
-        Assert.Equal(0m, await dep.GetBalanceAsync(cari)); // hiçbir şey yazılmadı
+        Assert.Equal(0m, await dep.GetBalanceAsync(account)); // hiçbir şey yazılmadı
     }
 
     [Fact]
@@ -93,11 +93,11 @@ public sealed class DepozitoTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
         var sp = scope.ServiceProvider;
-        var cari = await Cari(sp);
+        var account = await Account(sp);
         var dep = sp.GetRequiredService<DepositService>();
         var key = Guid.NewGuid();
-        await dep.GetAsync(cari, 1000m, LedgerAccountType.Kasa, operationKey: key);
-        await dep.GetAsync(cari, 1000m, LedgerAccountType.Kasa, operationKey: key); // çift-submit
-        Assert.Equal(1000m, await dep.GetBalanceAsync(cari)); // çiftlenmedi
+        await dep.GetAsync(account, 1000m, LedgerAccountType.Kasa, operationKey: key);
+        await dep.GetAsync(account, 1000m, LedgerAccountType.Kasa, operationKey: key); // çift-submit
+        Assert.Equal(1000m, await dep.GetBalanceAsync(account)); // çiftlenmedi
     }
 }

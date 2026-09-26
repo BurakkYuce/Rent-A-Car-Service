@@ -25,10 +25,10 @@ internal static partial class ServiceRecordApi
         if (l.Miktar is { } q)
         {
             if (q < 0m || q >= 1_000_000m) throw new ValidationException("Miktar 0 ile 1.000.000 arasında olmalıdır.", "miktar");
-            AracFinansOrtak.EnsureMaxScale(q, 4, "miktar");
+            VehicleFinanceShared.EnsureMaxScale(q, 4, "miktar");
         }
-        if (l.KdvOran is { } k) AracFinansOrtak.EnsureMaxScale(k, 4, "kdvOran");
-        if ((l.BirimFiyat ?? 0m) * (l.Miktar ?? 1m) >= AracFinansOrtak.TutarUstSiniri)
+        if (l.KdvOran is { } k) VehicleFinanceShared.EnsureMaxScale(k, 4, "kdvOran");
+        if ((l.BirimFiyat ?? 0m) * (l.Miktar ?? 1m) >= VehicleFinanceShared.AmountUpperLimit)
             throw new ValidationException("Birim fiyat × miktar çok büyük.", "miktar");
     }
 
@@ -42,7 +42,7 @@ internal static partial class ServiceRecordApi
         Guid id, ServiceLineRequest r, HttpContext http, ServiceRecordService svc, IDbContextFactory<AppDbContext> dbf,
         ICurrentUser user, CancellationToken ct)
     {
-        var key = IdempotencyBasligi.ZorunluAnahtar(http);
+        var key = IdempotencyHeader.RequiredKey(http);
         if (await ScopedAsync(id, svc, dbf, user, ct) is null) return NotFound(); // kapsam durumdan ÖNCE
         await ExistingLineAsync(dbf, key, id, r, ct);                            // (1) ÖNCE mevcut kalem
         LineLimits(r);
@@ -85,7 +85,7 @@ internal static partial class ServiceRecordApi
     {
         if (await ScopedAsync(id, svc, dbf, user, ct) is not { } rec) return NotFound(); // kapsam durumdan ÖNCE
         if (rec.Yansitildi) throw Reflected(rec, r);                                      // (1) ÖNCE mevcut yansıtma
-        await AracFinansOrtak.CariVarAsync(dbf, r.CariId, "cariId", zorunlu: true, ct);
+        await VehicleFinanceShared.CustomerExistsAsync(dbf, r.CariId, "cariId", required: true, ct);
         try
         {
             await svc.ReflectAsync(id, r.CariId!.Value, ct: ct);

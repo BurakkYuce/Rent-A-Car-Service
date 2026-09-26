@@ -35,36 +35,36 @@ public sealed class KiraMegaFormDerinlikTests(PostgresFixture fx)
 {
     /// <summary>PG timestamptz mikrosaniye, .NET tick 100ns — round-trip eşitliği Linux CI'da
     /// düşmesin diye tarih tabanı TAM SANİYEYE hizalanır.</summary>
-    private static DateTimeOffset Taban(int gunSonra)
+    private static DateTimeOffset Base(int daysLater)
     {
-        var t = new DateTimeOffset(DateTime.SpecifyKind(DateTime.UtcNow.AddDays(gunSonra), DateTimeKind.Utc), TimeSpan.Zero);
+        var t = new DateTimeOffset(DateTime.SpecifyKind(DateTime.UtcNow.AddDays(daysLater), DateTimeKind.Utc), TimeSpan.Zero);
         return t.AddTicks(-(t.Ticks % TimeSpan.TicksPerSecond));
     }
 
-    private const decimal GunlukUcret = 100m;
+    private const decimal DailyFee = 100m;
     /// <summary>Bağımsız oracle: 3 gün × 100 = 300 (elle kurulan senaryo; motordan türetilmedi).</summary>
-    private const decimal BeklenenToplam = 300m;
+    private const decimal ExpectedTotal = 300m;
 
-    private static Task<Guid> CariAsync(IServiceScope s, string ad)
+    private static Task<Guid> CustomerAsync(IServiceScope s, string name)
         => s.ServiceProvider.GetRequiredService<CustomerService>()
-            .CreateAsync(new CustomerInput { Tip = CustomerType.Bireysel, Ad = ad, Soyad = "Test" });
+            .CreateAsync(new CustomerInput { Tip = CustomerType.Bireysel, Ad = name, Soyad = "Test" });
 
-    private static Task<Guid> AracAsync(IServiceScope s, string plaka)
+    private static Task<Guid> VehicleAsync(IServiceScope s, string plate)
         => s.ServiceProvider.GetRequiredService<VehicleService>()
-            .CreateAsync(new VehicleInput { Plaka = plaka });
+            .CreateAsync(new VehicleInput { Plaka = plate });
 
     /// <summary>3 günlük, günlük 100 TL kira açar (BookingInput üzerinden — create yolunun ta kendisi).</summary>
-    private static Task<Guid> KiraAsync(IServiceScope s, Guid cari, Guid arac, Action<BookingInput>? ek = null)
+    private static Task<Guid> RentalAsync(IServiceScope s, Guid account, Guid vehicle, Action<BookingInput>? extra = null)
     {
         var input = new BookingInput
         {
-            MusteriId = cari,
-            VehicleId = arac,
-            BasTar = Taban(0),
-            BitTar = Taban(3),
-            GunlukUcret = GunlukUcret
+            MusteriId = account,
+            VehicleId = vehicle,
+            BasTar = Base(0),
+            BitTar = Base(3),
+            GunlukUcret = DailyFee
         };
-        ek?.Invoke(input);
+        extra?.Invoke(input);
         return s.ServiceProvider.GetRequiredService<RentalService>().CreateDirectAsync(input);
     }
 
@@ -73,7 +73,7 @@ public sealed class KiraMegaFormDerinlikTests(PostgresFixture fx)
     /// whitelist input'una prefill edilir. İki kez kaydetme testinin anlamı buradan gelir —
     /// kullanıcı hiçbir alana dokunmadan Kaydet'e basmış gibi olur.
     /// </summary>
-    private static RentalUpdateInput FormDurumu(RentACar.Domain.Entities.RentalContract c) => new()
+    private static RentalUpdateInput FormState(RentACar.Domain.Entities.RentalContract c) => new()
     {
         CikisOfisi = c.CikisOfisi,
         DonusOfisi = c.DonusOfisi,
@@ -138,13 +138,13 @@ public sealed class KiraMegaFormDerinlikTests(PostgresFixture fx)
         var sp = scope.ServiceProvider;
         var rentals = sp.GetRequiredService<RentalService>();
 
-        var cari = await CariAsync(scope, "Mega");
-        var arac = await AracAsync(scope, "34 MF 01");
-        var personel = await sp.GetRequiredService<PersonnelService>()
+        var account = await CustomerAsync(scope, "Mega");
+        var vehicle = await VehicleAsync(scope, "34 MF 01");
+        var staff = await sp.GetRequiredService<PersonnelService>()
             .CreateAsync(new PersonelInput { Kod = "P1", Ad = "Teslim", Soyad = "Eden" });
 
         // CREATE yolu: ödeme şekli + misafir 2. sürücü formdan gelir.
-        var id = await KiraAsync(scope, cari, arac, i =>
+        var id = await RentalAsync(scope, account, vehicle, i =>
         {
             i.OdemeSekli = "Havale/EFT";
             i.IkinciSurucuSerbestAd = "Misafir";
@@ -162,20 +162,20 @@ public sealed class KiraMegaFormDerinlikTests(PostgresFixture fx)
         Assert.Null(c1.TeslimEdenPersonelId); // create'te yok (teslim çıkış anında atanır)
 
         // UPDATE yolu: teslim eden personel + ödeme şekli değişimi.
-        var form = FormDurumu(c1);
-        form.TeslimEdenPersonelId = personel;
+        var form = FormState(c1);
+        form.TeslimEdenPersonelId = staff;
         form.OdemeSekli = "Kredi Kartı";
         Assert.True(await rentals.UpdateOpenAsync(id, form));
 
         var c2 = (await rentals.GetAsync(id))!;
-        Assert.Equal(personel, c2.TeslimEdenPersonelId);
+        Assert.Equal(staff, c2.TeslimEdenPersonelId);
         Assert.Equal("Kredi Kartı", c2.OdemeSekli);
         Assert.Equal("Misafir", c2.IkinciSurucuSerbestAd);
         Assert.Equal("B", c2.IkinciSurucuSerbestEhliyetSinifi);
 
         // İKİ KEZ KAYDET: form değişmeden yeniden gönderilir — hiçbir alan kaymamalı
         // (prefill round-trip tuzağı: ondalık/tarih/kültür kayması burada yakalanır).
-        Assert.True(await rentals.UpdateOpenAsync(id, FormDurumu(c2)));
+        Assert.True(await rentals.UpdateOpenAsync(id, FormState(c2)));
         var c3 = (await rentals.GetAsync(id))!;
 
         Assert.Equal(c2.TeslimEdenPersonelId, c3.TeslimEdenPersonelId);
@@ -203,23 +203,23 @@ public sealed class KiraMegaFormDerinlikTests(PostgresFixture fx)
         var sp = scope.ServiceProvider;
         var rentals = sp.GetRequiredService<RentalService>();
 
-        var cari = await CariAsync(scope, "Para");
-        var arac = await AracAsync(scope, "34 MF 02");
-        var personel = await sp.GetRequiredService<PersonnelService>()
+        var account = await CustomerAsync(scope, "Para");
+        var vehicle = await VehicleAsync(scope, "34 MF 02");
+        var staff = await sp.GetRequiredService<PersonnelService>()
             .CreateAsync(new PersonelInput { Kod = "P2", Ad = "Para", Soyad = "Personel" });
 
         // 1. senaryo: yeni alanlar BOŞ — elle kurulan oracle (3 gün × 100 = 300).
-        var id = await KiraAsync(scope, cari, arac);
-        var bos = (await rentals.GetAsync(id))!;
-        Assert.Equal(3, bos.Gun);
-        Assert.Equal(BeklenenToplam, bos.Tutar);
-        Assert.Equal(BeklenenToplam, bos.GenelToplam);
-        Assert.Equal(BeklenenToplam, bos.Bakiye);
-        Assert.Equal(0m, bos.Tahsilat);
+        var id = await RentalAsync(scope, account, vehicle);
+        var empty = (await rentals.GetAsync(id))!;
+        Assert.Equal(3, empty.Gun);
+        Assert.Equal(ExpectedTotal, empty.Tutar);
+        Assert.Equal(ExpectedTotal, empty.GenelToplam);
+        Assert.Equal(ExpectedTotal, empty.Bakiye);
+        Assert.Equal(0m, empty.Tahsilat);
 
         // 2. senaryo: TÜM yeni alanlar UÇUK değerlerle dolu — toplamlar AYNI sabitte kalmalı.
-        var form = FormDurumu(bos);
-        form.TeslimEdenPersonelId = personel;
+        var form = FormState(empty);
+        form.TeslimEdenPersonelId = staff;
         form.OdemeSekli = "Ödeme Yok (Bedelsiz)";
         form.IkinciSurucuSerbestAd = "Ücretsiz";
         form.IkinciSurucuSerbestSoyad = "Misafir";
@@ -227,12 +227,12 @@ public sealed class KiraMegaFormDerinlikTests(PostgresFixture fx)
         form.IkinciSurucuSerbestEhliyetSinifi = "B1";
         Assert.True(await rentals.UpdateOpenAsync(id, form));
 
-        var dolu = (await rentals.GetAsync(id))!;
-        Assert.Equal(BeklenenToplam, dolu.Tutar);
-        Assert.Equal(BeklenenToplam, dolu.GenelToplam);
-        Assert.Equal(BeklenenToplam, dolu.Bakiye);
-        Assert.Equal(0m, dolu.Tahsilat);
-        Assert.Equal(GunlukUcret, dolu.GunlukUcret);
+        var filled = (await rentals.GetAsync(id))!;
+        Assert.Equal(ExpectedTotal, filled.Tutar);
+        Assert.Equal(ExpectedTotal, filled.GenelToplam);
+        Assert.Equal(ExpectedTotal, filled.Bakiye);
+        Assert.Equal(0m, filled.Tahsilat);
+        Assert.Equal(DailyFee, filled.GunlukUcret);
 
         // MİSAFİR 2. sürücü ek-sürücü ÜCRET SATIRI üretmez (FK'lı sürücüden bilinçli farkı):
         // ek hizmet/sistem ücreti listesi boş kalır.
@@ -249,38 +249,38 @@ public sealed class KiraMegaFormDerinlikTests(PostgresFixture fx)
         var sp = scope.ServiceProvider;
         var rentals = sp.GetRequiredService<RentalService>();
 
-        var cari = await CariAsync(scope, "Ana");
-        var ikinciCari = await CariAsync(scope, "İkinci");
-        var arac = await AracAsync(scope, "34 MF 03");
+        var account = await CustomerAsync(scope, "Ana");
+        var secondAccount = await CustomerAsync(scope, "İkinci");
+        var vehicle = await VehicleAsync(scope, "34 MF 03");
 
         // CREATE: FK + serbest metin birlikte → gürültülü red.
-        var hata = await Assert.ThrowsAsync<ValidationException>(() => KiraAsync(scope, cari, arac, i =>
+        var error = await Assert.ThrowsAsync<ValidationException>(() => RentalAsync(scope, account, vehicle, i =>
         {
-            i.IkinciSurucuId = ikinciCari;
+            i.IkinciSurucuId = secondAccount;
             i.IkinciSurucuSerbestAd = "Misafir";
         }));
-        Assert.Contains("2. sürücü", hata.Message);
+        Assert.Contains("2. sürücü", error.Message);
 
         // Yalnız FK ile açılır (kabul edilen yol).
-        var id = await KiraAsync(scope, cari, arac, i => i.IkinciSurucuId = ikinciCari);
+        var id = await RentalAsync(scope, account, vehicle, i => i.IkinciSurucuId = secondAccount);
         var c = (await rentals.GetAsync(id))!;
-        Assert.Equal(ikinciCari, c.IkinciSurucuId);
+        Assert.Equal(secondAccount, c.IkinciSurucuId);
         Assert.Null(c.IkinciSurucuSerbestAd);
 
         // UPDATE: FK dururken serbest metin doldurulursa → red (guard KODDA, formda değil).
-        var form = FormDurumu(c);
+        var form = FormState(c);
         form.IkinciSurucuSerbestAd = "Kaçak";
         await Assert.ThrowsAsync<ValidationException>(() => rentals.UpdateOpenAsync(id, form));
 
         // FK kaldırılıp serbest metne geçilebilir (geçiş yolu açık).
-        var gecis = FormDurumu(c);
-        gecis.IkinciSurucuId = null;
-        gecis.IkinciSurucuSerbestAd = "Misafir";
-        gecis.IkinciSurucuSerbestSoyad = "Sürücü";
-        Assert.True(await rentals.UpdateOpenAsync(id, gecis));
-        var son = (await rentals.GetAsync(id))!;
-        Assert.Null(son.IkinciSurucuId);
-        Assert.Equal("Misafir", son.IkinciSurucuSerbestAd);
+        var transition = FormState(c);
+        transition.IkinciSurucuId = null;
+        transition.IkinciSurucuSerbestAd = "Misafir";
+        transition.IkinciSurucuSerbestSoyad = "Sürücü";
+        Assert.True(await rentals.UpdateOpenAsync(id, transition));
+        var last = (await rentals.GetAsync(id))!;
+        Assert.Null(last.IkinciSurucuId);
+        Assert.Equal("Misafir", last.IkinciSurucuSerbestAd);
     }
 
     [Fact]
@@ -290,9 +290,9 @@ public sealed class KiraMegaFormDerinlikTests(PostgresFixture fx)
         using var scope = host.ScopeFor(Guid.NewGuid());
         var sp = scope.ServiceProvider;
 
-        var cari = await CariAsync(scope, "Belge");
-        var arac = await AracAsync(scope, "34 MF 08");
-        var id = await KiraAsync(scope, cari, arac, i =>
+        var account = await CustomerAsync(scope, "Belge");
+        var vehicle = await VehicleAsync(scope, "34 MF 08");
+        var id = await RentalAsync(scope, account, vehicle, i =>
         {
             i.IkinciSurucuSerbestAd = "Misafir";
             i.IkinciSurucuSerbestSoyad = "Sürücü";
@@ -307,8 +307,8 @@ public sealed class KiraMegaFormDerinlikTests(PostgresFixture fx)
         Assert.Null(view.IkinciEhliyetNo);
 
         // 2. sürücü hiç girilmemiş kirada satır HİÇ görünmez (boşluk basılmaz).
-        var arac2 = await AracAsync(scope, "34 MF 09"); // aynı araç+tarih çakışır → ayrı araç
-        var tek = await KiraAsync(scope, cari, arac2);
+        var vehicle2 = await VehicleAsync(scope, "34 MF 09"); // aynı araç+tarih çakışır → ayrı araç
+        var tek = await RentalAsync(scope, account, vehicle2);
         Assert.Null((await sp.GetRequiredService<ContractService>().GetAsync(tek))!.IkinciSurucuAd);
     }
 
@@ -323,30 +323,30 @@ public sealed class KiraMegaFormDerinlikTests(PostgresFixture fx)
 
         // Bağımsız oracle: şube id'leri burada ELLE kurulur; beklenen değer bu id'lerdir.
         var branches = sp.GetRequiredService<BranchService>();
-        var merkez = await branches.CreateAsync(new BranchInput { Kod = "MRK", Ad = "Merkez" });
+        var headOffice = await branches.CreateAsync(new BranchInput { Kod = "MRK", Ad = "Merkez" });
         var ankara = await branches.CreateAsync(new BranchInput { Kod = "ANK", Ad = "Ankara" });
         var locs = sp.GetRequiredService<LocationService>();
         await locs.CreateAsync(new LocationInput { Kod = "L1", Ad = "Merkez Ofis", Sube = "Merkez" });
         await locs.CreateAsync(new LocationInput { Kod = "L2", Ad = "Ankara Ofis", Sube = "Ankara" });
 
-        var cari = await CariAsync(scope, "Şube");
-        var arac = await AracAsync(scope, "34 MF 04");
+        var account = await CustomerAsync(scope, "Şube");
+        var vehicle = await VehicleAsync(scope, "34 MF 04");
         var rentals = sp.GetRequiredService<RentalService>();
 
-        var id = await KiraAsync(scope, cari, arac, i => i.CikisOfisi = "Merkez Ofis");
+        var id = await RentalAsync(scope, account, vehicle, i => i.CikisOfisi = "Merkez Ofis");
         var c1 = (await rentals.GetAsync(id))!;
-        Assert.Equal(merkez, c1.CikisSubeId); // ekrandaki "İşlem Şube" kutusunun kaynağı
+        Assert.Equal(headOffice, c1.CikisSubeId); // ekrandaki "İşlem Şube" kutusunun kaynağı
 
         // Şube YALNIZ çıkış ofisi değişince değişir (ayrı bir "şube override" alanı YOK).
-        var form = FormDurumu(c1);
+        var form = FormState(c1);
         form.CikisOfisi = "Ankara Ofis";
         Assert.True(await rentals.UpdateOpenAsync(id, form));
         Assert.Equal(ankara, (await rentals.GetAsync(id))!.CikisSubeId);
 
         // Location master'ında olmayan ofis → FK null (salt-metin davranış; kilitlenme yok).
-        var serbest = FormDurumu((await rentals.GetAsync(id))!);
-        serbest.CikisOfisi = "Depo";
-        Assert.True(await rentals.UpdateOpenAsync(id, serbest));
+        var free = FormState((await rentals.GetAsync(id))!);
+        free.CikisOfisi = "Depo";
+        Assert.True(await rentals.UpdateOpenAsync(id, free));
         Assert.Null((await rentals.GetAsync(id))!.CikisSubeId);
     }
 
@@ -358,33 +358,33 @@ public sealed class KiraMegaFormDerinlikTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         var tenant = Guid.NewGuid();
 
-        Guid cari, arac, personel, kira;
+        Guid account, vehicle, staff, rental;
         using (var admin = host.ScopeFor(tenant))
         {
-            cari = await CariAsync(admin, "Op");
-            arac = await AracAsync(admin, "34 MF 05");
-            personel = await admin.ServiceProvider.GetRequiredService<PersonnelService>()
+            account = await CustomerAsync(admin, "Op");
+            vehicle = await VehicleAsync(admin, "34 MF 05");
+            staff = await admin.ServiceProvider.GetRequiredService<PersonnelService>()
                 .CreateAsync(new PersonelInput { Kod = "P3", Ad = "Ofis", Soyad = "Görevlisi" });
-            kira = await KiraAsync(admin, cari, arac);
+            rental = await RentalAsync(admin, account, vehicle);
         }
 
         using var op = host.ScopeFor(tenant, userId: Guid.NewGuid(), userName: "operator", role: UserRole.Operator);
         var sp = op.ServiceProvider;
-        var personeller = sp.GetRequiredService<PersonnelService>();
+        var staffMembers = sp.GetRequiredService<PersonnelService>();
 
         // Mega-formun kullandığı yol: PII'siz seçim projeksiyonu — Operatör'de ÇALIŞIR.
-        var secim = await personeller.ListForSelectAsync();
-        Assert.Contains(secim, p => p.Id == personel);
+        var selection = await staffMembers.ListForSelectAsync();
+        Assert.Contains(selection, p => p.Id == staff);
 
         // Eski yol (ManageUsers'lı tam liste) Operatör'de PATLAR — dropdown asla buna bağlanmamalı.
-        await Assert.ThrowsAsync<NoPermissionException>(() => personeller.ListAsync());
+        await Assert.ThrowsAsync<NoPermissionException>(() => staffMembers.ListAsync());
 
         // Operatör teslim-eden personeli atayabilir (OperationsWrite yeter).
         var rentals = sp.GetRequiredService<RentalService>();
-        var form = FormDurumu((await rentals.GetAsync(kira))!);
-        form.TeslimEdenPersonelId = personel;
-        Assert.True(await rentals.UpdateOpenAsync(kira, form));
-        Assert.Equal(personel, (await rentals.GetAsync(kira))!.TeslimEdenPersonelId);
+        var form = FormState((await rentals.GetAsync(rental))!);
+        form.TeslimEdenPersonelId = staff;
+        Assert.True(await rentals.UpdateOpenAsync(rental, form));
+        Assert.Equal(staff, (await rentals.GetAsync(rental))!.TeslimEdenPersonelId);
     }
 
     // ------------------------------------------------------------------ yetki
@@ -395,21 +395,21 @@ public sealed class KiraMegaFormDerinlikTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         var tenant = Guid.NewGuid();
 
-        Guid kira;
-        RentACar.Domain.Entities.RentalContract mevcut;
+        Guid rental;
+        RentACar.Domain.Entities.RentalContract existing;
         using (var admin = host.ScopeFor(tenant))
         {
-            var cari = await CariAsync(admin, "Yetki");
-            var arac = await AracAsync(admin, "34 MF 06");
-            kira = await KiraAsync(admin, cari, arac);
-            mevcut = (await admin.ServiceProvider.GetRequiredService<RentalService>().GetAsync(kira))!;
+            var account = await CustomerAsync(admin, "Yetki");
+            var vehicle = await VehicleAsync(admin, "34 MF 06");
+            rental = await RentalAsync(admin, account, vehicle);
+            existing = (await admin.ServiceProvider.GetRequiredService<RentalService>().GetAsync(rental))!;
         }
 
-        using var muh = host.ScopeFor(tenant, userId: Guid.NewGuid(), userName: "muhasebe", role: UserRole.Muhasebe);
-        var form = FormDurumu(mevcut);
+        using var acct = host.ScopeFor(tenant, userId: Guid.NewGuid(), userName: "muhasebe", role: UserRole.Muhasebe);
+        var form = FormState(existing);
         form.OdemeSekli = "Nakit";
         await Assert.ThrowsAsync<NoPermissionException>(() =>
-            muh.ServiceProvider.GetRequiredService<RentalService>().UpdateOpenAsync(kira, form));
+            acct.ServiceProvider.GetRequiredService<RentalService>().UpdateOpenAsync(rental, form));
     }
 
     // ------------------------------------------------------------------ tenant izolasyonu
@@ -421,12 +421,12 @@ public sealed class KiraMegaFormDerinlikTests(PostgresFixture fx)
         var t1 = Guid.NewGuid();
         var t2 = Guid.NewGuid();
 
-        Guid kira;
+        Guid rental;
         using (var s1 = host.ScopeFor(t1))
         {
-            var cari = await CariAsync(s1, "T1");
-            var arac = await AracAsync(s1, "34 MF 07");
-            kira = await KiraAsync(s1, cari, arac, i =>
+            var account = await CustomerAsync(s1, "T1");
+            var vehicle = await VehicleAsync(s1, "34 MF 07");
+            rental = await RentalAsync(s1, account, vehicle, i =>
             {
                 i.OdemeSekli = "Nakit";
                 i.IkinciSurucuSerbestAd = "Gizli";
@@ -435,13 +435,13 @@ public sealed class KiraMegaFormDerinlikTests(PostgresFixture fx)
 
         using var s2 = host.ScopeFor(t2);
         var rentals2 = s2.ServiceProvider.GetRequiredService<RentalService>();
-        Assert.Null(await rentals2.GetAsync(kira));                     // okuma sızmaz
+        Assert.Null(await rentals2.GetAsync(rental));                     // okuma sızmaz
         Assert.Empty(await rentals2.SearchAsync(new RentalFilter()));   // listede de yok
         // Yazma da sızmaz (RLS 0 satır → "bulunamadı" davranışı).
-        Assert.False(await rentals2.UpdateOpenAsync(kira, new RentalUpdateInput { OdemeSekli = "Çek" }));
+        Assert.False(await rentals2.UpdateOpenAsync(rental, new RentalUpdateInput { OdemeSekli = "Çek" }));
 
         using var s1b = host.ScopeFor(t1);
-        var c = (await s1b.ServiceProvider.GetRequiredService<RentalService>().GetAsync(kira))!;
+        var c = (await s1b.ServiceProvider.GetRequiredService<RentalService>().GetAsync(rental))!;
         Assert.Equal("Nakit", c.OdemeSekli);        // sahibinin verisi bozulmadı
         Assert.Equal("Gizli", c.IkinciSurucuSerbestAd);
     }

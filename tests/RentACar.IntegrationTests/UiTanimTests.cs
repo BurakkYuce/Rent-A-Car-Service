@@ -37,7 +37,7 @@ public sealed partial class UiTanimTests(WebFixture fx)
     {
         var e = new Env
         {
-            TenantId = Guid.NewGuid(), Code = Random("f111a"), Password = WebFixture.RastgeleParola(),
+            TenantId = Guid.NewGuid(), Code = Random("f111a"), Password = WebFixture.RandomPassword(),
             Users = Enum.GetValues<Who>().ToDictionary(k => k, _ => Random("u")),
         };
         var opts = new DbContextOptionsBuilder<AppDbContext>().UseNpgsql(fx.Pg.OwnerConnectionString).Options;
@@ -59,7 +59,7 @@ public sealed partial class UiTanimTests(WebFixture fx)
             }
             await db.SaveChangesAsync();
         }
-        await fx.PilotYapAsync(e.TenantId, true);
+        await fx.MakePilotAsync(e.TenantId, true);
         return e;
     }
 
@@ -86,7 +86,7 @@ public sealed partial class UiTanimTests(WebFixture fx)
 
     private async Task<Session> LoginAsync(Env e, Who who)
     {
-        var c = fx.Web.Istemci();
+        var c = fx.Web.Client();
         var before = CookieValue(await c.GetAsync(V1 + "/oturum/xsrf"), "XSRF-TOKEN")!;
         var req = new HttpRequestMessage(HttpMethod.Post, V1 + "/oturum/giris")
         { Content = JsonContent.Create(new { firma = e.Code, kullanici = e.Users[who], sifre = e.Password }) };

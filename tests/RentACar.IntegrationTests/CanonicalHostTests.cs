@@ -62,12 +62,12 @@ public sealed class CanonicalHostTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         var tenantId = await SeedTenantAsync();
         var sub = $"sub-{Guid.NewGuid():N}.rentpro.com";
-        var ozel = $"marka-{Guid.NewGuid():N}.com";
+        var custom = $"marka-{Guid.NewGuid():N}.com";
         await AddDomainAsync(tenantId, sub, TenantDomainKind.Subdomain, TenantDomainStatus.Active);
-        await AddDomainAsync(tenantId, ozel, TenantDomainKind.Custom, TenantDomainStatus.Active,
+        await AddDomainAsync(tenantId, custom, TenantDomainKind.Custom, TenantDomainStatus.Active,
             DateTimeOffset.UtcNow);
 
-        Assert.Equal(ozel, await CanonicalAsync(host, tenantId)); // marka adresi kazanır
+        Assert.Equal(custom, await CanonicalAsync(host, tenantId)); // marka adresi kazanır
     }
 
     [Fact]
@@ -75,16 +75,16 @@ public sealed class CanonicalHostTests(PostgresFixture fx)
     {
         using var host = new TestHost(fx.AppConnectionString);
         var tenantId = await SeedTenantAsync();
-        var eski = $"eski-{Guid.NewGuid():N}.com";
-        var yeni = $"yeni-{Guid.NewGuid():N}.com";
+        var old = $"eski-{Guid.NewGuid():N}.com";
+        var newItem = $"yeni-{Guid.NewGuid():N}.com";
 
         // Ekleme sırası BİLEREK ters (yeni önce) — seçim ekleme sırasına DEĞİL VerifiedAtUtc'ye bağlı olmalı.
-        await AddDomainAsync(tenantId, yeni, TenantDomainKind.Custom, TenantDomainStatus.Active,
+        await AddDomainAsync(tenantId, newItem, TenantDomainKind.Custom, TenantDomainStatus.Active,
             new DateTimeOffset(2026, 6, 1, 0, 0, 0, TimeSpan.Zero));
-        await AddDomainAsync(tenantId, eski, TenantDomainKind.Custom, TenantDomainStatus.Active,
+        await AddDomainAsync(tenantId, old, TenantDomainKind.Custom, TenantDomainStatus.Active,
             new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero));
 
-        Assert.Equal(eski, await CanonicalAsync(host, tenantId));
+        Assert.Equal(old, await CanonicalAsync(host, tenantId));
     }
 
     [Fact]

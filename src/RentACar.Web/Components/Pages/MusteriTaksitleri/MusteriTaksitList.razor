@@ -23,13 +23,13 @@
     <label>Müşteri
         <select name="cariF">
             <option value="">— tümü —</option>
-            @foreach (var c in _cariler) { <option value="@c.Id" selected="@(c.Id.ToString() == CariF)">@c.DisplayName</option> }
+            @foreach (var c in _accounts) { <option value="@c.Id" selected="@(c.Id.ToString() == CariF)">@c.DisplayName</option> }
         </select>
     </label>
     <label>Araç
         <select name="aracF">
             <option value="">— tümü —</option>
-            @foreach (var a in _araclar) { <option value="@a.Id" selected="@(a.Id.ToString() == AracF)">@a.Plaka</option> }
+            @foreach (var a in _vehicles) { <option value="@a.Id" selected="@(a.Id.ToString() == AracF)">@a.Plaka</option> }
         </select>
     </label>
     <label>Durum
@@ -47,11 +47,11 @@
 
 @* Tutarlar BAZ para (Tutar × Kur) toplanır — karışık dövizli plan tek sayıda anlamlı olsun. *@
 <div class="cards">
-    <div class="card"><div class="card-num">@_ozet.Adet</div><div class="card-label">Taksit</div></div>
-    <div class="card"><div class="card-num pos">@_ozet.OdenenAdet</div><div class="card-label">Ödenen</div></div>
-    <div class="card"><div class="card-num @(_ozet.GecikenAdet > 0 ? "neg" : "")">@_ozet.GecikenAdet</div><div class="card-label">Geciken</div></div>
-    <div class="card"><div class="card-num">@_ozet.ToplamBaz.ToString("N2")</div><div class="card-label">Toplam ₺</div></div>
-    <div class="card"><div class="card-num">@_ozet.KalanBaz.ToString("N2")</div><div class="card-label">Kalan ₺</div></div>
+    <div class="card"><div class="card-num">@_summary.Adet</div><div class="card-label">Taksit</div></div>
+    <div class="card"><div class="card-num pos">@_summary.OdenenAdet</div><div class="card-label">Ödenen</div></div>
+    <div class="card"><div class="card-num @(_summary.GecikenAdet > 0 ? "neg" : "")">@_summary.GecikenAdet</div><div class="card-label">Geciken</div></div>
+    <div class="card"><div class="card-num">@_summary.ToplamBaz.ToString("N2")</div><div class="card-label">Toplam ₺</div></div>
+    <div class="card"><div class="card-num">@_summary.KalanBaz.ToString("N2")</div><div class="card-label">Kalan ₺</div></div>
 </div>
 
 <div class="table-scroll">
@@ -68,8 +68,8 @@
         {
             <tr>
                 <td class="num">@t.Sira</td>
-                <td>@(_cariAd.GetValueOrDefault(t.CariId) ?? "—")</td>
-                <td class="mono">@(t.VehicleId is Guid v ? _plaka.GetValueOrDefault(v) ?? "—" : "—")</td>
+                <td>@(_customerName.GetValueOrDefault(t.CariId) ?? "—")</td>
+                <td class="mono">@(t.VehicleId is Guid v ? _plate.GetValueOrDefault(v) ?? "—" : "—")</td>
                 <td class="@(t.Gecikti ? "neg" : null)">@t.Vade.LocalDateTime.ToString("dd.MM.yyyy")</td>
                 <td class="num">@t.TaksitTutari.ToString("N2")</td>
                 <td>@t.Currency</td>
@@ -98,7 +98,7 @@
                         @Gizli
                         <button type="submit" class="btn-secondary">@(t.Durum == InstallmentStatus.Odendi ? "Geri Al" : "Ödendi")</button>
                     </form>
-                    <a href="@Geri(t.Id)" class="link">Düzenle</a>
+                    <a href="@Back(t.Id)" class="link">Düzenle</a>
                     <form method="post" action="/musteri-taksit/delete" class="inline" data-confirm="Taksit silinsin mi?"><AntiforgeryToken />
                         <input type="hidden" name="id" value="@t.Id" />@Gizli
                         <button type="submit" class="link danger">Sil</button>
@@ -117,13 +117,13 @@
     <label>Müşteri
         <select name="cariId" required>
             <option value="">—</option>
-            @foreach (var c in _cariler) { <option value="@c.Id" selected="@(c.Id == _edit?.CariId)">@c.DisplayName</option> }
+            @foreach (var c in _accounts) { <option value="@c.Id" selected="@(c.Id == _edit?.CariId)">@c.DisplayName</option> }
         </select>
     </label>
     <label>Araç (ops.)
         <select name="vehicleId">
             <option value="">—</option>
-            @foreach (var a in _araclar) { <option value="@a.Id" selected="@(a.Id == _edit?.VehicleId)">@a.Plaka</option> }
+            @foreach (var a in _vehicles) { <option value="@a.Id" selected="@(a.Id == _edit?.VehicleId)">@a.Plaka</option> }
         </select>
     </label>
     <label>Vade<input name="vade" type="date" required value="@(_edit?.Vade.UtcDateTime.ToString("yyyy-MM-dd"))" /></label>
@@ -138,7 +138,7 @@
     <label>Ödeme Tarihi<input name="odemeTarihi" type="date" value="@(_edit?.OdemeTarihi?.UtcDateTime.ToString("yyyy-MM-dd"))" /></label>
     <label class="u-col-full">Açıklama<input name="aciklama" value="@_edit?.Aciklama" maxlength="512" /></label>
     <button type="submit">@(_edit is null ? "Ekle" : "Kaydet")</button>
-    @if (_edit is not null) { <a href="@Geri()" class="btn-secondary">İptal</a> }
+    @if (_edit is not null) { <a href="@Back()" class="btn-secondary">İptal</a> }
 </form>
 
 <h2 class="dash-h2">Taksit Planı Üret</h2>
@@ -151,13 +151,13 @@
     <label>Müşteri
         <select name="cariId" required>
             <option value="">—</option>
-            @foreach (var c in _cariler) { <option value="@c.Id">@c.DisplayName</option> }
+            @foreach (var c in _accounts) { <option value="@c.Id">@c.DisplayName</option> }
         </select>
     </label>
     <label>Araç (ops.)
         <select name="vehicleId">
             <option value="">—</option>
-            @foreach (var a in _araclar) { <option value="@a.Id">@a.Plaka</option> }
+            @foreach (var a in _vehicles) { <option value="@a.Id">@a.Plaka</option> }
         </select>
     </label>
     <label>Toplam Tutar<input name="toplamTutar" type="number" step="0.01" min="0.01" required /></label>
@@ -180,12 +180,12 @@
     [SupplyParameterFromQuery(Name = "gecikmis")] public string? Gecikmis { get; set; }
 
     private IReadOnlyList<MusteriTaksit> _list = [];
-    private TaksitOzet _ozet = new(0, 0, 0, 0m, 0m, 0m);
+    private TaksitOzet _summary = new(0, 0, 0, 0m, 0m, 0m);
     private MusteriTaksit? _edit;
-    private IReadOnlyList<Customer> _cariler = [];
-    private IReadOnlyList<Vehicle> _araclar = [];
-    private Dictionary<Guid, string> _cariAd = new();
-    private Dictionary<Guid, string> _plaka = new();
+    private IReadOnlyList<Customer> _accounts = [];
+    private IReadOnlyList<Vehicle> _vehicles = [];
+    private Dictionary<Guid, string> _customerName = new();
+    private Dictionary<Guid, string> _plate = new();
 
     private bool FiltreVar => !string.IsNullOrWhiteSpace(CariF) || !string.IsNullOrWhiteSpace(AracF)
         || !string.IsNullOrWhiteSpace(DurumF) || !string.IsNullOrWhiteSpace(Min)
@@ -204,13 +204,13 @@
         <input type="hidden" name="gecikmis" value="@Gecikmis" />
     </text>;
 
-    private string Geri(Guid? duzenle = null)
+    private string Back(Guid? edit = null)
     {
         var q = new List<string>();
-        void Ekle(string ad, string? v) { if (!string.IsNullOrWhiteSpace(v)) q.Add($"{ad}={Uri.EscapeDataString(v)}"); }
-        Ekle("cariF", CariF); Ekle("aracF", AracF); Ekle("durumF", DurumF);
-        Ekle("min", Min); Ekle("max", Max); Ekle("gecikmis", Gecikmis);
-        if (duzenle is Guid id) q.Add($"duzenle={id}");
+        void Add(string name, string? v) { if (!string.IsNullOrWhiteSpace(v)) q.Add($"{name}={Uri.EscapeDataString(v)}"); }
+        Add("cariF", CariF); Add("aracF", AracF); Add("durumF", DurumF);
+        Add("min", Min); Add("max", Max); Add("gecikmis", Gecikmis);
+        if (edit is Guid id) q.Add($"duzenle={id}");
         return "/musteri-taksit" + (q.Count > 0 ? "?" + string.Join("&", q) : "");
     }
 
@@ -226,12 +226,12 @@
             VadeMax = DateTimeOffset.TryParse(Max, out var b) ? new DateTimeOffset(b.Date, TimeSpan.Zero).AddDays(1).AddTicks(-1) : null,
             SadeceGecikmis = Gecikmis == "true" ? true : null
         });
-        _ozet = CustomerInstallmentService.Summary(_list);
+        _summary = CustomerInstallmentService.Summary(_list);
 
-        _cariler = await Cariler.ListAsync();
-        _araclar = await Araclar.ListAsync();
-        _cariAd = _cariler.ToDictionary(x => x.Id, x => x.DisplayName);
-        _plaka = _araclar.ToDictionary(x => x.Id, x => x.Plaka);
+        _accounts = await Cariler.ListAsync();
+        _vehicles = await Araclar.ListAsync();
+        _customerName = _accounts.ToDictionary(x => x.Id, x => x.DisplayName);
+        _plate = _vehicles.ToDictionary(x => x.Id, x => x.Plaka);
 
         if (Duzenle is { } id) _edit = await Taksitler.GetAsync(id);
     }

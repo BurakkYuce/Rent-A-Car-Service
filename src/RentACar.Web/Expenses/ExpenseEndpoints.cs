@@ -40,7 +40,7 @@ public static class ExpenseEndpoints
             try
             {
                 await svc.CreateAsync(input);
-                return Sonuc.Tamam("/giderler", "Kayıt eklendi.");
+                return Result.Ok("/giderler", "Kayıt eklendi.");
             }
             catch (ValidationException ex)
             {
@@ -63,7 +63,7 @@ public static class ExpenseEndpoints
                     Aciklama = FormParse.Str(f, "aciklama"),
                     IslemAnahtari = FormParse.Id(FormParse.Str(f, "islemAnahtari"))
                 });
-                return Sonuc.Tamam("/giderler", "Ödeme kaydedildi.");
+                return Result.Ok("/giderler", "Ödeme kaydedildi.");
             }
             catch (ValidationException ex)
             {

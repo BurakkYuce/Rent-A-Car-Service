@@ -32,7 +32,7 @@ public static class BafEndpoints
                 KullanimAmaci = Enum.TryParse<RentACar.Domain.Enums.BafUsagePurpose>(S("kullanimAmaci"), out var ka) ? ka : null,
                 Onaylayan = FormParse.Id(S("onaylayan")),
                 KirayaVer = f.ContainsKey("kirayaVer"),   // işaretsiz checkbox HİÇ gönderilmez
-                CikisSaat = FormParse.Saat(S("cikisSaat"))
+                CikisSaat = FormParse.Hour(S("cikisSaat"))
             };
             try { await svc.CreateAsync(input); return Results.Redirect("/baf?ok=1"); }
             catch (ValidationException ex) { return Results.Redirect($"/baf?hata={Uri.EscapeDataString(ex.Message)}"); }
@@ -42,21 +42,21 @@ public static class BafEndpoints
         {
             var f = req.Form;
             var id = FormParse.Id(f["id"].ToString()) ?? Guid.Empty;
-            var donusKm = FormParse.Int(f["donusKm"].ToString()) ?? 0;
-            var donusYakit = FormParse.Int(f["donusYakit"].ToString());
+            var returnKm = FormParse.Int(f["donusKm"].ToString()) ?? 0;
+            var returnFuel = FormParse.Int(f["donusYakit"].ToString());
             // wire-in: servis imzası donusTarihi'ni ZATEN alıyordu (varsayılan: şimdi) ama uç hiç
             // geçmiyordu → geç girilen teslimlerde tarih gerçek teslim anı değil kayıt anı oluyordu.
-            var donusTarihi = FormParse.Date(f["donusTarihi"].ToString());
+            var returnDate = FormParse.Date(f["donusTarihi"].ToString());
             // FAZ-18: dönüş şubesi/saati BİLGİdir — şube KAPSAMI hâlâ çıkış şubesinden işler.
-            var donusSube = FormParse.Str(f, "donusSube");
-            var donusSaat = FormParse.Saat(FormParse.Str(f, "donusSaat"));
-            try { await svc.ReceiveAsync(id, donusKm, donusYakit, donusTarihi, donusSube, donusSaat); return Sonuc.Tamam("/baf", "Teslim alındı."); }
+            var returnBranch = FormParse.Str(f, "donusSube");
+            var returnHour = FormParse.Hour(FormParse.Str(f, "donusSaat"));
+            try { await svc.ReceiveAsync(id, returnKm, returnFuel, returnDate, returnBranch, returnHour); return Result.Ok("/baf", "Teslim alındı."); }
             catch (ValidationException ex) { return Results.Redirect($"/baf?hata={Uri.EscapeDataString(ex.Message)}"); }
         });
 
         grp.MapPost("/iptal", async (BafService svc, [FromForm] Guid id) =>
         {
-            try { await svc.CancelAsync(id); return Sonuc.Tamam("/baf", "İşlem iptal edildi."); }
+            try { await svc.CancelAsync(id); return Result.Ok("/baf", "İşlem iptal edildi."); }
             catch (ValidationException ex) { return Results.Redirect($"/baf?hata={Uri.EscapeDataString(ex.Message)}"); }
         }).RequirePermission(Permission.OperationsDelete);
 

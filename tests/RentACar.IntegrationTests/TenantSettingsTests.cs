@@ -15,7 +15,7 @@ namespace RentACar.IntegrationTests;
 [Collection("postgres")]
 public sealed class TenantSettingsTests(PostgresFixture fx)
 {
-    private const string EFaturaSifre = "efatura-sifre-123";
+    private const string EInvoicePassword = "efatura-sifre-123";
     private const string SmsKey = "sms-key-xyz";
 
     [Fact]
@@ -29,22 +29,22 @@ public sealed class TenantSettingsTests(PostgresFixture fx)
         await svc.SaveAsync(new TenantSettingsModel
         {
             FirmaUnvan = "Yüce Rent A.Ş.", FirmaVergiNo = "1234567890",
-            EFaturaKullanici = "user1", EFaturaSifre = EFaturaSifre, SmsApiKey = SmsKey
+            EFaturaKullanici = "user1", EFaturaSifre = EInvoicePassword, SmsApiKey = SmsKey
         });
 
         var m = await svc.GetAsync();
         Assert.Equal("Yüce Rent A.Ş.", m.FirmaUnvan);
         Assert.Equal("user1", m.EFaturaKullanici);
-        Assert.Equal(EFaturaSifre, m.EFaturaSifre); // roundtrip düz metin
+        Assert.Equal(EInvoicePassword, m.EFaturaSifre); // roundtrip düz metin
         Assert.Equal(SmsKey, m.SmsApiKey);
 
         // Ham DB kolonu ŞİFRELİ: düz metin değil, içinde düz metin geçmiyor; protector ile çözülür.
         await using var db = await sp.GetRequiredService<IDbContextFactory<AppDbContext>>().CreateDbContextAsync();
         var raw = await db.TenantSettings.AsNoTracking().FirstAsync();
         Assert.NotNull(raw.EFaturaSifreEnc);
-        Assert.NotEqual(EFaturaSifre, raw.EFaturaSifreEnc);
-        Assert.DoesNotContain(EFaturaSifre, raw.EFaturaSifreEnc!);
-        Assert.Equal(EFaturaSifre, sp.GetRequiredService<ISecretProtector>().Unprotect(raw.EFaturaSifreEnc));
+        Assert.NotEqual(EInvoicePassword, raw.EFaturaSifreEnc);
+        Assert.DoesNotContain(EInvoicePassword, raw.EFaturaSifreEnc!);
+        Assert.Equal(EInvoicePassword, sp.GetRequiredService<ISecretProtector>().Unprotect(raw.EFaturaSifreEnc));
     }
 
     [Fact]
@@ -107,13 +107,13 @@ public sealed class TenantSettingsTests(PostgresFixture fx)
         using var scope = host.ScopeFor(Guid.NewGuid());
         var svc = scope.ServiceProvider.GetRequiredService<TenantSettingsService>();
 
-        await svc.SaveAsync(new TenantSettingsModel { FirmaUnvan = "İlk", EFaturaSifre = EFaturaSifre });
+        await svc.SaveAsync(new TenantSettingsModel { FirmaUnvan = "İlk", EFaturaSifre = EInvoicePassword });
         // İkinci kayıt: sır BOŞ, firma değişir → sır KORUNUR.
         await svc.SaveAsync(new TenantSettingsModel { FirmaUnvan = "Güncel", EFaturaSifre = null });
 
         var m = await svc.GetAsync();
         Assert.Equal("Güncel", m.FirmaUnvan);
-        Assert.Equal(EFaturaSifre, m.EFaturaSifre); // sır korundu
+        Assert.Equal(EInvoicePassword, m.EFaturaSifre); // sır korundu
     }
 
     [Fact]
@@ -125,7 +125,7 @@ public sealed class TenantSettingsTests(PostgresFixture fx)
 
         using (var s1 = host.ScopeFor(t1))
             await s1.ServiceProvider.GetRequiredService<TenantSettingsService>()
-                .SaveAsync(new TenantSettingsModel { FirmaUnvan = "T1 Firma", EFaturaSifre = EFaturaSifre });
+                .SaveAsync(new TenantSettingsModel { FirmaUnvan = "T1 Firma", EFaturaSifre = EInvoicePassword });
 
         using var s2 = host.ScopeFor(t2);
         var m2 = await s2.ServiceProvider.GetRequiredService<TenantSettingsService>().GetAsync();
@@ -145,7 +145,7 @@ public sealed class TenantSettingsTests(PostgresFixture fx)
         {
             var sp1 = scope1.ServiceProvider;
             await sp1.GetRequiredService<TenantSettingsService>()
-                .SaveAsync(new TenantSettingsModel { EFaturaSifre = EFaturaSifre });
+                .SaveAsync(new TenantSettingsModel { EFaturaSifre = EInvoicePassword });
             await using var db = await sp1.GetRequiredService<IDbContextFactory<AppDbContext>>().CreateDbContextAsync();
             cipher = (await db.TenantSettings.AsNoTracking().FirstAsync()).EFaturaSifreEnc!;
         }
@@ -154,6 +154,6 @@ public sealed class TenantSettingsTests(PostgresFixture fx)
         using var host2 = new TestHost(fx.AppConnectionString);
         using var scope2 = host2.ScopeFor(tenant);
         var prot2 = scope2.ServiceProvider.GetRequiredService<ISecretProtector>();
-        Assert.Equal(EFaturaSifre, prot2.Unprotect(cipher));
+        Assert.Equal(EInvoicePassword, prot2.Unprotect(cipher));
     }
 }

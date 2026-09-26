@@ -13,7 +13,7 @@
             else
             {
                 <label>Başlangıç Tarihi
-                    <input name="basTar" type="datetime-local" max="@KiraFormVm.MaxBasTarStr" value="@Vm.BasTarPrefill" required />
+                    <input name="basTar" type="datetime-local" max="@RentalFormVm.MaxBasTarStr" value="@Vm.BasTarPrefill" required />
                 </label>
                 <label>Bitiş (Beklenen) Tarih
                     <input name="bitTar" type="datetime-local" value="@Vm.BitTarPrefill" required />
@@ -34,7 +34,7 @@
             <label>Kiralama Türü
                 <select name="kiralamaTuru">
                     <option value="">—</option>
-                    @foreach (var o in KiraFormVm.KiralamaTurleri) { <option selected="@Vm.Sel(c => c.KiralamaTuru, o)">@o</option> }
+                    @foreach (var o in RentalFormVm.RentalTypes) { <option selected="@Vm.Sel(c => c.KiralamaTuru, o)">@o</option> }
                 </select>
             </label>
             @* FAZ 4.2-B4: job kapısı — kira-başına opt-in (tenant ayarındaki job açıksa vadesi gelen
@@ -46,7 +46,7 @@
             <label>Faturalama Tipi
                 <select name="faturalamaTipi">
                     <option value="">—</option>
-                    @foreach (var o in KiraFormVm.FaturalamaTipleri) { <option selected="@Vm.Sel(c => c.FaturalamaTipi, o)">@o</option> }
+                    @foreach (var o in RentalFormVm.InvoicingTypes) { <option selected="@Vm.Sel(c => c.FaturalamaTipi, o)">@o</option> }
                 </select>
             </label>
             <label>Rezervasyon Kaynağı
@@ -167,5 +167,5 @@
     </div>
 </section>
 @code {
-    [Parameter, EditorRequired] public KiraFormVm Vm { get; set; } = default!;
+    [Parameter, EditorRequired] public RentalFormVm Vm { get; set; } = default!;
 }

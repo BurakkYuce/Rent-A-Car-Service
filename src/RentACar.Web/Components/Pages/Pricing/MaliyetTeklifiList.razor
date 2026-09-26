@@ -24,7 +24,7 @@
     <label>Cari
         <select name="cariF">
             <option value="">— tümü —</option>
-            @foreach (var c in _cariler) { <option value="@c.Id" selected="@(c.Id.ToString() == CariF)">@c.DisplayName</option> }
+            @foreach (var c in _accounts) { <option value="@c.Id" selected="@(c.Id.ToString() == CariF)">@c.DisplayName</option> }
         </select>
     </label>
     <label>Tarih Baş.<input name="min" type="date" value="@Min" /></label>
@@ -38,10 +38,10 @@
 @* Özet FİLO toplamıdır (araç-başı × adet) — araç-başı rakamları toplamak farklı adetli
    teklifleri aynı kefeye koyardı. *@
 <div class="cards">
-    <div class="card"><div class="card-num">@_ozet.Adet</div><div class="card-label">Teklif</div></div>
-    <div class="card"><div class="card-num">@_ozet.AracAdet</div><div class="card-label">Toplam Araç</div></div>
-    <div class="card"><div class="card-num">@_ozet.FiloAylikNet.ToString("N2")</div><div class="card-label">Filo Aylık Net ₺</div></div>
-    <div class="card"><div class="card-num">@_ozet.FiloKdvli.ToString("N2")</div><div class="card-label">Filo KDV'li ₺</div></div>
+    <div class="card"><div class="card-num">@_summary.Adet</div><div class="card-label">Teklif</div></div>
+    <div class="card"><div class="card-num">@_summary.AracAdet</div><div class="card-label">Toplam Araç</div></div>
+    <div class="card"><div class="card-num">@_summary.FiloAylikNet.ToString("N2")</div><div class="card-label">Filo Aylık Net ₺</div></div>
+    <div class="card"><div class="card-num">@_summary.FiloKdvli.ToString("N2")</div><div class="card-label">Filo KDV'li ₺</div></div>
 </div>
 
 <div class="table-scroll">
@@ -62,7 +62,7 @@
                 <td>@t.Tarih.LocalDateTime.ToString("dd.MM.yyyy")</td>
                 <td>@t.Baslik</td>
                 <td class="mono">@(t.Plaka ?? "—")</td>
-                <td>@(t.CariId is Guid c ? _cariAd.GetValueOrDefault(c) ?? "—" : "—")</td>
+                <td>@(t.CariId is Guid c ? _customerName.GetValueOrDefault(c) ?? "—" : "—")</td>
                 <td class="num">@t.AlisBedeli.ToString("N2")</td>
                 <td class="num">@t.SureAy</td>
                 <td class="num">@t.AracSayisi</td>
@@ -71,7 +71,7 @@
                 <td class="num">@t.TeklifKdvli.ToString("N2")</td>
                 <td class="num">@t.FiloTeklifAylikNet.ToString("N2")</td>
                 <td>
-                    <a class="link" href="@FormaYukle(t)">Forma Yükle</a>
+                    <a class="link" href="@LoadIntoForm(t)">Forma Yükle</a>
                     <form method="post" action="/maliyet-teklifi/delete" class="inline" data-confirm="Teklif silinsin mi?"><AntiforgeryToken />
                         <input type="hidden" name="id" value="@t.Id" />
                         <button type="submit" class="link danger">Sil</button>
@@ -101,13 +101,13 @@
                         <p class="muted small">Kredi hesap şekli: <strong>@t.KrediHesaplamaSekli</strong> ·
                             Enflasyon: @t.EnflasyonOran.ToString("N4") · Kâr marjı: @t.KarMarji.ToString("N4") ·
                             KDV: @t.KdvOran.ToString("N4")</p>
-                        <a class="link" href="@Yol()">Kapat</a>
+                        <a class="link" href="@PathFor()">Kapat</a>
                     </td>
                 </tr>
             }
             else
             {
-                <tr class="u-hide-print"><td colspan="13"><a class="link" href="@Yol(t.Id)">Kalem dökümünü göster</a></td></tr>
+                <tr class="u-hide-print"><td colspan="13"><a class="link" href="@PathFor(t.Id)">Kalem dökümünü göster</a></td></tr>
             }
         }
     </tbody>
@@ -126,22 +126,22 @@
     [SupplyParameterFromQuery(Name = "detay")] public string? Detay { get; set; }
 
     private IReadOnlyList<MaliyetTeklifi> _list = [];
-    private MaliyetTeklifiOzet _ozet = new(0, 0, 0m, 0m);
-    private IReadOnlyList<Customer> _cariler = [];
-    private Dictionary<Guid, string> _cariAd = new();
+    private MaliyetTeklifiOzet _summary = new(0, 0, 0m, 0m);
+    private IReadOnlyList<Customer> _accounts = [];
+    private Dictionary<Guid, string> _customerName = new();
 
     private bool FiltreVar => !string.IsNullOrWhiteSpace(Q) || !string.IsNullOrWhiteSpace(PlakaF)
         || !string.IsNullOrWhiteSpace(CariF) || !string.IsNullOrWhiteSpace(Min)
         || !string.IsNullOrWhiteSpace(Max) || !string.IsNullOrWhiteSpace(FMin)
         || !string.IsNullOrWhiteSpace(FMax);
 
-    private string Yol(Guid? detay = null)
+    private string PathFor(Guid? detail = null)
     {
         var q = new List<string>();
-        void Ekle(string ad, string? v) { if (!string.IsNullOrWhiteSpace(v)) q.Add($"{ad}={Uri.EscapeDataString(v)}"); }
-        Ekle("q", Q); Ekle("plaka", PlakaF); Ekle("cariF", CariF);
-        Ekle("min", Min); Ekle("max", Max); Ekle("fmin", FMin); Ekle("fmax", FMax);
-        if (detay is Guid id) q.Add($"detay={id}");
+        void Add(string name, string? v) { if (!string.IsNullOrWhiteSpace(v)) q.Add($"{name}={Uri.EscapeDataString(v)}"); }
+        Add("q", Q); Add("plaka", PlakaF); Add("cariF", CariF);
+        Add("min", Min); Add("max", Max); Add("fmin", FMin); Add("fmax", FMax);
+        if (detail is Guid id) q.Add($"detay={id}");
         return "/maliyet-teklifleri" + (q.Count > 0 ? "?" + string.Join("&", q) : "");
     }
 
@@ -149,7 +149,7 @@
     /// Kayıtlı teklifi hesap ekranına geri yükler. Sayılar <b>InvariantCulture</b> ile yazılır —
     /// tr-TR virgüllü basılsaydı hesap ekranı değeri okuyamaz ve teklif sessizce sıfırlanırdı.
     /// </summary>
-    private static string FormaYukle(MaliyetTeklifi t)
+    private static string LoadIntoForm(MaliyetTeklifi t)
     {
         var g = CostQuotationService.ToInput(t);
         string D(decimal v) => Uri.EscapeDataString(v.ToString(CultureInfo.InvariantCulture));
@@ -184,8 +184,8 @@
             FiyatMin = decimal.TryParse(FMin, NumberStyles.Number, CultureInfo.InvariantCulture, out var f1) ? f1 : null,
             FiyatMax = decimal.TryParse(FMax, NumberStyles.Number, CultureInfo.InvariantCulture, out var f2) ? f2 : null
         });
-        _ozet = CostQuotationService.Summary(_list);
-        _cariler = await Cariler.ListAsync();
-        _cariAd = _cariler.ToDictionary(x => x.Id, x => x.DisplayName);
+        _summary = CostQuotationService.Summary(_list);
+        _accounts = await Cariler.ListAsync();
+        _customerName = _accounts.ToDictionary(x => x.Id, x => x.DisplayName);
     }
 }

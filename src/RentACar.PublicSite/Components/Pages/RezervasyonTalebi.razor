@@ -26,7 +26,7 @@
         <label>Şube
             <select name="sube">
                 <option value="">Farketmez</option>
-                @foreach (var s in _subeler)
+                @foreach (var s in _branches)
                 {
                     <option value="@s" selected="@(s == Sube)">@s</option>
                 }
@@ -37,10 +37,10 @@
         @* PR-14: aramadan gelen bağlam — ziyaretçiye gösterilmez, personel için taşınır.
            İlan SLUG'dan yeniden çözülür: yayından kalkmışsa başlık/fiyat taşınmaz (ziyaretçinin
            gördüğü fiyat artık geçerli değildir; talep yine oluşur, personel teyit eder). *@
-        @if (_ilan is not null)
+        @if (_listing is not null)
         {
             @* YALNIZ ilan kimliği taşınır — başlık ve fiyatı sunucu ilandan okur. *@
-            <input type="hidden" name="ilanId" value="@_ilan.IlanId" />
+            <input type="hidden" name="ilanId" value="@_listing.IlanId" />
         }
 
         @* HONEYPOT: CSS ile gizli; gerçek kullanıcı görmez/doldurmaz, bot doldurursa istek sessizce yutulur. *@
@@ -62,13 +62,13 @@
     [SupplyParameterFromQuery(Name = "hata")] public string? Hata { get; set; }
 
     private FleetBranding? _branding;
-    private IReadOnlyList<string> _subeler = [];
-    private FleetShowcaseDetail? _ilan; // PR-14: slug'dan çözülen ilan (yayında değilse null)
+    private IReadOnlyList<string> _branches = [];
+    private FleetShowcaseDetail? _listing; // PR-14: slug'dan çözülen ilan (yayında değilse null)
 
     protected override async Task OnInitializedAsync()
     {
         _branding = await Showcase.GetBrandingAsync();
-        _subeler = (await Subeler.ListActiveAsync()).Select(s => s.Ad).ToList();
-        if (!string.IsNullOrWhiteSpace(Ilan)) _ilan = await Showcase.GetListingDetailAsync(Ilan);
+        _branches = (await Subeler.ListActiveAsync()).Select(s => s.Ad).ToList();
+        if (!string.IsNullOrWhiteSpace(Ilan)) _listing = await Showcase.GetListingDetailAsync(Ilan);
     }
 }

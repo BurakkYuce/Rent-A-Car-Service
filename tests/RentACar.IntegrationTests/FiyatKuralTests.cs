@@ -16,7 +16,7 @@ namespace RentACar.IntegrationTests;
 [Collection("postgres")]
 public sealed class FiyatKuralTests(PostgresFixture fx)
 {
-    private static readonly DateTimeOffset Bas = new(2026, 8, 3, 9, 0, 0, TimeSpan.Zero);
+    private static readonly DateTimeOffset Start = new(2026, 8, 3, 9, 0, 0, TimeSpan.Zero);
 
     private static async Task SetupMatrix(IServiceProvider sp)
     {
@@ -30,7 +30,7 @@ public sealed class FiyatKuralTests(PostgresFixture fx)
     }
 
     private static QuoteRequest Req() => new()
-    { AracGrupKod = "EKO", BasTar = Bas, BitTar = Bas.AddDays(7), SigortaUrunKodlari = [] };
+    { AracGrupKod = "EKO", BasTar = Start, BitTar = Start.AddDays(7), SigortaUrunKodlari = [] };
 
     [Fact]
     public async Task Weekend_surcharge_applied_when_rule_has_it()

@@ -21,11 +21,11 @@
         <h3>@Baslik</h3>
         @* PR-14: fiyat İLANDAN. Motor çağrılmaz; KDV etiketi ilanın kendi işaretinden. *@
         <div class="fiyat">
-            <span class="fiyat-buyuk">@Para(GunlukFiyat)<span class="fiyat-birim">/gün</span></span>
+            <span class="fiyat-buyuk">@Money(GunlukFiyat)<span class="fiyat-birim">/gün</span></span>
             <span class="fiyat-kucuk">@(KdvDahil ? "KDV dahil" : "+ KDV")</span>
             @if (Gun is { } g && Toplam is { } t)
             {
-                <span class="fiyat-toplam">@g gün toplam <strong>@Para(t)</strong></span>
+                <span class="fiyat-toplam">@g gün toplam <strong>@Money(t)</strong></span>
             }
         </div>
         <div class="chips">
@@ -33,7 +33,7 @@
             @* Yıl ZATEN kendi çipinde ("2023 model"); aynı değeri taşıyan özellik satırı
                ("Model Yılı: 2023") ikinci kez basılmaz. Servis tarafındaki ayıklama özelliği
                BAŞLIKLA karşılaştırır, yıl çipi ise karta özeldir — bu yüzden eleme burada. *@
-            @foreach (var o in Cipler().Take(3)) { <span class="chip">@o.Deger</span> }
+            @foreach (var o in Chips().Take(3)) { <span class="chip">@o.Deger</span> }
             @* Adet etiketi MODA göre değişir: tarih seçiliyse "müsait" diyebiliriz (kirada olanlar
                düşülmüştür), tarihsizken diyemeyiz — o an kaçının boşta olduğunu BİLMİYORUZ.
                Aynı etiketi iki modda kullanmak ziyaretçiye yanlış bir söz verirdi. *@
@@ -64,10 +64,10 @@
     [Parameter, EditorRequired] public string TeklifLinki { get; set; } = "";
 
     /// <summary>PR-14: fiyatlar TRY tabanlıdır (kullanıcı kararı) — para birimi alanı yok.</summary>
-    private static string Para(decimal tutar) => $"₺{tutar:N2}";
+    private static string Money(decimal amount) => $"₺{amount:N2}";
 
     /// <summary>Yıl çipiyle çakışan özellik satırını eleyen çip kaynağı.</summary>
-    private IEnumerable<OzellikGoster> Cipler()
+    private IEnumerable<OzellikGoster> Chips()
         => string.IsNullOrWhiteSpace(YilAralik)
             ? Ozellikler
             : Ozellikler.Where(o => !string.Equals((o.Deger ?? "").Trim(), YilAralik.Trim(),

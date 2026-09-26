@@ -16,13 +16,13 @@
     <label>Rez. Kaynağı
         <select name="kaynak">
             <option value="">— tümü —</option>
-            @foreach (var k in _kaynaklar) { <option value="@k" selected="@(k == Kaynak)">@k</option> }
+            @foreach (var k in _sources) { <option value="@k" selected="@(k == Kaynak)">@k</option> }
         </select>
     </label>
     <label>Çıkış Şube/Ofis
         <select name="ofis">
             <option value="">— tümü —</option>
-            @foreach (var o in _ofisler) { <option value="@o" selected="@(o == Ofis)">@o</option> }
+            @foreach (var o in _offices) { <option value="@o" selected="@(o == Ofis)">@o</option> }
         </select>
     </label>
     <button type="submit">Filtrele</button>
@@ -70,8 +70,8 @@
 <table class="grid tr-grid">
     <thead><tr><th>Personel</th><th class="num">Tahsis Sayısı</th></tr></thead>
     <tbody>
-        @if (_personel.Count == 0) { <tr><td colspan="2" class="muted">Veri yok.</td></tr> }
-        @foreach (var p in _personel)
+        @if (_personnel.Count == 0) { <tr><td colspan="2" class="muted">Veri yok.</td></tr> }
+        @foreach (var p in _personnel)
         {
             <tr><td>@p.Ad</td><td class="num">@p.TahsisSayisi</td></tr>
         }
@@ -87,9 +87,9 @@
     [SupplyParameterFromQuery(Name = "ofis")] public string? Ofis { get; set; }
 
     private IReadOnlyList<MusteriSegmentRow> _segment = [];
-    private IReadOnlyList<PersonelCalismaRow> _personel = [];
-    private IReadOnlyList<string> _kaynaklar = [];
-    private IReadOnlyList<string> _ofisler = [];
+    private IReadOnlyList<PersonelCalismaRow> _personnel = [];
+    private IReadOnlyList<string> _sources = [];
+    private IReadOnlyList<string> _offices = [];
 
     private bool FiltreVar => !string.IsNullOrWhiteSpace(Bas) || !string.IsNullOrWhiteSpace(Bit)
         || !string.IsNullOrWhiteSpace(MinKira) || !string.IsNullOrWhiteSpace(Kaynak) || !string.IsNullOrWhiteSpace(Ofis);
@@ -98,9 +98,9 @@
     {
         // Seçenekler FİLTRESİZ kümeden — filtrelenmişten türetilseydi bir seçimden sonra
         // diğer kaynak/ofisler listeden düşer, kullanıcı geri dönemezdi.
-        var sec = await Reports.GetCustomerSegmentOptionsAsync();
-        _kaynaklar = sec.Kaynaklar;
-        _ofisler = sec.Ofisler;
+        var select = await Reports.GetCustomerSegmentOptionsAsync();
+        _sources = select.Kaynaklar;
+        _offices = select.Ofisler;
 
         _segment = await Reports.GetCustomerSegmentAsync(new MusteriSegmentFilter
         {
@@ -111,6 +111,6 @@
             RezKaynak = Kaynak,
             CikisOfis = Ofis
         });
-        _personel = await Reports.GetPersonnelWorkAsync();
+        _personnel = await Reports.GetPersonnelWorkAsync();
     }
 }

@@ -23,7 +23,7 @@ namespace RentACar.IntegrationTests;
 [Collection("postgres")]
 public sealed class PromosyonKoduTests(PostgresFixture fx)
 {
-    private static readonly DateTimeOffset Bas = new DateTimeOffset(DateTime.UtcNow.Date, TimeSpan.Zero).AddDays(5);
+    private static readonly DateTimeOffset Start = new DateTimeOffset(DateTime.UtcNow.Date, TimeSpan.Zero).AddDays(5);
 
     private static async Task<(Guid m, Guid v)> SeedAsync(IServiceProvider sp)
     {
@@ -47,8 +47,8 @@ public sealed class PromosyonKoduTests(PostgresFixture fx)
         return (m, v);
     }
 
-    private static BookingInput Girdi(Guid m, Guid v, string? kod, int gun = 3) => new()
-    { MusteriId = m, VehicleId = v, BasTar = Bas, BitTar = Bas.AddDays(gun), FiyatTuru = "Otomatik", KampanyaKodu = kod };
+    private static BookingInput Input(Guid m, Guid v, string? code, int day = 3) => new()
+    { MusteriId = m, VehicleId = v, BasTar = Start, BitTar = Start.AddDays(day), FiyatTuru = "Otomatik", KampanyaKodu = code };
 
     [Fact]
     public async Task Kod_replace_uygular_ve_iz_kalir()
@@ -60,7 +60,7 @@ public sealed class PromosyonKoduTests(PostgresFixture fx)
         var rentals = sp.GetRequiredService<RentalService>();
 
         // Kodlu (küçük harf "yaz50" — case-insensitive): %50 REPLACE → 3000×0.50 = 1500 (elle).
-        var id = await rentals.CreateDirectAsync(Girdi(m, v, "yaz50"));
+        var id = await rentals.CreateDirectAsync(Input(m, v, "yaz50"));
         var c = (await rentals.GetAsync(id))!;
         Assert.Equal(1500.00m, c.Tutar);
         Assert.Equal("yaz50", c.KampanyaKodu);      // iz (girildiği gibi, Trim'li)
@@ -68,7 +68,7 @@ public sealed class PromosyonKoduTests(PostgresFixture fx)
         // Kodsuz aynı kurulum: otomatik %10 → 2700 (kod-kapılı %50 A0 çitiyle otomatikte kapalı).
         var v2 = await sp.GetRequiredService<VehicleService>()
             .CreateAsync(new VehicleInput { Plaka = "34 PK 02", Grup = "EKO" });
-        var id2 = await rentals.CreateDirectAsync(Girdi(m, v2, null));
+        var id2 = await rentals.CreateDirectAsync(Input(m, v2, null));
         Assert.Equal(2700.00m, (await rentals.GetAsync(id2))!.Tutar);
     }
 
@@ -84,7 +84,7 @@ public sealed class PromosyonKoduTests(PostgresFixture fx)
 
         // Kod %5 < otomatik %10 — yine de KOD uygulanır (operatör talimatı) + karşılaştırma notu.
         var q = await sp.GetRequiredService<RentalQuoteEngine>().QuoteAsync(new QuoteRequest
-        { AracGrupKod = "EKO", BasTar = Bas, BitTar = Bas.AddDays(3), KampanyaKodu = "AZ5" });
+        { AracGrupKod = "EKO", BasTar = Start, BitTar = Start.AddDays(3), KampanyaKodu = "AZ5" });
         Assert.Equal(2850.00m, q.GenelToplam);      // 3000 × 0.95 (elle)
         Assert.Contains(q.Notlar, n => n.Contains("daha avantajlıydı"));
     }
@@ -101,7 +101,7 @@ public sealed class PromosyonKoduTests(PostgresFixture fx)
 
         // HediyeGun=10 ama kira 5 gün → hediye 5'e kırpılır → faturalanan 0 → toplam 0 (negatif yok).
         var q = await sp.GetRequiredService<RentalQuoteEngine>().QuoteAsync(new QuoteRequest
-        { AracGrupKod = "EKO", BasTar = Bas, BitTar = Bas.AddDays(5), KampanyaKodu = "BEDAVA" });
+        { AracGrupKod = "EKO", BasTar = Start, BitTar = Start.AddDays(5), KampanyaKodu = "BEDAVA" });
         Assert.Equal(5, q.HediyeGun);
         Assert.Equal(0, q.FaturalananGun);
         Assert.Equal(0.00m, q.GenelToplam);
@@ -121,18 +121,18 @@ public sealed class PromosyonKoduTests(PostgresFixture fx)
 
         // Geçersiz kod: sessizce otomatiğe düşmek YOK — temiz red.
         var ex1 = await Assert.ThrowsAsync<ValidationException>(
-            () => rentals.CreateDirectAsync(Girdi(m, v, "YOK50")));
+            () => rentals.CreateDirectAsync(Input(m, v, "YOK50")));
         Assert.Contains("geçersiz", ex1.Message);
 
         // Kapsam: MinGun=7 kuralı 3 günlük kirada — red mesajı gün şartını söyler.
         var ex2 = await Assert.ThrowsAsync<ValidationException>(
-            () => rentals.CreateDirectAsync(Girdi(m, v, "HAFTA", gun: 3)));
+            () => rentals.CreateDirectAsync(Input(m, v, "HAFTA", day: 3)));
         Assert.Contains("en az 7 gün", ex2.Message);
 
         // Manuel fiyat + kod: motor çalışmaz → kod sessiz yutulurdu → gürültülü red.
         var ex3 = await Assert.ThrowsAsync<ValidationException>(
             () => rentals.CreateDirectAsync(new BookingInput
-            { MusteriId = m, VehicleId = v, BasTar = Bas, BitTar = Bas.AddDays(3), GunlukUcret = 500m, KampanyaKodu = "YAZ50" }));
+            { MusteriId = m, VehicleId = v, BasTar = Start, BitTar = Start.AddDays(3), GunlukUcret = 500m, KampanyaKodu = "YAZ50" }));
         Assert.Contains("Otomatik", ex3.Message);
     }
 
@@ -156,7 +156,7 @@ public sealed class PromosyonKoduTests(PostgresFixture fx)
             .CreateAsync(new CustomerInput { Tip = CustomerType.Bireysel, Ad = "PK", Soyad = "R" });
 
         var ex = await Assert.ThrowsAsync<ValidationException>(
-            () => sp.GetRequiredService<RentalService>().CreateDirectAsync(Girdi(m, v, "YAZ50")));
+            () => sp.GetRequiredService<RentalService>().CreateDirectAsync(Input(m, v, "YAZ50")));
         Assert.Contains("tarife", ex.Message);
     }
 
@@ -176,7 +176,7 @@ public sealed class PromosyonKoduTests(PostgresFixture fx)
 
         // Şubesiz istekte İzmir kuralı uymaz — düzeltme öncesi YANLIŞ RED atılıyordu; artık uyan %10.
         var q = await sp.GetRequiredService<RentalQuoteEngine>().QuoteAsync(new QuoteRequest
-        { AracGrupKod = "EKO", BasTar = Bas, BitTar = Bas.AddDays(3), KampanyaKodu = "DUP10" });
+        { AracGrupKod = "EKO", BasTar = Start, BitTar = Start.AddDays(3), KampanyaKodu = "DUP10" });
         Assert.Equal(2700.00m, q.GenelToplam);
         Assert.Contains(q.Notlar, n => n.Contains("birden çok kuralda"));
 
@@ -194,13 +194,13 @@ public sealed class PromosyonKoduTests(PostgresFixture fx)
         using var scope = host.ScopeFor(Guid.NewGuid());
         var sp = scope.ServiceProvider;
         var (m, v) = await SeedAsync(sp);
-        var rez = sp.GetRequiredService<ReservationService>();
-        var rid = await rez.CreateAsync(Girdi(m, v, "YAZ50"));
-        Assert.Equal(1500.00m, (await rez.GetAsync(rid))!.Tutar);
+        var res = sp.GetRequiredService<ReservationService>();
+        var rid = await res.CreateAsync(Input(m, v, "YAZ50"));
+        Assert.Equal(1500.00m, (await res.GetAsync(rid))!.Tutar);
 
         // Dönüşüm REPRICE ETMEZ (fiyat taahhüdü taşınır) + kod/kaynak İZ olarak kiraya kopyalanır.
-        var kiraId = await rez.ConvertToRentalAsync(rid);
-        var c = (await sp.GetRequiredService<RentalService>().GetAsync(kiraId))!;
+        var rentalId = await res.ConvertToRentalAsync(rid);
+        var c = (await sp.GetRequiredService<RentalService>().GetAsync(rentalId))!;
         Assert.Equal(1500.00m, c.Tutar);
         Assert.Equal("YAZ50", c.KampanyaKodu);
     }
@@ -212,25 +212,25 @@ public sealed class PromosyonKoduTests(PostgresFixture fx)
         using var scope = host.ScopeFor(Guid.NewGuid());
         var sp = scope.ServiceProvider;
         var (m, v) = await SeedAsync(sp);
-        var hesap = sp.GetRequiredService<RentalCalculationService>();
+        var account = sp.GetRequiredService<RentalCalculationService>();
 
-        var onizleme = await hesap.CalculateAsync(new KiraHesapIstek(
-            VehicleId: v, BasTar: Bas, BitTar: Bas.AddDays(3), GunlukUcret: null,
+        var preview = await account.CalculateAsync(new KiraHesapIstek(
+            VehicleId: v, BasTar: Start, BitTar: Start.AddDays(3), GunlukUcret: null,
             FiyatTuru: "Otomatik", Doviz: null, CikisOfisi: null, EkHizmetler: [],
             MusteriId: m, KampanyaKodu: "YAZ50"));
-        Assert.True(onizleme.Ok);
-        Assert.Equal(1500.00m, onizleme.Tutar);                    // canlı panel == kayıt
+        Assert.True(preview.Ok);
+        Assert.Equal(1500.00m, preview.Tutar);                    // canlı panel == kayıt
 
-        var id = await sp.GetRequiredService<RentalService>().CreateDirectAsync(Girdi(m, v, "YAZ50"));
+        var id = await sp.GetRequiredService<RentalService>().CreateDirectAsync(Input(m, v, "YAZ50"));
         Assert.Equal(1500.00m, (await sp.GetRequiredService<RentalService>().GetAsync(id))!.Tutar);
 
         // Geçersiz kod canlı hesapta NAZİK hata (ok:false) — exception değil (kullanıcı yazarken).
-        var bozuk = await hesap.CalculateAsync(new KiraHesapIstek(
-            VehicleId: v, BasTar: Bas, BitTar: Bas.AddDays(3), GunlukUcret: null,
+        var corrupt = await account.CalculateAsync(new KiraHesapIstek(
+            VehicleId: v, BasTar: Start, BitTar: Start.AddDays(3), GunlukUcret: null,
             FiyatTuru: "Otomatik", Doviz: null, CikisOfisi: null, EkHizmetler: [],
             MusteriId: m, KampanyaKodu: "YANLIS"));
-        Assert.False(bozuk.Ok);
-        Assert.Contains("geçersiz", bozuk.Hata);
+        Assert.False(corrupt.Ok);
+        Assert.Contains("geçersiz", corrupt.Hata);
     }
 
     [Fact]
@@ -254,15 +254,15 @@ public sealed class PromosyonKoduTests(PostgresFixture fx)
         await sp.GetRequiredService<RentalRuleService>().CreateAsync(new RentalRuleInput
         {
             Kod = "ESKI10", Ad = "Eski", Iskonto = 10m, KampanyaMi = true, KampanyaKodu = "ESKI10",
-            GecerlilikBit = Bas.AddDays(-1)                        // kira tarihinden önce bitmiş
+            GecerlilikBit = Start.AddDays(-1)                        // kira tarihinden önce bitmiş
         });
-        var rez = sp.GetRequiredService<ReservationService>();
-        var id = await rez.CreateAsync(Girdi(m, v, null));
-        Assert.Equal(2700.00m, (await rez.GetAsync(id))!.Tutar);
+        var res = sp.GetRequiredService<ReservationService>();
+        var id = await res.CreateAsync(Input(m, v, null));
+        Assert.Equal(2700.00m, (await res.GetAsync(id))!.Tutar);
 
-        var ex = await Assert.ThrowsAsync<ValidationException>(() => rez.UpdateAsync(id, Girdi(m, v, "ESKI10")));
+        var ex = await Assert.ThrowsAsync<ValidationException>(() => res.UpdateAsync(id, Input(m, v, "ESKI10")));
         Assert.Contains("süresi doldu", ex.Message);
-        Assert.Equal(2700.00m, (await rez.GetAsync(id))!.Tutar);   // fiyat/kayıt değişmedi
-        Assert.Null((await rez.GetAsync(id))!.KampanyaKodu);
+        Assert.Equal(2700.00m, (await res.GetAsync(id))!.Tutar);   // fiyat/kayıt değişmedi
+        Assert.Null((await res.GetAsync(id))!.KampanyaKodu);
     }
 }

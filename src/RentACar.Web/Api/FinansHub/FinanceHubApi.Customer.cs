@@ -25,9 +25,9 @@ public static partial class FinanceHubApi
     private static async Task<Results<Ok<CustomerBalance>, ProblemHttpResult>> GetCustomerBalance(
         Guid cariId, CashService cash, DepositService deposits, IDbContextFactory<AppDbContext> f, CancellationToken ct)
     {
-        var names = await F5Ortak.CarilerAsync(f, [cariId], ct);
-        if (!names.ContainsKey(cariId)) return F5Ortak.Bulunamadi("Cari bulunamadı.");
-        return TypedResults.Ok(new CustomerBalance(cariId, F5Ortak.CariAdi(names, cariId),
+        var names = await F5Shared.CustomersAsync(f, [cariId], ct);
+        if (!names.ContainsKey(cariId)) return F5Shared.NotFound("Cari bulunamadı.");
+        return TypedResults.Ok(new CustomerBalance(cariId, F5Shared.CustomerName(names, cariId),
             await cash.GetAccountBalanceAsync(cariId, ct), await deposits.GetBalanceAsync(cariId, ct)));
     }
 
@@ -37,8 +37,8 @@ public static partial class FinanceHubApi
         BalanceAdjustmentRequest req, HttpContext http, BalanceAdjustmentService svc, IDbContextFactory<AppDbContext> f,
         RentACar.Application.Kur.ExchangeRateResolver rates, CancellationToken ct)
     {
-        var key = IdempotencyBasligi.ZorunluAnahtar(http);
-        var direction = F5Ortak.EnumAdi<BalanceAdjustmentDirection>(req.Yon, "yon")
+        var key = IdempotencyHeader.RequiredKey(http);
+        var direction = F5Shared.EnumAdi<BalanceAdjustmentDirection>(req.Yon, "yon")
                         ?? throw new ValidationException("Yön seçilmelidir (Alacaklandir ya da Borclandir).", "yon");
         var currency = MoneyInput(req.Tutar, req.Doviz, req.Kur);
         // Açıklama + " [makbuz]" defter açıklamasına (512) sığmalı.
@@ -61,17 +61,17 @@ public static partial class FinanceHubApi
         Guid? cariId, string? ara, DateOnly? bas, DateOnly? bit, int? limit,
         CashService cash, IDbContextFactory<AppDbContext> f, CancellationToken ct)
     {
-        FinansApi.Metin(ara, 100, "ara");
-        var (min, max) = F5Ortak.GunAraligi(bas, bit);
+        FinanceOpsApi.Text(ara, 100, "ara");
+        var (min, max) = F5Shared.DayRange(bas, bit);
         var rows = await cash.ListAccountTransfersAsync(new CariVirmanFilter
         {
-            CariId = cariId, Ara = F5Ortak.Nz(ara), Bas = min, Bit = max, EnFazla = Math.Clamp(limit ?? 200, 1, 1000),
+            CariId = cariId, Ara = F5Shared.Nz(ara), Bas = min, Bit = max, EnFazla = Math.Clamp(limit ?? 200, 1, 1000),
         }, ct);
         // Görünen ad KVKK tek kuralıyla (MusteriGorunumu) — repo'nun ham adı kullanılmaz.
-        var names = await F5Ortak.CarilerAsync(f, rows.SelectMany(r => new[] { r.KaynakCariId, r.HedefCariId }), ct);
+        var names = await F5Shared.CustomersAsync(f, rows.SelectMany(r => new[] { r.KaynakCariId, r.HedefCariId }), ct);
         return TypedResults.Ok<IReadOnlyList<CustomerTransferRow>>(rows.Select(r => new CustomerTransferRow(
-            r.Id, r.Tarih, r.Vade, r.KaynakCariId, F5Ortak.CariAdi(names, r.KaynakCariId),
-            r.HedefCariId, F5Ortak.CariAdi(names, r.HedefCariId), r.Tutar, r.Doviz, r.Kur, r.TutarTl,
+            r.Id, r.Tarih, r.Vade, r.KaynakCariId, F5Shared.CustomerName(names, r.KaynakCariId),
+            r.HedefCariId, F5Shared.CustomerName(names, r.HedefCariId), r.Tutar, r.Doviz, r.Kur, r.TutarTl,
             r.MakbuzNo, r.Sube, r.IslemYapan, r.Aciklama)).ToList());
     }
 
@@ -80,7 +80,7 @@ public static partial class FinanceHubApi
         CustomerTransferRequest req, HttpContext http, CashService cash, IDbContextFactory<AppDbContext> f,
         RentACar.Application.Kur.ExchangeRateResolver rates, CancellationToken ct)
     {
-        var key = IdempotencyBasligi.ZorunluAnahtar(http);
+        var key = IdempotencyHeader.RequiredKey(http);
         var currency = MoneyInput(req.Tutar, req.Doviz, req.Kur);
         var receipt = Text(req.MakbuzNo, 32, "makbuzNo");
         var branch = Text(req.Sube, 128, "sube");
@@ -103,7 +103,7 @@ public static partial class FinanceHubApi
     {
         if (value is { } t && t < DatePolicy.EarliestDocumentDate)
             throw new ValidationException($"{label} tarihi 2000 yılından önce olamaz.", field);
-        FinansApi.Alanli(field, () => DatePolicy.MoneyDate(value, label));
+        FinanceOpsApi.WithFields(field, () => DatePolicy.MoneyDate(value, label));
         return Utc(value);
     }
 

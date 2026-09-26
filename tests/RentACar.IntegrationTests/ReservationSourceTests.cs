@@ -158,17 +158,17 @@ public sealed class ReservationSourceTests(PostgresFixture fx)
         var svc = scope.ServiceProvider.GetRequiredService<ReservationSourceService>();
 
         // ELLE KURULAN SENARYO: 1 oranlı kaynak, 2 boş AKTİF kaynak, 1 boş PASİF kaynak.
-        var kaynak = await svc.CreateAsync(new ReservationSourceInput
+        var source = await svc.CreateAsync(new ReservationSourceInput
         { Kod = "SRC", Ad = "Kaynak", KiraOrani = 15m, HizmetOrani = 7.5m, DropOrani = 3m });
-        var bos1 = await svc.CreateAsync(new ReservationSourceInput { Kod = "B1", Ad = "Boş 1" });
-        var bos2 = await svc.CreateAsync(new ReservationSourceInput { Kod = "B2", Ad = "Boş 2" });
-        var pasif = await svc.CreateAsync(new ReservationSourceInput { Kod = "P1", Ad = "Pasif" });
-        await svc.UpdateAsync(pasif, new ReservationSourceInput { Kod = "P1", Ad = "Pasif", Aktif = false });
+        var empty1 = await svc.CreateAsync(new ReservationSourceInput { Kod = "B1", Ad = "Boş 1" });
+        var empty2 = await svc.CreateAsync(new ReservationSourceInput { Kod = "B2", Ad = "Boş 2" });
+        var inactive = await svc.CreateAsync(new ReservationSourceInput { Kod = "P1", Ad = "Pasif" });
+        await svc.UpdateAsync(inactive, new ReservationSourceInput { Kod = "P1", Ad = "Pasif", Aktif = false });
 
-        var adet = await svc.ReflectRatesAsync(kaynak);
-        Assert.Equal(2, adet);                                 // ELLE: yalnız B1 + B2
+        var count = await svc.ReflectRatesAsync(source);
+        Assert.Equal(2, count);                                 // ELLE: yalnız B1 + B2
 
-        foreach (var id in new[] { bos1, bos2 })
+        foreach (var id in new[] { empty1, empty2 })
         {
             var r = await svc.GetAsync(id);
             Assert.Equal(15m, r!.KiraOrani);
@@ -177,19 +177,19 @@ public sealed class ReservationSourceTests(PostgresFixture fx)
         }
 
         // PASİF kayıt DEĞİŞMEDİ — tarihsel tanım toplu işlemle diriltilmemeli.
-        var p = await svc.GetAsync(pasif);
+        var p = await svc.GetAsync(inactive);
         Assert.Null(p!.KiraOrani);
         Assert.Null(p.HizmetOrani);
         Assert.Null(p.DropOrani);
         Assert.False(p.Aktif);
 
         // Kaynağın kendisi de bozulmadı.
-        var k = await svc.GetAsync(kaynak);
+        var k = await svc.GetAsync(source);
         Assert.Equal(15m, k!.KiraOrani);
 
         // Kod/Ad/Aktif üçlüsüne DOKUNULMADI — yansıtma yalnız oran kolonlarını yazar.
-        Assert.Equal("B1", (await svc.GetAsync(bos1))!.Kod);
-        Assert.Equal("Boş 1", (await svc.GetAsync(bos1))!.Ad);
+        Assert.Equal("B1", (await svc.GetAsync(empty1))!.Kod);
+        Assert.Equal("Boş 1", (await svc.GetAsync(empty1))!.Ad);
     }
 
     [Fact]
@@ -201,21 +201,21 @@ public sealed class ReservationSourceTests(PostgresFixture fx)
 
         // ELLE: kaynak BOŞ oranlı, hedef DOLU → yansıtma hedefi TEMİZLEMELİ. "Yalnız doluları
         // kopyala" deseydik "hepsini temizle" işlemi sessizce yarım kalırdı.
-        var kaynak = await svc.CreateAsync(new ReservationSourceInput { Kod = "SRC", Ad = "Boş kaynak" });
-        var dolu = await svc.CreateAsync(new ReservationSourceInput
+        var source = await svc.CreateAsync(new ReservationSourceInput { Kod = "SRC", Ad = "Boş kaynak" });
+        var filled = await svc.CreateAsync(new ReservationSourceInput
         { Kod = "D1", Ad = "Dolu", KiraOrani = 30m, HizmetOrani = 30m, DropOrani = 30m });
 
         await svc.ListAsync();                                 // cache'i ISIT — yansıtma sonrası bayat kalmamalı
-        Assert.Equal(1, await svc.ReflectRatesAsync(kaynak));
+        Assert.Equal(1, await svc.ReflectRatesAsync(source));
 
-        var d = await svc.GetAsync(dolu);
+        var d = await svc.GetAsync(filled);
         Assert.Null(d!.KiraOrani);
         Assert.Null(d.HizmetOrani);
         Assert.Null(d.DropOrani);
 
         // Cache invalidate edilmemiş olsaydı liste hâlâ 30'ları gösterirdi.
-        var liste = await svc.ListAsync();
-        Assert.All(liste, r => Assert.Null(r.KiraOrani));
+        var list = await svc.ListAsync();
+        Assert.All(list, r => Assert.Null(r.KiraOrani));
     }
 
     [Fact]
@@ -223,26 +223,26 @@ public sealed class ReservationSourceTests(PostgresFixture fx)
     {
         using var host = new TestHost(fx.AppConnectionString);
         var tenant = Guid.NewGuid();
-        Guid kaynak;
+        Guid source;
         using (var admin = host.ScopeFor(tenant))
-            kaynak = await admin.ServiceProvider.GetRequiredService<ReservationSourceService>()
+            source = await admin.ServiceProvider.GetRequiredService<ReservationSourceService>()
                 .CreateAsync(new ReservationSourceInput { Kod = "SRC", Ad = "Kaynak", KiraOrani = 10m });
 
         // Yetkisiz rol yansıtamaz (OperationsWrite).
-        using (var muh = host.ScopeFor(tenant, Guid.NewGuid(), "muh", UserRole.Muhasebe))
+        using (var acct = host.ScopeFor(tenant, Guid.NewGuid(), "muh", UserRole.Muhasebe))
             await Assert.ThrowsAsync<NoPermissionException>(
-                () => muh.ServiceProvider.GetRequiredService<ReservationSourceService>().ReflectRatesAsync(kaynak));
+                () => acct.ServiceProvider.GetRequiredService<ReservationSourceService>().ReflectRatesAsync(source));
 
         // BAŞKA tenant'ın kaynağı GÖRÜNMEZ → "bulunamadı" (çapraz-tenant yansıtma imkânsız).
-        using var baska = host.ScopeFor(Guid.NewGuid());
-        var svc = baska.ServiceProvider.GetRequiredService<ReservationSourceService>();
+        using var other = host.ScopeFor(Guid.NewGuid());
+        var svc = other.ServiceProvider.GetRequiredService<ReservationSourceService>();
         await svc.CreateAsync(new ReservationSourceInput { Kod = "X", Ad = "Yabancı", KiraOrani = 99m });
-        await Assert.ThrowsAsync<ValidationException>(() => svc.ReflectRatesAsync(kaynak));
+        await Assert.ThrowsAsync<ValidationException>(() => svc.ReflectRatesAsync(source));
 
         // Diğer tenant'ın kaydı da etkilenmedi.
-        using var geri = host.ScopeFor(tenant);
-        Assert.Equal(10m, (await geri.ServiceProvider.GetRequiredService<ReservationSourceService>()
-            .GetAsync(kaynak))!.KiraOrani);
+        using var back = host.ScopeFor(tenant);
+        Assert.Equal(10m, (await back.ServiceProvider.GetRequiredService<ReservationSourceService>()
+            .GetAsync(source))!.KiraOrani);
     }
 
     /// <summary>
@@ -257,7 +257,7 @@ public sealed class ReservationSourceTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
         var sp = scope.ServiceProvider;
-        var kaynaklar = sp.GetRequiredService<ReservationSourceService>();
+        var sources = sp.GetRequiredService<ReservationSourceService>();
 
         await sp.GetRequiredService<RentACar.Application.VehicleGroups.VehicleGroupService>()
             .CreateAsync(new RentACar.Application.VehicleGroups.VehicleGroupInput { Kod = "EKO", Ad = "Ekonomik" });
@@ -267,45 +267,45 @@ public sealed class ReservationSourceTests(PostgresFixture fx)
                 Kod = "EKO-WEB", Ad = "Eko Web", Kanal = "WEB", AracGrupKod = "EKO",
                 Gun1 = 1000m, Gun2 = 950m, Gun3 = 900m, OnayDurumu = TariffApprovalStatus.Onayli
             });
-        var kaynak = await kaynaklar.CreateAsync(new ReservationSourceInput { Kod = "WEB", Ad = "Web Sitesi" });
-        await kaynaklar.CreateAsync(new ReservationSourceInput { Kod = "TEL", Ad = "Telefon" });
+        var source = await sources.CreateAsync(new ReservationSourceInput { Kod = "WEB", Ad = "Web Sitesi" });
+        await sources.CreateAsync(new ReservationSourceInput { Kod = "TEL", Ad = "Telefon" });
 
-        var arac = await sp.GetRequiredService<RentACar.Application.Vehicles.VehicleService>()
+        var vehicle = await sp.GetRequiredService<RentACar.Application.Vehicles.VehicleService>()
             .CreateAsync(new RentACar.Application.Vehicles.VehicleInput { Plaka = "34 RK 24", Grup = "EKO" });
 
-        var bas = new DateTimeOffset(2026, 5, 4, 10, 0, 0, TimeSpan.Zero);
-        var fiyat = sp.GetRequiredService<RentACar.Application.Pricing.PricingService>();
+        var start = new DateTimeOffset(2026, 5, 4, 10, 0, 0, TimeSpan.Zero);
+        var price = sp.GetRequiredService<RentACar.Application.Pricing.PricingService>();
 
-        RentACar.Application.Bookings.BookingInput Istek() => new()
+        RentACar.Application.Bookings.BookingInput Request() => new()
         {
-            VehicleId = arac, BasTar = bas, BitTar = bas.AddDays(3),
+            VehicleId = vehicle, BasTar = start, BitTar = start.AddDays(3),
             Kaynak = "WEB", FiyatTuru = "Otomatik"
         };
 
-        var once = await fiyat.PriceAsync(Istek());
+        var once = await price.PriceAsync(Request());
         Assert.Equal(3, once.Gun);
         Assert.Equal(2700m, once.Tutar);          // ELLE: 3 gün × Gun3 (900) = 2700
 
         // Oranlar %50 — bir yerde çarpan olarak kullanılsa tutar KESİN değişirdi.
-        await kaynaklar.UpdateAsync(kaynak, new ReservationSourceInput
+        await sources.UpdateAsync(source, new ReservationSourceInput
         {
             Kod = "WEB", Ad = "Web Sitesi", Aktif = true, Tedarikci = "Acente",
             KiraOrani = 50m, HizmetOrani = 50m, DropOrani = 50m
         });
-        await kaynaklar.ReflectRatesAsync(kaynak);
+        await sources.ReflectRatesAsync(source);
 
-        var sonra = await fiyat.PriceAsync(Istek());
-        Assert.Equal(once.Gun, sonra.Gun);
-        Assert.Equal(2700m, sonra.Tutar);         // DEĞİŞMEDİ
+        var after = await price.PriceAsync(Request());
+        Assert.Equal(once.Gun, after.Gun);
+        Assert.Equal(2700m, after.Tutar);         // DEĞİŞMEDİ
 
         // Kaynak→Kanal eşlemesi de oran eklemekten ETKİLENMEDİ: tanımsız kaynak kanalı null
         // bırakır (kanal-özel tarife seçtiremez) ve motor kanal-agnostik seçime düşer — mevcut
         // davranış, bu fazda değişmedi.
-        var tanimsiz = await fiyat.PriceAsync(new RentACar.Application.Bookings.BookingInput
+        var undefinedValue = await price.PriceAsync(new RentACar.Application.Bookings.BookingInput
         {
-            VehicleId = arac, BasTar = bas, BitTar = bas.AddDays(3),
+            VehicleId = vehicle, BasTar = start, BitTar = start.AddDays(3),
             Kaynak = "TANIMSIZ-KAYNAK", FiyatTuru = "Otomatik"
         });
-        Assert.Equal(2700m, tanimsiz.Tutar);
+        Assert.Equal(2700m, undefinedValue.Tutar);
     }
 }

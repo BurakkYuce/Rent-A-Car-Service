@@ -33,7 +33,7 @@
     {
         if (Yazi is not { } y) { _json = null; return; }
 
-        var kok = string.IsNullOrWhiteSpace(KanonikKok) ? null : KanonikKok.TrimEnd('/');
+        var root = string.IsNullOrWhiteSpace(KanonikKok) ? null : KanonikKok.TrimEnd('/');
         var model = new Dictionary<string, object?>
         {
             ["@context"] = "https://schema.org",
@@ -56,8 +56,8 @@
             // Kelime sayısı: AI arama yüzeyleri içeriğin derinliğini bununla ölçüyor.
             ["wordCount"] = RentACar.Application.Common.ContentText.WordCount(y.Icerik),
             ["datePublished"] = y.YayinTarihi?.ToString("yyyy-MM-dd"),
-            ["mainEntityOfPage"] = kok is null ? null : $"{kok}/blog/{y.Slug}",
-            ["image"] = kok is not null && y.KapakVar ? $"{kok}/blog-kapak/{y.Id}" : null,
+            ["mainEntityOfPage"] = root is null ? null : $"{root}/blog/{y.Slug}",
+            ["image"] = root is not null && y.KapakVar ? $"{root}/blog-kapak/{y.Id}" : null,
             ["publisher"] = string.IsNullOrWhiteSpace(Marka?.Marka) ? null : new Dictionary<string, object?>
             {
                 ["@type"] = "Organization",

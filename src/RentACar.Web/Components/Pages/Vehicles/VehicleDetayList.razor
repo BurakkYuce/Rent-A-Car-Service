@@ -26,7 +26,7 @@
     <label>Şube
         <select name="sube">
             <option value="">— tümü —</option>
-            @foreach (var b in _subeler) { <option value="@b" selected="@(b == Sube)">@b</option> }
+            @foreach (var b in _branches) { <option value="@b" selected="@(b == Sube)">@b</option> }
         </select>
     </label>
     <label>Durum
@@ -135,14 +135,14 @@
     [SupplyParameterFromQuery(Name = "durum")] public string? Durum { get; set; }
 
     private IReadOnlyList<VehicleDetayRow> _rows = [];
-    private string[] _subeler = [];
+    private string[] _branches = [];
 
     private bool FiltreVar => !string.IsNullOrWhiteSpace(Ara) || !string.IsNullOrWhiteSpace(Sube)
         || !string.IsNullOrWhiteSpace(Durum);
 
     protected override async Task OnInitializedAsync()
     {
-        _subeler = (await Subeler.ListActiveAsync()).Select(b => b.Ad).OrderBy(a => a).ToArray();
+        _branches = (await Subeler.ListActiveAsync()).Select(b => b.Ad).OrderBy(a => a).ToArray();
         _rows = await Vehicles.ListDetailAsync(new VehicleDetayFilter
         {
             Ara = Ara,

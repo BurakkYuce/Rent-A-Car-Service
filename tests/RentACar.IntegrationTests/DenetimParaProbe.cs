@@ -25,7 +25,7 @@ namespace RentACar.IntegrationTests;
 [Collection("postgres")]
 public sealed class DenetimParaProbe(PostgresFixture fx)
 {
-    private static readonly DateTimeOffset Bas = new(2026, 10, 1, 9, 0, 0, TimeSpan.Zero);
+    private static readonly DateTimeOffset Start = new(2026, 10, 1, 9, 0, 0, TimeSpan.Zero);
 
     // ---------- ortak kurulum ----------
 
@@ -43,29 +43,29 @@ public sealed class DenetimParaProbe(PostgresFixture fx)
     /// taşır; sabit kur yalnız "kur var mı" kapısını açar.</para>
     /// </summary>
     private static async Task<(IServiceProvider sp, Guid rentalId, Guid cariId)> Seed(
-        IServiceScope scope, string plaka, string? doviz, int gun = 3)
+        IServiceScope scope, string plate, string? currency, int day = 3)
     {
         var sp = scope.ServiceProvider;
         // Kod NormalizeKod ile ISO'ya indirgenir (EURO→EUR, DOLAR→USD, TL/boş→TRY) — hangi döviz
         // etiketiyle çağrılırsa çağrılsın doğru koda sabit kur yazılsın diye. TRY baz para, kur istemez.
-        var isoKod = RentACar.Application.Kur.ExchangeRateService.NormalizeCode(doviz);
-        if (isoKod != "TRY" && isoKod.Length == 3)
+        var isoCode = RentACar.Application.Kur.ExchangeRateService.NormalizeCode(currency);
+        if (isoCode != "TRY" && isoCode.Length == 3)
             await sp.GetRequiredService<FixedExchangeRateService>()
-                .UpsertAsync(new SabitKurInput { Kod = isoKod, Kur = 40m });
-        var cari = await sp.GetRequiredService<CustomerService>()
-            .CreateAsync(new CustomerInput { Tip = CustomerType.Bireysel, Ad = "Probe-" + plaka });
+                .UpsertAsync(new SabitKurInput { Kod = isoCode, Kur = 40m });
+        var account = await sp.GetRequiredService<CustomerService>()
+            .CreateAsync(new CustomerInput { Tip = CustomerType.Bireysel, Ad = "Probe-" + plate });
         var veh = await sp.GetRequiredService<VehicleService>()
-            .CreateAsync(new VehicleInput { Plaka = plaka, Durum = VehicleStatus.Musait });
+            .CreateAsync(new VehicleInput { Plaka = plate, Durum = VehicleStatus.Musait });
         var id = await sp.GetRequiredService<RentalService>().CreateDirectAsync(new BookingInput
         {
-            MusteriId = cari, VehicleId = veh, BasTar = Bas, BitTar = Bas.AddDays(gun),
-            GunlukUcret = 100m, KmLimit = 0, FazlaKmUcret = 0m, Doviz = doviz
+            MusteriId = account, VehicleId = veh, BasTar = Start, BitTar = Start.AddDays(day),
+            GunlukUcret = 100m, KmLimit = 0, FazlaKmUcret = 0m, Doviz = currency
         });
-        return (sp, id, cari);
+        return (sp, id, account);
     }
 
-    private static CashInput Ci(Guid cari, Guid? rental, decimal tutar, string doviz, decimal kur) => new()
-    { CariId = cari, RentalId = rental, Tutar = tutar, Doviz = doviz, Kur = kur, Hesap = LedgerAccountType.Kasa };
+    private static CashInput Ci(Guid account, Guid? rental, decimal amount, string currency, decimal exchangeRate) => new()
+    { CariId = account, RentalId = rental, Tutar = amount, Doviz = currency, Kur = exchangeRate, Hesap = LedgerAccountType.Kasa };
 
     private static IDbContextFactory<AppDbContext> Factory(IServiceScope scope)
         => scope.ServiceProvider.GetRequiredService<IDbContextFactory<AppDbContext>>();
@@ -80,12 +80,12 @@ public sealed class DenetimParaProbe(PostgresFixture fx)
     {
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
-        var (sp, id, cari) = await Seed(scope, "34 DP 01", null);
+        var (sp, id, account) = await Seed(scope, "34 DP 01", null);
         var svc = sp.GetRequiredService<RentalService>();
 
         Assert.True(await svc.DeliverAsync(id, 1000, 8));
-        Assert.True(await svc.ExtendAsync(id, Bas.AddDays(5)));      // planlı +2 gün
-        Assert.True(await svc.ReturnAsync(id, 1000, 8, Bas.AddDays(6))); // 1 gün GEÇ
+        Assert.True(await svc.ExtendAsync(id, Start.AddDays(5)));      // planlı +2 gün
+        Assert.True(await svc.ReturnAsync(id, 1000, 8, Start.AddDays(6))); // 1 gün GEÇ
 
         var c = await svc.GetAsync(id);
         Assert.Equal(500m, c!.Tutar);         // baz: 5 × 100 (planlı uzatma bazda)
@@ -97,7 +97,7 @@ public sealed class DenetimParaProbe(PostgresFixture fx)
         var inv = await invoices.GetAsync(await invoices.CreateFromRentalAsync(id));
         Assert.Equal(600m, inv!.GenelToplam); // fatura da 600 (çift sayım yok)
 
-        await sp.GetRequiredService<CashService>().CollectAsync(Ci(cari, id, 600m, "TRY", 1m));
+        await sp.GetRequiredService<CashService>().CollectAsync(Ci(account, id, 600m, "TRY", 1m));
         var c2 = await svc.GetAsync(id);
         Assert.Equal(600m, c2!.Tahsilat);
         Assert.Equal(0m, c2.Bakiye);
@@ -116,14 +116,14 @@ public sealed class DenetimParaProbe(PostgresFixture fx)
         var svc = sp.GetRequiredService<RentalService>();
 
         Assert.True(await svc.DeliverAsync(id, 1000, 8));
-        Assert.True(await svc.ExtendAsync(id, Bas.AddDays(5)));      // baz 500
+        Assert.True(await svc.ExtendAsync(id, Start.AddDays(5)));      // baz 500
 
-        var tanim = await sp.GetRequiredService<AddOnDefinitionService>().CreateAsync(
+        var definition = await sp.GetRequiredService<AddOnDefinitionService>().CreateAsync(
             new EkHizmetTanimInput { Kod = "KLT", Ad = "Koltuk", BirimUcret = 100m, KdvOrani = 0.20m });
-        await sp.GetRequiredService<RentalAddOnService>().AddAsync(id, tanim, 1m); // +120 brüt
+        await sp.GetRequiredService<RentalAddOnService>().AddAsync(id, definition, 1m); // +120 brüt
         Assert.Equal(620m, (await svc.GetAsync(id))!.GenelToplam);
 
-        Assert.True(await svc.ReturnAsync(id, 1000, 8, Bas.AddDays(6))); // 1 gün geç → +100
+        Assert.True(await svc.ReturnAsync(id, 1000, 8, Start.AddDays(6))); // 1 gün geç → +100
         var c = await svc.GetAsync(id);
         Assert.Equal(720m, c!.GenelToplam);   // ORACLE: 500 + 100 + 120 (addon korunur)
         Assert.Equal(100m, c.UzatmaBedeli);
@@ -138,13 +138,13 @@ public sealed class DenetimParaProbe(PostgresFixture fx)
         var svc = sp.GetRequiredService<RentalService>();
 
         Assert.True(await svc.DeliverAsync(id, 1000, 8));
-        var tanim = await sp.GetRequiredService<AddOnDefinitionService>().CreateAsync(
+        var definition = await sp.GetRequiredService<AddOnDefinitionService>().CreateAsync(
             new EkHizmetTanimInput { Kod = "KLT", Ad = "Koltuk", BirimUcret = 100m, KdvOrani = 0.20m });
-        await sp.GetRequiredService<RentalAddOnService>().AddAsync(id, tanim, 1m); // 300+120=420
-        Assert.True(await svc.ExtendAsync(id, Bas.AddDays(5)));                    // +200 → 620
+        await sp.GetRequiredService<RentalAddOnService>().AddAsync(id, definition, 1m); // 300+120=420
+        Assert.True(await svc.ExtendAsync(id, Start.AddDays(5)));                    // +200 → 620
         Assert.Equal(620m, (await svc.GetAsync(id))!.GenelToplam);
 
-        Assert.True(await svc.ReturnAsync(id, 1000, 8, Bas.AddDays(6)));           // +100
+        Assert.True(await svc.ReturnAsync(id, 1000, 8, Start.AddDays(6)));           // +100
         Assert.Equal(720m, (await svc.GetAsync(id))!.GenelToplam); // ORACLE: sıra bağımsız 720
     }
 
@@ -157,15 +157,15 @@ public sealed class DenetimParaProbe(PostgresFixture fx)
     {
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
-        var (sp, id, cari) = await Seed(scope, "34 DP 04", null);
+        var (sp, id, account) = await Seed(scope, "34 DP 04", null);
         var cash = sp.GetRequiredService<CashService>();
 
-        await cash.CollectAsync(Ci(cari, id, 100m, "TRY", 1m));
+        await cash.CollectAsync(Ci(account, id, 100m, "TRY", 1m));
         var a = await sp.GetRequiredService<RentalService>().GetAsync(id);
         Assert.Equal(100m, a!.Tahsilat);
         Assert.Equal(200m, a.Bakiye);
 
-        await cash.CollectAsync(Ci(cari, id, 150m, "TRY", 1m));
+        await cash.CollectAsync(Ci(account, id, 150m, "TRY", 1m));
         var b = await sp.GetRequiredService<RentalService>().GetAsync(id);
         Assert.Equal(250m, b!.Tahsilat); // eski Tahsilat SQL içinde okunur → 100+150
         Assert.Equal(50m, b.Bakiye);     // 300 − 250
@@ -181,11 +181,11 @@ public sealed class DenetimParaProbe(PostgresFixture fx)
     {
         var tenant = Guid.NewGuid();
         using var host = new TestHost(fx.AppConnectionString);
-        Guid id, cari, txId;
+        Guid id, account, txId;
         using (var s0 = host.ScopeFor(tenant))
         {
-            (var sp, id, cari) = await Seed(s0, "34 DP 05", null);
-            txId = await sp.GetRequiredService<CashService>().CollectAsync(Ci(cari, id, 200m, "TRY", 1m));
+            (var sp, id, account) = await Seed(s0, "34 DP 05", null);
+            txId = await sp.GetRequiredService<CashService>().CollectAsync(Ci(account, id, 200m, "TRY", 1m));
             Assert.Equal(200m, (await sp.GetRequiredService<RentalService>().GetAsync(id))!.Tahsilat);
         }
 
@@ -230,7 +230,7 @@ public sealed class DenetimParaProbe(PostgresFixture fx)
         var c = await s3.ServiceProvider.GetRequiredService<RentalService>().GetAsync(id);
         Assert.Equal(0m, c!.Tahsilat);  // yalnız BİR kez geri alındı (−200 olsaydı çift işlerdi)
         Assert.Equal(300m, c.Bakiye);
-        Assert.Equal(0m, await s3.ServiceProvider.GetRequiredService<CashService>().GetAccountBalanceAsync(cari));
+        Assert.Equal(0m, await s3.ServiceProvider.GetRequiredService<CashService>().GetAccountBalanceAsync(account));
     }
 
     // =====================================================================================
@@ -251,11 +251,11 @@ public sealed class DenetimParaProbe(PostgresFixture fx)
         using (var sb = host.ScopeFor(tenantB))
         {
             var spB = sb.ServiceProvider;
-            var cariB = await spB.GetRequiredService<CustomerService>()
+            var accountB = await spB.GetRequiredService<CustomerService>()
                 .CreateAsync(new CustomerInput { Tip = CustomerType.Bireysel, Ad = "B-cari" });
 
             // (a) B, A'nın rental id'siyle tahsilat: sessizce rental'sız işler (mevcut sözleşme).
-            var txId = await spB.GetRequiredService<CashService>().CollectAsync(Ci(cariB, rentalA, 100m, "TRY", 1m));
+            var txId = await spB.GetRequiredService<CashService>().CollectAsync(Ci(accountB, rentalA, 100m, "TRY", 1m));
             Assert.NotNull(await spB.GetRequiredService<CashService>().GetAsync(txId));
 
             // (b) ham SQL ile doğrudan UPDATE denemesi — RLS 0 satır etkilemeli.
@@ -279,9 +279,9 @@ public sealed class DenetimParaProbe(PostgresFixture fx)
     {
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
-        var (sp, id, cari) = await Seed(scope, "34 DP 07", "USD"); // 300 USD
+        var (sp, id, account) = await Seed(scope, "34 DP 07", "USD"); // 300 USD
         // M1 FIX: Money kurulurken NormalizeKodStrict → "DOLAR" ≡ USD (3 harf) → varchar(3) sığar, tahsilat işler.
-        await sp.GetRequiredService<CashService>().CollectAsync(Ci(cari, id, 100m, "DOLAR", 35m));
+        await sp.GetRequiredService<CashService>().CollectAsync(Ci(account, id, 100m, "DOLAR", 35m));
         var c = await sp.GetRequiredService<RentalService>().GetAsync(id);
         Assert.Equal(100m, c!.Tahsilat); // kira dövizinde (USD)
         Assert.Equal(200m, c.Bakiye);    // 300 − 100
@@ -292,15 +292,15 @@ public sealed class DenetimParaProbe(PostgresFixture fx)
     {
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
-        var (sp, id, cari) = await Seed(scope, "34 DP 21", "EURO"); // rental formu "EURO" saklar
+        var (sp, id, account) = await Seed(scope, "34 DP 21", "EURO"); // rental formu "EURO" saklar
         // M1 FIX: "EURO" → EUR normalize edilir; K2'nin dayattığı doğal senaryo artık 500 vermez.
-        await sp.GetRequiredService<CashService>().CollectAsync(Ci(cari, id, 300m, "EURO", 40m));
+        await sp.GetRequiredService<CashService>().CollectAsync(Ci(account, id, 300m, "EURO", 40m));
         var c = await sp.GetRequiredService<RentalService>().GetAsync(id);
         Assert.Equal(300m, c!.Tahsilat);
         Assert.Equal(0m, c.Bakiye);
         // Tanınmayan uzun etiket → 22001/500 DEĞİL, temiz ValidationException.
         await Assert.ThrowsAsync<ValidationException>(() =>
-            sp.GetRequiredService<CashService>().CollectAsync(Ci(cari, id, 10m, "KRONER", 5m)));
+            sp.GetRequiredService<CashService>().CollectAsync(Ci(account, id, 10m, "KRONER", 5m)));
     }
 
     [Fact]
@@ -308,8 +308,8 @@ public sealed class DenetimParaProbe(PostgresFixture fx)
     {
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
-        var (sp, id, cari) = await Seed(scope, "34 DP 08", null); // Doviz=null → TRY, 300 TL
-        await sp.GetRequiredService<CashService>().CollectAsync(Ci(cari, id, 5m, "EUR", 40m)); // 200 TL-baz
+        var (sp, id, account) = await Seed(scope, "34 DP 08", null); // Doviz=null → TRY, 300 TL
+        await sp.GetRequiredService<CashService>().CollectAsync(Ci(account, id, 5m, "EUR", 40m)); // 200 TL-baz
         var c = await sp.GetRequiredService<RentalService>().GetAsync(id);
         Assert.Equal(200m, c!.Tahsilat);
         Assert.Equal(100m, c.Bakiye);
@@ -324,14 +324,14 @@ public sealed class DenetimParaProbe(PostgresFixture fx)
         // bu testin ham-toplam invariant'ını etkilemez).
         await scope.ServiceProvider.GetRequiredService<FixedExchangeRateService>()
             .UpsertAsync(new SabitKurInput { Kod = "GBP", Kur = 48m, Aktif = true });
-        var (sp, id, cari) = await Seed(scope, "34 DP 09", "GBP"); // 300 GBP
+        var (sp, id, account) = await Seed(scope, "34 DP 09", "GBP"); // 300 GBP
         var cash = sp.GetRequiredService<CashService>();
-        await cash.CollectAsync(Ci(cari, id, 100m, "GBP", 47m));
-        await cash.CollectAsync(Ci(cari, id, 100m, "GBP", 50m)); // farklı kur → ham toplam etkilenmez
+        await cash.CollectAsync(Ci(account, id, 100m, "GBP", 47m));
+        await cash.CollectAsync(Ci(account, id, 100m, "GBP", 50m)); // farklı kur → ham toplam etkilenmez
         var c = await sp.GetRequiredService<RentalService>().GetAsync(id);
         Assert.Equal(200m, c!.Tahsilat);  // kur bağımsız 100+100 GBP
         Assert.Equal(100m, c.Bakiye);
-        Assert.Equal(-9700m, await cash.GetAccountBalanceAsync(cari)); // defter TL-baz: 4700+5000
+        Assert.Equal(-9700m, await cash.GetAccountBalanceAsync(account)); // defter TL-baz: 4700+5000
     }
 
     // =====================================================================================
@@ -342,9 +342,9 @@ public sealed class DenetimParaProbe(PostgresFixture fx)
     {
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
-        var (sp, id, cari) = await Seed(scope, "34 DP 10", null);
+        var (sp, id, account) = await Seed(scope, "34 DP 10", null);
         await sp.GetRequiredService<CashService>().BatchCollectAsync(
-            [Ci(cari, id, 100m, "TRY", 1m), Ci(cari, id, 150m, "TRY", 1m)]);
+            [Ci(account, id, 100m, "TRY", 1m), Ci(account, id, 150m, "TRY", 1m)]);
         var c = await sp.GetRequiredService<RentalService>().GetAsync(id);
         Assert.Equal(250m, c!.Tahsilat); // aynı tx içinde iki UPDATE üst üste biner
         Assert.Equal(50m, c.Bakiye);
@@ -355,30 +355,30 @@ public sealed class DenetimParaProbe(PostgresFixture fx)
     {
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
-        var (sp, idTry, cariT) = await Seed(scope, "34 DP 11", null);
+        var (sp, idTry, accountT) = await Seed(scope, "34 DP 11", null);
         var spB = scope.ServiceProvider;
-        var (_, idEur, cariE) = await Seed(scope, "34 DP 12", "EURO");
+        var (_, idEur, accountE) = await Seed(scope, "34 DP 12", "EURO");
         var cash = spB.GetRequiredService<CashService>();
-        var cariNo = await spB.GetRequiredService<CustomerService>()
+        var customerNo = await spB.GetRequiredService<CustomerService>()
             .CreateAsync(new CustomerInput { Tip = CustomerType.Bireysel, Ad = "NoTabani" }); // numaralandırma carisi
 
-        var t1 = await cash.CollectAsync(Ci(cariNo, null, 10m, "TRY", 1m)); // No tabanı
+        var t1 = await cash.CollectAsync(Ci(customerNo, null, 10m, "TRY", 1m)); // No tabanı
         var no1 = (await cash.GetAsync(t1))!.No;
-        BelgeNoOracle.BeklenenlerdenBiri(5, 1, no1);
+        DocumentNoOracle.OneOfExpected(5, 1, no1);
 
         // Satır 1 geçerli (TRY kira), satır 2 FX kiraya TRY tahsilat → repo K2 guard'ı satır 2'de patlar.
         await Assert.ThrowsAsync<ValidationException>(() => cash.BatchCollectAsync(
-            [Ci(cariT, idTry, 100m, "TRY", 1m), Ci(cariE, idEur, 500m, "TRY", 1m)]));
+            [Ci(accountT, idTry, 100m, "TRY", 1m), Ci(accountE, idEur, 500m, "TRY", 1m)]));
 
         var cT = await spB.GetRequiredService<RentalService>().GetAsync(idTry);
         Assert.Equal(0m, cT!.Tahsilat);  // satır 1'in deltası da geri alındı (atomiklik)
-        Assert.Equal(0m, await cash.GetAccountBalanceAsync(cariT)); // defter de yok
+        Assert.Equal(0m, await cash.GetAccountBalanceAsync(accountT)); // defter de yok
 
         await using (var db = await Factory(scope).CreateDbContextAsync())
             Assert.Equal(1, await db.CashTransactions.CountAsync()); // yalnız t1
 
-        var t2 = await cash.CollectAsync(Ci(cariNo, null, 10m, "TRY", 1m));
-        BelgeNoOracle.BeklenenlerdenBiri(5, 2, (await cash.GetAsync(t2))!.No); // sıra boşluksuz (rollback no'yu iade etti)
+        var t2 = await cash.CollectAsync(Ci(customerNo, null, 10m, "TRY", 1m));
+        DocumentNoOracle.OneOfExpected(5, 2, (await cash.GetAsync(t2))!.No); // sıra boşluksuz (rollback no'yu iade etti)
     }
 
     // =====================================================================================
@@ -389,10 +389,10 @@ public sealed class DenetimParaProbe(PostgresFixture fx)
     {
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
-        var (sp, id, cari) = await Seed(scope, "34 DP 13", "EURO"); // 300 EUR
+        var (sp, id, account) = await Seed(scope, "34 DP 13", "EURO"); // 300 EUR
         var cash = sp.GetRequiredService<CashService>();
-        await cash.CollectAsync(Ci(cari, id, 300m, "EUR", 40m));
-        await cash.PayAsync(Ci(cari, id, 100m, "EUR", 40m)); // iade
+        await cash.CollectAsync(Ci(account, id, 300m, "EUR", 40m));
+        await cash.PayAsync(Ci(account, id, 100m, "EUR", 40m)); // iade
         var c = await sp.GetRequiredService<RentalService>().GetAsync(id);
         Assert.Equal(200m, c!.Tahsilat); // 300 − 100
         Assert.Equal(100m, c.Bakiye);
@@ -403,12 +403,12 @@ public sealed class DenetimParaProbe(PostgresFixture fx)
     {
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
-        var (sp, id, cari) = await Seed(scope, "34 DP 14", "EURO");
+        var (sp, id, account) = await Seed(scope, "34 DP 14", "EURO");
         var cash = sp.GetRequiredService<CashService>();
 
         // SINIR: hiç tahsilat yokken 100 EUR "iade" — taban/floor yok, Tahsilat negatife düşer
         // (önceki davranışla aynı; regresyon değil — Low not).
-        var payId = await cash.PayAsync(Ci(cari, id, 100m, "EUR", 40m));
+        var payId = await cash.PayAsync(Ci(account, id, 100m, "EUR", 40m));
         var c = await sp.GetRequiredService<RentalService>().GetAsync(id);
         Assert.Equal(-100m, c!.Tahsilat);
         Assert.Equal(400m, c.Bakiye);
@@ -428,7 +428,7 @@ public sealed class DenetimParaProbe(PostgresFixture fx)
     {
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
-        var (sp, id, cari) = await Seed(scope, "34 DP 15", "EURO"); // 300 EUR kira
+        var (sp, id, account) = await Seed(scope, "34 DP 15", "EURO"); // 300 EUR kira
         await sp.GetRequiredService<FixedExchangeRateService>().UpsertAsync(new SabitKurInput { Kod = "EUR", Kur = 40m });
 
         // Guard-öncesi veriyi simüle et: addon doğrudan DB'ye (repo guard'ı yoktu) — 100 TL net + 20 KDV.
@@ -447,7 +447,7 @@ public sealed class DenetimParaProbe(PostgresFixture fx)
         // addon kaldırılınca (V7c) faturalama serbest.
         var invoices = sp.GetRequiredService<InvoiceService>();
         await Assert.ThrowsAsync<ValidationException>(() => invoices.CreateFromRentalAsync(id));
-        Assert.Equal(0m, await sp.GetRequiredService<CashService>().GetAccountBalanceAsync(cari)); // hiçbir şey postlanmadı
+        Assert.Equal(0m, await sp.GetRequiredService<CashService>().GetAccountBalanceAsync(account)); // hiçbir şey postlanmadı
     }
 
     [Fact]
@@ -456,11 +456,11 @@ public sealed class DenetimParaProbe(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
         var (sp, id, _) = await Seed(scope, "34 DP 16", "EURO");
-        var tanim = await sp.GetRequiredService<AddOnDefinitionService>().CreateAsync(
+        var definition = await sp.GetRequiredService<AddOnDefinitionService>().CreateAsync(
             new EkHizmetTanimInput { Kod = "GPS", Ad = "GPS", BirimUcret = 50m, KdvOrani = 0.20m });
         // Override fiyat yolu da aynı repo AddAsync'inden geçer → guard çalışmalı.
         await Assert.ThrowsAsync<ValidationException>(() =>
-            sp.GetRequiredService<RentalAddOnService>().AddAsync(id, tanim, 1m, unitNetOverride: 75m));
+            sp.GetRequiredService<RentalAddOnService>().AddAsync(id, definition, 1m, unitNetOverride: 75m));
     }
 
     [Fact]
@@ -531,11 +531,11 @@ public sealed class DenetimParaProbe(PostgresFixture fx)
     {
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
-        var (sp, id, cari) = await Seed(scope, "34 DP 19", "TL"); // 300 TL
+        var (sp, id, account) = await Seed(scope, "34 DP 19", "TL"); // 300 TL
         var cash = sp.GetRequiredService<CashService>();
 
-        await cash.CollectAsync(Ci(cari, id, 200m, "TRY", 1m));            // +200
-        var payId = await cash.PayAsync(Ci(cari, id, 50m, "TRY", 1m));     // −50
+        await cash.CollectAsync(Ci(account, id, 200m, "TRY", 1m));            // +200
+        var payId = await cash.PayAsync(Ci(account, id, 50m, "TRY", 1m));     // −50
         await cash.ReverseAsync(payId);                                    // +50
         var c = await sp.GetRequiredService<RentalService>().GetAsync(id);
         Assert.Equal(200m, c!.Tahsilat);
@@ -551,18 +551,18 @@ public sealed class DenetimParaProbe(PostgresFixture fx)
     {
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
-        var (sp, id, cari) = await Seed(scope, "34 DP 20", null); // 300 TL
+        var (sp, id, account) = await Seed(scope, "34 DP 20", null); // 300 TL
         var cash = sp.GetRequiredService<CashService>();
 
-        await cash.CollectAsync(Ci(cari, id, 100m, "TRY", 1m)); // Tahsilat 100, Bakiye 200
-        var tanim = await sp.GetRequiredService<AddOnDefinitionService>().CreateAsync(
+        await cash.CollectAsync(Ci(account, id, 100m, "TRY", 1m)); // Tahsilat 100, Bakiye 200
+        var definition = await sp.GetRequiredService<AddOnDefinitionService>().CreateAsync(
             new EkHizmetTanimInput { Kod = "BS", Ad = "Bebek koltuğu", BirimUcret = 100m, KdvOrani = 0.20m });
-        await sp.GetRequiredService<RentalAddOnService>().AddAsync(id, tanim, 1m); // GenelToplam 420
+        await sp.GetRequiredService<RentalAddOnService>().AddAsync(id, definition, 1m); // GenelToplam 420
         var a = await sp.GetRequiredService<RentalService>().GetAsync(id);
         Assert.Equal(420m, a!.GenelToplam);
         Assert.Equal(320m, a.Bakiye);       // Recompute: 420 − 100
 
-        await cash.CollectAsync(Ci(cari, id, 100m, "TRY", 1m)); // atomik SQL taze GenelToplam okur
+        await cash.CollectAsync(Ci(account, id, 100m, "TRY", 1m)); // atomik SQL taze GenelToplam okur
         var b = await sp.GetRequiredService<RentalService>().GetAsync(id);
         Assert.Equal(200m, b!.Tahsilat);
         Assert.Equal(220m, b.Bakiye);       // 420 − 200

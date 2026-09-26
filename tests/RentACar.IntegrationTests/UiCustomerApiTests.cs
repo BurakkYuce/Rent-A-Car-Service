@@ -36,7 +36,7 @@ public sealed partial class UiCustomerApiTests(WebFixture fx)
     private static string RandomName(string prefix) => prefix + Guid.NewGuid().ToString("N")[..10];
 
     /// <summary>Geçerli (sağlama haneli) rastgele TC — algoritma elle: 10. hane ((tekler×7) − çiftler) mod 10, 11. hane ilk 10'un toplamı mod 10.</summary>
-    private static string RandomTc()
+    private static string RandomNationalId()
     {
         var d = new int[11];
         d[0] = Random.Shared.Next(1, 10);
@@ -52,7 +52,7 @@ public sealed partial class UiCustomerApiTests(WebFixture fx)
     {
         var e = new Env
         {
-            TenantId = Guid.NewGuid(), Code = RandomName("f71"), Password = WebFixture.RastgeleParola(),
+            TenantId = Guid.NewGuid(), Code = RandomName("f71"), Password = WebFixture.RandomPassword(),
             Users = Enum.GetValues<Who>().ToDictionary(k => k, _ => RandomName("u")),
         };
         var opts = new DbContextOptionsBuilder<AppDbContext>().UseNpgsql(fx.Pg.OwnerConnectionString).Options;
@@ -75,7 +75,7 @@ public sealed partial class UiCustomerApiTests(WebFixture fx)
             }
             await db.SaveChangesAsync();
         }
-        await fx.PilotYapAsync(e.TenantId, true);
+        await fx.MakePilotAsync(e.TenantId, true);
         return e;
     }
 
@@ -107,7 +107,7 @@ public sealed partial class UiCustomerApiTests(WebFixture fx)
         var r = new RentalContract
         {
             SozlesmeNo = no, MusteriId = customerId, VehicleId = v.Id, Durum = RentalStatus.Kirada, CikisOfisi = office,
-            BasTar = TestZaman.GunSonra(-2), BitTar = TestZaman.GunSonra(3), GenelToplam = 1500m, KurSnapshot = 1m,
+            BasTar = TestZaman.DaysLater(-2), BitTar = TestZaman.DaysLater(3), GenelToplam = 1500m, KurSnapshot = 1m,
         };
         await WriteAsync(e.TenantId, db => { db.Vehicles.Add(v); db.Rentals.Add(r); });
         return (r.Id, plate, no);
@@ -126,7 +126,7 @@ public sealed partial class UiCustomerApiTests(WebFixture fx)
 
     private async Task<Session> LoginAsync(Env e, Who who)
     {
-        var c = fx.Web.Istemci();
+        var c = fx.Web.Client();
         var first = Cookie(await c.GetAsync(V1 + "/oturum/xsrf"), "XSRF-TOKEN")!;
         var req = new HttpRequestMessage(HttpMethod.Post, V1 + "/oturum/giris")
         { Content = JsonContent.Create(new { firma = e.Code, kullanici = e.Users[who], sifre = e.Password }) };

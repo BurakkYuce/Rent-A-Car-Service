@@ -39,7 +39,7 @@ public sealed class JobCalismaLogTests(PostgresFixture fx)
         return db;
     }
 
-    private static async Task SeedVadelerAsync(IServiceProvider sp)
+    private static async Task SeedDuesAsync(IServiceProvider sp)
     {
         var v = await sp.GetRequiredService<VehicleService>()
             .CreateAsync(new VehicleInput { Plaka = "34 JL 01", Durum = VehicleStatus.Musait });
@@ -54,13 +54,13 @@ public sealed class JobCalismaLogTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         var tenant = Guid.NewGuid();
         using var scope = host.ScopeFor(tenant);
-        await SeedVadelerAsync(scope.ServiceProvider);
+        await SeedDuesAsync(scope.ServiceProvider);
 
-        int vadeSonuc;
+        int dueResult;
         await using (var db = await JobContextAsync(tenant))
         {
             // Job'ın yaptığının aynısı: üreticiyi kaydedici üzerinden çağır.
-            vadeSonuc = await JobRunRecorder.RunAsync(db, tenant,
+            dueResult = await JobRunRecorder.RunAsync(db, tenant,
                 JobRunRecorder.DueNotification,
                 () => DueNotificationGenerator.RunAsync(db, tenant, Now), n => n);
             await JobRunRecorder.RunAsync(db, tenant,
@@ -69,20 +69,20 @@ public sealed class JobCalismaLogTests(PostgresFixture fx)
         }
 
         // Elle beklenen: 2 üretici çağrıldı → 2 satır.
-        var loglar = await scope.ServiceProvider.GetRequiredService<JobRunLogService>().ListAsync();
-        Assert.Equal(2, loglar.Count);
-        Assert.All(loglar, l => Assert.True(l.Basarili));
-        Assert.All(loglar, l => Assert.Null(l.Detay));
-        Assert.Contains(loglar, l => l.JobAdi == JobRunRecorder.DueNotification);
-        Assert.Contains(loglar, l => l.JobAdi == JobRunRecorder.FleetNotification);
+        var logs = await scope.ServiceProvider.GetRequiredService<JobRunLogService>().ListAsync();
+        Assert.Equal(2, logs.Count);
+        Assert.All(logs, l => Assert.True(l.Basarili));
+        Assert.All(logs, l => Assert.Null(l.Detay));
+        Assert.Contains(logs, l => l.JobAdi == JobRunRecorder.DueNotification);
+        Assert.Contains(logs, l => l.JobAdi == JobRunRecorder.FleetNotification);
 
         // SonucSayisi üreticinin GERÇEK dönüşüyle aynı olmalı (kayıt uydurmuyor).
         // 2 vade tohumlandı (Kasko 5g + MTV 20g) → üretici 2 bildirim üretir.
-        Assert.Equal(2, vadeSonuc);
-        Assert.Equal(vadeSonuc, loglar.Single(l => l.JobAdi == JobRunRecorder.DueNotification).SonucSayisi);
+        Assert.Equal(2, dueResult);
+        Assert.Equal(dueResult, logs.Single(l => l.JobAdi == JobRunRecorder.DueNotification).SonucSayisi);
 
-        Assert.All(loglar, l => Assert.True(l.BitisUtc >= l.BaslangicUtc));
-        Assert.All(loglar, l => Assert.True(l.SureMs >= 0));
+        Assert.All(logs, l => Assert.True(l.BitisUtc >= l.BaslangicUtc));
+        Assert.All(logs, l => Assert.True(l.SureMs >= 0));
     }
 
     [Fact]
@@ -114,11 +114,11 @@ public sealed class JobCalismaLogTests(PostgresFixture fx)
         var tenant = Guid.NewGuid();
         using var scope = host.ScopeFor(tenant);
 
-        var uzun = new string('x', 5000);
+        var longText = new string('x', 5000);
         await using (var db = await JobContextAsync(tenant))
             await Assert.ThrowsAsync<InvalidOperationException>(() =>
                 JobRunRecorder.RunAsync<int>(db, tenant, "uzun-hata",
-                    () => throw new InvalidOperationException(uzun)));
+                    () => throw new InvalidOperationException(longText)));
 
         var log = Assert.Single(await scope.ServiceProvider.GetRequiredService<JobRunLogService>().ListAsync());
         Assert.False(log.Basarili);
@@ -151,10 +151,10 @@ public sealed class JobCalismaLogTests(PostgresFixture fx)
         Assert.Single(await svc.ListAsync(new JobCalismaLogFilter { Bit = Now.AddDays(-3) }));
 
         // Son koşular: iş adı başına EN YENİ satır → 2 iş = 2 satır, "a" için -1 günlük olan.
-        var son = await svc.LastRunsAsync();
-        Assert.Equal(2, son.Count);
-        Assert.Equal(Now.AddDays(-1), son.Single(x => x.JobAdi == "a").BaslangicUtc);
-        Assert.Equal(0, son.Single(x => x.JobAdi == "a").SonucSayisi);
+        var last = await svc.LastRunsAsync();
+        Assert.Equal(2, last.Count);
+        Assert.Equal(Now.AddDays(-1), last.Single(x => x.JobAdi == "a").BaslangicUtc);
+        Assert.Equal(0, last.Single(x => x.JobAdi == "a").SonucSayisi);
     }
 
     [Fact]

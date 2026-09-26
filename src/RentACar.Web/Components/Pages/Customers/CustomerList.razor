@@ -31,7 +31,7 @@
         <label>Cep Tel<input name="cepTel" /></label>
         <label>E-posta<input name="email" type="email" /></label>
         <ComboBox Name="il" Label="İl" Options="_ilOpts" />
-        <ComboBox Name="ilce" Label="İlçe" Options="_ilceOpts" />
+        <ComboBox Name="ilce" Label="İlçe" Options="_districtOpts" />
         <label>Tarife<input name="tarife" /></label>
         <label>Vade (gün)<input name="vadeGun" type="number" value="0" /></label>
         <label>Risk Limiti<input name="riskLimiti" type="number" step="0.01" value="0" /></label>
@@ -170,7 +170,7 @@
     [SupplyParameterFromQuery(Name = "avF")] public string? AvF { get; set; }
 
     private PagedResult<CustomerRow> _page = new([], 0, 1, 20);
-    private List<string> _ilOpts = [], _ilceOpts = [];
+    private List<string> _ilOpts = [], _districtOpts = [];
 
     protected override async Task OnInitializedAsync()
     {
@@ -190,7 +190,7 @@
         var all = await Customers.ListAsync();
         _ilOpts = all.Select(c => c.Il).Where(x => !string.IsNullOrWhiteSpace(x))
             .Select(x => x!.Trim()).Distinct(StringComparer.OrdinalIgnoreCase).OrderBy(x => x, StringComparer.CurrentCulture).ToList();
-        _ilceOpts = all.Select(c => c.Ilce).Where(x => !string.IsNullOrWhiteSpace(x))
+        _districtOpts = all.Select(c => c.Ilce).Where(x => !string.IsNullOrWhiteSpace(x))
             .Select(x => x!.Trim()).Distinct(StringComparer.OrdinalIgnoreCase).OrderBy(x => x, StringComparer.CurrentCulture).ToList();
     }
 

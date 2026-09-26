@@ -59,7 +59,7 @@ public sealed partial class UiFinanceHubApiTests
     {
         // Oracle: İstanbul = UTC+3 (DST yok). Kilit günü D; D+1 00:30 İstanbul = D 21:30 UTC → AÇIK;
         // D 23:59 İstanbul = D 20:59 UTC → KAPALI.
-        var utcMidnight = TestZaman.GunSonra(-10, saat: 0);
+        var utcMidnight = TestZaman.DaysLater(-10, hour: 0);
         var d = DateOnly.FromDateTime(utcMidnight.UtcDateTime);
         var closingIstanbulMidnight = utcMidnight.AddHours(-3);
         foreach (var closing in new[] { utcMidnight, closingIstanbulMidnight })
@@ -101,7 +101,7 @@ public sealed partial class UiFinanceHubApiTests
         var sp = scope.ServiceProvider;
         await sp.GetRequiredService<RentACar.Application.TenantSettings.ITenantSettingsRepository>()
             .UpsertAsync(x => x.DonemselFaturalamaJob = true);
-        var start = TestZaman.GunSonra(-65);
+        var start = TestZaman.DaysLater(-65);
         var vehicle = await sp.GetRequiredService<RentACar.Application.Vehicles.VehicleService>()
             .CreateAsync(new RentACar.Application.Vehicles.VehicleInput { Plaka = "34 JR " + Random.Shared.Next(1000, 9999) });
         var customer = await sp.GetRequiredService<RentACar.Application.Customers.CustomerService>()

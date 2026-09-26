@@ -81,12 +81,12 @@ public sealed class TenantIsolationTests(PostgresFixture fx)
         await Assert.ThrowsAnyAsync<DbUpdateException>(() => db.SaveChangesAsync());
     }
 
-    private static async Task InsertVehicleAsync(TestHost host, Guid tenant, string plaka)
+    private static async Task InsertVehicleAsync(TestHost host, Guid tenant, string plate)
     {
         using var scope = host.ScopeFor(tenant);
         var factory = scope.ServiceProvider.GetRequiredService<IDbContextFactory<AppDbContext>>();
         await using var db = await factory.CreateDbContextAsync();
-        db.Vehicles.Add(new Vehicle { Plaka = plaka }); // TenantId interceptor tarafından damgalanır
+        db.Vehicles.Add(new Vehicle { Plaka = plate }); // TenantId interceptor tarafından damgalanır
         await db.SaveChangesAsync();
     }
 }

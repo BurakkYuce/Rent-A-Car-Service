@@ -33,9 +33,9 @@ public sealed class AdversarialFinanceApiTests(PostgresFixture fx)
         return doc.RootElement.GetProperty("id").GetGuid();
     }
 
-    private static async Task<decimal> BalanceAsync(HttpClient c, Guid cariId)
+    private static async Task<decimal> BalanceAsync(HttpClient c, Guid customerId)
     {
-        var resp = await c.GetAsync($"/api/v1/finance/customers/{cariId}/balance");
+        var resp = await c.GetAsync($"/api/v1/finance/customers/{customerId}/balance");
         resp.EnsureSuccessStatusCode();
         var body = await resp.Content.ReadFromJsonAsync<JsonElement>();
         return body.GetProperty("bakiye").GetDecimal();
@@ -54,16 +54,16 @@ public sealed class AdversarialFinanceApiTests(PostgresFixture fx)
     }
 
     /// <summary>Builds an invoiceable rental (GenelToplam > 0) in the caller's tenant.</summary>
-    private static async Task<Guid> CreateRentalAsync(HttpClient c, decimal gunluk = 100m)
+    private static async Task<Guid> CreateRentalAsync(HttpClient c, decimal daily = 100m)
     {
-        var plaka = "34" + Guid.NewGuid().ToString("N")[..6].ToUpperInvariant();
+        var plate = "34" + Guid.NewGuid().ToString("N")[..6].ToUpperInvariant();
         var vehicleId = await CreateIdAsync(c, "/api/v1/vehicles",
-            new { plaka, grup = "B", durum = "Musait", km = 0, yakit = "Benzin" });
+            new { plaka = plate, grup = "B", durum = "Musait", km = 0, yakit = "Benzin" });
         var custId = await CreateIdAsync(c, "/api/v1/customers", new { tip = "Bireysel", ad = "Rent", soyad = "Er" });
-        var bas = TestZaman.GunSonra(10); // göreli: rezervasyon geçmişe kapalı (sabit 2026-09-01 kırıldı)
-        var bit = bas.AddDays(3); // 3 × gunluk = GenelToplam
+        var start = TestZaman.DaysLater(10); // göreli: rezervasyon geçmişe kapalı (sabit 2026-09-01 kırıldı)
+        var bit = start.AddDays(3); // 3 × gunluk = GenelToplam
         var resvId = await CreateIdAsync(c, "/api/v1/reservations",
-            new { musteriId = custId, vehicleId, basTar = bas, bitTar = bit, gunlukUcret = gunluk });
+            new { musteriId = custId, vehicleId, basTar = start, bitTar = bit, gunlukUcret = daily });
         (await c.PostAsync($"/api/v1/reservations/{resvId}/confirm", null)).EnsureSuccessStatusCode();
         var conv = await c.PostAsync($"/api/v1/reservations/{resvId}/convert", null);
         conv.EnsureSuccessStatusCode();
@@ -124,9 +124,9 @@ public sealed class AdversarialFinanceApiTests(PostgresFixture fx)
     public async Task Muhasebe_role_is_allowed_through_the_finance_gate()
     {
         using var api = new ApiFactory(fx.AppConnectionString);
-        var kod = Uniq("advmuh");
-        var tenant = await ApiSeed.TenantUserAsync(fx.OwnerConnectionString, kod, "u", "p", UserRole.Muhasebe);
-        var c = await api.LoginClientAsync(kod, "u", "p");
+        var code = Uniq("advmuh");
+        var tenant = await ApiSeed.TenantUserAsync(fx.OwnerConnectionString, code, "u", "p", UserRole.Muhasebe);
+        var c = await api.LoginClientAsync(code, "u", "p");
 
         // Muhasebe has FinanceWrite (but NOT OperationsWrite) → finance reads/writes pass the gate.
         Assert.Equal(HttpStatusCode.OK, (await c.GetAsync("/api/v1/finance/cash")).StatusCode);
@@ -134,11 +134,11 @@ public sealed class AdversarialFinanceApiTests(PostgresFixture fx)
         // F4.4a MEDIUM-2: the service now validates that the cari EXISTS in the tenant — Muhasebe cannot create
         // one (OperationsWrite), so it is seeded out-of-band with an Admin scope of the same tenant.
         using var host = new TestHost(fx.AppConnectionString);
-        var cari = await TestCari.YeniAsync(host, tenant);
+        var account = await TestCustomer.NewAsync(host, tenant);
         var cashId = await CreateIdAsync(c, "/api/v1/finance/cash/collect",
-            new { cariId = cari, tutar = 100m, doviz = "TRY", kur = 1m, hesap = "Kasa" });
+            new { cariId = account, tutar = 100m, doviz = "TRY", kur = 1m, hesap = "Kasa" });
         Assert.NotEqual(Guid.Empty, cashId);
-        Assert.Equal(-100m, await BalanceAsync(c, cari));
+        Assert.Equal(-100m, await BalanceAsync(c, account));
 
         // Cross-check: the same role is correctly BLOCKED from an OperationsWrite endpoint.
         Assert.Equal(HttpStatusCode.Forbidden,
@@ -152,16 +152,16 @@ public sealed class AdversarialFinanceApiTests(PostgresFixture fx)
     {
         using var api = new ApiFactory(fx.AppConnectionString);
         var ca = await SeedAndLoginAsync(api, Uniq("advxa"), UserRole.Admin);
-        var aCari = await CreateIdAsync(ca, "/api/v1/customers", new { tip = "Bireysel", ad = "A" });
+        var aAccount = await CreateIdAsync(ca, "/api/v1/customers", new { tip = "Bireysel", ad = "A" });
         var aCash = await CreateIdAsync(ca, "/api/v1/finance/cash/collect",
-            new { cariId = aCari, tutar = 1000m, doviz = "TRY", kur = 1m, hesap = "Kasa" });
-        Assert.Equal(-1000m, await BalanceAsync(ca, aCari));
+            new { cariId = aAccount, tutar = 1000m, doviz = "TRY", kur = 1m, hesap = "Kasa" });
+        Assert.Equal(-1000m, await BalanceAsync(ca, aAccount));
 
         var cb = await SeedAndLoginAsync(api, Uniq("advxb"), UserRole.Admin);
 
         // B passes A's cariId → RLS hides A's ledger → balance 0, statement empty (NOT a leak).
-        Assert.Equal(0m, await BalanceAsync(cb, aCari));
-        var stmt = await cb.GetFromJsonAsync<List<JsonElement>>($"/api/v1/finance/customers/{aCari}/statement");
+        Assert.Equal(0m, await BalanceAsync(cb, aAccount));
+        var stmt = await cb.GetFromJsonAsync<List<JsonElement>>($"/api/v1/finance/customers/{aAccount}/statement");
         Assert.Empty(stmt!);
 
         // B passes A's cashId → 404 (not visible), and B's own list excludes it.
@@ -171,7 +171,7 @@ public sealed class AdversarialFinanceApiTests(PostgresFixture fx)
         Assert.DoesNotContain(bList!, e => e.GetProperty("id").GetGuid() == aCash);
 
         // A still sees its own money intact (control).
-        Assert.Equal(-1000m, await BalanceAsync(ca, aCari));
+        Assert.Equal(-1000m, await BalanceAsync(ca, aAccount));
     }
 
     [Fact]
@@ -179,10 +179,10 @@ public sealed class AdversarialFinanceApiTests(PostgresFixture fx)
     {
         using var api = new ApiFactory(fx.AppConnectionString);
         var cb = await SeedAndLoginAsync(api, Uniq("advrb"), UserRole.Admin);
-        var bCari = await CreateIdAsync(cb, "/api/v1/customers", new { tip = "Bireysel", ad = "B" });
+        var bAccount = await CreateIdAsync(cb, "/api/v1/customers", new { tip = "Bireysel", ad = "B" });
         var bCash = await CreateIdAsync(cb, "/api/v1/finance/cash/collect",
-            new { cariId = bCari, tutar = 777m, doviz = "TRY", kur = 1m, hesap = "Kasa" });
-        Assert.Equal(-777m, await BalanceAsync(cb, bCari));
+            new { cariId = bAccount, tutar = 777m, doviz = "TRY", kur = 1m, hesap = "Kasa" });
+        Assert.Equal(-777m, await BalanceAsync(cb, bAccount));
 
         // A attempts to reverse B's cash transaction by id.
         var ca = await SeedAndLoginAsync(api, Uniq("advra"), UserRole.Admin);
@@ -191,10 +191,10 @@ public sealed class AdversarialFinanceApiTests(PostgresFixture fx)
         await AssertErrorEnvelopeAsync(attack);
 
         // B's money is untouched; B can still legitimately reverse it (proves it was never reversed).
-        Assert.Equal(-777m, await BalanceAsync(cb, bCari));
+        Assert.Equal(-777m, await BalanceAsync(cb, bAccount));
         var legit = await cb.PostAsync($"/api/v1/finance/cash/{bCash}/reverse", null);
         Assert.Equal(HttpStatusCode.Created, legit.StatusCode);
-        Assert.Equal(0m, await BalanceAsync(cb, bCari));
+        Assert.Equal(0m, await BalanceAsync(cb, bAccount));
     }
 
     [Fact]
@@ -222,22 +222,22 @@ public sealed class AdversarialFinanceApiTests(PostgresFixture fx)
     {
         using var api = new ApiFactory(fx.AppConnectionString);
         var cb = await SeedAndLoginAsync(api, Uniq("advcb"), UserRole.Admin);
-        var bCari = await CreateIdAsync(cb, "/api/v1/customers", new { tip = "Bireysel", ad = "B" });
-        Assert.Equal(0m, await BalanceAsync(cb, bCari));
+        var bAccount = await CreateIdAsync(cb, "/api/v1/customers", new { tip = "Bireysel", ad = "B" });
+        Assert.Equal(0m, await BalanceAsync(cb, bAccount));
 
         // A posts a collection referencing B's cariId in the body.
         var ca = await SeedAndLoginAsync(api, Uniq("advca"), UserRole.Admin);
         var resp = await ca.PostAsJsonAsync("/api/v1/finance/cash/collect",
-            new { cariId = bCari, tutar = 1234m, doviz = "TRY", kur = 1m, hesap = "Kasa" });
+            new { cariId = bAccount, tutar = 1234m, doviz = "TRY", kur = 1m, hesap = "Kasa" });
         // F4.4a MEDIUM-2: the cari must exist in the CALLER's tenant (RLS-scoped lookup) → rejected, not an
         // orphan row in A keyed by B's GUID (previously 201 + A-local −1234 under a cari A does not have).
         Assert.Equal(HttpStatusCode.BadRequest, resp.StatusCode);
         await AssertErrorEnvelopeAsync(resp);
 
         // CRITICAL: B's ledger for that cariId is UNCHANGED → no cross-tenant write/corruption.
-        Assert.Equal(0m, await BalanceAsync(cb, bCari));
+        Assert.Equal(0m, await BalanceAsync(cb, bAccount));
         // …and A wrote nothing under that GUID either.
-        Assert.Equal(0m, await BalanceAsync(ca, bCari));
+        Assert.Equal(0m, await BalanceAsync(ca, bAccount));
     }
 
     // ─────────────────── 3) REQUEST→SERVICE MAPPING / BAD INPUT ───────────────────
@@ -245,12 +245,12 @@ public sealed class AdversarialFinanceApiTests(PostgresFixture fx)
     [Theory]
     [InlineData(0)]
     [InlineData(-5)]
-    public async Task Collect_rejects_nonpositive_amount(decimal tutar)
+    public async Task Collect_rejects_nonpositive_amount(decimal amount)
     {
         using var api = new ApiFactory(fx.AppConnectionString);
         var c = await SeedAndLoginAsync(api, Uniq("advamt"), UserRole.Admin);
         var resp = await c.PostAsJsonAsync("/api/v1/finance/cash/collect",
-            new { cariId = Guid.NewGuid(), tutar, doviz = "TRY", kur = 1m, hesap = "Kasa" });
+            new { cariId = Guid.NewGuid(), tutar = amount, doviz = "TRY", kur = 1m, hesap = "Kasa" });
         Assert.Equal(HttpStatusCode.BadRequest, resp.StatusCode);
         await AssertErrorEnvelopeAsync(resp);
     }
@@ -258,12 +258,12 @@ public sealed class AdversarialFinanceApiTests(PostgresFixture fx)
     [Theory]
     [InlineData(0)]
     [InlineData(-1)]
-    public async Task Collect_rejects_nonpositive_kur(decimal kur)
+    public async Task Collect_rejects_nonpositive_kur(decimal exchangeRate)
     {
         using var api = new ApiFactory(fx.AppConnectionString);
         var c = await SeedAndLoginAsync(api, Uniq("advkur"), UserRole.Admin);
         var resp = await c.PostAsJsonAsync("/api/v1/finance/cash/collect",
-            new { cariId = Guid.NewGuid(), tutar = 100m, doviz = "USD", kur, hesap = "Kasa" });
+            new { cariId = Guid.NewGuid(), tutar = 100m, doviz = "USD", kur = exchangeRate, hesap = "Kasa" });
         Assert.Equal(HttpStatusCode.BadRequest, resp.StatusCode);
         await AssertErrorEnvelopeAsync(resp);
     }
@@ -273,12 +273,12 @@ public sealed class AdversarialFinanceApiTests(PostgresFixture fx)
     [InlineData("Gelir")]
     [InlineData("Kdv")]
     [InlineData("Gider")]
-    public async Task Collect_rejects_non_Kasa_Banka_hesap(string hesap)
+    public async Task Collect_rejects_non_Kasa_Banka_hesap(string account)
     {
         using var api = new ApiFactory(fx.AppConnectionString);
         var c = await SeedAndLoginAsync(api, Uniq("advhes"), UserRole.Admin);
         var resp = await c.PostAsJsonAsync("/api/v1/finance/cash/collect",
-            new { cariId = Guid.NewGuid(), tutar = 100m, doviz = "TRY", kur = 1m, hesap });
+            new { cariId = Guid.NewGuid(), tutar = 100m, doviz = "TRY", kur = 1m, hesap = account });
         Assert.Equal(HttpStatusCode.BadRequest, resp.StatusCode);
         await AssertErrorEnvelopeAsync(resp);
     }
@@ -299,12 +299,12 @@ public sealed class AdversarialFinanceApiTests(PostgresFixture fx)
     [InlineData("Kasa", "Banka", 0)]   // nonpositive amount
     [InlineData("Gelir", "Banka", 50)] // non Kasa/Banka source
     [InlineData("Kasa", "Cari", 50)]   // non Kasa/Banka target
-    public async Task Transfer_rejects_bad_inputs(string kaynak, string hedef, decimal tutar)
+    public async Task Transfer_rejects_bad_inputs(string source, string target, decimal amount)
     {
         using var api = new ApiFactory(fx.AppConnectionString);
         var c = await SeedAndLoginAsync(api, Uniq("advtr"), UserRole.Admin);
         var resp = await c.PostAsJsonAsync("/api/v1/finance/cash/transfer",
-            new { kaynak, hedef, tutar, doviz = "TRY", kur = 1m });
+            new { kaynak = source, hedef = target, tutar = amount, doviz = "TRY", kur = 1m });
         Assert.Equal(HttpStatusCode.BadRequest, resp.StatusCode);
         await AssertErrorEnvelopeAsync(resp);
     }
@@ -314,11 +314,11 @@ public sealed class AdversarialFinanceApiTests(PostgresFixture fx)
     {
         using var api = new ApiFactory(fx.AppConnectionString);
         var c = await SeedAndLoginAsync(api, Uniq("advfx"), UserRole.Admin);
-        var cari = await CreateIdAsync(c, "/api/v1/customers", new { tip = "Bireysel", ad = "Fx" });
+        var account = await CreateIdAsync(c, "/api/v1/customers", new { tip = "Bireysel", ad = "Fx" });
 
         // 100 USD @ kur 30 → base 3000.
         var resp = await c.PostAsJsonAsync("/api/v1/finance/cash/collect",
-            new { cariId = cari, tutar = 100m, doviz = "usd", kur = 30m, hesap = "Banka" });
+            new { cariId = account, tutar = 100m, doviz = "usd", kur = 30m, hesap = "Banka" });
         Assert.Equal(HttpStatusCode.Created, resp.StatusCode);
         using var doc = JsonDocument.Parse(await resp.Content.ReadAsStringAsync());
         var t = doc.RootElement.GetProperty("tutar");
@@ -329,7 +329,7 @@ public sealed class AdversarialFinanceApiTests(PostgresFixture fx)
         Assert.Equal("Banka", doc.RootElement.GetProperty("karsiHesap").GetString());
 
         // Balance is in base currency → −3000.
-        Assert.Equal(-3000m, await BalanceAsync(c, cari));
+        Assert.Equal(-3000m, await BalanceAsync(c, account));
     }
 
     // ───────────────────────── 4) IDEMPOTENCY OVER HTTP ─────────────────────────
@@ -339,17 +339,17 @@ public sealed class AdversarialFinanceApiTests(PostgresFixture fx)
     {
         using var api = new ApiFactory(fx.AppConnectionString);
         var c = await SeedAndLoginAsync(api, Uniq("advidem"), UserRole.Admin);
-        var cari = await CreateIdAsync(c, "/api/v1/customers", new { tip = "Bireysel", ad = "Id" });
+        var account = await CreateIdAsync(c, "/api/v1/customers", new { tip = "Bireysel", ad = "Id" });
         var cashId = await CreateIdAsync(c, "/api/v1/finance/cash/collect",
-            new { cariId = cari, tutar = 500m, doviz = "TRY", kur = 1m, hesap = "Kasa" });
-        Assert.Equal(-500m, await BalanceAsync(c, cari));
+            new { cariId = account, tutar = 500m, doviz = "TRY", kur = 1m, hesap = "Kasa" });
+        Assert.Equal(-500m, await BalanceAsync(c, account));
 
         // First reverse succeeds.
         var first = await c.PostAsync($"/api/v1/finance/cash/{cashId}/reverse", null);
         Assert.Equal(HttpStatusCode.Created, first.StatusCode);
         using var firstDoc = JsonDocument.Parse(await first.Content.ReadAsStringAsync());
         var reversalId = firstDoc.RootElement.GetProperty("id").GetGuid();
-        Assert.Equal(0m, await BalanceAsync(c, cari));
+        Assert.Equal(0m, await BalanceAsync(c, account));
 
         // Second reverse of the SAME original must fail (no double-reverse). F1.4: mükerrer gönderim →
         // 409 duplicate_submission (yarış yolundaki TersAlinanId kısıtıyla AYNI sonuç).
@@ -365,7 +365,7 @@ public sealed class AdversarialFinanceApiTests(PostgresFixture fx)
         await AssertErrorEnvelopeAsync(revOfRev);
 
         // Balance stayed at 0 (not +500 from a double reverse).
-        Assert.Equal(0m, await BalanceAsync(c, cari));
+        Assert.Equal(0m, await BalanceAsync(c, account));
     }
 
     [Fact]
@@ -373,10 +373,10 @@ public sealed class AdversarialFinanceApiTests(PostgresFixture fx)
     {
         using var api = new ApiFactory(fx.AppConnectionString);
         var c = await SeedAndLoginAsync(api, Uniq("advconc"), UserRole.Admin);
-        var cari = await CreateIdAsync(c, "/api/v1/customers", new { tip = "Bireysel", ad = "Cc" });
+        var account = await CreateIdAsync(c, "/api/v1/customers", new { tip = "Bireysel", ad = "Cc" });
         var cashId = await CreateIdAsync(c, "/api/v1/finance/cash/collect",
-            new { cariId = cari, tutar = 1000m, doviz = "TRY", kur = 1m, hesap = "Kasa" });
-        Assert.Equal(-1000m, await BalanceAsync(c, cari));
+            new { cariId = account, tutar = 1000m, doviz = "TRY", kur = 1m, hesap = "Kasa" });
+        Assert.Equal(-1000m, await BalanceAsync(c, account));
 
         // Fire several reverse requests concurrently against the same original.
         var tasks = Enumerable.Range(0, 6)
@@ -393,7 +393,7 @@ public sealed class AdversarialFinanceApiTests(PostgresFixture fx)
         Assert.Equal(results.Length - 1, rejected); // all others 409 (idempotent guard, timing-independent)
 
         // Money correctness oracle: balance restored exactly once → 0 (not +N×1000).
-        Assert.Equal(0m, await BalanceAsync(c, cari));
+        Assert.Equal(0m, await BalanceAsync(c, account));
     }
 
     // ───────────── 5) ERROR LEAKAGE / STATUS-CODE CORRECTNESS ─────────────

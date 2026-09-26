@@ -28,9 +28,9 @@ public static class AccessoryEndpoints
         return app;
     }
 
-    private static async Task<IResult> Run(Func<Task> action, string mesaj)
+    private static async Task<IResult> Run(Func<Task> action, string message)
     {
-        try { await action(); return Sonuc.Tamam("/aksesuarlar", mesaj); }
+        try { await action(); return Result.Ok("/aksesuarlar", message); }
         catch (ValidationException ex) { return Results.Redirect($"/aksesuarlar?hata={Uri.EscapeDataString(ex.Message)}"); }
     }
 }

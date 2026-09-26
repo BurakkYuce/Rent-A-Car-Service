@@ -22,7 +22,7 @@ public sealed partial class UiCustomerApiTests
     public async Task Legacy_individual_tax_number_stays_editable_until_changed(int digits)
     {
         var e = await SetupAsync();
-        var legacy = digits == 11 ? RandomTc() : RandomTc()[..9];
+        var legacy = digits == 11 ? RandomNationalId() : RandomNationalId()[..9];
         var c = new Customer { Tip = CustomerType.Bireysel, Ad = "Eski", Soyad = Marker(), VergiNo = legacy, Gsm2 = "05320000000" };
         await WriteAsync(e.TenantId, db => db.Customers.Add(c)); // kural öncesi kayıt: doğrulamadan geçmeden yazılır
 
@@ -44,7 +44,7 @@ public sealed partial class UiCustomerApiTests
         put["surum"] = ok.GetProperty("surum").GetString();
         put["vergiNo"] = "12345";
         await Problem(await Send(admin, HttpMethod.Put, $"{Customers}/{c.Id}", put), HttpStatusCode.BadRequest, "dogrulama", "vergiNo");
-        put["vergiNo"] = RandomTc();
+        put["vergiNo"] = RandomNationalId();
         await Problem(await Send(admin, HttpMethod.Put, $"{Customers}/{c.Id}", put), HttpStatusCode.BadRequest, "dogrulama", "vergiNo");
         Assert.Equal(legacy, await ReadAsync(e.TenantId, db => db.Customers.Where(x => x.Id == c.Id).Select(x => x.VergiNo).SingleAsync()));
 

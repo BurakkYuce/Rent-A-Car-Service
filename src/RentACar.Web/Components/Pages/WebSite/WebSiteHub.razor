@@ -13,7 +13,7 @@
 
 @* PR-12: SAYFA da sunucuda modülü doğrular. `[Authorize]` yalnız rolü kontrol eder; menüyü
    gizlemek tek başına koruma değildir. *@
-@if (!_modul)
+@if (!_module)
 {
     <div class="page-head"><h1>Web Sitesi</h1></div>
     <p class="empty-state">Bu modül firmanızda etkin değil.</p>
@@ -32,13 +32,13 @@ else
         özelliklerle görüneceğini buradan yönetirsiniz. Bir ilan; tek bir aracı ya da birbirinin
         aynısı birden çok aracı temsil edebilir.</p>
 
-    @if (_ilansiz > 0)
+    @if (_unlisted > 0)
     {
-        <p class="warn-strip">Sitede yayınlanmamış <strong>@_ilansiz araç</strong> var —
+        <p class="warn-strip">Sitede yayınlanmamış <strong>@_unlisted araç</strong> var —
             "Araç Ekle" ile yayınlayabilirsiniz.</p>
     }
 
-    @if (_satirlar.Count == 0)
+    @if (_rows.Count == 0)
     {
         <p class="empty-state">Henüz ilan oluşturmadınız — "Araç Ekle" ile başlayın.</p>
     }
@@ -53,7 +53,7 @@ else
                 </tr>
             </thead>
             <tbody>
-                @foreach (var s in _satirlar)
+                @foreach (var s in _rows)
                 {
                     <tr>
                         <td>
@@ -132,16 +132,16 @@ else
     [SupplyParameterFromQuery(Name = "ok")] public string? Ok { get; set; }
     [SupplyParameterFromQuery(Name = "hata")] public string? Hata { get; set; }
 
-    private bool _modul;
-    private IReadOnlyList<WebIlanSatiri> _satirlar = [];
-    private int _ilansiz;
+    private bool _module;
+    private IReadOnlyList<WebIlanSatiri> _rows = [];
+    private int _unlisted;
 
     protected override async Task OnInitializedAsync()
     {
-        _modul = Tenant.TenantId is { } id && await Durum.WebsiteModuleAsync(id);
-        if (!_modul) return;
+        _module = Tenant.TenantId is { } id && await Durum.WebsiteModuleAsync(id);
+        if (!_module) return;
 
-        _satirlar = await Ilanlar.ListAsync(); // foto durumu servis içinde TEK toplu sorguyla
-        _ilansiz = await Ilanlar.UnlistedVehicleCountAsync();
+        _rows = await Ilanlar.ListAsync(); // foto durumu servis içinde TEK toplu sorguyla
+        _unlisted = await Ilanlar.UnlistedVehicleCountAsync();
     }
 }

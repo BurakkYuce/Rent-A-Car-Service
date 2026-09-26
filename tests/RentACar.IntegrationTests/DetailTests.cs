@@ -52,23 +52,23 @@ public sealed class DetailTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         var tenant = Guid.NewGuid();
         using var scope = host.ScopeFor(tenant);
-        var cari = Guid.NewGuid();
+        var account = Guid.NewGuid();
 
         var factory = scope.ServiceProvider.GetRequiredService<IDbContextFactory<AppDbContext>>();
         await using (var db = await factory.CreateDbContextAsync())
         {
-            db.Customers.Add(new Customer { Id = cari, Tip = CustomerType.Bireysel, Ad = "Det", Soyad = "Ay" });
-            db.Rentals.Add(new RentalContract { SozlesmeNo = "K-C1", MusteriId = cari, VehicleId = Guid.NewGuid(),
+            db.Customers.Add(new Customer { Id = account, Tip = CustomerType.Bireysel, Ad = "Det", Soyad = "Ay" });
+            db.Rentals.Add(new RentalContract { SozlesmeNo = "K-C1", MusteriId = account, VehicleId = Guid.NewGuid(),
                 Durum = RentalStatus.Kirada, BasTar = DateTimeOffset.UtcNow, BitTar = DateTimeOffset.UtcNow.AddDays(1) });
             await db.SaveChangesAsync();
         }
 
         // İki tahsilat → cari alacaklı (−300).
         var cash = scope.ServiceProvider.GetRequiredService<CashService>();
-        await cash.CollectAsync(new CashInput { CariId = cari, Tutar = 100m });
-        await cash.CollectAsync(new CashInput { CariId = cari, Tutar = 200m });
+        await cash.CollectAsync(new CashInput { CariId = account, Tutar = 100m });
+        await cash.CollectAsync(new CashInput { CariId = account, Tutar = 200m });
 
-        var d = await scope.ServiceProvider.GetRequiredService<DetailService>().GetCustomerAsync(cari);
+        var d = await scope.ServiceProvider.GetRequiredService<DetailService>().GetCustomerAsync(account);
         Assert.NotNull(d);
         Assert.Equal("Det Ay", d!.Customer.DisplayName);
         Assert.Equal(-300m, d.Bakiye);            // iki tahsilat (Alacak Cari)

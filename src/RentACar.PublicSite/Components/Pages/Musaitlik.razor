@@ -11,35 +11,35 @@
 
 <SayfaMeta Baslik="@($"Müsaitlik ve Fiyat — {_branding?.Marka ?? "RentPro"}")"
            Aciklama="@($"{_branding?.Marka ?? "Firmamız"} filosunda tarihlerinize göre müsait araçları ve net günlük fiyatı görün. Kayıt gerekmez, teklif bırakmak ücretsizdir.")"
-           Yol="/musaitlik" Marka="_branding" KanonikKok="@_kanonikKok" />
+           Yol="/musaitlik" Marka="_branding" KanonikKok="@_canonicalRoot" />
 
 <div class="container">
     <a class="back-link" href="/">← Ana sayfa</a>
     <h1>Müsaitlik ve Fiyat Sorgula</h1>
 
-    @if (!string.IsNullOrEmpty(_hata))
+    @if (!string.IsNullOrEmpty(_error))
     {
-        <p class="empty-state">@_hata</p>
+        <p class="empty-state">@_error</p>
     }
 
     @* PR-19: form ORTAK bileşene çıkarıldı (T4) — Hero ile aynı alan adları/doğrulama.
        GET-querystring deseni korunuyor: JS yok, paylaşılabilir/geri-tuşuna dost URL. *@
-    <AramaFormu Bas="@Bas" Bit="@Bit" Sube="@Sube" Subeler="_subeler" />
+    <AramaFormu Bas="@Bas" Bit="@Bit" Sube="@Sube" Subeler="_branches" />
 
-    @if (_arandi)
+    @if (_searched)
     {
         @* ---- (a) TARİH SEÇİLMİŞ: gerçek müsaitlik + dönem toplamı ---- *@
-        @if (_sonuclar is { Count: > 0 })
+        @if (_results is { Count: > 0 })
         {
-            <p class="muted-note"><strong>@_sonuclar.Count araç</strong> müsait ·
-                @_sonuclar[0].Gun günlük kiralama · fiyatlar seçtiğiniz gün sayısına göre hesaplandı.</p>
+            <p class="muted-note"><strong>@_results.Count araç</strong> müsait ·
+                @_results[0].Gun günlük kiralama · fiyatlar seçtiğiniz gün sayısına göre hesaplandı.</p>
             <div class="grid">
-                @foreach (var r in _sonuclar)
+                @foreach (var r in _results)
                 {
                     <AracKarti Slug="@r.Slug" Baslik="@r.Baslik" CoverPhotoId="r.CoverPhotoId"
                                YilAralik="@r.YilAralik" GunlukFiyat="r.GunlukFiyat" KdvDahil="r.KdvDahil"
                                Ozellikler="r.Ozellikler" Gun="r.Gun" Toplam="r.Toplam" Adet="r.Adet"
-                               TeklifLinki="@TeklifLinki(r.Slug, r.GunlukFiyat)" />
+                               TeklifLinki="@QuotationLink(r.Slug, r.GunlukFiyat)" />
                 }
             </div>
         }
@@ -57,7 +57,7 @@
                 yukarıdaki formdan yeniden deneyebilirsiniz.</p>
         }
     }
-    else if (_filo is { Count: > 0 })
+    else if (_fleet is { Count: > 0 })
     {
         @* ---- (b) TARİH YOK: misafir filoyu serbestçe geziyor ----
            Tarih girmek ZORUNLU DEĞİL. Eskiden iki alan da `required`'dı ve tarihsiz açılan sayfa
@@ -67,20 +67,20 @@
            BURADA "müsait" DENMEZ: tarih olmadan hangi aracın boşta olduğu bilinemez. Kart adet
            çipi de "9 araç" der, "9 araç müsait" demez (bkz. AracKarti). Yanlış söz vermemek,
            ziyaretçiyi tarih girmeye zorlamaktan daha önemli. *@
-        <p class="muted-note"><strong>@_filo.Count araç</strong> · günlük fiyatlar aşağıda.
+        <p class="muted-note"><strong>@_fleet.Count araç</strong> · günlük fiyatlar aşağıda.
             Tarih girerseniz o aralıkta <strong>gerçekten boşta olanları</strong> ve
             seçtiğiniz gün sayısına göre toplam tutarı gösteririz.</p>
         <div class="grid">
-            @foreach (var k in _filo)
+            @foreach (var k in _fleet)
             {
                 <AracKarti Slug="@k.Slug" Baslik="@k.Baslik" CoverPhotoId="k.CoverPhotoId"
                            YilAralik="@k.YilAralik" GunlukFiyat="k.GunlukFiyat" KdvDahil="k.KdvDahil"
                            Ozellikler="k.Ozellikler" Adet="k.Adet"
-                           TeklifLinki="@TeklifLinki(k.Slug, k.GunlukFiyat)" />
+                           TeklifLinki="@QuotationLink(k.Slug, k.GunlukFiyat)" />
             }
         </div>
     }
-    else if (_filo is { Count: 0 })
+    else if (_fleet is { Count: 0 })
     {
         <p class="empty-state">Şu anda sitede yayınlanmış araç yok.</p>
         <p class="ust-linkler"><a href="/iletisim">Bize ulaşın</a></p>
@@ -98,59 +98,59 @@
     [SupplyParameterFromQuery(Name = "sube")] public string? Sube { get; set; }
 
     private FleetBranding? _branding;
-    private string? _kanonikKok;
-    private IReadOnlyList<string> _subeler = [];
-    private IReadOnlyList<PublicAvailabilityResult>? _sonuclar;
+    private string? _canonicalRoot;
+    private IReadOnlyList<string> _branches = [];
+    private IReadOnlyList<PublicAvailabilityResult>? _results;
     /// <summary>Tarihsiz mod: yayındaki TÜM filo (müsaitlik süzgeci uygulanmadan).</summary>
-    private IReadOnlyList<FleetShowcaseCard>? _filo;
-    private bool _arandi;
-    private string? _hata;
+    private IReadOnlyList<FleetShowcaseCard>? _fleet;
+    private bool _searched;
+    private string? _error;
 
     /// <summary>PR-8 talep formuna bağlam taşır: İLAN + tarihler + ziyaretçinin GÖRDÜĞÜ fiyat (snapshot).
     /// Fiyat InvariantCulture ile yazılır — tr-TR virgülü query string'de yanlış ayrıştırılırdı.
     /// Tarihler BOŞ olabilir (misafir tarihsiz geziyorsa): talep formu onları kendisi sorar.</summary>
-    private string TeklifLinki(string slug, decimal gunlukFiyat)
+    private string QuotationLink(string slug, decimal dailyPrice)
     {
         var q = System.Web.HttpUtility.ParseQueryString(string.Empty);
         q["ilan"] = slug; // slug: sayfa ilanı yeniden çözer (yayından kalkmışsa fiyat/başlık taşınmaz)
         if (!string.IsNullOrWhiteSpace(Bas)) q["bas"] = Bas;
         if (!string.IsNullOrWhiteSpace(Bit)) q["bit"] = Bit;
         if (!string.IsNullOrWhiteSpace(Sube)) q["sube"] = Sube;
-        q["fiyat"] = gunlukFiyat.ToString(System.Globalization.CultureInfo.InvariantCulture);
+        q["fiyat"] = dailyPrice.ToString(System.Globalization.CultureInfo.InvariantCulture);
         return "/rezervasyon-talebi?" + q;
     }
 
     protected override async Task OnInitializedAsync()
     {
         _branding = await Showcase.GetBrandingAsync();
-        if (Http is not null) _kanonikKok = $"https://{Http.Request.Host.Value}";
-        _subeler = (await Subeler.ListActiveAsync()).Select(s => s.Ad).ToList();
+        if (Http is not null) _canonicalRoot = $"https://{Http.Request.Host.Value}";
+        _branches = (await Subeler.ListActiveAsync()).Select(s => s.Ad).ToList();
 
-        var bas = ParseDate(Bas);
+        var start = ParseDate(Bas);
         var bit = ParseDate(Bit);
 
         // İKİ tarih de girilmemişse (ya da yalnız biri girilmişse) müsaitlik HESAPLANMAZ — tek
         // tarihten aralık uydurmak ziyaretçinin niyetini varsaymak olurdu. Bunun yerine filo
         // listelenir; ziyaretçi isterse ikinci tarihi girip daraltır.
-        if (bas is null || bit is null)
+        if (start is null || bit is null)
         {
-            _filo = await Showcase.ListShowcaseGroupsAsync();
+            _fleet = await Showcase.ListShowcaseGroupsAsync();
             return;
         }
 
-        _arandi = true;
+        _searched = true;
         try
         {
-            _sonuclar = await Showcase.SearchAvailabilityAsync(bas.Value, bit.Value,
+            _results = await Showcase.SearchAvailabilityAsync(start.Value, bit.Value,
                 string.IsNullOrWhiteSpace(Sube) ? null : Sube);
         }
         catch (ValidationException ex)
         {
             // Geçersiz aralık (ör. iade < alış): hata gösterilir AMA ziyaretçi boş sayfada
             // bırakılmaz — filo yine listelenir, düzeltip yeniden deneyebilir.
-            _hata = ex.Message;
-            _arandi = false;
-            _filo = await Showcase.ListShowcaseGroupsAsync();
+            _error = ex.Message;
+            _searched = false;
+            _fleet = await Showcase.ListShowcaseGroupsAsync();
         }
     }
 

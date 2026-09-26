@@ -26,9 +26,9 @@
     <form method="post" action="/auth/login"><AntiforgeryToken />
         @* Oturum düşmüşken açılan derin bağlantı (?ReturnUrl=) girişten sonra geri açılsın diye forma
            taşınır. Yalnız GuvenliDonus'tan geçmiş değer basılır; uç yine de kendisi doğrular. *@
-        @if (Donus != RentACar.Web.Identity.YetkiYonlendirme.Varsayilan)
+        @if (Donus != RentACar.Web.Identity.PermissionRedirect.Default)
         {
-            <input type="hidden" name="@RentACar.Web.Identity.YetkiYonlendirme.DonusParametresi" value="@Donus" />
+            <input type="hidden" name="@RentACar.Web.Identity.PermissionRedirect.ReturnParameter" value="@Donus" />
         }
         <label>Firma
             <input name="firma" value="@(Env.IsDevelopment() ? "yucerent" : "")" autocomplete="off" />
@@ -54,7 +54,7 @@
     public string? Hata { get; set; }
 
     // Çerez şemasının 401 yönlendirmesinin yazdığı dönüş adresi (YetkiYonlendirme.GirisYonlendirmesi).
-    [SupplyParameterFromQuery(Name = RentACar.Web.Identity.YetkiYonlendirme.DonusParametresi)]
+    [SupplyParameterFromQuery(Name = RentACar.Web.Identity.PermissionRedirect.ReturnParameter)]
     public string? ReturnUrl { get; set; }
 
     [CascadingParameter] private Task<AuthenticationState>? AuthState { get; set; }
@@ -64,7 +64,7 @@
     private bool Kapali => Hata == "kapali";
 
     // Güvenli değilse (başka alan adı, /login döngüsü, platform alanı…) "/" — gizli alan hiç basılmaz.
-    private string Donus => RentACar.Web.Identity.YetkiYonlendirme.GuvenliDonus(ReturnUrl);
+    private string Donus => RentACar.Web.Identity.PermissionRedirect.SafeReturn(ReturnUrl);
 
     protected override async Task OnInitializedAsync()
     {

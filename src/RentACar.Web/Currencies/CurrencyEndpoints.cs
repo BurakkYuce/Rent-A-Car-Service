@@ -28,9 +28,9 @@ public static class CurrencyEndpoints
         return app;
     }
 
-    private static async Task<IResult> Run(Func<Task> action, string mesaj)
+    private static async Task<IResult> Run(Func<Task> action, string message)
     {
-        try { await action(); return Sonuc.Tamam("/dovizler", mesaj); }
+        try { await action(); return Result.Ok("/dovizler", message); }
         catch (ValidationException ex) { return Results.Redirect($"/dovizler?hata={Uri.EscapeDataString(ex.Message)}"); }
     }
 }

@@ -20,26 +20,26 @@ namespace RentACar.IntegrationTests;
 [Collection("postgres")]
 public sealed class TamTeklifPersistTests(PostgresFixture fx)
 {
-    private static readonly DateTimeOffset Bas = new DateTimeOffset(DateTime.UtcNow.Date, TimeSpan.Zero).AddDays(5);
+    private static readonly DateTimeOffset Start = new DateTimeOffset(DateTime.UtcNow.Date, TimeSpan.Zero).AddDays(5);
 
     private static async Task<(Guid m, Guid v)> SeedAsync(
-        IServiceProvider sp, string plaka, int? hediyeGun = null, decimal? iskonto = null, decimal? hsOran = null)
+        IServiceProvider sp, string plate, int? giftDays = null, decimal? discount = null, decimal? weekendRate = null)
     {
-        var v = await sp.GetRequiredService<VehicleService>().CreateAsync(new VehicleInput { Plaka = plaka, Grup = "B" });
+        var v = await sp.GetRequiredService<VehicleService>().CreateAsync(new VehicleInput { Plaka = plate, Grup = "B" });
         var m = await sp.GetRequiredService<CustomerService>().CreateAsync(new CustomerInput { Tip = CustomerType.Bireysel, Ad = "TT", Soyad = "M" });
         await sp.GetRequiredService<RateMatrixService>().CreateAsync(new RateMatrixInput
         {
             Kod = "TT-B", Ad = "TT B", AracGrupKod = "B", ParaBirimi = "TRY",
             Gun1 = 300m, Gun2 = 280m, Gun3 = 240m, OnayDurumu = TariffApprovalStatus.Onayli, Onaylayan = "t"
         });
-        if (hediyeGun is not null || iskonto is not null || hsOran is not null)
+        if (giftDays is not null || discount is not null || weekendRate is not null)
             await sp.GetRequiredService<RentalRuleService>().CreateAsync(new RentalRuleInput
-            { Kod = "TT-R", Ad = "TT Kural", AracGrupKod = "B", HediyeGun = hediyeGun, Iskonto = iskonto, HaftaSonuFarkOran = hsOran });
+            { Kod = "TT-R", Ad = "TT Kural", AracGrupKod = "B", HediyeGun = giftDays, Iskonto = discount, HaftaSonuFarkOran = weekendRate });
         return (m, v);
     }
 
-    private static BookingInput Otomatik(Guid m, Guid v, int gun) => new()
-    { MusteriId = m, VehicleId = v, BasTar = Bas, BitTar = Bas.AddDays(gun), FiyatTuru = "Otomatik", KmLimit = 300, FazlaKmUcret = 2m };
+    private static BookingInput Auto(Guid m, Guid v, int day) => new()
+    { MusteriId = m, VehicleId = v, BasTar = Start, BitTar = Start.AddDays(day), FiyatTuru = "Otomatik", KmLimit = 300, FazlaKmUcret = 2m };
 
     [Fact]
     public async Task Otomatik_kuralsiz_bilesen_yok_tutar_baz()
@@ -48,7 +48,7 @@ public sealed class TamTeklifPersistTests(PostgresFixture fx)
         using var scope = host.ScopeFor(Guid.NewGuid());
         var sp = scope.ServiceProvider;
         var (m, v) = await SeedAsync(sp, "34 TT 01"); // kural yok
-        var id = await sp.GetRequiredService<RentalService>().CreateDirectAsync(Otomatik(m, v, 3));
+        var id = await sp.GetRequiredService<RentalService>().CreateDirectAsync(Auto(m, v, 3));
         var c = await sp.GetRequiredService<RentalService>().GetAsync(id);
         Assert.Equal(720m, c!.Tutar);       // 3 × 240
         Assert.Null(c.HediyeGun);           // kural yok → bileşen null
@@ -62,8 +62,8 @@ public sealed class TamTeklifPersistTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
         var sp = scope.ServiceProvider;
-        var (m, v) = await SeedAsync(sp, "34 TT 02", hediyeGun: 1, iskonto: 10m);
-        var id = await sp.GetRequiredService<RentalService>().CreateDirectAsync(Otomatik(m, v, 3));
+        var (m, v) = await SeedAsync(sp, "34 TT 02", giftDays: 1, discount: 10m);
+        var id = await sp.GetRequiredService<RentalService>().CreateDirectAsync(Auto(m, v, 3));
         var c = await sp.GetRequiredService<RentalService>().GetAsync(id);
         // faturalanan 2 gün × 240 = 480; iskonto %10 → 48; Tutar = 432 (elle oracle).
         Assert.Equal(432m, c!.Tutar);
@@ -79,8 +79,8 @@ public sealed class TamTeklifPersistTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
         var sp = scope.ServiceProvider;
-        var (m, v) = await SeedAsync(sp, "34 TT 03", hediyeGun: 1, iskonto: 10m);
-        var id = await sp.GetRequiredService<RentalService>().CreateDirectAsync(Otomatik(m, v, 3));
+        var (m, v) = await SeedAsync(sp, "34 TT 03", giftDays: 1, discount: 10m);
+        var id = await sp.GetRequiredService<RentalService>().CreateDirectAsync(Auto(m, v, 3));
         // Fatura kes → defter brütü sözleşme Tutar'ı (432) ile birebir; iskonto ÇİFT sayılmaz.
         await sp.GetRequiredService<InvoiceService>().CreateFromRentalAsync(id);
         // Cari borç = 432 (iskonto zaten Tutar'da; ayrı satır/çifte yok).
@@ -94,14 +94,14 @@ public sealed class TamTeklifPersistTests(PostgresFixture fx)
         using var scope = host.ScopeFor(Guid.NewGuid());
         var sp = scope.ServiceProvider;
         var rentals = sp.GetRequiredService<RentalService>();
-        var (m, v) = await SeedAsync(sp, "34 TT 04", iskonto: 10m); // hediye yok, iskonto %10
-        var id = await rentals.CreateDirectAsync(Otomatik(m, v, 3)); // 3×240=720, iskonto 72 → Tutar 648
+        var (m, v) = await SeedAsync(sp, "34 TT 04", discount: 10m); // hediye yok, iskonto %10
+        var id = await rentals.CreateDirectAsync(Auto(m, v, 3)); // 3×240=720, iskonto 72 → Tutar 648
         var c0 = await rentals.GetAsync(id);
         Assert.Equal(648m, c0!.Tutar);
 
         // Dönüş: limit 300, kat edilen 500 → fazla 200 × 2 = 400 (dönüş-zamanı, create'teki tahminle ilgisiz).
         await rentals.DeliverAsync(id, pickupKm: 1000, pickupFuel: 8);
-        await rentals.ReturnAsync(id, returnKm: 1500, returnFuel: 8, Bas.AddDays(3));
+        await rentals.ReturnAsync(id, returnKm: 1500, returnFuel: 8, Start.AddDays(3));
         var c = await rentals.GetAsync(id);
         Assert.Equal(400m, c!.FazlaKmBedeli);           // dönüş-zamanı gerçek aşım
         Assert.Equal(648m + 400m, c.GenelToplam);       // iskontolu baz (648) + gerçek fazla (400) — çift-sayım yok
@@ -113,11 +113,11 @@ public sealed class TamTeklifPersistTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
         var sp = scope.ServiceProvider;
-        var (m, v) = await SeedAsync(sp, "34 TT 06", iskonto: 10m); // iskonto kuralı VAR
+        var (m, v) = await SeedAsync(sp, "34 TT 06", discount: 10m); // iskonto kuralı VAR
         // FiyatTuru "Otomatik" DEĞİL + günlük ücret boş (0) → legacy: yalnız günlük ücret çözülür,
         // iskonto UYGULANMAZ (adversarial M1 gate). Tutar = 3×240 = 720; döküm null.
         var id = await sp.GetRequiredService<RentalService>().CreateDirectAsync(new BookingInput
-        { MusteriId = m, VehicleId = v, BasTar = Bas, BitTar = Bas.AddDays(3), FiyatTuru = null, GunlukUcret = 0m });
+        { MusteriId = m, VehicleId = v, BasTar = Start, BitTar = Start.AddDays(3), FiyatTuru = null, GunlukUcret = 0m });
         var c = await sp.GetRequiredService<RentalService>().GetAsync(id);
         Assert.Equal(720m, c!.Tutar);   // iskontosuz baz
         Assert.Null(c.IskontoTutar);    // döküm null (Otomatik değil)
@@ -131,11 +131,11 @@ public sealed class TamTeklifPersistTests(PostgresFixture fx)
         using var scope = host.ScopeFor(Guid.NewGuid());
         var sp = scope.ServiceProvider;
         var rentals = sp.GetRequiredService<RentalService>();
-        var (m, v) = await SeedAsync(sp, "34 TT 07", hediyeGun: 1, iskonto: 10m);
-        var id = await rentals.CreateDirectAsync(Otomatik(m, v, 3));
+        var (m, v) = await SeedAsync(sp, "34 TT 07", giftDays: 1, discount: 10m);
+        var id = await rentals.CreateDirectAsync(Auto(m, v, 3));
         Assert.Equal(48m, (await rentals.GetAsync(id))!.IskontoTutar); // önce dolu
 
-        await rentals.ExtendAsync(id, Bas.AddDays(5)); // uzat → döküm bayatlar
+        await rentals.ExtendAsync(id, Start.AddDays(5)); // uzat → döküm bayatlar
         var c = await rentals.GetAsync(id);
         Assert.Null(c!.IskontoTutar);   // temizlendi (adversarial L1)
         Assert.Null(c.HediyeGun);

@@ -31,193 +31,193 @@ namespace RentACar.IntegrationTests;
 public sealed class UiKiraPanelSurumTests(WebFixture fx)
 {
     private const string V1 = "/api/ui/v1";
-    private const string Kira = V1 + "/kiralar";
+    private const string Rental = V1 + "/kiralar";
 
     private sealed record Ortam(Guid TenantId, string Kod, string Kullanici, string Sifre, Guid MusteriId);
     private sealed record Oturum(HttpClient C, string Xsrf);
 
-    private static readonly string[] GuncelleAlanlari = typeof(KiraGuncelleIstegi)
+    private static readonly string[] UpdateFields = typeof(KiraGuncelleIstegi)
         .GetProperties(BindingFlags.Public | BindingFlags.Instance)
         .Select(p => JsonNamingPolicy.CamelCase.ConvertName(p.Name)).ToArray();
 
-    private static DateTimeOffset Simdi() => DateTimeOffset.FromUnixTimeSeconds(DateTimeOffset.UtcNow.ToUnixTimeSeconds());
+    private static DateTimeOffset Now() => DateTimeOffset.FromUnixTimeSeconds(DateTimeOffset.UtcNow.ToUnixTimeSeconds());
 
-    private async Task<Ortam> OrtamKurAsync()
+    private async Task<Ortam> SetUpEnvironmentAsync()
     {
         var tenantId = Guid.NewGuid();
-        var kod = "f43" + Guid.NewGuid().ToString("N")[..10];
-        var kullanici = "u" + Guid.NewGuid().ToString("N")[..10];
-        var sifre = WebFixture.RastgeleParola();
+        var code = "f43" + Guid.NewGuid().ToString("N")[..10];
+        var user = "u" + Guid.NewGuid().ToString("N")[..10];
+        var password = WebFixture.RandomPassword();
         var opts = new DbContextOptionsBuilder<AppDbContext>().UseNpgsql(fx.Pg.OwnerConnectionString).Options;
         await using (var db = new AppDbContext(opts, NullTenantContext.Instance, NullCurrentUser.Instance))
         {
-            db.Tenants.Add(new Tenant { Id = tenantId, Code = kod, Name = kod, IsActive = true });
-            var u = new User { TenantId = tenantId, UserName = kullanici, DisplayName = kullanici, Rol = UserRole.Admin, IsActive = true };
-            u.PasswordHash = fx.Web.Services.GetRequiredService<IPasswordHasher<User>>().HashPassword(u, sifre);
+            db.Tenants.Add(new Tenant { Id = tenantId, Code = code, Name = code, IsActive = true });
+            var u = new User { TenantId = tenantId, UserName = user, DisplayName = user, Rol = UserRole.Admin, IsActive = true };
+            u.PasswordHash = fx.Web.Services.GetRequiredService<IPasswordHasher<User>>().HashPassword(u, password);
             db.Users.Add(u);
             await db.SaveChangesAsync();
         }
-        await fx.PilotYapAsync(tenantId, true);
-        var musteri = new Customer { Tip = CustomerType.Bireysel, Ad = "Deniz", Soyad = "Yılmaz" };
-        await VeriYazAsync(tenantId, db => db.Customers.Add(musteri));
-        return new Ortam(tenantId, kod, kullanici, sifre, musteri.Id);
+        await fx.MakePilotAsync(tenantId, true);
+        var customer = new Customer { Tip = CustomerType.Bireysel, Ad = "Deniz", Soyad = "Yılmaz" };
+        await WriteDataAsync(tenantId, db => db.Customers.Add(customer));
+        return new Ortam(tenantId, code, user, password, customer.Id);
     }
 
-    private async Task VeriYazAsync(Guid tenantId, Action<AppDbContext> yaz)
+    private async Task WriteDataAsync(Guid tenantId, Action<AppDbContext> write)
     {
         using var host = new TestHost(fx.Pg.AppConnectionString);
         using var scope = host.ScopeFor(tenantId);
         await using var db = await scope.ServiceProvider.GetRequiredService<IDbContextFactory<AppDbContext>>().CreateDbContextAsync();
-        yaz(db);
+        write(db);
         await db.SaveChangesAsync();
     }
 
-    private async Task<Guid> AracAsync(Ortam o)
+    private async Task<Guid> VehicleAsync(Ortam o)
     {
         var v = new Vehicle { Plaka = "34 F43 " + Guid.NewGuid().ToString("N")[..6].ToUpperInvariant(), Marka = "Fiat", Tip = "Egea", Grup = "C", Sube = "SubeA", Durum = VehicleStatus.Musait, Km = 1000 };
-        await VeriYazAsync(o.TenantId, db => db.Vehicles.Add(v));
+        await WriteDataAsync(o.TenantId, db => db.Vehicles.Add(v));
         return v.Id;
     }
 
-    private static string? Cerez(HttpResponseMessage r, string ad)
+    private static string? CookieValue(HttpResponseMessage r, string name)
     {
-        if (!r.Headers.TryGetValues("Set-Cookie", out var degerler)) return null;
-        foreach (var d in degerler)
-            if (d.StartsWith(ad + "=", StringComparison.Ordinal))
-                return Uri.UnescapeDataString(d[(ad.Length + 1)..].Split(';')[0]);
+        if (!r.Headers.TryGetValues("Set-Cookie", out var values)) return null;
+        foreach (var d in values)
+            if (d.StartsWith(name + "=", StringComparison.Ordinal))
+                return Uri.UnescapeDataString(d[(name.Length + 1)..].Split(';')[0]);
         return null;
     }
 
-    private async Task<Oturum> GirisAsync(Ortam o)
+    private async Task<Oturum> LoginAsync(Ortam o)
     {
-        var c = fx.Web.Istemci();
+        var c = fx.Web.Client();
         var x = await c.GetAsync(V1 + "/oturum/xsrf");
         var req = new HttpRequestMessage(HttpMethod.Post, V1 + "/oturum/giris")
         {
             Content = JsonContent.Create(new { firma = o.Kod, kullanici = o.Kullanici, sifre = o.Sifre }),
         };
-        req.Headers.Add("X-XSRF-TOKEN", Cerez(x, "XSRF-TOKEN")!);
+        req.Headers.Add("X-XSRF-TOKEN", CookieValue(x, "XSRF-TOKEN")!);
         var r = await c.SendAsync(req);
         Assert.True(r.StatusCode == HttpStatusCode.OK, $"giriş başarısız: {await r.Content.ReadAsStringAsync()}");
-        return new Oturum(c, Cerez(r, "XSRF-TOKEN")!);
+        return new Oturum(c, CookieValue(r, "XSRF-TOKEN")!);
     }
 
-    private static Task<HttpResponseMessage> Gonder(Oturum s, HttpMethod m, string url, object? govde = null)
+    private static Task<HttpResponseMessage> Gonder(Oturum s, HttpMethod m, string url, object? body = null)
     {
         var req = new HttpRequestMessage(m, url);
         req.Headers.Add("X-XSRF-TOKEN", s.Xsrf);
-        if (govde is not null) req.Content = JsonContent.Create(govde);
+        if (body is not null) req.Content = JsonContent.Create(body);
         return s.C.SendAsync(req);
     }
 
-    private static async Task<JsonElement> Json(HttpResponseMessage r, HttpStatusCode beklenen = HttpStatusCode.OK)
+    private static async Task<JsonElement> Json(HttpResponseMessage r, HttpStatusCode expected = HttpStatusCode.OK)
     {
-        var metin = await r.Content.ReadAsStringAsync();
-        Assert.True(r.StatusCode == beklenen, $"Beklenen {(int)beklenen}, gelen {(int)r.StatusCode}: {metin}");
-        return JsonDocument.Parse(metin).RootElement.Clone();
+        var text = await r.Content.ReadAsStringAsync();
+        Assert.True(r.StatusCode == expected, $"Beklenen {(int)expected}, gelen {(int)r.StatusCode}: {text}");
+        return JsonDocument.Parse(text).RootElement.Clone();
     }
 
-    private static async Task<JsonElement> ProblemBekle(HttpResponseMessage r, HttpStatusCode durum, string kod)
+    private static async Task<JsonElement> ExpectProblem(HttpResponseMessage r, HttpStatusCode status, string code)
     {
-        var metin = await r.Content.ReadAsStringAsync();
-        Assert.True(durum == r.StatusCode, $"Beklenen {(int)durum}, gelen {(int)r.StatusCode}: {metin}");
-        var kok = JsonDocument.Parse(metin).RootElement.Clone();
-        Assert.Equal(kod, kok.GetProperty("kod").GetString());
-        return kok;
+        var text = await r.Content.ReadAsStringAsync();
+        Assert.True(status == r.StatusCode, $"Beklenen {(int)status}, gelen {(int)r.StatusCode}: {text}");
+        var root = JsonDocument.Parse(text).RootElement.Clone();
+        Assert.Equal(code, root.GetProperty("kod").GetString());
+        return root;
     }
 
-    private async Task<Guid> KiraAcAsync(Oturum s, Ortam o, DateTimeOffset bas)
+    private async Task<Guid> OpenRentalAsync(Oturum s, Ortam o, DateTimeOffset start)
     {
-        var j = await Json(await Gonder(s, HttpMethod.Post, Kira, new
+        var j = await Json(await Gonder(s, HttpMethod.Post, Rental, new
         {
-            musteriId = o.MusteriId, vehicleId = await AracAsync(o), basTar = bas, bitTar = bas.AddDays(3),
+            musteriId = o.MusteriId, vehicleId = await VehicleAsync(o), basTar = start, bitTar = start.AddDays(3),
             gunlukUcret = 100m, fiyatTuru = "Günlük", cikisOfisi = "SubeA", donusOfisi = "SubeA",
         }), HttpStatusCode.Created);
         return j.GetProperty("id").GetGuid();
     }
 
-    private async Task<JsonElement> KiraOkuAsync(Oturum s, Guid id)
-        => (await Json(await s.C.GetAsync($"{Kira}/{id}"))).GetProperty("kira");
+    private async Task<JsonElement> ReadRentalAsync(Oturum s, Guid id)
+        => (await Json(await s.C.GetAsync($"{Rental}/{id}"))).GetProperty("kira");
 
     /// <summary>Detaydaki sözleşmeden TAM PUT gövdesi (SPA'nın yaptığı gibi; sürüm dahil).</summary>
-    private static JsonObject Govde(JsonElement kira)
+    private static JsonObject Body(JsonElement rental)
     {
         var g = new JsonObject();
-        foreach (var alan in GuncelleAlanlari) g[alan] = JsonNode.Parse(kira.GetProperty(alan).GetRawText());
+        foreach (var alan in UpdateFields) g[alan] = JsonNode.Parse(rental.GetProperty(alan).GetRawText());
         return g;
     }
 
     [Fact]
     public async Task F2_R2_Bayat_surumlu_PUT_409_cakisma_hicbir_sey_yazilmaz_islem_surumu_degistirir()
     {
-        var o = await OrtamKurAsync();
-        var s1 = await GirisAsync(o);
-        var s2 = await GirisAsync(o);
-        var id = await KiraAcAsync(s1, o, Simdi().AddHours(10));
+        var o = await SetUpEnvironmentAsync();
+        var s1 = await LoginAsync(o);
+        var s2 = await LoginAsync(o);
+        var id = await OpenRentalAsync(s1, o, Now().AddHours(10));
 
-        var bayat = await KiraOkuAsync(s1, id); // sekme 1 kirayı açık tutuyor
-        Assert.False(string.IsNullOrWhiteSpace(bayat.GetProperty("surum").GetString()));
+        var stale = await ReadRentalAsync(s1, id); // sekme 1 kirayı açık tutuyor
+        Assert.False(string.IsNullOrWhiteSpace(stale.GetProperty("surum").GetString()));
 
         // Oturum 2: drop ücreti 300 (güncel sürümle) → 200.
-        var g2 = Govde(await KiraOkuAsync(s2, id));
+        var g2 = Body(await ReadRentalAsync(s2, id));
         g2["dropUcreti"] = 300m;
-        var k2 = await Json(await Gonder(s2, HttpMethod.Put, $"{Kira}/{id}", g2));
+        var k2 = await Json(await Gonder(s2, HttpMethod.Put, $"{Rental}/{id}", g2));
         Assert.Equal(300m, k2.GetProperty("dropUcreti").GetDecimal());
-        var sonra2 = await KiraOkuAsync(s1, id);
-        Assert.NotEqual(bayat.GetProperty("surum").GetString(), sonra2.GetProperty("surum").GetString());
+        var after2 = await ReadRentalAsync(s1, id);
+        Assert.NotEqual(stale.GetProperty("surum").GetString(), after2.GetProperty("surum").GetString());
 
         // Oturum 1: bayat anlık görüntüyle YALNIZ açıklama → 409 cakisma; hiçbir alan yazılmaz.
-        var g1 = Govde(bayat);
+        var g1 = Body(stale);
         g1["aciklama"] = "bayat sekme";
-        var p = await ProblemBekle(await Gonder(s1, HttpMethod.Put, $"{Kira}/{id}", g1), HttpStatusCode.Conflict, UiHata.Cakisma);
+        var p = await ExpectProblem(await Gonder(s1, HttpMethod.Put, $"{Rental}/{id}", g1), HttpStatusCode.Conflict, UiError.ConflictCode);
         Assert.Equal(ConcurrentModificationException.RentalMessage, p.GetProperty("detail").GetString());
-        var db = await KiraOkuAsync(s1, id);
+        var db = await ReadRentalAsync(s1, id);
         Assert.Equal(300m, db.GetProperty("dropUcreti").GetDecimal());
         Assert.Equal(JsonValueKind.Null, db.GetProperty("aciklama").ValueKind);
-        Assert.Equal(sonra2.GetProperty("genelToplam").GetDecimal(), db.GetProperty("genelToplam").GetDecimal());
-        Assert.Equal(sonra2.GetProperty("surum").GetString(), db.GetProperty("surum").GetString());
+        Assert.Equal(after2.GetProperty("genelToplam").GetDecimal(), db.GetProperty("genelToplam").GetDecimal());
+        Assert.Equal(after2.GetProperty("surum").GetString(), db.GetProperty("surum").GetString());
 
         // Güncel sürümle yeniden → yazılır; oturum 2'nin drop ücreti KORUNUR.
-        var g3 = Govde(db);
+        var g3 = Body(db);
         g3["aciklama"] = "güncel";
-        var k3 = await Json(await Gonder(s1, HttpMethod.Put, $"{Kira}/{id}", g3));
+        var k3 = await Json(await Gonder(s1, HttpMethod.Put, $"{Rental}/{id}", g3));
         Assert.Equal("güncel", k3.GetProperty("aciklama").GetString());
         Assert.Equal(300m, k3.GetProperty("dropUcreti").GetDecimal());
 
         // İşlem (teslim) sürümü değiştirir: işlem öncesi sürümle PUT 409.
-        var t = await Json(await Gonder(s1, HttpMethod.Post, $"{Kira}/{id}/teslim", new { cikisKm = 1000, cikisYakit = 8 }));
+        var t = await Json(await Gonder(s1, HttpMethod.Post, $"{Rental}/{id}/teslim", new { cikisKm = 1000, cikisYakit = 8 }));
         Assert.NotEqual(k3.GetProperty("surum").GetString(), t.GetProperty("surum").GetString());
-        var g4 = Govde(k3);
-        await ProblemBekle(await Gonder(s1, HttpMethod.Put, $"{Kira}/{id}", g4), HttpStatusCode.Conflict, UiHata.Cakisma);
+        var g4 = Body(k3);
+        await ExpectProblem(await Gonder(s1, HttpMethod.Put, $"{Rental}/{id}", g4), HttpStatusCode.Conflict, UiError.ConflictCode);
 
         // Sürümsüz tam değiştirme yapılamaz → 400 errors[surum].
         g4["surum"] = null;
-        var e = await ProblemBekle(await Gonder(s1, HttpMethod.Put, $"{Kira}/{id}", g4), HttpStatusCode.BadRequest, UiHata.Dogrulama);
+        var e = await ExpectProblem(await Gonder(s1, HttpMethod.Put, $"{Rental}/{id}", g4), HttpStatusCode.BadRequest, UiError.Validation);
         Assert.True(e.GetProperty("errors").TryGetProperty("surum", out _), e.ToString());
     }
 
     [Fact]
     public async Task F4_Kirada_musteri_ya_da_ikinci_surucu_olarak_kullanilan_cari_silinemez()
     {
-        var o = await OrtamKurAsync();
-        var s = await GirisAsync(o);
-        var ikinci = new Customer { Tip = CustomerType.Bireysel, Ad = "İkinci", Soyad = "Sürücü" };
-        var serbest = new Customer { Tip = CustomerType.Bireysel, Ad = "Serbest", Soyad = "Cari" };
-        await VeriYazAsync(o.TenantId, db => { db.Customers.Add(ikinci); db.Customers.Add(serbest); });
-        var id = await KiraAcAsync(s, o, Simdi().AddHours(12));
-        var g = Govde(await KiraOkuAsync(s, id));
-        g["ikinciSurucuId"] = ikinci.Id;
-        await Json(await Gonder(s, HttpMethod.Put, $"{Kira}/{id}", g));
+        var o = await SetUpEnvironmentAsync();
+        var s = await LoginAsync(o);
+        var second = new Customer { Tip = CustomerType.Bireysel, Ad = "İkinci", Soyad = "Sürücü" };
+        var free = new Customer { Tip = CustomerType.Bireysel, Ad = "Serbest", Soyad = "Cari" };
+        await WriteDataAsync(o.TenantId, db => { db.Customers.Add(second); db.Customers.Add(free); });
+        var id = await OpenRentalAsync(s, o, Now().AddHours(12));
+        var g = Body(await ReadRentalAsync(s, id));
+        g["ikinciSurucuId"] = second.Id;
+        await Json(await Gonder(s, HttpMethod.Put, $"{Rental}/{id}", g));
 
         using var host = new TestHost(fx.Pg.AppConnectionString);
         using var scope = host.ScopeFor(o.TenantId);
-        var cariler = scope.ServiceProvider.GetRequiredService<CustomerService>();
-        var ex = await Assert.ThrowsAsync<ValidationException>(() => cariler.DeleteAsync(ikinci.Id));
+        var customers = scope.ServiceProvider.GetRequiredService<CustomerService>();
+        var ex = await Assert.ThrowsAsync<ValidationException>(() => customers.DeleteAsync(second.Id));
         Assert.Contains("kira sözleşmesinde", ex.Message);
-        await Assert.ThrowsAsync<ValidationException>(() => cariler.DeleteAsync(o.MusteriId));
-        Assert.True(await cariler.DeleteAsync(serbest.Id)); // kirada kullanılmayan cari silinir
+        await Assert.ThrowsAsync<ValidationException>(() => customers.DeleteAsync(o.MusteriId));
+        Assert.True(await customers.DeleteAsync(free.Id)); // kirada kullanılmayan cari silinir
 
-        var kira = await KiraOkuAsync(s, id);
-        Assert.Equal(ikinci.Id, kira.GetProperty("ikinciSurucuId").GetGuid());
+        var rental = await ReadRentalAsync(s, id);
+        Assert.Equal(second.Id, rental.GetProperty("ikinciSurucuId").GetGuid());
     }
 }

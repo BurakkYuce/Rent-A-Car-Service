@@ -38,8 +38,8 @@ public static partial class SystemDefinitionsApi
             var rows = await s.SearchAsync(new PersonelFilter { Ara = ara, Aktif = aktif, Sube = sube, GorevTanimi = gorevTanimi }, ct);
             var items = rows.Select(p => new PersonnelListItem(p.Id, p.Kod, p.Ad, p.Soyad, p.Sube, p.GorevTanimi, p.CepTel,
                 p.MailAdresi, p.IseGiris, p.IseCikis, p.Aktif)).ToList();
-            return TypedResults.Ok(F5Ortak.Sayfala(items, PersonnelSort, sayfa, boyut, sirala));
-        }).AlanlariEsle(F5Ortak.SiralamaKurallari);
+            return TypedResults.Ok(F5Shared.Paginate(items, PersonnelSort, sayfa, boyut, sirala));
+        }).MapFields(F5Shared.SortRules);
         g.MapGet("/{id:guid}", async Task<Results<Ok<PersonnelDto>, ProblemHttpResult>> (Guid id, PersonnelService s, CancellationToken ct)
             => await PersonnelAsync(id, s, ct) is { } d ? TypedResults.Ok(d) : SystemApiCommon.NotFound());
         g.MapPost("", async Task<Results<Created<PersonnelDto>, ProblemHttpResult>> (PersonnelRequest i, PersonnelService s, CancellationToken ct) =>
@@ -47,7 +47,7 @@ public static partial class SystemDefinitionsApi
             PersonnelLimits(i);
             var id = await s.CreateAsync(PersonnelInput(i), ct);
             return await PersonnelAsync(id, s, ct) is { } d ? TypedResults.Created($"{UiApiExtensions.V1}/personel/{id}", d) : SystemApiCommon.NotFound();
-        }).AlanlariEsle(PersonnelRules);
+        }).MapFields(PersonnelRules);
         g.MapPut("/{id:guid}", async Task<Results<Ok<PersonnelDto>, ProblemHttpResult>> (Guid id, PersonnelRequest i, PersonnelService s, CancellationToken ct) =>
         {
             if (await s.GetDetailAsync(id, ct) is null) return SystemApiCommon.NotFound();
@@ -55,7 +55,7 @@ public static partial class SystemDefinitionsApi
             PersonnelLimits(i);
             if (!await s.UpdateAsync(id, PersonnelInput(i), i.Surum, ct)) return SystemApiCommon.NotFound();
             return await PersonnelAsync(id, s, ct) is { } d ? TypedResults.Ok(d) : SystemApiCommon.NotFound();
-        }).AlanlariEsle(PersonnelRules);
+        }).MapFields(PersonnelRules);
         g.MapDelete("/{id:guid}", async Task<Results<NoContent, ProblemHttpResult>> (Guid id, PersonnelService s, CancellationToken ct)
             => await s.DeleteAsync(id, ct) ? TypedResults.NoContent() : SystemApiCommon.NotFound());
     }
@@ -68,7 +68,7 @@ public static partial class SystemDefinitionsApi
         // belirsizdir (koru mu, sil mi?) → reddedilir; silmek için tam "" gönderilir (#308 M1).
         if (i.TcKimlik is { Length: > 0 } && string.IsNullOrWhiteSpace(i.TcKimlik))
             throw new ValidationException("TC kimlik no yalnız boşluktan oluşamaz; silmek için alanı tamamen boş gönderin.", "tcKimlik");
-        if (SystemApiCommon.Clean(i.TcKimlik) is { } tc && (tc.Length != 11 || !tc.All(char.IsAsciiDigit)))
+        if (SystemApiCommon.Clean(i.TcKimlik) is { } nationalId && (nationalId.Length != 11 || !nationalId.All(char.IsAsciiDigit)))
             throw new ValidationException("TC kimlik no 11 haneli rakam olmalıdır.", "tcKimlik");
         Text(i.SurucuBelgeNo, 64, "surucuBelgeNo", "Sürücü belge no");
         Amount(i.Maas, "maas", "Maaş");

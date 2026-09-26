@@ -28,7 +28,7 @@
         <label>IBAN<input name="iban" maxlength="34" placeholder="TR.. (banka için)" /></label>
         <label>Hesap No<input name="hesapNo" placeholder="(opsiyonel)" /></label>
         <label>Banka<input name="banka" placeholder="(opsiyonel)" /></label>
-        <ComboBox Name="sube" Label="Şube" Options="_subeOpts" Placeholder="(opsiyonel)" />
+        <ComboBox Name="sube" Label="Şube" Options="_branchOpts" Placeholder="(opsiyonel)" />
         <label>Özel Kod<input name="ozelKod" maxlength="32" /></label>
         <label>Uyarı Mail Listesi<input name="uyariMailListesi" maxlength="512" placeholder="a@firma.com, b@firma.com" title="Yalnız kayıt alanı — bu sürümde otomatik gönderim yok" /></label>
         @* Varsayılan false olduğu için gizli "false" alanı GEREKMEZ: işaretsiz checkbox hiç
@@ -72,15 +72,15 @@
                                ("POS" gibi) varsa çözülemez ve "Seçiniz" görünür: kullanıcı
                                kaydetmeden önce Kasa/Banka seçmek zorunda kalır. *@
                             <label>Tür<select name="tur" required>
-                                <option value="" selected="@(Tur(a.Tur) is null)">Seçiniz</option>
-                                <option value="Kasa" selected="@(Tur(a.Tur) == LedgerAccountType.Kasa)">Kasa</option>
-                                <option value="Banka" selected="@(Tur(a.Tur) == LedgerAccountType.Banka)">Banka</option>
+                                <option value="" selected="@(TypeLabel(a.Tur) is null)">Seçiniz</option>
+                                <option value="Kasa" selected="@(TypeLabel(a.Tur) == LedgerAccountType.Kasa)">Kasa</option>
+                                <option value="Banka" selected="@(TypeLabel(a.Tur) == LedgerAccountType.Banka)">Banka</option>
                             </select></label>
                             <label>Döviz<input name="doviz" value="@a.Doviz" maxlength="3" /></label>
                             <label>IBAN<input name="iban" value="@a.Iban" maxlength="34" /></label>
                             <label>Hesap No<input name="hesapNo" value="@a.HesapNo" /></label>
                             <label>Banka<input name="banka" value="@a.Banka" /></label>
-                            <ComboBox Name="sube" Label="Şube" Value="@a.Sube" Options="_subeOpts" ListId="dl-sube-edit" />
+                            <ComboBox Name="sube" Label="Şube" Value="@a.Sube" Options="_branchOpts" ListId="dl-sube-edit" />
                             <label>Özel Kod<input name="ozelKod" maxlength="32" value="@a.OzelKod" /></label>
                             <label>Uyarı Mail Listesi<input name="uyariMailListesi" maxlength="512" value="@a.UyariMailListesi" /></label>
                             <label class="chk"><input type="checkbox" name="hediyeCek" value="true" checked="@a.HediyeCek" /> Hediye çeki hesabı</label>
@@ -106,16 +106,16 @@
 
 @code {
     /// <summary>Serbest metin türü Kasa/Banka'ya çözer (servisle AYNI kural — HesapCozucu.TuruCoz).</summary>
-    private static LedgerAccountType? Tur(string? t) => AccountResolver.ResolveType(t);
+    private static LedgerAccountType? TypeLabel(string? t) => AccountResolver.ResolveType(t);
 
     [SupplyParameterFromQuery(Name = "hata")] public string? Hata { get; set; }
 
     private IReadOnlyList<FinancialAccount> _list = [];
-    private List<string> _subeOpts = [];
+    private List<string> _branchOpts = [];
 
     protected override async Task OnInitializedAsync()
     {
         _list = await Hesaplar.ListAsync();
-        _subeOpts = (await Subeler.ListActiveAsync()).Select(s => s.Ad).ToList();
+        _branchOpts = (await Subeler.ListActiveAsync()).Select(s => s.Ad).ToList();
     }
 }

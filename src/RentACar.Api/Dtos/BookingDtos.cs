@@ -36,7 +36,7 @@ public sealed class BookingRequest
         MusteriId = MusteriId, VehicleId = VehicleId, BasTar = BasTar, BitTar = BitTar,
         GunlukUcret = GunlukUcret, CikisOfisi = CikisOfisi, DonusOfisi = DonusOfisi,
         KmLimit = KmLimit, FazlaKmUcret = FazlaKmUcret,
-        YakitBirimUcret = YakitSozlesmesi.BirimUcretIceri(YakitBirimUcret), Aciklama = Aciklama,
+        YakitBirimUcret = FuelContract.UnitFeeInclusive(YakitBirimUcret), Aciklama = Aciklama,
         OtaKiraBedeli = OtaKiraBedeli, OtaDropBedeli = OtaDropBedeli, OtaBebekKoltugu = OtaBebekKoltugu,
         OtaNavigasyon = OtaNavigasyon, OtaLcf = OtaLcf, OtaCdw = OtaCdw, OtaScdw = OtaScdw, OtaEkSurucu = OtaEkSurucu
     };
@@ -50,7 +50,7 @@ public sealed record ReservationResponse(
 {
     public static ReservationResponse From(Reservation r) => new(
         r.Id, r.ReservationNo, r.Durum, r.MusteriId, r.VehicleId, r.BasTar, r.BitTar, r.CikisOfisi, r.DonusOfisi,
-        r.Gun, r.GunlukUcret, r.Tutar, r.KmLimit, r.FazlaKmUcret, YakitSozlesmesi.BirimUcretDisari(r.YakitBirimUcret), r.Aciklama, r.RentalContractId,
+        r.Gun, r.GunlukUcret, r.Tutar, r.KmLimit, r.FazlaKmUcret, FuelContract.UnitFeeExclusive(r.YakitBirimUcret), r.Aciklama, r.RentalContractId,
         r.CreatedAtUtc, r.UpdatedAtUtc);
 }
 
@@ -74,7 +74,7 @@ public sealed record RentalResponse(
     public static RentalResponse From(RentalContract c) => new(
         c.Id, c.SozlesmeNo, c.Durum, c.ReservationId, c.MusteriId, c.VehicleId, c.BasTar, c.BitTar,
         c.CikisOfisi, c.DonusOfisi, c.Gun, c.GunlukUcret, c.Tutar, c.GenelToplam, c.Tahsilat, c.Bakiye,
-        c.KmLimit, c.FazlaKmUcret, YakitSozlesmesi.BirimUcretDisari(c.YakitBirimUcret), c.CikisKm, c.DonusKm,
+        c.KmLimit, c.FazlaKmUcret, FuelContract.UnitFeeExclusive(c.YakitBirimUcret), c.CikisKm, c.DonusKm,
         FuelScale.TwelfthsToPercent(c.CikisYakit), FuelScale.TwelfthsToPercent(c.DonusYakit),
         c.GercekDonusTar, c.FazlaKm, c.FazlaKmBedeli, FuelScale.TwelfthsToPercent(c.EksikYakit), c.YakitBedeli, c.UzatmaGun, c.UzatmaBedeli,
         c.Aciklama, c.CreatedAtUtc, c.UpdatedAtUtc);
@@ -103,17 +103,17 @@ public sealed class ReturnRequest
 /// 4 haneye yuvarlanır (10 → 83,3333); bedel satırı ReturnMath'te 2 haneye yuvarlandığı için 6 × 83,3333 = 499,9998
 /// → 500,00. Dışarı: × 12/100, 2 hane (83,3333 → 10,00).
 /// </summary>
-public static class YakitSozlesmesi
+public static class FuelContract
 {
     /// <summary>Üst sınır: çevrilmiş değer <c>numeric(19,4)</c>'e sığsın, decimal taşması 500 olmasın.</summary>
-    public const decimal BirimUcretEnFazla = 1_000_000_000m;
+    public const decimal MaxUnitFee = 1_000_000_000m;
 
-    public static decimal BirimUcretIceri(decimal yuzdeBasina)
-        => yuzdeBasina > BirimUcretEnFazla
+    public static decimal UnitFeeInclusive(decimal perPercent)
+        => perPercent > MaxUnitFee
             ? throw new RentACar.Application.Common.ValidationException(
                 "Yakıt birim ücreti çok büyük.", "yakitBirimUcret")
-            : Math.Round(yuzdeBasina * FuelScale.MaxPercent / FuelScale.Max, 4, MidpointRounding.AwayFromZero);
+            : Math.Round(perPercent * FuelScale.MaxPercent / FuelScale.Max, 4, MidpointRounding.AwayFromZero);
 
-    public static decimal BirimUcretDisari(decimal onIkideBirBasina)
-        => Math.Round(onIkideBirBasina * FuelScale.Max / FuelScale.MaxPercent, 2, MidpointRounding.AwayFromZero);
+    public static decimal UnitFeeExclusive(decimal perTwelfth)
+        => Math.Round(perTwelfth * FuelScale.Max / FuelScale.MaxPercent, 2, MidpointRounding.AwayFromZero);
 }

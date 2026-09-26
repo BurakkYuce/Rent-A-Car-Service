@@ -20,7 +20,7 @@ namespace RentACar.IntegrationTests;
 [Collection("postgres")]
 public sealed class KampanyaCitiTests(PostgresFixture fx)
 {
-    private static readonly DateTimeOffset Bas = new(2026, 3, 1, 10, 0, 0, TimeSpan.Zero);
+    private static readonly DateTimeOffset Start = new(2026, 3, 1, 10, 0, 0, TimeSpan.Zero);
 
     private static async Task SeedAsync(IServiceProvider sp)
     {
@@ -34,9 +34,9 @@ public sealed class KampanyaCitiTests(PostgresFixture fx)
         });
     }
 
-    private static Task<QuoteResult> TeklifAsync(IServiceProvider sp) =>
+    private static Task<QuoteResult> QuoteAsync(IServiceProvider sp) =>
         sp.GetRequiredService<RentalQuoteEngine>().QuoteAsync(new QuoteRequest
-        { AracGrupKod = "EKO", Kanal = "WEB", BasTar = Bas, BitTar = Bas.AddDays(3) });
+        { AracGrupKod = "EKO", Kanal = "WEB", BasTar = Start, BitTar = Start.AddDays(3) });
 
     [Fact]
     public async Task Kod_kapili_kural_otomatik_secime_giremez()
@@ -51,7 +51,7 @@ public sealed class KampanyaCitiTests(PostgresFixture fx)
         { Kod = "KAMP50", Ad = "Yaz Kampanyası", Iskonto = 50m, KampanyaMi = true, KampanyaKodu = "YAZ50" });
 
         // Elle: 3g × 1000 = 3000; kodsuz teklifte %10 (kod-kapılı %50 ÇİTE TAKILIR) → 2700.
-        var q = await TeklifAsync(sp);
+        var q = await QuoteAsync(sp);
         Assert.Equal(3000.00m, q.AraToplam);
         Assert.Equal(10.00m, q.IskontoOran);
         Assert.Equal(2700.00m, q.GenelToplam);
@@ -71,7 +71,7 @@ public sealed class KampanyaCitiTests(PostgresFixture fx)
         { Kod = "DONEM20", Ad = "Dönemsel", Iskonto = 20m, KampanyaMi = true });
 
         // Elle: %20 > %10 → 3000 − 600 = 2400.
-        var q = await TeklifAsync(sp);
+        var q = await QuoteAsync(sp);
         Assert.Equal(20.00m, q.IskontoOran);
         Assert.Equal(2400.00m, q.GenelToplam);
     }

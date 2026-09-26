@@ -35,45 +35,45 @@
 <table class="grid tr-grid">
     <thead><tr><th>Olay</th><th>Kanal</th><th>Konu</th><th>Durum</th><th>İşlem</th></tr></thead>
     <tbody>
-        @foreach (var tur in Turler)
+        @foreach (var type in Types)
         {
-            @foreach (var kanal in Kanallar)
+            @foreach (var channel in Channels)
             {
-                var mevcut = _sablonlar.FirstOrDefault(x => x.Tur == tur && x.Kanal == kanal);
+                var existing = _templates.FirstOrDefault(x => x.Tur == type && x.Kanal == channel);
                 <tr>
-                    <td>@Aciklama(tur)</td>
-                    <td>@(kanal == MessageChannel.Eposta ? "E-posta" : "SMS")</td>
-                    <td>@(mevcut?.Konu ?? "—")</td>
+                    <td>@Description(type)</td>
+                    <td>@(channel == MessageChannel.Eposta ? "E-posta" : "SMS")</td>
+                    <td>@(existing?.Konu ?? "—")</td>
                     <td>
-                        @if (mevcut is null)
+                        @if (existing is null)
                         {
                             <span class="muted">tanımlı değil</span>
                         }
                         else
                         {
-                            <span>@(mevcut.Aktif ? "Aktif" : "Kapalı")</span>
+                            <span>@(existing.Aktif ? "Aktif" : "Kapalı")</span>
                         }
                     </td>
                     <td>
                         <details>
-                            <summary class="link">@(mevcut is null ? "Tanımla" : "Düzenle")</summary>
+                            <summary class="link">@(existing is null ? "Tanımla" : "Düzenle")</summary>
                             <form method="post" action="/mesaj-sablonlari/kaydet" class="grid-form"><AntiforgeryToken />
-                                <input type="hidden" name="tur" value="@tur" />
-                                <input type="hidden" name="kanal" value="@kanal" />
-                                @if (kanal == MessageChannel.Eposta)
+                                <input type="hidden" name="tur" value="@type" />
+                                <input type="hidden" name="kanal" value="@channel" />
+                                @if (channel == MessageChannel.Eposta)
                                 {
                                     <label class="u-col-full">Konu
-                                        <input name="konu" value="@mevcut?.Konu" required
-                                               placeholder="@KonuOnerisi(tur)" />
+                                        <input name="konu" value="@existing?.Konu" required
+                                               placeholder="@SubjectSuggestion(type)" />
                                     </label>
                                 }
                                 <label class="u-col-full">Gövde
-                                    <textarea name="govde" rows="@(kanal == MessageChannel.Eposta ? 8 : 4)" required
-                                              placeholder="@GovdeOnerisi(tur, kanal)">@mevcut?.Govde</textarea>
+                                    <textarea name="govde" rows="@(channel == MessageChannel.Eposta ? 8 : 4)" required
+                                              placeholder="@BodySuggestion(type, channel)">@existing?.Govde</textarea>
                                 </label>
                                 <label class="kf-inline">
                                     <input type="checkbox" name="aktif" value="true"
-                                           checked="@(mevcut is null || mevcut.Aktif)" /> Aktif
+                                           checked="@(existing is null || existing.Aktif)" /> Aktif
                                 </label>
                                 <button type="submit">Kaydet</button>
                             </form>
@@ -90,14 +90,14 @@
     [SupplyParameterFromQuery(Name = "hata")] public string? Hata { get; set; }
     [SupplyParameterFromQuery(Name = "ok")] public bool Ok { get; set; }
 
-    private IReadOnlyList<MesajSablonRow> _sablonlar = [];
+    private IReadOnlyList<MesajSablonRow> _templates = [];
 
-    private static readonly MessageType[] Turler = Enum.GetValues<MessageType>();
-    private static readonly MessageChannel[] Kanallar = Enum.GetValues<MessageChannel>();
+    private static readonly MessageType[] Types = Enum.GetValues<MessageType>();
+    private static readonly MessageChannel[] Channels = Enum.GetValues<MessageChannel>();
 
-    protected override async Task OnInitializedAsync() => _sablonlar = await Bildirim.ListTemplatesAsync();
+    protected override async Task OnInitializedAsync() => _templates = await Bildirim.ListTemplatesAsync();
 
-    private static string Aciklama(MessageType t) => t switch
+    private static string Description(MessageType t) => t switch
     {
         MessageType.TalepAlindi => "Web sitesinden talep alındı",
         MessageType.RezervasyonOnay => "Rezervasyon oluşturuldu",
@@ -108,7 +108,7 @@
         _ => t.ToString(),
     };
 
-    private static string KonuOnerisi(MessageType t) => t switch
+    private static string SubjectSuggestion(MessageType t) => t switch
     {
         MessageType.TalepAlindi => "Talebiniz alındı — {Firma}",
         MessageType.RezervasyonOnay => "Rezervasyonunuz onaylandı ({No})",
@@ -119,7 +119,7 @@
         _ => "",
     };
 
-    private static string GovdeOnerisi(MessageType t, MessageChannel k)
+    private static string BodySuggestion(MessageType t, MessageChannel k)
     {
         if (k == MessageChannel.Sms)
             return t switch

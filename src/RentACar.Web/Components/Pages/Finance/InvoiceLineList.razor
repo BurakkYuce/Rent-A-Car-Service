@@ -33,7 +33,7 @@
     <label>Çıkış Ofisi
         <select name="ofis">
             <option value="">— tümü —</option>
-            @foreach (var o in _ofisler) { <option value="@o" selected="@(o == Ofis)">@o</option> }
+            @foreach (var o in _offices) { <option value="@o" selected="@(o == Ofis)">@o</option> }
         </select>
     </label>
     <label>Tarih Baş<input name="bas" type="date" value="@Bas" /></label>
@@ -121,7 +121,7 @@
 
     private IReadOnlyList<FaturaSatirDto> _rows = [];
     private IReadOnlyList<Customer> _customers = [];
-    private string[] _ofisler = [];
+    private string[] _offices = [];
 
     private IEnumerable<FaturaSatirDto> Gecerli => _rows.Where(r => !r.Iptal);
 
@@ -133,7 +133,7 @@
     protected override async Task OnInitializedAsync()
     {
         _customers = await Customers.ListAsync();
-        _ofisler = (await Ofisler.ListActiveAsync()).Select(o => o.Ad).OrderBy(a => a).ToArray();
+        _offices = (await Ofisler.ListActiveAsync()).Select(o => o.Ad).OrderBy(a => a).ToArray();
 
         _rows = await Faturalar.ListLinesAsync(new FaturaSatirFilter
         {
@@ -141,14 +141,14 @@
             Ara = Ara,
             Plaka = Plaka,
             Ofis = Ofis,
-            Bas = Tarih(Bas),
+            Bas = Date(Bas),
             // Üst sınır GÜN SONUNA genişletilir (tarih girişi 00:00'a düşer).
-            Bit = Tarih(Bit)?.AddDays(1).AddTicks(-1),
+            Bit = Date(Bit)?.AddDays(1).AddTicks(-1),
             IptalleriGizle = Iptal == "gizle"
         });
     }
 
-    private static DateTimeOffset? Tarih(string? s)
+    private static DateTimeOffset? Date(string? s)
         => DateTimeOffset.TryParse(s, System.Globalization.CultureInfo.InvariantCulture,
             System.Globalization.DateTimeStyles.None, out var d) ? d.ToUniversalTime() : null;
 
@@ -156,12 +156,12 @@
     private string Qs(string format)
     {
         var p = new List<string> { "format=" + format };
-        void Ekle(string ad, string? deger)
+        void Add(string name, string? value)
         {
-            if (!string.IsNullOrWhiteSpace(deger)) p.Add($"{ad}={Uri.EscapeDataString(deger)}");
+            if (!string.IsNullOrWhiteSpace(value)) p.Add($"{name}={Uri.EscapeDataString(value)}");
         }
-        Ekle("cariId", CariId); Ekle("ara", Ara); Ekle("plaka", Plaka); Ekle("ofis", Ofis);
-        Ekle("bas", Bas); Ekle("bit", Bit); Ekle("iptal", Iptal);
+        Add("cariId", CariId); Add("ara", Ara); Add("plaka", Plaka); Add("ofis", Ofis);
+        Add("bas", Bas); Add("bit", Bit); Add("iptal", Iptal);
         return string.Join("&", p);
     }
 }

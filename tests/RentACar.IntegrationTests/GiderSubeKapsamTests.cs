@@ -14,9 +14,9 @@ namespace RentACar.IntegrationTests;
 [Collection("postgres")]
 public sealed class GiderSubeKapsamTests(PostgresFixture fx)
 {
-    private static Task<System.Guid> GiderAsync(System.IServiceProvider sp, string? sube)
+    private static Task<System.Guid> ExpenseAsync(System.IServiceProvider sp, string? branch)
         => sp.GetRequiredService<ExpenseService>().CreateAsync(new ExpenseInput
-        { Tip = ExpenseType.Genel, NetTutar = 100m, KdvOrani = 0.20m, OdemeYontemi = PaymentMethod.Nakit, Sube = sube });
+        { Tip = ExpenseType.Genel, NetTutar = 100m, KdvOrani = 0.20m, OdemeYontemi = PaymentMethod.Nakit, Sube = branch });
 
     private static Task<IReadOnlyList<RentACar.Domain.Entities.Expense>> ListAsync(System.IServiceProvider sp)
         => sp.GetRequiredService<ExpenseService>().ListAsync();
@@ -28,9 +28,9 @@ public sealed class GiderSubeKapsamTests(PostgresFixture fx)
         var tenant = System.Guid.NewGuid();
         using (var seed = host.ScopeFor(tenant)) // Admin — 3 gider (Merkez/Ankara/şubesiz)
         {
-            await GiderAsync(seed.ServiceProvider, "Merkez");
-            await GiderAsync(seed.ServiceProvider, "Ankara");
-            await GiderAsync(seed.ServiceProvider, null);
+            await ExpenseAsync(seed.ServiceProvider, "Merkez");
+            await ExpenseAsync(seed.ServiceProvider, "Ankara");
+            await ExpenseAsync(seed.ServiceProvider, null);
         }
 
         using (var op = host.ScopeFor(tenant, System.Guid.NewGuid(), "op", UserRole.Operator, assignedBranch: "Merkez"))
@@ -55,7 +55,7 @@ public sealed class GiderSubeKapsamTests(PostgresFixture fx)
         var sp = scope.ServiceProvider;
         await sp.GetRequiredService<BranchService>().CreateAsync(new BranchInput { Kod = "MRK", Ad = "Merkez" });
 
-        var id = await GiderAsync(sp, "Merkez");
+        var id = await ExpenseAsync(sp, "Merkez");
         var e = await sp.GetRequiredService<ExpenseService>().GetAsync(id);
         Assert.Equal("Merkez", e!.Sube);
         Assert.NotNull(e.SubeId); // BranchFkInterceptor metin → SubeId çözdü

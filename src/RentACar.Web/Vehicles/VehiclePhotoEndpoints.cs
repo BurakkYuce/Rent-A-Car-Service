@@ -21,29 +21,29 @@ public static class VehiclePhotoEndpoints
 
         write.MapPost("/{id:guid}/photos", async (Guid id, IFormFile? foto, VehiclePhotoService svc) =>
         {
-            if (foto is null || foto.Length == 0) return Sonuc.Hata($"/vehicles/{id}", "Fotoğraf seçilmedi.");
+            if (foto is null || foto.Length == 0) return Result.Error($"/vehicles/{id}", "Fotoğraf seçilmedi.");
             using var ms = new MemoryStream();
             await foto.CopyToAsync(ms);
-            try { await svc.AddAsync(id, ms.ToArray()); return Sonuc.Tamam($"/vehicles/{id}", "Fotoğraf yüklendi."); }
+            try { await svc.AddAsync(id, ms.ToArray()); return Result.Ok($"/vehicles/{id}", "Fotoğraf yüklendi."); }
             catch (ValidationException ex) { return Results.Redirect($"/vehicles/{id}?hata={Uri.EscapeDataString(ex.Message)}"); }
         }).WithMetadata(new RequestSizeLimitAttribute(3_000_000)); // 2 MB foto cap + multipart payı; Kestrel'in ~30 MB varsayılanından çok daha sıkı
 
         write.MapPost("/{id:guid}/photos/{photoId:guid}/sil", async (Guid id, Guid photoId, VehiclePhotoService svc) =>
         {
             await svc.DeleteAsync(id, photoId);
-            return Sonuc.Tamam($"/vehicles/{id}", "Kayıt silindi.");
+            return Result.Ok($"/vehicles/{id}", "Kayıt silindi.");
         });
 
         write.MapPost("/{id:guid}/photos/{photoId:guid}/yukari", async (Guid id, Guid photoId, VehiclePhotoService svc) =>
         {
             await svc.MoveAsync(id, photoId, -1);
-            return Sonuc.Tamam($"/vehicles/{id}", "Sıra güncellendi.");
+            return Result.Ok($"/vehicles/{id}", "Sıra güncellendi.");
         });
 
         write.MapPost("/{id:guid}/photos/{photoId:guid}/asagi", async (Guid id, Guid photoId, VehiclePhotoService svc) =>
         {
             await svc.MoveAsync(id, photoId, 1);
-            return Sonuc.Tamam($"/vehicles/{id}", "Sıra güncellendi.");
+            return Result.Ok($"/vehicles/{id}", "Sıra güncellendi.");
         });
 
         // Okuma — OperationsWrite DEĞİL (VehicleService.GetAsync'in servis-seviyesi guard'ıyla tutarlı).

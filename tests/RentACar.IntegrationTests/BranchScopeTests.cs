@@ -16,8 +16,8 @@ public sealed class BranchScopeTests(PostgresFixture fx)
     {
         var factory = scope.ServiceProvider.GetRequiredService<IDbContextFactory<AppDbContext>>();
         await using var db = await factory.CreateDbContextAsync();
-        foreach (var (plaka, sube) in vs)
-            db.Vehicles.Add(new Vehicle { Plaka = plaka, Sube = sube, Durum = VehicleStatus.Musait });
+        foreach (var (plate, branch) in vs)
+            db.Vehicles.Add(new Vehicle { Plaka = plate, Sube = branch, Durum = VehicleStatus.Musait });
         await db.SaveChangesAsync();
     }
 

@@ -21,34 +21,34 @@ namespace RentACar.IntegrationTests;
 public sealed class FiyatOtomatikTests(PostgresFixture fx)
 {
     // Whole-second UTC taban (PG µs dersi); rezervasyon geçmişe kapalı → gelecek tarih.
-    private static readonly DateTimeOffset Bas = new DateTimeOffset(DateTime.UtcNow.Date, TimeSpan.Zero).AddDays(5);
-    private static DateTimeOffset Bit(int gun) => Bas.AddDays(gun);
+    private static readonly DateTimeOffset Start = new DateTimeOffset(DateTime.UtcNow.Date, TimeSpan.Zero).AddDays(5);
+    private static DateTimeOffset Bit(int day) => Start.AddDays(day);
 
     /// <summary>Araç (grup B) + cari tohumlar; istenirse ONAYLI matris (Gün1 300 / Gün2 280 / Gün3 240).</summary>
     private static async Task<(Guid musteri, Guid arac)> SeedAsync(
-        IServiceScope s, bool matris = true, string? matrisParaBirimi = "TRY")
+        IServiceScope s, bool matrix = true, string? matrixCurrency = "TRY")
     {
         var vehicles = s.ServiceProvider.GetRequiredService<VehicleService>();
         var customers = s.ServiceProvider.GetRequiredService<CustomerService>();
-        var arac = await vehicles.CreateAsync(new VehicleInput { Plaka = "34OTM01", Grup = "B" });
-        var musteri = await customers.CreateAsync(new CustomerInput { Tip = CustomerType.Bireysel, Ad = "Otomatik", Soyad = "Test" });
-        if (matris)
+        var vehicle = await vehicles.CreateAsync(new VehicleInput { Plaka = "34OTM01", Grup = "B" });
+        var customer = await customers.CreateAsync(new CustomerInput { Tip = CustomerType.Bireysel, Ad = "Otomatik", Soyad = "Test" });
+        if (matrix)
         {
-            var matrisler = s.ServiceProvider.GetRequiredService<RateMatrixService>();
-            await matrisler.CreateAsync(new RateMatrixInput
+            var matrices = s.ServiceProvider.GetRequiredService<RateMatrixService>();
+            await matrices.CreateAsync(new RateMatrixInput
             {
-                Kod = "OTM-B", Ad = "Otomatik B", AracGrupKod = "B", ParaBirimi = matrisParaBirimi,
+                Kod = "OTM-B", Ad = "Otomatik B", AracGrupKod = "B", ParaBirimi = matrixCurrency,
                 Gun1 = 300m, Gun2 = 280m, Gun3 = 240m,
                 OnayDurumu = TariffApprovalStatus.Onayli, Onaylayan = "test"
             });
         }
-        return (musteri, arac);
+        return (musteri: customer, arac: vehicle);
     }
 
-    private static BookingInput Booking(Guid m, Guid v, int gun, decimal gunluk, string? fiyatTuru, int offsetGun = 0) => new()
+    private static BookingInput Booking(Guid m, Guid v, int day, decimal daily, string? priceType, int offsetDays = 0) => new()
     {
-        MusteriId = m, VehicleId = v, BasTar = Bas.AddDays(offsetGun), BitTar = Bit(offsetGun + gun),
-        GunlukUcret = gunluk, FiyatTuru = fiyatTuru
+        MusteriId = m, VehicleId = v, BasTar = Start.AddDays(offsetDays), BitTar = Bit(offsetDays + day),
+        GunlukUcret = daily, FiyatTuru = priceType
     };
 
     // (a) Otomatik + onaylı TRY matris → manuel 999 YOK SAYILIR; kira matris fiyatını alır (3×240=720).
@@ -57,11 +57,11 @@ public sealed class FiyatOtomatikTests(PostgresFixture fx)
     {
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
-        var kira = scope.ServiceProvider.GetRequiredService<RentalService>();
+        var rental = scope.ServiceProvider.GetRequiredService<RentalService>();
         var (m, v) = await SeedAsync(scope);
 
-        var id = await kira.CreateDirectAsync(Booking(m, v, 3, gunluk: 999m, fiyatTuru: "Otomatik"));
-        var r = await kira.GetAsync(id);
+        var id = await rental.CreateDirectAsync(Booking(m, v, 3, daily: 999m, priceType: "Otomatik"));
+        var r = await rental.GetAsync(id);
         Assert.Equal(3, r!.Gun);
         Assert.Equal(240m, r.GunlukUcret);   // matris Gün3, manuel 999 değil
         Assert.Equal(720m, r.Tutar);         // 3 × 240 (elle)
@@ -76,11 +76,11 @@ public sealed class FiyatOtomatikTests(PostgresFixture fx)
     {
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
-        var kira = scope.ServiceProvider.GetRequiredService<RentalService>();
-        var (m, v) = await SeedAsync(scope, matris: false);
+        var rental = scope.ServiceProvider.GetRequiredService<RentalService>();
+        var (m, v) = await SeedAsync(scope, matrix: false);
 
-        var id = await kira.CreateDirectAsync(Booking(m, v, 3, gunluk: 999m, fiyatTuru: "Otomatik"));
-        var r = (await kira.GetAsync(id))!;
+        var id = await rental.CreateDirectAsync(Booking(m, v, 3, daily: 999m, priceType: "Otomatik"));
+        var r = (await rental.GetAsync(id))!;
         Assert.Equal(1198.80m, r.GunlukUcret);   // 999 × 1,20 (elle)
         Assert.Equal(3596.40m, r.Tutar);         // 3 × 1.198,80 (elle)
     }
@@ -91,11 +91,11 @@ public sealed class FiyatOtomatikTests(PostgresFixture fx)
     {
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
-        var kira = scope.ServiceProvider.GetRequiredService<RentalService>();
-        var (m, v) = await SeedAsync(scope, matris: false);
+        var rental = scope.ServiceProvider.GetRequiredService<RentalService>();
+        var (m, v) = await SeedAsync(scope, matrix: false);
 
         var ex = await Assert.ThrowsAsync<ValidationException>(
-            () => kira.CreateDirectAsync(Booking(m, v, 3, gunluk: 0m, fiyatTuru: "Otomatik")));
+            () => rental.CreateDirectAsync(Booking(m, v, 3, daily: 0m, priceType: "Otomatik")));
         Assert.Contains("Otomatik tarife", ex.Message);
     }
 
@@ -105,11 +105,11 @@ public sealed class FiyatOtomatikTests(PostgresFixture fx)
     {
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
-        var kira = scope.ServiceProvider.GetRequiredService<RentalService>();
-        var (m, v) = await SeedAsync(scope, matrisParaBirimi: "EUR");
+        var rental = scope.ServiceProvider.GetRequiredService<RentalService>();
+        var (m, v) = await SeedAsync(scope, matrixCurrency: "EUR");
 
         var ex = await Assert.ThrowsAsync<ValidationException>(
-            () => kira.CreateDirectAsync(Booking(m, v, 3, gunluk: 0m, fiyatTuru: "Otomatik")));
+            () => rental.CreateDirectAsync(Booking(m, v, 3, daily: 0m, priceType: "Otomatik")));
         Assert.Contains("Otomatik tarife", ex.Message);
     }
 
@@ -119,19 +119,19 @@ public sealed class FiyatOtomatikTests(PostgresFixture fx)
     {
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
-        var kira = scope.ServiceProvider.GetRequiredService<RentalService>();
+        var rental = scope.ServiceProvider.GetRequiredService<RentalService>();
         var (m, v) = await SeedAsync(scope);
 
         // FiyatTuru boş (null)
-        var id1 = await kira.CreateDirectAsync(Booking(m, v, 3, gunluk: 500m, fiyatTuru: null));
-        var r1 = await kira.GetAsync(id1);
+        var id1 = await rental.CreateDirectAsync(Booking(m, v, 3, daily: 500m, priceType: null));
+        var r1 = await rental.GetAsync(id1);
         Assert.Equal(500m, r1!.GunlukUcret);
         Assert.Equal(1500m, r1.Tutar); // 3 × 500 (elle)
 
         // FiyatTuru farklı ama Otomatik değil ("KDV Dahil Günlük" = brüt günlük; motora bakılmaz, manuel kazanır).
         // ("Günlük" = NET mod artık brüte çevirir → PR-F3; bu test motor-ezme niyetini test eder, dönüşümü değil.)
-        var id2 = await kira.CreateDirectAsync(Booking(m, v, 3, gunluk: 500m, fiyatTuru: "KDV Dahil Günlük", offsetGun: 10));
-        var r2 = await kira.GetAsync(id2);
+        var id2 = await rental.CreateDirectAsync(Booking(m, v, 3, daily: 500m, priceType: "KDV Dahil Günlük", offsetDays: 10));
+        var r2 = await rental.GetAsync(id2);
         Assert.Equal(500m, r2!.GunlukUcret);
         Assert.Equal(1500m, r2.Tutar);
     }
@@ -142,11 +142,11 @@ public sealed class FiyatOtomatikTests(PostgresFixture fx)
     {
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
-        var kira = scope.ServiceProvider.GetRequiredService<RentalService>();
+        var rental = scope.ServiceProvider.GetRequiredService<RentalService>();
         var (m, v) = await SeedAsync(scope);
 
-        var id = await kira.CreateDirectAsync(Booking(m, v, 3, gunluk: 0m, fiyatTuru: null));
-        var r = await kira.GetAsync(id);
+        var id = await rental.CreateDirectAsync(Booking(m, v, 3, daily: 0m, priceType: null));
+        var r = await rental.GetAsync(id);
         Assert.Equal(240m, r!.GunlukUcret);
         Assert.Equal(720m, r.Tutar);
     }
@@ -157,11 +157,11 @@ public sealed class FiyatOtomatikTests(PostgresFixture fx)
     {
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
-        var rez = scope.ServiceProvider.GetRequiredService<ReservationService>();
+        var res = scope.ServiceProvider.GetRequiredService<ReservationService>();
         var (m, v) = await SeedAsync(scope);
 
-        var id = await rez.CreateAsync(Booking(m, v, 3, gunluk: 999m, fiyatTuru: "otomatik"));
-        var r = await rez.GetAsync(id);
+        var id = await res.CreateAsync(Booking(m, v, 3, daily: 999m, priceType: "otomatik"));
+        var r = await res.GetAsync(id);
         Assert.Equal(3, r!.Gun);
         Assert.Equal(240m, r.GunlukUcret);
         Assert.Equal(720m, r.Tutar);
@@ -173,11 +173,11 @@ public sealed class FiyatOtomatikTests(PostgresFixture fx)
     {
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
-        var rez = scope.ServiceProvider.GetRequiredService<ReservationService>();
-        var (m, v) = await SeedAsync(scope, matris: false);
+        var res = scope.ServiceProvider.GetRequiredService<ReservationService>();
+        var (m, v) = await SeedAsync(scope, matrix: false);
 
-        var id = await rez.CreateAsync(Booking(m, v, 3, gunluk: 999m, fiyatTuru: "Otomatik"));
-        var r = (await rez.GetAsync(id))!;
+        var id = await res.CreateAsync(Booking(m, v, 3, daily: 999m, priceType: "Otomatik"));
+        var r = (await res.GetAsync(id))!;
         Assert.Equal(1198.80m, r.GunlukUcret);   // 999 × 1,20 (elle)
         Assert.Equal(3596.40m, r.Tutar);         // 3 × 1.198,80 (elle)
     }
@@ -189,13 +189,13 @@ public sealed class FiyatOtomatikTests(PostgresFixture fx)
     {
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
-        var rez = scope.ServiceProvider.GetRequiredService<ReservationService>();
+        var res = scope.ServiceProvider.GetRequiredService<ReservationService>();
         var (m, v) = await SeedAsync(scope);
 
-        var id = await rez.CreateAsync(Booking(m, v, 3, gunluk: 500m, fiyatTuru: null));
-        Assert.True(await rez.UpdateAsync(id, Booking(m, v, 3, gunluk: 999m, fiyatTuru: "Otomatik")));
+        var id = await res.CreateAsync(Booking(m, v, 3, daily: 500m, priceType: null));
+        Assert.True(await res.UpdateAsync(id, Booking(m, v, 3, daily: 999m, priceType: "Otomatik")));
 
-        var r = await rez.GetAsync(id);
+        var r = await res.GetAsync(id);
         Assert.Equal(240m, r!.GunlukUcret);
         Assert.Equal(720m, r.Tutar);
     }

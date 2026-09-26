@@ -9,15 +9,15 @@
 
 <PageTitle>Teknik Özellikler — Web Sitesi</PageTitle>
 
-@if (!_modul || _detay is null)
+@if (!_module || _detail is null)
 {
     <div class="page-head"><h1>Web Sitesi</h1></div>
-    <p class="empty-state">@(_modul ? "İlan bulunamadı." : "Bu modül firmanızda etkin değil.")</p>
+    <p class="empty-state">@(_module ? "İlan bulunamadı." : "Bu modül firmanızda etkin değil.")</p>
 }
 else
 {
     <div class="page-head">
-        <h1>@_detay.Ilan.Baslik <span class="muted small">— 3/3 teknik özellikler</span></h1>
+        <h1>@_detail.Ilan.Baslik <span class="muted small">— 3/3 teknik özellikler</span></h1>
         <div class="actions"><a class="link" href="/web-sitesi">← İlanlar</a></div>
     </div>
 
@@ -31,7 +31,7 @@ else
     <div class="card">
         <div class="page-head" style="margin:0">
             <h2 style="margin:0;font-size:1.05rem">Fotoğraflar</h2>
-            @if (_fotolar.Count == 0)
+            @if (_photos.Count == 0)
             {
                 <span class="badge warn" title="Fotoğrafsız ilan halka açık sitede gösterilmez">
                     Zorunlu — sitede görünmesi için en az 1 fotoğraf
@@ -39,14 +39,14 @@ else
             }
             else
             {
-                <span class="badge ok">@_fotolar.Count fotoğraf · ilk fotoğraf kapak olur</span>
+                <span class="badge ok">@_photos.Count fotoğraf · ilk fotoğraf kapak olur</span>
             }
         </div>
 
-        @if (_fotolar.Count > 0)
+        @if (_photos.Count > 0)
         {
             <div style="display:flex;flex-wrap:wrap;gap:.75rem;margin:.75rem 0">
-                @foreach (var f in _fotolar)
+                @foreach (var f in _photos)
                 {
                     <figure style="margin:0;text-align:center">
                         @* Küçük görsel mevcut araç ucundan servis edilir (yeni okuma ucu AÇILMADI). *@
@@ -71,9 +71,9 @@ else
                 <input name="foto" type="file" accept="image/png,image/jpeg,image/webp" required /></label>
             <button type="submit" class="kf-btn">Yükle</button>
         </form>
-        @if (_detay.Araclar.Count > 1)
+        @if (_detail.Araclar.Count > 1)
         {
-            <p class="muted small" style="margin:.5rem 0 0">Bu ilan @_detay.Araclar.Count aynı aracı
+            <p class="muted small" style="margin:.5rem 0 0">Bu ilan @_detail.Araclar.Count aynı aracı
                 birlikte gösteriyor; sitede tek kart çıktığı için <strong>tek fotoğraf yeterli</strong>
                 (aynı görsel araç başına kopyalanmaz).</p>
         }
@@ -82,9 +82,9 @@ else
     <p class="muted small">Aşağıdaki özellikler araç kayıtlarınızdan getirildi. <strong>İşaretli
         olanlar sitede görünür.</strong> Değerleri düzenleyebilir, sağ üstteki <strong>+</strong> ile
         yeni satır ekleyebilirsiniz (en fazla @FeatureSnapshot.MaxRows satır).
-        @if (_detay.Araclar.Count > 1)
+        @if (_detail.Araclar.Count > 1)
         {
-            <text> Bu ilan @_detay.Araclar.Count araç içerdiği için <strong>araçlar arasında farklı
+            <text> Bu ilan @_detail.Araclar.Count araç içerdiği için <strong>araçlar arasında farklı
             olan alanlar (ör. renk) listeye eklenmedi</strong> — sitede yanlış bilgi çıkmasın diye.</text>
         }
     </p>
@@ -104,9 +104,9 @@ else
                 </tr>
             </thead>
             <tbody>
-                @for (var i = 0; i < _satirlar.Count; i++)
+                @for (var i = 0; i < _rows.Count; i++)
                 {
-                    var s = _satirlar[i];
+                    var s = _rows[i];
                     <tr>
                         @* Checkbox değeri satır İNDEKSİDİR — sunucu paralel dizilerle eşler.
                            JS satır silince bu değerleri YENİDEN NUMARALANDIRIR (yoksa görünürlük kayar). *@
@@ -119,7 +119,7 @@ else
                         </td>
                     </tr>
                 }
-                @for (var i = _satirlar.Count; i < _satirlar.Count + _bosSatir; i++)
+                @for (var i = _rows.Count; i < _rows.Count + _emptyRow; i++)
                 {
                     <tr>
                         <td><input type="checkbox" name="gorunur" value="@i" checked /></td>
@@ -135,12 +135,12 @@ else
         </table>
         </div>
         <div class="form-actions">
-            <a class="kf-btn" data-ozellik-ekle href="/web-sitesi/ilan/@Id/ozellikler?bos=@(_bosSatir + 1)"
+            <a class="kf-btn" data-ozellik-ekle href="/web-sitesi/ilan/@Id/ozellikler?bos=@(_emptyRow + 1)"
                title="Yeni özellik satırı ekle">+ Özellik ekle</a>
             <button type="submit" class="kf-btn primary">
-                @(_fotolar.Count == 0 ? "Özellikleri Kaydet" : "Yayınla")
+                @(_photos.Count == 0 ? "Özellikleri Kaydet" : "Yayınla")
             </button>
-            @if (_fotolar.Count == 0)
+            @if (_photos.Count == 0)
             {
                 <span class="muted small" style="align-self:center">Fotoğraf eklenene kadar ilan
                     taslakta kalır (kaydettiğiniz özellikler korunur).</span>
@@ -155,20 +155,20 @@ else
     /// <summary>Kaç BOŞ satır gösterilsin ("+" her basışta bir artar). Statik SSR'da JS'siz satır ekleme.</summary>
     [SupplyParameterFromQuery(Name = "bos")] public int? Bos { get; set; }
 
-    private bool _modul;
-    private WebIlanDetay? _detay;
-    private IReadOnlyList<OzellikSatiri> _satirlar = [];
-    private IReadOnlyList<IlanFotoSatiri> _fotolar = [];
-    private int _bosSatir = 1;
+    private bool _module;
+    private WebIlanDetay? _detail;
+    private IReadOnlyList<OzellikSatiri> _rows = [];
+    private IReadOnlyList<IlanFotoSatiri> _photos = [];
+    private int _emptyRow = 1;
 
     protected override async Task OnInitializedAsync()
     {
-        _modul = Tenant.TenantId is { } t && await Durum.WebsiteModuleAsync(t);
-        if (!_modul) return;
-        _detay = await Ilanlar.GetAsync(Id);
-        if (_detay is null) return;
-        _satirlar = await Ilanlar.SuggestedFeaturesAsync(Id);
-        _fotolar = await Ilanlar.PhotosAsync(Id);
-        _bosSatir = Math.Clamp(Bos ?? 1, 1, FeatureSnapshot.MaxRows);
+        _module = Tenant.TenantId is { } t && await Durum.WebsiteModuleAsync(t);
+        if (!_module) return;
+        _detail = await Ilanlar.GetAsync(Id);
+        if (_detail is null) return;
+        _rows = await Ilanlar.SuggestedFeaturesAsync(Id);
+        _photos = await Ilanlar.PhotosAsync(Id);
+        _emptyRow = Math.Clamp(Bos ?? 1, 1, FeatureSnapshot.MaxRows);
     }
 }

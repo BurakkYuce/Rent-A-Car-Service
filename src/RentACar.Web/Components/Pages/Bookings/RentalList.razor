@@ -52,16 +52,16 @@
         <option value="Donus" selected="@(OfisDurum == "Donus")">Ofis: yalnız dönüş</option>
     </select>
     <input name="sahip" value="@Sahip" placeholder="Araç sahibi" list="dl-sahip" />
-    <datalist id="dl-sahip">@foreach (var x in _sahipler) { <option value="@x" /> }</datalist>
+    <datalist id="dl-sahip">@foreach (var x in _owners) { <option value="@x" /> }</datalist>
     <input name="grup" value="@Grup" placeholder="Araç grubu" list="dl-grup" />
-    <datalist id="dl-grup">@foreach (var x in _gruplar) { <option value="@x" /> }</datalist>
+    <datalist id="dl-grup">@foreach (var x in _groups) { <option value="@x" /> }</datalist>
     <select name="kaynak">
         <option value="">Rez. kaynağı (tümü)</option>
-        @foreach (var k in _kaynaklar) { <option value="@k.Ad" selected="@(Kaynak == k.Ad)">@k.Ad</option> }
+        @foreach (var k in _sources) { <option value="@k.Ad" selected="@(Kaynak == k.Ad)">@k.Ad</option> }
     </select>
     <select name="personel">
         <option value="">Teslim alan personel (tümü)</option>
-        @foreach (var pr in _personeller) { <option value="@pr.Id" selected="@(Personel == pr.Id.ToString())">@pr.Ad @pr.Soyad</option> }
+        @foreach (var pr in _personnel) { <option value="@pr.Id" selected="@(Personel == pr.Id.ToString())">@pr.Ad @pr.Soyad</option> }
     </select>
     <button type="submit">Filtrele</button>
     @if (SuzgecVar)
@@ -135,7 +135,7 @@
                                 <input type="hidden" name="cariId" value="@r.MusteriId" />
                                 <input type="hidden" name="rentalId" value="@r.Id" />
                                 <input type="hidden" name="doviz" value="@RentACar.Application.Kur.ExchangeRateService.NormalizeCode(r.Doviz)" />
-                                <input type="hidden" name="islemAnahtari" value="@RentACar.Web.Finance.TahsilatAnahtar.Uret(r.Id, r.Bakiye, IslemSayisi(r.Id))" />
+                                <input type="hidden" name="islemAnahtari" value="@RentACar.Web.Finance.CollectionKey.Generate(r.Id, r.Bakiye, TransactionCount(r.Id))" />
                                 <input type="hidden" name="donus" value="/kiralar" />
                                 <input type="hidden" name="aciklama" value="Hızlı tahsilat (liste) — @r.SozlesmeNo" />
                                 @* FAZ-84: tek-tık hızlı tahsilat — seçici yok, masaüstü listesinden yapılan işlem. *@
@@ -180,25 +180,25 @@
 
     private IReadOnlyList<RentalRow> _rows = [];
     private IReadOnlyList<Location> _locations = [];
-    private IReadOnlyList<ReservationSource> _kaynaklar = [];
-    private IReadOnlyList<PersonelSecim> _personeller = [];
-    private IReadOnlyList<string> _sahipler = [];
-    private IReadOnlyList<string> _gruplar = [];
-    private Dictionary<Guid, int> _islemSayilari = []; // deterministik tahsilat anahtarı bileşeni (TryGetValue→0)
+    private IReadOnlyList<ReservationSource> _sources = [];
+    private IReadOnlyList<PersonelSecim> _personnel = [];
+    private IReadOnlyList<string> _owners = [];
+    private IReadOnlyList<string> _groups = [];
+    private Dictionary<Guid, int> _transactionCounts = []; // deterministik tahsilat anahtarı bileşeni (TryGetValue→0)
 
-    private int IslemSayisi(Guid rentalId) => _islemSayilari.TryGetValue(rentalId, out var s) ? s : 0;
+    private int TransactionCount(Guid rentalId) => _transactionCounts.TryGetValue(rentalId, out var s) ? s : 0;
 
     protected override async Task OnInitializedAsync()
     {
         _locations = await Locations.ListActiveAsync();
-        _kaynaklar = await Kaynaklar.ListActiveAsync();
+        _sources = await Kaynaklar.ListActiveAsync();
         // PII'siz personel seçimi (ListAsync ManageUsers ister ve operatörde patlar — bilinen tuzak).
-        _personeller = await Personeller.ListForSelectAsync();
+        _personnel = await Personeller.ListForSelectAsync();
         // Sahip/grup listeleri araç kartlarından TÜRETİLİR: ayrı bir master tanımı yok.
-        var araclar = await Vehicles.ListAsync();
-        _sahipler = [.. araclar.Select(v => v.AracSahibi).Where(x => !string.IsNullOrWhiteSpace(x))
+        var vehicles = await Vehicles.ListAsync();
+        _owners = [.. vehicles.Select(v => v.AracSahibi).Where(x => !string.IsNullOrWhiteSpace(x))
             .Select(x => x!.Trim()).Distinct(StringComparer.OrdinalIgnoreCase).OrderBy(x => x, StringComparer.CurrentCulture)];
-        _gruplar = [.. araclar.Select(v => v.Grup).Where(x => !string.IsNullOrWhiteSpace(x))
+        _groups = [.. vehicles.Select(v => v.Grup).Where(x => !string.IsNullOrWhiteSpace(x))
             .Select(x => x!.Trim()).Distinct(StringComparer.OrdinalIgnoreCase).OrderBy(x => x, StringComparer.CurrentCulture)];
 
         var filter = new RentalFilter
@@ -219,9 +219,9 @@
         };
         _rows = await Rentals.SearchAsync(filter);
 
-        var tahsilEdilebilir = _rows.Where(r => r.Bakiye > 0m && r.Durum != RentalStatus.Iptal)
+        var collectible = _rows.Where(r => r.Bakiye > 0m && r.Durum != RentalStatus.Iptal)
             .Select(r => r.Id).ToList();
-        if (tahsilEdilebilir.Count > 0)
-            _islemSayilari = await Cash.GetRentalTransactionCountsAsync(tahsilEdilebilir);
+        if (collectible.Count > 0)
+            _transactionCounts = await Cash.GetRentalTransactionCountsAsync(collectible);
     }
 }

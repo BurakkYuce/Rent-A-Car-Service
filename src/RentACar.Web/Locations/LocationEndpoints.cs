@@ -18,10 +18,10 @@ public static class LocationEndpoints
         // FAZ-22: alan sayısı 20'yi geçtiği için tek tek [FromForm] parametre yerine IFormCollection
         // okunuyor — opsiyonel sayısal alanlar "" ile 400 vermesin diye zaten FormParse gerekiyordu.
         grp.MapPost("/create", async (LocationService svc, HttpRequest req) =>
-            await Run(() => svc.CreateAsync(Build(req.Form, aktif: true)), "Kayıt eklendi."));
+            await Run(() => svc.CreateAsync(Build(req.Form, active: true)), "Kayıt eklendi."));
 
         grp.MapPost("/update", async (LocationService svc, HttpRequest req, [FromForm] Guid id) =>
-            await Run(() => svc.UpdateAsync(id, Build(req.Form, aktif: Bool(req.Form, "aktif"))), "Değişiklikler kaydedildi."));
+            await Run(() => svc.UpdateAsync(id, Build(req.Form, active: Bool(req.Form, "aktif"))), "Değişiklikler kaydedildi."));
 
         grp.MapPost("/delete", async (LocationService svc, [FromForm] Guid id) =>
             await Run(() => svc.DeleteAsync(id), "Kayıt silindi."));
@@ -32,7 +32,7 @@ public static class LocationEndpoints
     private static bool Bool(IFormCollection f, string key)
         => string.Equals(f[key].ToString(), "true", StringComparison.OrdinalIgnoreCase);
 
-    private static LocationInput Build(IFormCollection f, bool aktif) => new()
+    private static LocationInput Build(IFormCollection f, bool active) => new()
     {
         Kod = f["kod"].ToString(),
         Ad = f["ad"].ToString(),
@@ -58,8 +58,8 @@ public static class LocationEndpoints
         DropCalismaSekli = FormParse.Str(f, "dropCalismaSekli"),
         OzelMail = FormParse.Str(f, "ozelMail"),
         OzelTelefon = FormParse.Str(f, "ozelTelefon"),
-        HaftalikCalismaSaatleri = Hafta(f),
-        Aktif = aktif
+        HaftalikCalismaSaatleri = Week(f),
+        Aktif = active
     };
 
     /// <summary>
@@ -67,23 +67,23 @@ public static class LocationEndpoints
     /// adlarıyla gönderir. Checkbox işaretsizken TARAYICI HİÇBİR ŞEY GÖNDERMEZ — bu yüzden "kapalı"
     /// varlık kontrolüyle okunur, değer karşılaştırmasıyla değil.
     /// </summary>
-    private static List<GunSaat> Hafta(IFormCollection f)
+    private static List<GunSaat> Week(IFormCollection f)
     {
-        var liste = new List<GunSaat>(7);
-        for (var gun = 1; gun <= 7; gun++)
-            liste.Add(new GunSaat
+        var list = new List<GunSaat>(7);
+        for (var day = 1; day <= 7; day++)
+            list.Add(new GunSaat
             {
-                Gun = gun,
-                Acilis = FormParse.Str(f, $"gun{gun}Acilis"),
-                Kapanis = FormParse.Str(f, $"gun{gun}Kapanis"),
-                Kapali = f.ContainsKey($"gun{gun}Kapali")
+                Gun = day,
+                Acilis = FormParse.Str(f, $"gun{day}Acilis"),
+                Kapanis = FormParse.Str(f, $"gun{day}Kapanis"),
+                Kapali = f.ContainsKey($"gun{day}Kapali")
             });
-        return liste;
+        return list;
     }
 
-    private static async Task<IResult> Run(Func<Task> action, string mesaj)
+    private static async Task<IResult> Run(Func<Task> action, string message)
     {
-        try { await action(); return Sonuc.Tamam("/lokasyonlar", mesaj); }
+        try { await action(); return Result.Ok("/lokasyonlar", message); }
         catch (ValidationException ex) { return Results.Redirect($"/lokasyonlar?hata={Uri.EscapeDataString(ex.Message)}"); }
     }
 }

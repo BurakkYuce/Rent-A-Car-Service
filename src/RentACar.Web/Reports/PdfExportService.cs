@@ -15,7 +15,7 @@ public sealed class PdfExportService
     static PdfExportService() => QuestPDF.Settings.License = LicenseType.Community;
 
     // Ekspertiz araç şeması — orijinal sözleşmeden gömülü görsel (çıkış+dönüş, gösterge+ekipman+araç tek karede).
-    private static readonly byte[] EkspertizSema = LoadEmbedded("ekspertiz-sema.png");
+    private static readonly byte[] AppraisalSchema = LoadEmbedded("ekspertiz-sema.png");
     private static byte[] LoadEmbedded(string suffix)
     {
         var asm = typeof(PdfExportService).Assembly;
@@ -54,7 +54,7 @@ public sealed class PdfExportService
                     ["FirmaUnvan"] = s.FirmaUnvan, ["FirmaMarka"] = s.FirmaMarka, ["FirmaVergiNo"] = s.FirmaVergiNo,
                     ["BelgeNo"] = s.SozlesmeNo, ["Tarih"] = s.BasTar.LocalDateTime.ToString("dd.MM.yyyy")
                 };
-                string Metin(string? sablon, string varsayilan) => TemplateToken.Apply(sablon ?? varsayilan, tk) ?? varsayilan;
+                string Text(string? template, string defaultValue) => TemplateToken.Apply(template ?? defaultValue, tk) ?? defaultValue;
 
                 // ---- ÜST BAŞLIK ----
                 p.Header().Row(r =>
@@ -63,7 +63,7 @@ public sealed class PdfExportService
                     {
                         if (s.FirmaLogo is { Length: > 0 } logo)
                             c.Item().PaddingBottom(3).Height(38).AlignLeft().Image(logo).FitHeight(); // PR-C firma logosu
-                        c.Item().Text(Metin(s.SablonBaslik, DocumentTemplateDefaults.ContractTitle)).FontSize(11).Bold();
+                        c.Item().Text(Text(s.SablonBaslik, DocumentTemplateDefaults.ContractTitle)).FontSize(11).Bold();
                         if (s.FirmaTel is not null) c.Item().Text($"OFİS TEL : {s.FirmaTel}").FontSize(8).SemiBold();
                         if (s.FirmaMobilTel is not null) c.Item().Text($"MOBİL TEL : {s.FirmaMobilTel}").FontSize(8).SemiBold();
                         if (s.FirmaAdres is not null) c.Item().Text(s.FirmaAdres).FontSize(8).SemiBold();
@@ -116,7 +116,7 @@ public sealed class PdfExportService
                             t.ColumnsDefinition(c => { c.RelativeColumn(1f); c.RelativeColumn(1.3f); c.RelativeColumn(1f); c.RelativeColumn(1f); });
                             void Lb(string x) => t.Cell().Element(LabelCell).Text(x);
                             void Vl(string? x) => t.Cell().Element(ValCell).Text(x ?? "");
-                            void Row(string al, string? av, string ml, string? mv) { Lb(al); Vl(av); Lb(ml); Vl(mv); }
+                            void Row(string get, string? av, string ml, string? mv) { Lb(get); Vl(av); Lb(ml); Vl(mv); }
                             string M(decimal? d) => d is { } x ? $"{x:N2} {pb}" : "";
 
                             // Referans (YÜCE RENT) satır SIRASI birebir: araç sol / mali sağ. Marka-Model ve
@@ -141,16 +141,16 @@ public sealed class PdfExportService
                     // ========== AÇIKLAMA (tam genişlik) ==========
                     // Operatörün serbest metni ÖNCE (hedef paritesi: MUAFİYET/AŞIM KM/TOTAL KM gibi kritik
                     // notlar bu banttadır) — eskiden hiç basılmıyordu; sonra hesaplanmış ek bilgiler.
-                    var acik = new List<string>();
-                    if (!string.IsNullOrWhiteSpace(s.Aciklama)) acik.Add(s.Aciklama.Trim());
-                    if (s.KmHediye is int kh && kh > 0) acik.Add($"KM Hediye: {kh}");
-                    if (s.BitisSebebi is not null) acik.Add($"Bitiş Sebebi: {s.BitisSebebi}");
-                    if (s.HediyeGun is int hg && hg > 0) acik.Add($"Hediye {hg} gün (faturalanan {s.FaturalananGun})");
-                    if (s.HaftaSonuFark is decimal hs && hs > 0) acik.Add($"Hafta sonu +{hs:N2}");
-                    if (s.IskontoTutar is decimal isk && isk > 0) acik.Add($"İskonto −{isk:N2}");
-                    if (s.EkHizmetler.Count > 0) acik.Add($"Ek Hizmet: {string.Join(", ", s.EkHizmetler.Select(e => $"{e.Ad} {e.Toplam:N2}"))}");
+                    var open = new List<string>();
+                    if (!string.IsNullOrWhiteSpace(s.Aciklama)) open.Add(s.Aciklama.Trim());
+                    if (s.KmHediye is int kh && kh > 0) open.Add($"KM Hediye: {kh}");
+                    if (s.BitisSebebi is not null) open.Add($"Bitiş Sebebi: {s.BitisSebebi}");
+                    if (s.HediyeGun is int hg && hg > 0) open.Add($"Hediye {hg} gün (faturalanan {s.FaturalananGun})");
+                    if (s.HaftaSonuFark is decimal hs && hs > 0) open.Add($"Hafta sonu +{hs:N2}");
+                    if (s.IskontoTutar is decimal isk && isk > 0) open.Add($"İskonto −{isk:N2}");
+                    if (s.EkHizmetler.Count > 0) open.Add($"Ek Hizmet: {string.Join(", ", s.EkHizmetler.Select(e => $"{e.Ad} {e.Toplam:N2}"))}");
                     col.Item().BorderHorizontal(0.75f).BorderColor(Line).Background(LabelBg).MinHeight(26).PaddingHorizontal(4).PaddingVertical(3)
-                        .Text($"Açıklama : {(acik.Count == 0 ? "" : string.Join("  ·  ", acik))}").FontSize(8);
+                        .Text($"Açıklama : {(open.Count == 0 ? "" : string.Join("  ·  ", open))}").FontSize(8);
                     col.Item().Border(0.75f).BorderColor(Line).PaddingHorizontal(4).PaddingVertical(2)
                         .Text($"Günlük {s.GunlukUcret:N2}   ·   Kira {s.Tutar:N2}   ·   KM Limit {(s.KmLimit == 0 ? "sınırsız" : s.KmLimit.ToString())} / Aşım {s.FazlaKmUcret:N2}   ·   Fazla KM {s.FazlaKmBedeli:N2}   ·   Yakıt {s.YakitBedeli:N2}   ·   Uzatma {s.UzatmaBedeli:N2}   ·   Ek Hizmet {s.EkHizmetToplam:N2}   ({pb})").FontSize(8);
 
@@ -164,23 +164,23 @@ public sealed class PdfExportService
                     // baytlar olduğu gibi gömülüyor → sözleşme PDF'i 1,05 MB'dan ~150 KB'a düşüyor.
                     // Logoya DOKUNULMUYOR (PR-A kuralları; marka kalitesi orada önemli).
                     col.Item().PaddingTop(2).Border(0.75f).BorderColor(Line)
-                        .Image(EkspertizSema).UseOriginalImage().FitWidth();
+                        .Image(AppraisalSchema).UseOriginalImage().FitWidth();
 
                     // ========== HUKUKİ METİN (iki dilli) ==========
                     col.Item().PaddingTop(2).Row(r =>
                     {
                         r.RelativeItem().Border(0.75f).BorderColor(Line).Padding(4)
-                            .Text(Metin(s.SablonHukukiSol, DocumentTemplateDefaults.ContractLegalLeft)).FontSize(7);
+                            .Text(Text(s.SablonHukukiSol, DocumentTemplateDefaults.ContractLegalLeft)).FontSize(7);
                         r.RelativeItem().BorderVertical(0.75f).BorderRight(0.75f).BorderColor(Line).Padding(4)
-                            .Text(Metin(s.SablonHukukiSag, DocumentTemplateDefaults.ContractLegalRight)).FontSize(7);
+                            .Text(Text(s.SablonHukukiSag, DocumentTemplateDefaults.ContractLegalRight)).FontSize(7);
                     });
 
                     // ========== EK KOŞULLAR (FAZ 4.4 — kira-özel şartlar; varsa basılır) ==========
                     if (!string.IsNullOrWhiteSpace(s.EkKosullar))
-                        col.Item().PaddingTop(2).Border(0.75f).BorderColor(Line).Padding(4).Column(ek =>
+                        col.Item().PaddingTop(2).Border(0.75f).BorderColor(Line).Padding(4).Column(extra =>
                         {
-                            ek.Item().Text("EK KOŞULLAR / ADDITIONAL TERMS").FontSize(7.5f).Bold();
-                            ek.Item().Text(s.EkKosullar!).FontSize(7);
+                            extra.Item().Text("EK KOŞULLAR / ADDITIONAL TERMS").FontSize(7.5f).Bold();
+                            extra.Item().Text(s.EkKosullar!).FontSize(7);
                         });
 
                     // ========== KREDİ KARTI + KART SAHİBİ + İMZA (referans YÜCE RENT birebir) ==========
@@ -219,7 +219,7 @@ public sealed class PdfExportService
 
                 // Marka-özel alt bilgi (şablonda tanımlıysa; yoksa footer basılmaz — mevcut düzen korunur).
                 if (!string.IsNullOrWhiteSpace(s.SablonAltBilgi))
-                    p.Footer().PaddingTop(4).AlignCenter().Text(Metin(s.SablonAltBilgi, "")).FontSize(8).FontColor(Line);
+                    p.Footer().PaddingTop(4).AlignCenter().Text(Text(s.SablonAltBilgi, "")).FontSize(8).FontColor(Line);
             });
         }).GeneratePdf();
 
@@ -229,7 +229,7 @@ public sealed class PdfExportService
     /// <summary>Generic tablo PDF'i — TÜM liste/rapor export'larının ortak PDF çıktısı (Excel/CSV ile AYNI
     /// veri; başlık + sütun başlıkları + satırlar). Landscape A4 (geniş tablolar için), tip-duyarlı hücre
     /// biçimleme (decimal→N2, tarih→dd.MM.yyyy, bool→Evet/Hayır). Uçlar ?format=pdf ile bunu çağırır.</summary>
-    public byte[] Table(string baslik, IReadOnlyList<string> headers, IReadOnlyList<object?[]> rows) =>
+    public byte[] Table(string title, IReadOnlyList<string> headers, IReadOnlyList<object?[]> rows) =>
         Document.Create(doc =>
         {
             doc.Page(p =>
@@ -240,7 +240,7 @@ public sealed class PdfExportService
 
                 p.Header().PaddingBottom(6).Column(c =>
                 {
-                    c.Item().Text(baslik).FontSize(13).Bold();
+                    c.Item().Text(title).FontSize(13).Bold();
                     c.Item().Text($"{rows.Count} kayıt · {DateTime.Now:dd.MM.yyyy HH:mm}").FontSize(7).FontColor("#6b7280");
                 });
 
@@ -274,7 +274,7 @@ public sealed class PdfExportService
 
     // PR-C: markalı fatura (firma başlığı + logo TenantSettings'ten; hard-coded "Fatura"/"RentPro" kaldırıldı).
     // Marka-özel şablon (opsiyonel): başlık + alt bilgi override (null → koddaki varsayılan; çıktı aynı).
-    public byte[] Invoice(Invoice inv, PdfMarka marka, string? cariAd, SablonMetin? sablon = null) =>
+    public byte[] Invoice(Invoice inv, PdfMarka brand, string? customerName, SablonMetin? template = null) =>
         Document.Create(doc =>
         {
             doc.Page(p =>
@@ -282,30 +282,30 @@ public sealed class PdfExportService
                 p.Size(PageSizes.A4);
                 p.Margin(40);
                 p.DefaultTextStyle(t => t.FontSize(9).FontColor("#111827"));
-                var tk = MarkaTokenlari(marka, inv.No, $"{inv.Tarih:dd.MM.yyyy}");
-                var baslik = TemplateToken.Apply(sablon?.Baslik, tk)
+                var tk = BrandTokens(brand, inv.No, $"{inv.Tarih:dd.MM.yyyy}");
+                var title = TemplateToken.Apply(template?.Baslik, tk)
                     ?? (inv.IadeMi ? "İADE FATURASI" : DocumentTemplateDefaults.InvoiceTitle);
-                var altBilgi = TemplateToken.Apply(sablon?.AltBilgi, tk)
-                    ?? $"{marka.Marka ?? marka.Unvan ?? ""} — {inv.No}";
-                p.Header().Element(h => MarkaBaslik(h, marka, baslik, inv.No,
+                var footer = TemplateToken.Apply(template?.AltBilgi, tk)
+                    ?? $"{brand.Marka ?? brand.Unvan ?? ""} — {inv.No}";
+                p.Header().Element(h => BrandHeader(h, brand, title, inv.No,
                     $"Tarih: {inv.Tarih:dd.MM.yyyy}" + (inv.VadeTarihi is { } v ? $"  ·  Vade: {v:dd.MM.yyyy}" : "")));
                 p.Content().PaddingVertical(12).Column(col =>
                 {
                     col.Spacing(5);
-                    if (!string.IsNullOrWhiteSpace(cariAd)) col.Item().Text($"Sayın: {cariAd}").SemiBold();
+                    if (!string.IsNullOrWhiteSpace(customerName)) col.Item().Text($"Sayın: {customerName}").SemiBold();
                     col.Item().PaddingTop(6).Text("Kalemler").SemiBold();
                     foreach (var l in inv.Lines)
                         col.Item().Text($"  • {l.Aciklama}   ×{l.Miktar:N2}   (KDV %{l.KdvOrani * 100:N0})   = {l.SatirToplam:N2}");
                     col.Item().PaddingTop(8).AlignRight().Text($"Net: {inv.NetTutar:N2}     KDV: {inv.KdvTutar:N2}");
                     col.Item().AlignRight().Text($"Genel Toplam: {inv.GenelToplam:N2} {inv.Currency}").FontSize(12).Bold();
                 });
-                p.Footer().AlignCenter().Text(altBilgi).FontSize(8).FontColor(Line);
+                p.Footer().AlignCenter().Text(footer).FontSize(8).FontColor(Line);
             });
         }).GeneratePdf();
 
     // PR-C: yeni belge türü — tahsilat/ödeme makbuzu (CashTransaction'dan; markalı).
     // Marka-özel şablon (opsiyonel): başlık + alt bilgi override (Tahsilat/Ödeme ayrımı, şablon başlık boşsa korunur).
-    public byte[] TahsilatMakbuzu(CashTransaction tx, PdfMarka marka, string? cariAd, SablonMetin? sablon = null) =>
+    public byte[] CollectionReceipt(CashTransaction tx, PdfMarka brand, string? customerName, SablonMetin? template = null) =>
         Document.Create(doc =>
         {
             doc.Page(p =>
@@ -313,16 +313,16 @@ public sealed class PdfExportService
                 p.Size(PageSizes.A5.Landscape());
                 p.Margin(30);
                 p.DefaultTextStyle(t => t.FontSize(10).FontColor("#111827"));
-                var makbuzTip = tx.Tip == RentACar.Domain.Enums.CashTransactionType.Tahsilat ? "TAHSİLAT MAKBUZU" : "ÖDEME MAKBUZU";
-                var tk = MarkaTokenlari(marka, tx.No, $"{tx.Tarih:dd.MM.yyyy}");
-                var baslik = TemplateToken.Apply(sablon?.Baslik, tk) ?? makbuzTip;
-                var altBilgi = TemplateToken.Apply(sablon?.AltBilgi, tk) ?? $"{marka.Marka ?? marka.Unvan ?? ""} — {tx.No}";
-                p.Header().Element(h => MarkaBaslik(h, marka, baslik, tx.No, $"Tarih: {tx.Tarih:dd.MM.yyyy}"));
+                var receiptType = tx.Tip == RentACar.Domain.Enums.CashTransactionType.Tahsilat ? "TAHSİLAT MAKBUZU" : "ÖDEME MAKBUZU";
+                var tk = BrandTokens(brand, tx.No, $"{tx.Tarih:dd.MM.yyyy}");
+                var title = TemplateToken.Apply(template?.Baslik, tk) ?? receiptType;
+                var footer = TemplateToken.Apply(template?.AltBilgi, tk) ?? $"{brand.Marka ?? brand.Unvan ?? ""} — {tx.No}";
+                p.Header().Element(h => BrandHeader(h, brand, title, tx.No, $"Tarih: {tx.Tarih:dd.MM.yyyy}"));
                 p.Content().PaddingVertical(16).Column(col =>
                 {
                     col.Spacing(8);
                     var yon = tx.Tip == RentACar.Domain.Enums.CashTransactionType.Tahsilat ? "alınmıştır" : "ödenmiştir";
-                    col.Item().Text($"Sayın {cariAd ?? "-"},").SemiBold();
+                    col.Item().Text($"Sayın {customerName ?? "-"},").SemiBold();
                     col.Item().Text($"Aşağıdaki tutar {tx.KarsiHesap} hesabından {yon}.");
                     col.Item().PaddingTop(6).Border(0.75f).BorderColor(Line).Padding(8).Row(r =>
                     {
@@ -336,19 +336,19 @@ public sealed class PdfExportService
                         r.RelativeItem().AlignCenter().Text("Teslim Alan").FontSize(9);
                     });
                 });
-                p.Footer().AlignCenter().Text(altBilgi).FontSize(8).FontColor(Line);
+                p.Footer().AlignCenter().Text(footer).FontSize(8).FontColor(Line);
             });
         }).GeneratePdf();
 
     /// <summary>Fatura/makbuz şablon token sözlüğü ({FirmaUnvan}/{FirmaMarka}/{FirmaVergiNo}/{BelgeNo}/{Tarih}).</summary>
-    private static Dictionary<string, string?> MarkaTokenlari(PdfMarka m, string belgeNo, string tarih) => new()
+    private static Dictionary<string, string?> BrandTokens(PdfMarka m, string documentNo, string date) => new()
     {
         ["FirmaUnvan"] = m.Unvan, ["FirmaMarka"] = m.Marka, ["FirmaVergiNo"] = m.VergiNo,
-        ["BelgeNo"] = belgeNo, ["Tarih"] = tarih
+        ["BelgeNo"] = documentNo, ["Tarih"] = date
     };
 
     /// <summary>Ortak markalı başlık (logo + firma solda; belge adı + no + tarih sağda). Invoice + Makbuz kullanır.</summary>
-    private static void MarkaBaslik(IContainer h, PdfMarka m, string baslik, string no, string? sagAlt) =>
+    private static void BrandHeader(IContainer h, PdfMarka m, string title, string no, string? bottomRight) =>
         h.Row(r =>
         {
             r.RelativeItem().Column(c =>
@@ -362,9 +362,9 @@ public sealed class PdfExportService
             });
             r.ConstantItem(180).Column(c =>
             {
-                c.Item().AlignRight().Text(baslik).FontSize(16).Bold();
+                c.Item().AlignRight().Text(title).FontSize(16).Bold();
                 c.Item().AlignRight().Text(no).FontSize(12).SemiBold();
-                if (sagAlt is not null) c.Item().AlignRight().Text(sagAlt).FontSize(9);
+                if (bottomRight is not null) c.Item().AlignRight().Text(bottomRight).FontSize(9);
             });
         });
 }

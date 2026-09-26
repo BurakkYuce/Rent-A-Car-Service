@@ -9,7 +9,7 @@
 
 <PageTitle>Araç Ekle — Web Sitesi</PageTitle>
 
-@if (!_modul)
+@if (!_module)
 {
     <div class="page-head"><h1>Web Sitesi</h1></div>
     <p class="empty-state">Bu modül firmanızda etkin değil.</p>
@@ -23,7 +23,7 @@ else
 
     @if (!string.IsNullOrEmpty(Hata)) { <p class="error">@Hata</p> }
 
-    @if (_havuz.Count == 0)
+    @if (_pool.Count == 0)
     {
         <p class="empty-state">Yayınlanmayı bekleyen araç yok — filodaki tüm araçlar zaten bir ilana bağlı.</p>
     }
@@ -32,11 +32,11 @@ else
         @* Mod anahtarı: statik SSR'da JS yok → query string ile (araç listesindeki "görünüm"
            anahtarının aynı deseni). Seçim formu moda göre farklı satırlar basar. *@
         <div class="view-toggle">
-            <a href="/web-sitesi/arac-ekle" class="@(_ayri ? "" : "on")">Aynı araçları beraber göster</a>
-            <a href="/web-sitesi/arac-ekle?mod=ayri" class="@(_ayri ? "on" : "")">Ayrı göster</a>
+            <a href="/web-sitesi/arac-ekle" class="@(_separate ? "" : "on")">Aynı araçları beraber göster</a>
+            <a href="/web-sitesi/arac-ekle?mod=ayri" class="@(_separate ? "on" : "")">Ayrı göster</a>
         </div>
         <p class="muted small">
-            @if (_ayri)
+            @if (_separate)
             {
                 <text><strong>Ayrı:</strong> seçtiğiniz her araç sitede KENDİ kartı olur. Fiyat ve
                 teknik özellikleri bir kez girersiniz, hepsine aynısı uygulanır; sonra tek tek
@@ -50,7 +50,7 @@ else
         </p>
 
         <form method="post" action="/web-sitesi/ilan/olustur"><AntiforgeryToken />
-            <input type="hidden" name="mod" value="@(_ayri ? "ayri" : "beraber")" />
+            <input type="hidden" name="mod" value="@(_separate ? "ayri" : "beraber")" />
             <div class="table-scroll">
             <table class="grid tr-grid">
                 <thead>
@@ -58,13 +58,13 @@ else
                         <th style="width:2.5rem"></th>
                         <th>Araç</th>
                         <th>Yıl</th>
-                        @if (_ayri) { <th>Plaka</th> } else { <th class="num">Adet</th> }
+                        @if (_separate) { <th>Plaka</th> } else { <th class="num">Adet</th> }
                     </tr>
                 </thead>
                 <tbody>
-                    @foreach (var k in _havuz)
+                    @foreach (var k in _pool)
                     {
-                        @if (_ayri)
+                        @if (_separate)
                         {
                             @foreach (var v in k.Araclar)
                             {
@@ -103,15 +103,15 @@ else
     [SupplyParameterFromQuery(Name = "mod")] public string? Mod { get; set; }
     [SupplyParameterFromQuery(Name = "hata")] public string? Hata { get; set; }
 
-    private bool _modul;
-    private bool _ayri;
-    private IReadOnlyList<AracKumesi> _havuz = [];
+    private bool _module;
+    private bool _separate;
+    private IReadOnlyList<AracKumesi> _pool = [];
 
     protected override async Task OnInitializedAsync()
     {
-        _modul = Tenant.TenantId is { } id && await Durum.WebsiteModuleAsync(id);
-        if (!_modul) return;
-        _ayri = string.Equals(Mod, "ayri", StringComparison.OrdinalIgnoreCase);
-        _havuz = await Ilanlar.PoolAsync();
+        _module = Tenant.TenantId is { } id && await Durum.WebsiteModuleAsync(id);
+        if (!_module) return;
+        _separate = string.Equals(Mod, "ayri", StringComparison.OrdinalIgnoreCase);
+        _pool = await Ilanlar.PoolAsync();
     }
 }
