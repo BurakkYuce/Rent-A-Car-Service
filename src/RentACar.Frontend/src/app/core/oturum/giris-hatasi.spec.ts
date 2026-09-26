@@ -54,23 +54,16 @@ describe('girisSonrasiHedef (F4.6 tek giriş)', () => {
   const server = (address: string) => ({ tur: 'sunucu', adres: address });
 
   it.each([
-    // pilot: /app dönüşü SPA içinde; dönüş yok / kök / dış adres / giriş döngüsü → Panel
-    [true, null, spa('/panel')],
-    [true, '/', spa('/panel')],
-    [true, '/app', spa('/panel')],
-    [true, '/app/kiralar/5?sekme=odeme', spa('/kiralar/5?sekme=odeme')],
-    [true, '/app/giris?returnUrl=%2Fapp', spa('/panel')],
-    [true, '//kotu.example', spa('/panel')],
-    [true, 'javascript:alert(1)', spa('/panel')],
-    // pilot: Blazor dönüşü sunucu kapısından (harita/GuvenliDonus sunucuda)
-    [true, '/kiralar/yeni?varac=5', server('/login?ReturnUrl=%2Fkiralar%2Fyeni%3Fvarac%3D5')],
-    [true, '/vehicles', server('/login?ReturnUrl=%2Fvehicles')],
-    // pilot değil: yeni arayüz kapalı → Blazor
-    [false, null, server('/')],
-    [false, '/app/kiralar', server('/')],
-    [false, '//kotu.example', server('/')],
-    [false, '/vehicles?x=1', server('/login?ReturnUrl=%2Fvehicles%3Fx%3D1')],
-  ])('pilot=%s, dönüş=%s', (pilot, returnInfo, expected) =>
-    expect(postLoginTarget(pilot, returnInfo)).toEqual(expected),
-  );
+    // /app dönüşü SPA içinde; dönüş yok / kök / dış adres / giriş döngüsü → Panel (F13: pilot ayrımı yok)
+    [null, spa('/panel')],
+    ['/', spa('/panel')],
+    ['/app', spa('/panel')],
+    ['/app/kiralar/5?sekme=odeme', spa('/kiralar/5?sekme=odeme')],
+    ['/app/giris?returnUrl=%2Fapp', spa('/panel')],
+    ['//kotu.example', spa('/panel')],
+    ['javascript:alert(1)', spa('/panel')],
+    // eski adres dönüşü sunucu kapısından (harita/SafeReturn sunucuda)
+    ['/kiralar/yeni?varac=5', server('/login?ReturnUrl=%2Fkiralar%2Fyeni%3Fvarac%3D5')],
+    ['/vehicles?x=1', server('/login?ReturnUrl=%2Fvehicles%3Fx%3D1')],
+  ])('dönüş=%s', (returnInfo, expected) => expect(postLoginTarget(returnInfo)).toEqual(expected));
 });

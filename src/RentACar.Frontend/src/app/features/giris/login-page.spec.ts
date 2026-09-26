@@ -128,13 +128,17 @@ describe('GirisSayfasi (/app/giris)', () => {
     },
   );
 
-  it.each([['/giris'], ['/giris?returnUrl=%2Fapp%2Fkiralar']])(
-    'pilot DEĞİL (%s): Blazor Panel (/) — tam sayfa',
-    async (url) => {
+  it.each([
+    ['/giris', '/panel'],
+    ['/giris?returnUrl=%2Fapp%2Fkiralar', '/kiralar'],
+  ])(
+    'F13: pilot bayrağı hedefi etkilemez (%s) — SPA içinde, tam sayfa yok',
+    async (url, expected) => {
       login.mockResolvedValue(notPilot);
       const root = await open(url);
       await gonder(root);
-      await vi.waitFor(() => expect(navigate).toHaveBeenCalledWith('/'));
+      await vi.waitFor(() => expect(TestBed.inject(Router).url).toBe(expected));
+      expect(navigate).not.toHaveBeenCalled();
     },
   );
 });

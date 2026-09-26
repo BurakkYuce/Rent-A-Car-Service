@@ -6,7 +6,6 @@ import { TranslocoPipe } from '@jsverse/transloco';
 import { FULL_PAGE_NAVIGATION } from '@core/form/kaydedilmemis-degisiklik';
 import type { CeviriAnahtari } from '@core/i18n/ceviri-anahtarlari';
 import { postLoginTarget } from '@core/oturum/giris-hatasi';
-import type { Ben } from '@core/oturum/oturum-tipleri';
 import { LoginForm } from '@shared/giris-formu/login-form';
 
 /** `?neden=` → giriş sayfasındaki bilgi mesajı (interceptor ve çıkış bunu yazar). */
@@ -40,7 +39,7 @@ const REASON_MESSAGE: Readonly<Record<string, CeviriAnahtari>> = {
             <h1>{{ 'oturum.giris.baslik' | transloco }}</h1>
             <p class="not">{{ 'oturum.giris.aciklama' | transloco }}</p>
           </header>
-          <rc-giris-formu [bilgi]="bilgi()" (girisYapildi)="entered($event)" />
+          <rc-giris-formu [bilgi]="bilgi()" (girisYapildi)="entered()" />
         </div>
       </section>
     </main>
@@ -59,8 +58,8 @@ export class LoginPage {
     return (reason && REASON_MESSAGE[reason]) || null;
   });
 
-  protected entered(ben: Ben): void {
-    const target = postLoginTarget(ben.pilot, this.parameters().get('returnUrl'));
+  protected entered(): void {
+    const target = postLoginTarget(this.parameters().get('returnUrl'));
     if (target.tur === 'spa') void this.router.navigateByUrl(target.yol, { replaceUrl: true });
     else this.navigate(target.adres);
   }

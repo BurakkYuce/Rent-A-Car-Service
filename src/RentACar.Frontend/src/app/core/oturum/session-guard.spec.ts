@@ -76,15 +76,14 @@ describe('oturum/izin guard (canMatch)', () => {
     expect(navigate).not.toHaveBeenCalled();
   });
 
-  it('giriş sayfası: pilot olmayan girişli kullanıcı Blazor’a (tam sayfa); Blazor dönüşü sunucu kapısına', async () => {
+  it('giriş sayfası: pilot bayrağı hedefi etkilemez (F13); eski adres dönüşü sunucu kapısına (tam sayfa)', async () => {
     loggedIn.set(true);
     pilot.set(false);
     const harness = await RouterTestingHarness.create();
     await harness.navigateByUrl('/giris');
-    expect(navigate).toHaveBeenLastCalledWith('/');
-    expect(TestBed.inject(Router).url).toBe('/giris'); // geçiş bitene dek giriş sayfası; kabuk yüklenmez
+    expect(TestBed.inject(Router).url).toBe('/panel');
+    expect(navigate).not.toHaveBeenCalled();
 
-    pilot.set(true);
     await harness.navigateByUrl('/giris?returnUrl=%2Fvehicles');
     expect(navigate).toHaveBeenLastCalledWith('/login?ReturnUrl=%2Fvehicles');
   });

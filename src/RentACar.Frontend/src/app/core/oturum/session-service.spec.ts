@@ -84,12 +84,9 @@ describe('OturumServisi', () => {
     expect(root.style.getPropertyValue('--rc-kiraci-renk-bilinmeyen-ad')).toBe('');
   });
 
-  it('pilot olmayan firma: kalıcı "yeni arayüz açık değil" bandı', async () => {
+  it('F13 sonrası: pilot bayrağı band üretmez (pilot kapısı kalktı)', async () => {
     await login({ ...BEN, pilot: false });
-    expect(TestBed.inject(WarningBannerService).bant()).toMatchObject({
-      kod: 'pilot_degil',
-      kalici: true,
-    });
+    expect(TestBed.inject(WarningBannerService).bant()).toBeNull();
   });
 
   it('giriş hatası ApiHatasi olarak çağırana gider; oturum açılmaz', async () => {
