@@ -1,0 +1,176 @@
+// Düzen katmanı (Yol v2 §7): sayfa iskeleti, bölüm/kart, araç çubuğu, filtre ızgarası, düz tablo ve hücre
+// yardımcıları. GLOBAL: feature SCSS'te `.sayfa/.kart/.tablo/.num` yeniden tanımlanmaz, bu sınıflar kullanılır.
+// Gövde kalıpları `_duzen-kaliplari.scss`'te (göç süresince eski feature sınıfları da oradan beslenir). İlk paket
+// bütçesi için ortak bildirimler seçici gruplarıyla, duyarlı kurallar dosya sonundaki İKİ medya bloğunda.
+@use 'kirilim' as k;
+@use 'duzen-kaliplari' as d;
+
+.rc-sayfa {
+  @include d.sayfa($duyarli: false);
+}
+
+.rc-sayfa-basligi {
+  @include d.sayfa-basligi;
+}
+
+// Kağıt üstüne yazı: gölge yok, 1 px kenar + yüzey farkı.
+.rc-bolum,
+.rc-kart,
+.rc-tablo-kap {
+  @include d.yuzey-kutusu;
+}
+
+.rc-bolum,
+.rc-kart {
+  display: flex;
+  flex-direction: column;
+  gap: var(--rc-bosluk-3);
+  padding: var(--rc-bosluk-4);
+}
+
+.rc-kart {
+  gap: var(--rc-bosluk-2);
+  padding-block: var(--rc-bosluk-3);
+}
+
+.rc-bolum > h2,
+.rc-bolum__baslik > h2 {
+  margin: 0;
+  font-size: var(--rc-yazi-lg);
+  font-weight: var(--rc-agirlik-kalin);
+}
+
+.rc-bolum__baslik,
+.rc-arac-cubugu,
+.rc-arac-cubugu__sag,
+.rc-form-eylemler,
+.rc-toplu-islem {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--rc-bosluk-2);
+  align-items: center;
+  min-width: 0;
+}
+
+.rc-bolum__baslik {
+  justify-content: space-between;
+}
+
+// Araç çubuğunda sağa itilen grup.
+.rc-arac-cubugu__sag {
+  margin-inline-start: auto;
+}
+
+// Izgaralar: sütun sayısı `--_sutun` ile; dar ekranda medya blokları yalnız sayıyı düşürür.
+.rc-filtre-izgara,
+.rc-izgara-2,
+.rc-izgara-3,
+.rc-izgara-4 {
+  --_sutun: 2;
+
+  display: grid;
+  grid-template-columns: repeat(var(--_sutun), minmax(0, 1fr));
+  gap: var(--rc-bosluk-3);
+  min-width: 0;
+}
+
+.rc-filtre-izgara {
+  --_sutun: 6;
+
+  align-items: end;
+}
+
+.rc-izgara-3 {
+  --_sutun: 3;
+}
+
+.rc-izgara-4 {
+  --_sutun: 4;
+}
+
+// Ana içerik + 316 px sağ sütun; ≤ 900 px sağ sütun alta iner.
+.rc-yan-sutun {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 19.75rem;
+  gap: var(--rc-bosluk-4);
+  align-items: start;
+  min-width: 0;
+}
+
+.rc-tablo-kap,
+.tablo-kap {
+  @include d.tablo-kap;
+}
+
+// `.duz-tablo` / `.tablo-kap`: GÖÇ KÖPRÜSÜ — eski feature şablonlarının (araç, cari, CRM, finans, fiyat, servis,
+// rapor) aynı adlı yerel kuralı her bileşene kopyalanıyordu; artık tek global kalıp. PR-D şablonları
+// `.rc-duz-tablo`/`.rc-tablo-kap`'a taşıyınca bu iki ad silinir.
+.rc-duz-tablo,
+.duz-tablo {
+  @include d.duz-tablo;
+}
+
+// Tablo kabının içindeki tablo köşeleri kaba uysun.
+.rc-tablo-kap > .rc-duz-tablo {
+  thead th:first-child {
+    border-start-start-radius: calc(var(--rc-yaricap-lg) - 1px);
+  }
+
+  thead th:last-child {
+    border-start-end-radius: calc(var(--rc-yaricap-lg) - 1px);
+  }
+}
+
+.rc-num {
+  @include d.num;
+}
+
+.rc-hucre-alt {
+  @include d.hucre-alt;
+}
+
+// Seçili satır zemininde (koyu temada lacivert) soluk metin 4.5'i tutmaz: ikincil metne çıkar. `.satir--secili`
+// tablo motorunun seçili satırıdır (hücre şablonu global sınıfı taşır).
+.rc-satir-secili .rc-hucre-alt,
+.satir--secili .rc-hucre-alt {
+  color: var(--rc-metin-ikincil);
+}
+
+.rc-bos {
+  @include d.bos;
+}
+
+// Toplu işlem çubuğu (tablo araç yuvasına verilir): "n seçili" + çerçeveli küçük düğmeler.
+.rc-toplu-islem {
+  min-height: var(--rc-kontrol-yukseklik-kucuk);
+}
+
+.rc-toplu-islem__sayac {
+  font-weight: var(--rc-agirlik-kalin);
+  font-variant-numeric: tabular-nums;
+}
+
+@media (max-width: k.$rc-kirilim-mobil) {
+  .rc-filtre-izgara,
+  .rc-izgara-3,
+  .rc-izgara-4 {
+    --_sutun: 2;
+  }
+
+  .rc-yan-sutun {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: k.$rc-kirilim-dar) {
+  .rc-sayfa {
+    @include d.sayfa-dar;
+  }
+
+  .rc-filtre-izgara,
+  .rc-izgara-2,
+  .rc-izgara-3,
+  .rc-izgara-4 {
+    --_sutun: 1;
+  }
+}

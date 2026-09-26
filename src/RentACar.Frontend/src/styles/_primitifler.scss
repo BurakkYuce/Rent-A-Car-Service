@@ -1,7 +1,10 @@
 // Sınıf tabanlı primitifler: yerel <button>/<a>/<span> üstünde çalışır (anlam ve erişilebilirlik
 // tarayıcıdan). Revlo'daki renk girdili bileşenler yerine yalnız token'lar; kiracı vurgusu otomatik.
+// Yol v2 (PR-B): lacivert dolu birincil, çerçeveli varsayılan, hap rozet.
 
 // Düğme ------------------------------------------------------------------------------------------
+// Yol v2 §1.1-5: sayfada TEK dolu birincil (lacivert); gerisi çerçeveli (varsayılan) ya da düz (hayalet).
+// Yükseklik kontrol ölçeğinden: küçük / varsayılan / büyük. Köşe kontrol yarıçapı (md).
 .rc-dugme {
   display: inline-flex;
   align-items: center;
@@ -21,27 +24,34 @@
   cursor: pointer;
   transition:
     background-color var(--rc-sure-hizli) var(--rc-egri),
-    border-color var(--rc-sure-hizli) var(--rc-egri);
+    border-color var(--rc-sure-hizli) var(--rc-egri),
+    color var(--rc-sure-hizli) var(--rc-egri);
 
   &:hover {
+    border-color: var(--rc-metin-ikincil);
+    background-color: var(--rc-yuzey-alt);
+  }
+
+  &:active {
     background-color: var(--rc-yuzey-vurgu);
   }
 
   &[aria-pressed='true'] {
+    border-color: var(--rc-vurgu);
     background-color: var(--rc-vurgu-zemin);
-    border-color: var(--rc-vurgu-metin);
     color: var(--rc-vurgu-metin);
   }
 
   &:disabled,
   &[aria-disabled='true'] {
     border-color: var(--rc-kenar);
-    color: var(--rc-metin-pasif);
     background-color: var(--rc-yuzey-alt);
+    color: var(--rc-metin-pasif);
     cursor: not-allowed;
   }
 }
 
+// Dolu birincil: lacivert zemin, beyaz yazı.
 .rc-dugme--birincil {
   border-color: var(--rc-vurgu);
   background-color: var(--rc-vurgu);
@@ -51,11 +61,31 @@
     border-color: var(--rc-vurgu-hover);
     background-color: var(--rc-vurgu-hover);
   }
+
+  &:active {
+    background-color: var(--rc-vurgu-hover);
+  }
+}
+
+// Çerçeveli vurgu: lacivert çerçeve + yazı (ikincil ama belirgin eylem).
+.rc-dugme--cerceveli {
+  border-color: var(--rc-vurgu);
+  color: var(--rc-vurgu-metin);
+
+  &:hover {
+    border-color: var(--rc-vurgu);
+    background-color: var(--rc-vurgu-zemin);
+  }
 }
 
 .rc-dugme--hayalet {
   border-color: transparent;
   background-color: transparent;
+
+  &:hover {
+    border-color: transparent;
+    background-color: var(--rc-yuzey-alt);
+  }
 }
 
 .rc-dugme--kucuk {
@@ -67,11 +97,20 @@
 .rc-dugme--buyuk {
   height: var(--rc-kontrol-yukseklik-buyuk);
   padding: 0 var(--rc-bosluk-4);
+  font-size: var(--rc-yazi-md);
 }
 
 .rc-dugme--ikon {
   width: var(--rc-kontrol-yukseklik);
   padding: 0;
+
+  &.rc-dugme--kucuk {
+    width: var(--rc-kontrol-yukseklik-kucuk);
+  }
+
+  &.rc-dugme--buyuk {
+    width: var(--rc-kontrol-yukseklik-buyuk);
+  }
 }
 
 // Bitişik düğme grubu (segment seçici).
@@ -96,6 +135,7 @@
     }
 
     &[aria-pressed='true'],
+    &:hover,
     &:focus-visible {
       position: relative;
     }
@@ -103,17 +143,18 @@
 }
 
 // Durum rozeti -----------------------------------------------------------------------------------
+// Hap biçimli, YUMUŞAK zemin + koyu metin (dolu rozet yok). Altı durum §1.2 sözlüğünden:
+// basari (kirada) · notr (boşta) · uyari (serviste, bugün) · vurgu (rezerve) · hata (gecikmiş) · bilgi.
 .rc-rozet {
   --_metin: var(--rc-notr-metin);
   --_zemin: var(--rc-notr-zemin);
-  --_kenar: var(--rc-notr-kenar);
 
   display: inline-flex;
   align-items: center;
   gap: var(--rc-bosluk-1);
-  height: 1.25rem; // 20
+  height: 1.375rem; // 22
   padding: 0 var(--rc-bosluk-2);
-  border: 1px solid var(--_kenar);
+  border: 0;
   border-radius: var(--rc-yaricap-tam);
   background-color: var(--_zemin);
   color: var(--_metin);
@@ -123,12 +164,16 @@
   white-space: nowrap;
 }
 
-@each $durum in basari, uyari, hata, bilgi {
+@each $durum in basari, uyari, hata, bilgi, notr {
   .rc-rozet--#{$durum} {
     --_metin: var(--rc-#{$durum}-metin);
     --_zemin: var(--rc-#{$durum}-zemin);
-    --_kenar: var(--rc-#{$durum}-kenar);
   }
+}
+
+.rc-rozet--vurgu {
+  --_metin: var(--rc-vurgu-metin);
+  --_zemin: var(--rc-vurgu-zemin);
 }
 
 // İskelet (yükleniyor yer tutucusu) --------------------------------------------------------------

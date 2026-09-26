@@ -1,25 +1,18 @@
+// Araç ekranlarının ve onu @use eden 7 özelliğin (cari, CRM, finans, finans belgeleri, araç finansı, servis-sigorta,
+// fiyat) ortak liste yerleşimi. GEÇİŞ KÖPRÜSÜ (Yol v2 PR-B): düzen artık global `src/styles/_duzen.scss`'te; buradaki
+// eski sınıflar aynı kalıpları `_duzen-kaliplari.scss`'ten alır → görünüm tek kaynaktan döner. PR-D şablonları
+// `.rc-*` sınıflarına taşıyınca bu dosya yalnız araç ekranına özgü kurallara iner.
+@use 'duzen-kaliplari' as d;
+
 .sayfa {
-  display: flex;
-  flex-direction: column;
-  gap: var(--rc-bosluk-3);
-  padding: var(--rc-bosluk-4);
-  min-width: 0;
+  @include d.sayfa;
 }
 
 .ust {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--rc-bosluk-3);
-  align-items: center;
-  justify-content: space-between;
+  @include d.sayfa-basligi;
 
   > h1 {
-    display: flex;
-    flex-wrap: wrap;
-    gap: var(--rc-bosluk-2);
-    align-items: center;
-    margin: 0;
-    overflow-wrap: anywhere;
+    font-size: var(--rc-yazi-xl);
   }
 }
 
@@ -28,10 +21,7 @@
 .form__eylemler,
 .gorunum,
 .satir-eylem {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--rc-bosluk-2);
-  align-items: center;
+  @include d.form-eylemler;
 }
 
 .aciklama,
@@ -84,19 +74,7 @@
 }
 
 .bolum {
-  display: flex;
-  flex-direction: column;
-  gap: var(--rc-bosluk-3);
-  padding: var(--rc-bosluk-4);
-  border: 1px solid var(--rc-kenar);
-  border-radius: var(--rc-yaricap-lg);
-  background: var(--rc-yuzey);
-  min-width: 0;
-
-  > h2 {
-    margin: 0;
-    font-size: var(--rc-yazi-lg);
-  }
+  @include d.bolum;
 }
 
 .model-gruplari {
@@ -126,34 +104,8 @@
   font-weight: var(--rc-agirlik-kalin);
 }
 
-.tablo-kap {
-  position: relative;
-  max-width: 100%;
-  overflow-x: auto;
-}
-
-.duz-tablo {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: var(--rc-yazi-sm);
-  font-variant-numeric: tabular-nums;
-
-  th,
-  td {
-    padding: var(--rc-bosluk-1) var(--rc-bosluk-2);
-    border-bottom: 1px solid var(--rc-kenar);
-    text-align: start;
-    white-space: nowrap;
-  }
-
-  td a + a {
-    margin-inline-start: var(--rc-bosluk-2);
-  }
-
-  .num {
-    text-align: end;
-  }
-}
+// `.tablo-kap` / `.duz-tablo` artık GLOBAL göç köprüsü (`_duzen.scss`): her @use eden bileşene kopyalanmasın diye
+// (bileşen stil bütçesi 4 kB).
 
 .kunye {
   display: flex;

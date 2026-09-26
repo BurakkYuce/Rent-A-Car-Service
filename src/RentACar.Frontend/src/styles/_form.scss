@@ -42,6 +42,8 @@
 }
 
 // Girdi --------------------------------------------------------------------------------------------
+// Yol v2: kontrol yüksekliği (34), kontrol yarıçapı (md), odakta çerçeve + halka `--rc-odak` (dışa taşmaz: sıkı
+// filtre ızgarasında komşu alanı örtmez).
 .rc-girdi,
 .rc-girdi-kutusu {
   width: 100%;
@@ -51,6 +53,11 @@
   background-color: var(--rc-yuzey);
   color: var(--rc-metin);
   font-size: var(--rc-yazi-sm);
+  transition: border-color var(--rc-sure-hizli) var(--rc-egri);
+
+  &:hover:not(:disabled, :has(:disabled)) {
+    border-color: var(--rc-metin-ikincil);
+  }
 }
 
 .rc-girdi {
@@ -58,6 +65,12 @@
 
   &::placeholder {
     color: var(--rc-metin-soluk);
+  }
+
+  &:focus-visible {
+    border-color: var(--rc-odak);
+    outline: 1px solid var(--rc-odak);
+    outline-offset: -2px;
   }
 
   &:disabled {
@@ -91,8 +104,9 @@ textarea.rc-girdi {
   overflow: hidden;
 
   &:focus-within {
-    outline: var(--rc-odak-kalinlik) solid var(--rc-odak);
-    outline-offset: var(--rc-odak-bosluk);
+    border-color: var(--rc-odak);
+    outline: 1px solid var(--rc-odak);
+    outline-offset: -2px;
   }
 
   &:has([aria-invalid='true']) {
@@ -232,7 +246,7 @@ button.rc-girdi-eki {
   border: 1px solid var(--rc-kenar);
   border-radius: var(--rc-yaricap-lg);
   background-color: var(--rc-yuzey);
-  box-shadow: var(--rc-golge-3);
+  box-shadow: var(--rc-golge-katman);
   color: var(--rc-metin);
   font-size: var(--rc-yazi-sm);
 }

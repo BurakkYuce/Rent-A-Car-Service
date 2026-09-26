@@ -5,18 +5,21 @@ import { BosDurum } from '@shared/bos-durum/bos-durum';
 import { Ikon } from '@shared/ikon/ikon';
 import { IKONLAR, type IkonAdi } from '@shared/ikon/ikon-kaydi';
 
+import { YolBilesenleri } from './yol-bilesenleri';
+
 const GORUNUMLER = ['Liste', 'Kart', 'Takvim'] as const;
 type Gorunum = (typeof GORUNUMLER)[number];
 
 /**
- * Primitif vitrini (F3.1): sınıf tabanlı `rc-dugme*`, `rc-rozet*`, `rc-iskelet`, `<rc-bos-durum>` ve
- * ikon kümesinin tamamı (`ikon-listesi.json`). İkon kaydı bu sayfada statik içe aktarılır: sayfa zaten
+ * Primitif vitrini (F3.1, Yol v2 PR-B): sınıf tabanlı `rc-dugme*`, `rc-rozet*`, `rc-iskelet`, `<rc-bos-durum>`,
+ * Yol imza bileşenleri (plaka, tabela, görünüm çipleri, filtre paneli, düz tablo) ve ikon kümesinin tamamı
+ * (`ikon-listesi.json`). İkon kaydı bu sayfada statik içe aktarılır: sayfa zaten
  * tembel parça, ilk pakete girmez.
  */
 @Component({
   selector: 'rc-primitif-vitrini',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [RouterLink, BosDurum, Ikon],
+  imports: [RouterLink, BosDurum, Ikon, YolBilesenleri],
   styleUrl: '../vitrin-ortak.scss',
   styles: `
     .ikon {
@@ -34,6 +37,12 @@ type Gorunum = (typeof GORUNUMLER)[number];
     .iskelet .kisa {
       width: 60%;
     }
+    .yol {
+      display: flex;
+      flex-direction: column;
+      gap: var(--rc-bosluk-4);
+      margin-bottom: var(--rc-bosluk-4);
+    }
   `,
   template: `
     <div class="sayfa-ust">
@@ -44,18 +53,19 @@ type Gorunum = (typeof GORUNUMLER)[number];
     <section class="bolum" aria-labelledby="dugmeler">
       <h2 id="dugmeler">Düğmeler</h2>
       <div class="satir">
-        <button type="button" class="rc-dugme">Varsayılan</button>
         <button type="button" class="rc-dugme rc-dugme--birincil">Birincil</button>
+        <button type="button" class="rc-dugme">Çerçeveli (varsayılan)</button>
+        <button type="button" class="rc-dugme rc-dugme--cerceveli">Çerçeveli vurgu</button>
         <button type="button" class="rc-dugme rc-dugme--hayalet">Hayalet</button>
         <button type="button" class="rc-dugme rc-dugme--tehlike">Tehlikeli</button>
         <button type="button" class="rc-dugme" disabled>Devre dışı</button>
         <a class="rc-dugme" routerLink="/vitrin">Bağlantı düğmesi</a>
       </div>
       <div class="satir">
-        <button type="button" class="rc-dugme rc-dugme--kucuk">Küçük (28)</button>
-        <button type="button" class="rc-dugme">Normal (32)</button>
-        <button type="button" class="rc-dugme rc-dugme--buyuk">Büyük (36)</button>
-        <button type="button" class="rc-dugme rc-dugme--birincil">
+        <button type="button" class="rc-dugme rc-dugme--kucuk">Küçük (30)</button>
+        <button type="button" class="rc-dugme">Normal (34)</button>
+        <button type="button" class="rc-dugme rc-dugme--buyuk">Büyük (40)</button>
+        <button type="button" class="rc-dugme">
           <rc-ikon ad="plus" [boyut]="14" /> Yeni kayıt
         </button>
         <button type="button" class="rc-dugme rc-dugme--ikon" aria-label="Yazdır">
@@ -86,14 +96,17 @@ type Gorunum = (typeof GORUNUMLER)[number];
     <section class="bolum" aria-labelledby="rozetler">
       <h2 id="rozetler">Durum rozeti</h2>
       <div class="satir">
-        <span class="rc-rozet">Taslak</span>
-        <span class="rc-rozet rc-rozet--basari">Tahsil edildi</span>
-        <span class="rc-rozet rc-rozet--uyari">Vadesi yaklaşıyor</span>
-        <span class="rc-rozet rc-rozet--hata">Gecikmiş</span>
-        <span class="rc-rozet rc-rozet--bilgi">Rezerve</span>
+        <span class="rc-rozet rc-rozet--basari">Kirada</span>
+        <span class="rc-rozet rc-rozet--notr">Boşta</span>
+        <span class="rc-rozet rc-rozet--uyari">Serviste</span>
+        <span class="rc-rozet rc-rozet--vurgu">Rezerve</span>
+        <span class="rc-rozet rc-rozet--hata">8 gün gecikti</span>
+        <span class="rc-rozet rc-rozet--bilgi">Teslime hazır</span>
         <span class="rc-rozet rc-rozet--basari"><rc-ikon ad="check" [boyut]="12" /> Onaylı</span>
       </div>
     </section>
+
+    <rc-yol-bilesenleri class="yol" />
 
     <section class="bolum" aria-labelledby="iskelet">
       <h2 id="iskelet">İskelet</h2>

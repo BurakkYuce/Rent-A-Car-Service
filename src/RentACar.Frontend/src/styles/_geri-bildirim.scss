@@ -18,7 +18,7 @@
   border: 1px solid var(--rc-kenar);
   border-radius: var(--rc-yaricap-xl);
   background-color: var(--rc-yuzey);
-  box-shadow: var(--rc-golge-3);
+  box-shadow: var(--rc-golge-katman);
 }
 
 // CDK diyalog kabının kendi odak halkası yok; açılışta kaba odaklanırsa görünür olsun.
@@ -38,6 +38,8 @@
   display: flex;
   align-items: center;
   gap: var(--rc-bosluk-2);
+  font-size: var(--rc-yazi-lg);
+  font-weight: var(--rc-agirlik-kalin);
 }
 
 .rc-diyalog__govde {
@@ -51,10 +53,11 @@
   gap: var(--rc-bosluk-2);
 }
 
-// Tehlikeli eylem düğmesi (silme, iptal onayı).
+// Tehlikeli eylem düğmesi (silme, iptal onayı): kırmızı çerçeve + yazı; üzerine gelince yumuşak kırmızı zemin.
+// Dolu kırmızı yok (sayfada tek dolu düğme birincildir).
 .rc-dugme--tehlike {
-  border-color: var(--rc-hata-kenar);
-  background-color: var(--rc-hata-zemin);
+  border-color: var(--rc-hata-metin);
+  background-color: var(--rc-yuzey);
   color: var(--rc-hata-metin);
 
   &:hover {
@@ -63,10 +66,11 @@
   }
 }
 
-// Form üstü mesaj (genel hata ya da bilgi).
+// Form üstü mesaj / bilgi kutusu (genel hata ya da bilgi). Varsayılan ton bilgi (petrol); sol şerit durum rengi.
 .rc-form-mesaji {
   padding: var(--rc-bosluk-2) var(--rc-bosluk-3);
   border: 1px solid var(--rc-bilgi-kenar);
+  border-inline-start: var(--rc-bosluk-1) solid var(--rc-bilgi-metin);
   border-radius: var(--rc-yaricap-md);
   background-color: var(--rc-bilgi-zemin);
   color: var(--rc-bilgi-metin);
@@ -74,12 +78,14 @@
 
 .rc-form-mesaji--hata {
   border-color: var(--rc-hata-kenar);
+  border-inline-start-color: var(--rc-hata-metin);
   background-color: var(--rc-hata-zemin);
   color: var(--rc-hata-metin);
 }
 
 .rc-form-mesaji--uyari {
   border-color: var(--rc-uyari-kenar);
+  border-inline-start-color: var(--rc-uyari-metin);
   background-color: var(--rc-uyari-zemin);
   color: var(--rc-uyari-metin);
 }

@@ -10,43 +10,7 @@
   margin-bottom: var(--rc-bosluk-3);
 }
 
-.kaydirma {
-  overflow-x: auto;
-  border: 1px solid var(--rc-kenar);
-  border-radius: var(--rc-yaricap-md);
-  background-color: var(--rc-yuzey);
-}
-
-.tablo {
-  width: 100%;
-  border-collapse: collapse;
-
-  th,
-  td {
-    height: var(--rc-tablo-satir);
-    padding: var(--rc-bosluk-1) var(--rc-tablo-hucre-bosluk);
-    border-bottom: 1px solid var(--rc-kenar);
-    text-align: start;
-    vertical-align: middle;
-  }
-
-  th {
-    background-color: var(--rc-yuzey-alt);
-    color: var(--rc-metin-ikincil);
-    font-size: var(--rc-yazi-xs);
-    font-weight: var(--rc-agirlik-kalin);
-  }
-
-  tbody tr:last-child td {
-    border-bottom: 0;
-  }
-}
-
-.sayi {
-  font-variant-numeric: tabular-nums;
-  text-align: end !important;
-}
-
+// Tablo görünümü global `.rc-tablo-kap` + `.rc-duz-tablo`'dan (Yol v2 §7); burada yalnız bu bileşene özgü kurallar.
 .islemler {
   width: 1%;
   white-space: nowrap;
@@ -62,16 +26,18 @@
   color: var(--rc-hata-metin);
 }
 
-.bos,
 .durum {
   padding: var(--rc-bosluk-3);
   color: var(--rc-metin-ikincil);
 }
 
-.duzenleme td,
-.secili td {
-  background-color: var(--rc-vurgu-zemin);
+// Satır içi düzenleme satırı: seçili tonunda, alanlar üstten hizalı; yükseklik içerikle büyür.
+.rc-duz-tablo .duzenleme > td {
+  height: auto;
+  padding-block: var(--rc-bosluk-2);
+  background-color: var(--rc-secim);
   vertical-align: top;
+  white-space: normal;
 }
 
 .duzenleme--panel {
