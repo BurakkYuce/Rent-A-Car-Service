@@ -23,7 +23,7 @@ public sealed class SiteContentRepository(IDbContextFactory<AppDbContext> factor
         await using var db = await _factory.CreateDbContextAsync(ct);
         return await db.SayfaIcerikler.AsNoTracking()
             .OrderBy(s => s.Sira).ThenBy(s => s.Baslik)
-            .Select(s => new SayfaOzet(s.Id, s.Slug, s.Baslik, s.Sira, s.Yayinda))
+            .Select(s => new SayfaOzet(s.Id, s.Slug, s.Baslik, s.Sira, s.Yayinda, s.UpdatedAtUtc ?? s.CreatedAtUtc))
             .ToListAsync(ct);
     }
 
@@ -33,7 +33,7 @@ public sealed class SiteContentRepository(IDbContextFactory<AppDbContext> factor
         return await db.SayfaIcerikler.AsNoTracking()
             .Where(s => s.Yayinda)
             .OrderBy(s => s.Sira).ThenBy(s => s.Baslik)
-            .Select(s => new SayfaOzet(s.Id, s.Slug, s.Baslik, s.Sira, s.Yayinda))
+            .Select(s => new SayfaOzet(s.Id, s.Slug, s.Baslik, s.Sira, s.Yayinda, s.UpdatedAtUtc ?? s.CreatedAtUtc))
             .ToListAsync(ct);
     }
 

@@ -2,11 +2,13 @@ using RentACar.Domain.Entities;
 
 namespace RentACar.Application.Blog;
 
-/// <summary>Liste kartı — BLOB kolonları TAŞIMAZ (kapak ayrı uçtan serve edilir).</summary>
+/// <summary>Liste kartı — BLOB kolonları TAŞIMAZ (kapak ayrı uçtan serve edilir).
+/// <paramref name="GuncellemeUtc"/>: son değişiklik (<c>UpdatedAtUtc ?? CreatedAtUtc</c>) — sitemap <c>lastmod</c>.</summary>
 public sealed record BlogListItem(
     Guid Id, string Baslik, string Slug, string? Ozet, BlogPostDurum Durum,
     DateTimeOffset? YayinTarihi, bool KapakVar,
-    string? AltBaslik = null, string? KapakAlt = null, bool AramaDisi = false);
+    string? AltBaslik = null, string? KapakAlt = null, bool AramaDisi = false,
+    DateTimeOffset? GuncellemeUtc = null);
 
 /// <summary>Detay sayfası — BLOB kolonları TAŞIMAZ (kapak ayrı uçtan; liste ile aynı gerekçe).</summary>
 public sealed record BlogDetail(

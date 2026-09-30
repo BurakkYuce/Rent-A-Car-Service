@@ -18,14 +18,7 @@ public static class SeoEndpoints
     public static IEndpointRouteBuilder MapSeoEndpoints(this IEndpointRouteBuilder app)
     {
         app.MapGet("/robots.txt", async (FleetShowcaseService showcase, CancellationToken ct) =>
-        {
-            var host = await showcase.GetCanonicalHostAsync(ct);
-            var sb = new StringBuilder()
-                .AppendLine("User-agent: *")
-                .AppendLine("Allow: /");
-            if (host is not null) sb.AppendLine($"Sitemap: https://{host}/sitemap.xml");
-            return Results.Text(sb.ToString(), "text/plain; charset=utf-8");
-        });
+            Results.Text(RobotsText(await showcase.GetCanonicalRootAsync(ct)), "text/plain; charset=utf-8"));
 
         app.MapGet("/sitemap.xml", async (FleetShowcaseService showcase, BlogService blog,
             RentACar.Application.SiteIcerik.SiteContentService icerik, CancellationToken ct) =>
@@ -38,8 +31,10 @@ public static class SeoEndpoints
             var urls = new List<XElement> { Url(ns, root + "/") };
 
             // PR-14: adres artık SLUG (eski `/araclar/{groupId}` GUID'leri yerine).
+            // lastmod: ilanın (ya da özellik satırlarının) gerçek son değişikliği — uydurma "şimdi" DEĞİL;
+            // her istekte değişen lastmod Google'ın bu alana güvenini düşürür.
             foreach (var g in await showcase.ListShowcaseGroupsAsync(ct))
-                urls.Add(Url(ns, $"{root}/araclar/{g.Slug}"));
+                urls.Add(Url(ns, $"{root}/araclar/{g.Slug}", g.GuncellemeUtc));
 
             // PR-16: iletişim her zaman var (kod üretimli); SSS ve içerik sayfaları varsa eklenir.
             urls.Add(Url(ns, root + "/iletisim"));
@@ -49,14 +44,19 @@ public static class SeoEndpoints
             urls.Add(Url(ns, root + "/musaitlik"));
             if ((await icerik.PublishedFaqAsync(ct)).Count > 0) urls.Add(Url(ns, root + "/sss"));
             foreach (var sf in await icerik.PublishedPagesAsync(ct))
-                urls.Add(Url(ns, $"{root}/{sf.Slug}"));
+                urls.Add(Url(ns, $"{root}/{sf.Slug}", sf.GuncellemeUtc));
 
-            var posts = await blog.ListPublishedAsync(ct);
+            // H-1: YALNIZ aranabilir yazılar. "Arama dışı" yazı detayında noindex basıyor; sitemap'te
+            // listelemek Search Console'da "gönderilen URL noindex" çelişkisi üretiyordu.
+            // `/blog` girişi de aranabilir yazı sayısına bağlı: hepsi arama dışıysa liste sayfası
+            // arama motoru için boş bir kabuktur.
+            var posts = await blog.ListIndexableAsync(ct);
             if (posts.Count > 0)
             {
-                urls.Add(Url(ns, root + "/blog"));
-                foreach (var y in posts)
-                    urls.Add(Url(ns, $"{root}/blog/{y.Slug}", y.YayinTarihi));
+                var postTimes = posts.Select(PostLastModified).ToList();
+                urls.Add(Url(ns, root + "/blog", postTimes.Max()));
+                for (var i = 0; i < posts.Count; i++)
+                    urls.Add(Url(ns, $"{root}/blog/{posts[i].Slug}", postTimes[i]));
             }
 
             var doc = new XDocument(new XDeclaration("1.0", "utf-8", null), new XElement(ns + "urlset", urls));
@@ -137,7 +137,8 @@ public static class SeoEndpoints
                 sb.AppendLine($"- Tarihe göre müsaitlik ve toplam fiyat: {root}/musaitlik");
             }
 
-            var posts = await blog.ListPublishedAsync(ct);
+            // H-1: arama dışı yazılar AI ajanlarına da listelenmez (sitemap ile aynı kapı).
+            var posts = await blog.ListIndexableAsync(ct);
             if (posts.Count > 0)
             {
                 sb.AppendLine().AppendLine($"## Blog / Rehber ({posts.Count} yazı)").AppendLine();
@@ -161,15 +162,21 @@ public static class SeoEndpoints
 
         // PR-14 GEÇİŞ: eski `/araclar/{guid}` adresleri. Google bunları indeksledi ve blog
         // içeriğinde elle yazılmış linkler olabilir — hepsini 404'e düşürmek yerine slug'a
-        // KALICI (301) yönlendiriyoruz. GUID bir ilana çözülmezse (eski GRUP id'si ya da
-        // yayından kalkmış ilan) vitrine 302 — ziyaretçi boş sayfada kalmasın.
-        // Rota, slug sayfasından DAHA SPESİFİK olduğu için (`:guid` kısıtı) onunla çakışmaz.
-        app.MapGet("/araclar/{id:guid}", async (Guid id, FleetShowcaseService showcase, CancellationToken ct) =>
+        // KALICI (301) yönlendiriyoruz. Rota, slug sayfasından DAHA SPESİFİK olduğu için
+        // (`:guid` kısıtı) onunla çakışmaz.
+        //
+        // L-5: GUID bir ilana ÇÖZÜLMEZSE (eski GRUP id'si ya da yayından kalkmış ilan) 410 Gone.
+        // Eskiden vitrine 302 veriyordu: arama motoru bunu soft-404 sayar ve ölü adresi yıllarca
+        // yeniden dener. Ziyaretçi yine boş sayfada kalmaz — gövde olarak ana sayfa (filo kartları
+        // = "benzer araçlar") 410 durum koduyla render edilir (bkz. StatusPageReExecuteMiddleware).
+        app.MapGet("/araclar/{id:guid}", async (Guid id, HttpContext http, FleetShowcaseService showcase,
+            CancellationToken ct) =>
         {
             var slug = await showcase.SlugByIdAsync(id, ct);
-            return slug is null
-                ? Results.Redirect("/", permanent: false)
-                : Results.Redirect($"/araclar/{slug}", permanent: true);
+            if (slug is not null) return Results.Redirect($"/araclar/{slug}", permanent: true);
+
+            StatusPageReExecuteMiddleware.Request(http, "/");
+            return Results.StatusCode(StatusCodes.Status410Gone);
         });
 
         return app;
@@ -181,10 +188,41 @@ public static class SeoEndpoints
         if (!string.IsNullOrWhiteSpace(value)) target.Add($"- {label}: {value.Trim()}");
     }
 
+    /// <summary>İndekslenmemesi gereken işlem yolları — içerik değil, form akışının ara/sonuç ekranları.
+    /// <see cref="NoIndexHeaderMiddleware"/> bunlara <c>X-Robots-Tag: noindex</c> basar.</summary>
+    public static readonly IReadOnlyList<string> TransactionPaths = ["/rezervasyon-talebi", "/talep-alindi", "/cok-istek"];
+
+    /// <summary>
+    /// robots.txt metni: herkese (AI arama tarayıcıları dahil) açık + sitemap.
+    /// <para><b>Bilinçli olarak Disallow YOK.</b> İşlem sayfaları ve parametreli müsaitlik aramaları
+    /// <c>X-Robots-Tag: noindex</c> ile dizin dışı tutulur. robots.txt'te engellenseydi tarayıcı o
+    /// adresi hiç istemez, noindex başlığını GÖREMEZ ve bilinen linkler "robots.txt ile engellendi
+    /// ama dizine eklendi" olarak kalabilirdi. Küçük sitede tarama bütçesi sorun değil.</para>
+    /// </summary>
+    public static string RobotsText(string? canonicalRoot)
+    {
+        var sb = new StringBuilder()
+            .AppendLine("User-agent: *")
+            .AppendLine("Allow: /");
+        if (canonicalRoot is not null) sb.AppendLine().AppendLine($"Sitemap: {canonicalRoot}/sitemap.xml");
+        return sb.ToString();
+    }
+
+    /// <summary>Yazının son değişikliği: güncelleme zamanı; yayın tarihi ondan SONRAYSA yayın tarihi
+    /// (ileri tarihli yayında yazı, yayın anında "değişmiş" sayılır).</summary>
+    private static DateTimeOffset? PostLastModified(BlogListItem p)
+    {
+        if (p.GuncellemeUtc is not { } u) return p.YayinTarihi;
+        return p.YayinTarihi is { } y && y > u ? y : u;
+    }
+
+    /// <summary>lastmod W3C tarih-saat biçiminde, UTC ('Z'), saniye hassasiyetinde, InvariantCulture.</summary>
     private static XElement Url(XNamespace ns, string loc, DateTimeOffset? lastMod = null)
     {
         var el = new XElement(ns + "url", new XElement(ns + "loc", loc));
-        if (lastMod is { } t) el.Add(new XElement(ns + "lastmod", t.UtcDateTime.ToString("yyyy-MM-dd")));
+        if (lastMod is { } t)
+            el.Add(new XElement(ns + "lastmod",
+                t.UtcDateTime.ToString("yyyy-MM-dd'T'HH:mm:ss'Z'", CultureInfo.InvariantCulture)));
         return el;
     }
 }

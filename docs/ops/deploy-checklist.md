@@ -138,6 +138,7 @@ https:// {
     tls {
         on_demand
     }
+    encode zstd gzip   # HTML sıkıştırması YALNIZ burada (uygulamada UseResponseCompression YOK)
     reverse_proxy 127.0.0.1:5230
     request_body { max_size 2MB }
 }

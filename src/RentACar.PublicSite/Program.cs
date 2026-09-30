@@ -80,11 +80,20 @@ builder.Services.AddRateLimiter(o =>
         _ => new FixedWindowRateLimiterOptions
         { PermitLimit = aramaPermit, Window = TimeSpan.FromSeconds(aramaWindowSec), QueueLimit = 0 }));
 
-    // Static-SSR akışı: ham 429 gövdesi yerine anlamlı sayfaya yönlendir (Web'in login deseniyle tutarlı).
+    // M-4: 302 → /cok-istek (200) YERİNE 429 + Retry-After. Yönlendirme tarayıcı botlara "kalıcı
+    // içerik" gibi görünüyordu ve "yavaşla" sinyali kayboluyordu. Ziyaretçi yine boş sayfa görmez:
+    // /cok-istek sayfası 429 durum koduyla gövde olarak render edilir (StatusPageReExecuteMiddleware).
+    o.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
     o.OnRejected = (ctx, _) =>
     {
         RentACar.Application.Observability.RacarMetrics.RateLimitRejected("public-site");
-        ctx.HttpContext.Response.Redirect("/cok-istek");
+        var retryAfter = ctx.Lease.TryGetMetadata(MetadataName.RetryAfter, out var ra)
+            ? (int)Math.Ceiling(ra.TotalSeconds)
+            : Math.Max(talepWindowSec, aramaWindowSec);
+        var res = ctx.HttpContext.Response;
+        res.StatusCode = StatusCodes.Status429TooManyRequests;
+        res.Headers.RetryAfter = Math.Max(1, retryAfter).ToString(System.Globalization.CultureInfo.InvariantCulture);
+        StatusPageReExecuteMiddleware.Request(ctx.HttpContext, "/cok-istek");
         return ValueTask.CompletedTask;
     };
 });
@@ -127,16 +136,18 @@ app.Use(async (ctx, next) =>
     await next();
 });
 
-// Gövdesiz hata yanıtları (404 başta) kabuklu /not-found sayfasıyla yeniden yürütülür; DURUM KODU
-// KORUNUR. SEO denetimi H-2: yayından kalkan ilan, yanlış slug ve eşleşmeyen adres 404 dönüyordu ama
-// gövde 0 bayttı — eski bir bağlantıdan gelen ziyaretçi menüsüz beyaz ekran görüyordu. Güvenlik
-// başlıklarından SONRA (yeniden yürütülen yanıt da aynı CSP'yi taşır), tenant çözümlemesinden ÖNCE
-// (yeniden yürütülen istek tenant middleware'inden yine geçer). AYNI DI kapsamı kullanılır
-// (createScopeForStatusCodePages: false): ölçüldü — yeni kapsamda Blazor sayfası tenant'ı göremiyor,
-// 404 sayfası markasız ve filosuz basılıyordu. Aynı kapsamda PublicTenantContext zaten aynı Host'tan
-// çözülmüş durumda. Bilinmeyen host tenant middleware'inde gövdesiz 404 alır — /not-found da o host
-// için çözülemez; firma sızmaz.
-app.UseStatusCodePagesWithReExecute("/not-found", createScopeForStatusCodePages: false);
+// ---- SEO teknik katmanı (sıra ÖNEMLİ; hepsi UseRouting'den ÖNCE) ----
+// 1) HEAD → GET yönlendirmesi, gövde atılır (M-5: `curl -I /` 404 dönüyordu).
+// 2) X-Robots-Tag (M-3): kararı ÖZGÜN istek yolundan verir → yeniden çalıştırmanın DIŞINDA durur.
+// 3) 404 gövdesi (H-2): gövdesiz 404 yanıtı kabuklu /not-found sayfasıyla doldurulur, durum 404 kalır
+//    (ayrıntı ve neden hazır UseStatusCodePagesWithReExecute değil: NotFoundPageMiddleware.cs).
+// 4) Durum kodunu koruyan yeniden çalıştırma (M-4 429, L-5 410): yeni yol için uç YENİDEN seçilsin
+//    diye yönlendirme bundan sonra ve AÇIKÇA çağrılır (örtük UseRouting boru hattının başına eklenirdi).
+app.UseMiddleware<HeadRequestMiddleware>();
+app.UseMiddleware<NoIndexHeaderMiddleware>();
+app.UseMiddleware<NotFoundPageMiddleware>();
+app.UseMiddleware<StatusPageReExecuteMiddleware>();
+app.UseRouting();
 
 app.UseRateLimiter(); // PR-8 — ForwardedHeaders'tan SONRA (gerçek IP partition'ı)
 
