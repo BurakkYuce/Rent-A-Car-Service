@@ -186,6 +186,23 @@
         </div>
       </section>
 
+      <section class="rc-bolum" aria-labelledby="ayar-site-gorunum">
+        <h2 id="ayar-site-gorunum">{{ 'sistem.ayarlar.siteGorunum' | transloco }}</h2>
+        <p class="not">{{ 'sistem.ayarlar.siteGorunumAciklama' | transloco }}</p>
+        <div class="rc-form-izgara">
+          <rc-alan
+            [etiket]="'sistem.ayarlar.alan.siteVurguRengi' | transloco"
+            [ipucu]="'sistem.ayarlar.siteVurguIpucu' | transloco"
+          >
+            <rc-metin-girdisi
+              formControlName="siteVurguRengi"
+              [azamiUzunluk]="7"
+              yerTutucu="#rrggbb"
+            />
+          </rc-alan>
+        </div>
+      </section>
+
       <section class="rc-bolum" aria-labelledby="ayar-smtp">
         <h2 id="ayar-smtp">{{ 'sistem.ayarlar.smtp' | transloco }}</h2>
         <p class="not">{{ 'sistem.ayarlar.smtpAciklama' | transloco }}</p>

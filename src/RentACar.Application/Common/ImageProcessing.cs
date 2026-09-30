@@ -43,6 +43,31 @@ public static class ImageProcessing
         catch { return null; } // resize hatası upload'ı ASLA bloklamaz
     }
 
+    /// <summary>
+    /// Halka açık site logosu: şeffaflığı KORUYAN küçültülmüş PNG. Ayarlardan yüklenen logo 2000 px / 1 MB'a
+    /// kadar olabiliyor (PDF baskısı için); site başlığında ~40 px yükseklikte duruyor. Ölçek yalnız KÜÇÜLTÜR
+    /// (büyütme yok). Başarısızsa null — çağıran özgün dosyaya düşer.
+    /// </summary>
+    public static byte[]? TryCreateWebLogo(byte[] source, int maxWidth = 640, int maxHeight = 160)
+    {
+        try
+        {
+            using var decoded = SKBitmap.Decode(source);
+            if (decoded is null) return null;
+            var s = Math.Min(1f, Math.Min((float)maxWidth / decoded.Width, (float)maxHeight / decoded.Height));
+            if (s >= 1f) return null; // zaten küçük — özgün dosya servis edilir
+            int tw = Math.Max(1, (int)MathF.Round(decoded.Width * s));
+            int th = Math.Max(1, (int)MathF.Round(decoded.Height * s));
+            using var resized = decoded.Resize(new SKImageInfo(tw, th, SKColorType.Rgba8888, SKAlphaType.Premul),
+                new SKSamplingOptions(SKCubicResampler.Mitchell));
+            if (resized is null) return null;
+            using var image = SKImage.FromBitmap(resized);
+            using var enc = image.Encode(SKEncodedImageFormat.Png, 100);
+            return enc?.ToArray();
+        }
+        catch { return null; }
+    }
+
     // Origin 5-8'de en/boy TAKAS olur — dst'yi (h,w) açmazsan görüntü KIRPILIR.
     // TopLeft/Default'ta bile Copy() döner: çağıran tarafta tek `using`, çift dispose yok.
     private static SKBitmap ApplyExifOrientation(SKBitmap src, SKEncodedOrigin origin)

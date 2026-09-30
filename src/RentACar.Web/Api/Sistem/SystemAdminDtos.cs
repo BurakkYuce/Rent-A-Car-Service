@@ -40,6 +40,8 @@ public sealed class SettingsDto
     public string? RenkAlacakli { get; init; }
     public string? RenkRezAtananPlaka { get; init; }
     public string? RenkKiralanmayan { get; init; }
+    /// <summary>Halka açık site vurgu rengi ("#rrggbb" ya da null = sitenin varsayılanı).</summary>
+    public string? SiteVurguRengi { get; init; }
     public bool DonemselFaturalamaJob { get; init; }
     public bool DonemselOtomatikTahsilat { get; init; }
     public int? MinKiraGun { get; init; }
@@ -116,6 +118,8 @@ public sealed class SettingsRequest
     public string? RenkAlacakli { get; init; }
     public string? RenkRezAtananPlaka { get; init; }
     public string? RenkKiralanmayan { get; init; }
+    /// <summary>Halka açık site vurgu rengi: "#rrggbb" ya da boş (sitenin varsayılanı). Tam değiştirme — boş gelirse silinir.</summary>
+    public string? SiteVurguRengi { get; init; }
     public bool DonemselFaturalamaJob { get; init; }
     public bool DonemselOtomatikTahsilat { get; init; }
     public int? MinKiraGun { get; init; }

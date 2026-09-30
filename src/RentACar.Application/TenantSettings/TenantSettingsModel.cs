@@ -72,6 +72,9 @@ public sealed class TenantSettingsModel
     public string? RenkRezAtananPlaka { get; set; }
     public string? RenkKiralanmayan { get; set; }
 
+    /// <summary>Halka açık site vurgu rengi ("#rrggbb" ya da null = sitenin varsayılanı).</summary>
+    public string? SiteVurguRengi { get; set; }
+
     // PR-2: public-site — yalnız GÖRÜNTÜLEME (SaveAsync bunları yazmaz; OpenPublicSiteAsync yazar).
     public bool PublicSiteEnabled { get; set; }
     public string? PublicSiteHost { get; set; }

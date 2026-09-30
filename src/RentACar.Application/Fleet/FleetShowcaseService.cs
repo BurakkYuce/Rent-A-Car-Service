@@ -45,7 +45,15 @@ public sealed record FleetShowcaseDetail(
 /// Bu alanların hepsi zaten fatura/sözleşme başlığında müşteriye görünüyor, yeni PII yüzeyi YOK.
 /// </summary>
 public sealed record FleetBranding(string? Marka, string? Adres, string? Tel, string? Email,
-    string? MobilTel = null, string? WhatsApp = null);
+    string? MobilTel = null, string? WhatsApp = null,
+    /// <summary>Site vurgu rengi (<c>TenantSettings.SiteVurguRengi</c>, "#rrggbb") — null = sitenin varsayılanı.</summary>
+    string? VurguRengi = null,
+    /// <summary>Logo sürümü: logo YOKSA null. Varsa görsel adresine sorgu olarak eklenir (<c>/marka/logo?v=…</c>)
+    /// ki logo değişince tarayıcı önbelleği kendiliğinden tazelensin.</summary>
+    string? LogoSurum = null);
+
+/// <summary>Halka açık sitede basılan firma logosu (PNG baytları + önbellek sürümü).</summary>
+public sealed record PublicLogo(byte[] Bytes, string Surum);
 
 /// <summary>
 /// Public-site filo vitrini. Yetki gerektirmez — guard-free okuma servisleri üstünden salt-okur
@@ -248,6 +256,10 @@ public sealed class FleetShowcaseService(
 
     public async Task<FleetBranding> GetBrandingAsync(CancellationToken ct = default)
         => _brandingCache ??= await branding.GetAsync(tenant.TenantIdOrThrow(), ct);
+
+    /// <summary>Site başlığı/alt bilgisi için firma logosu; yüklenmemişse null (site marka adını basar).</summary>
+    public Task<PublicLogo?> GetLogoAsync(CancellationToken ct = default)
+        => branding.GetLogoAsync(tenant.TenantIdOrThrow(), ct);
 
     /// <summary>PR-9: SEO kanonik host'u (canonical link + sitemap + robots TEK kaynağı).</summary>
     public async Task<string?> GetCanonicalHostAsync(CancellationToken ct = default)

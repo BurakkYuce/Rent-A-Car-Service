@@ -90,6 +90,37 @@ test('ayarlar: kayıtlı sır yalnız işaretli kutu + onayla silinir; vazgeçin
   expect(errors).toEqual([]);
 });
 
+test('ayarlar: site vurgu rengi okunur, değiştirilince PUT gövdesinde gider; biçim hatası alanın altında', async ({
+  page,
+}) => {
+  collectErrors(page, NETWORK_ERROR);
+  const message = 'Site vurgu rengi geçerli bir renk kodu olmalı (#rrggbb).';
+  let n = 0;
+  const writes = await settingsEndpoints(page, {
+    put: (r) =>
+      ++n === 1
+        ? problem(r, 400, 'dogrulama', 'Doğrulama hatası.', {
+            errors: { siteVurguRengi: [message] },
+          })
+        : r.fulfill({ json: settings({ siteVurguRengi: '#c0392b' }) }),
+  });
+  await open(page);
+  const color = page.getByRole('textbox', { name: 'Site vurgu rengi' });
+  await expect(color).toHaveValue('#0b5d6b');
+
+  await color.fill('kirmizi');
+  await page.getByRole('button', { name: 'Ayarları kaydet' }).click();
+  await expect(page.getByText(message)).toBeVisible();
+  await expect(color).toHaveValue('kirmizi'); // form korunur
+  expect(body(writes[0])['siteVurguRengi']).toBe('kirmizi');
+
+  await color.fill('#C0392B');
+  await page.getByRole('button', { name: 'Ayarları kaydet' }).click();
+  await expect.poll(() => writes.length).toBe(2);
+  expect(body(writes[1])['siteVurguRengi']).toBe('#C0392B');
+  await expect(color).toHaveValue('#c0392b'); // sunucunun normalize ettiği değer
+});
+
 test('ayarlar: doğrulama hatasında form korunur (sunucu alan hatası alanın altında)', async ({
   page,
 }) => {
