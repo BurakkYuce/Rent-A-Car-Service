@@ -1,5 +1,6 @@
 using RentACar.Application.TenantSettings;
 using RentACar.PublicSite.Components.Themes.Tarife;
+using RentACar.PublicSite.Components.Themes.Vitrin;
 
 namespace RentACar.PublicSite.Components.Themes;
 
@@ -67,14 +68,30 @@ public static class SiteThemes
         Fonts = BarlowFonts,
     };
 
-    // GEÇİCİ YER TUTUCU: vitrin ve kontuar temaları ayrı PR'larda yazılıyor. O PR'lar kendi slot
-    // bileşenlerini, css'ini, yazı tiplerini ve renklerini buraya koyar. O zamana kadar tarife'nin
-    // slotlarını kullanırlar; css dosyaları tarife'yi içe aktarır.
-    public static readonly SiteTheme Vitrin = Tarife with
+    /// <summary>Archivo — gövde 400/600 normal genişlik, başlık/fiyat 700 Expanded (wdth 125). Google Fonts'un
+    /// değişken dosyası (alt küme başına ~88 KB) fonttools instancer ile statik örneklere indirildi: altı dosya
+    /// toplam ~81 KB. Expanded ayrı aile adıyla: tarayıcının font-stretch eşlemesine güvenilmez.</summary>
+    private static readonly IReadOnlyList<ThemeFont> ArchivoFonts =
+    [
+        new("Archivo", "400", "fonts/archivo-400-latin-ext.woff2", LatinExt),
+        new("Archivo", "400", "fonts/archivo-400-latin.woff2", Latin),
+        new("Archivo", "600", "fonts/archivo-600-latin-ext.woff2", LatinExt),
+        new("Archivo", "600", "fonts/archivo-600-latin.woff2", Latin),
+        new("Archivo Expanded", "700", "fonts/archivo-expanded-700-latin-ext.woff2", LatinExt),
+        new("Archivo Expanded", "700", "fonts/archivo-expanded-700-latin.woff2", Latin),
+    ];
+
+    /// <summary>Önyükleme: ilk ekranda görünen gövde (400) ve başlık (700 Expanded) dosyaları — Türkçe metin iki
+    /// alt kümeyi de indirtir. 600 (etiket, strong) önyüklenmez: ilk ekranda yalnız form etiketlerinde.</summary>
+    public static readonly SiteTheme Vitrin = new(SiteThemeKeys.Vitrin, "Vitrin",
+        "Fotoğraf öne çıkar: büyük kapak görseli ve sade kartlar. Özenli fotoğraflı, üst segment filo için.",
+        "css/tema-vitrin.css",
+        [.. ArchivoFonts.Where(f => f.Weight != "600").Select(f => f.File)],
+        typeof(VitrinHero), typeof(VitrinCard), typeof(VitrinHeader), typeof(VitrinFooter))
     {
-        Key = SiteThemeKeys.Vitrin, Ad = "Vitrin",
-        Aciklama = "Fotoğraf öne çıkar: büyük kapak görseli ve sade kartlar. Özenli fotoğraflı, üst segment filo için.",
-        CssPath = "css/tema-vitrin.css",
+        Fonts = ArchivoFonts,
+        ThemeColorLight = "#f7f7f5",
+        ThemeColorDark = "#14171a",
     };
 
     public static readonly SiteTheme Kontuar = Tarife with

@@ -1,0 +1,106 @@
+@using RentACar.Application.Fleet
+@using RentACar.PublicSite.Components.Shared
+
+@* Tema "vitrin" — Hero slotu. İmza SABİT (Components/Themes/README.md): Marka, Branding, Subeler,
+   Kartlar, Sehir. Temanın TEK cesur unsuru (tema-vitrin.css "Sahne").
+
+   SAHNE: ilk FOTOĞRAFLI ilanın kapağı tam genişlik. Model adı çok büyük Expanded harfle; taban çizgisi
+   fotoğrafın alt kenarına oturur, kenarı yalnız inişli harfler geçer (kenarın altında koyu). İki renk tek
+   metinle yapılamaz: ikinci kopya `aria-hidden`, iki kopya AYNI grid hücresinde (kayma yok) ve tek değerli
+   clip-path ile kesilir (ekran okuyucu adı bir kez duyar). Telefonda ad tamamen fotoğrafın içinde.
+   Ad bağlantıdır: ilanın detayına gider.
+
+   FOTOĞRAF YOKSA sahne grafit zemin olur, aynı tipografi kalır (boş gri kutu yok). İlan hiç yoksa sahnede
+   firma adı durur — T2: olmayan bir aracı uydurmayız.
+
+   H1 arama panelinin başlığıdır: sayfanın ne yaptığını söyler; büyük ad bir ilan, sayfanın konusu değil.
+   Arama paneli fotoğrafın alt kenarına oturur (geniş ekranda kenarın üstüne biner). Mobilde panel sahnenin
+   hemen altında: "Müsait araçları göster" ilk ekranda kalır. *@
+
+<section class="v-hero @(Lead?.CoverPhotoId is null ? "v-hero-yalin" : null)" aria-labelledby="hero-baslik">
+    <div class="v-sahne">
+        @if (Lead?.CoverPhotoId is { } photoId)
+        {
+            @* Dekoratif değil ama adı hemen altında yazılı; alt metni tekrarlamak ekran okuyucuda aynı adı iki
+               kez okutur. LCP adayı: tembel değil, yüksek öncelikli. *@
+            <img class="v-sahne-foto" src="@($"/foto/{photoId}")"
+                 srcset="@($"/foto/{photoId}/thumb 400w, /foto/{photoId} 1600w")" sizes="100vw"
+                 width="1600" height="1067" alt="" fetchpriority="high" decoding="async" />
+        }
+        <div class="wrap v-sahne-ic">
+            @if (Lead is not null)
+            {
+                <a class="v-model @SizeClass(Lead.Baslik)" href="@($"/araclar/{Lead.Slug}")">
+                    <span class="v-model-ad">@Lead.Baslik</span>
+                    <span class="v-model-ad v-model-ust" aria-hidden="true">@Lead.Baslik</span>
+                </a>
+            }
+            else
+            {
+                <p class="v-model @SizeClass(BrandName)">
+                    <span class="v-model-ad">@BrandName</span>
+                    <span class="v-model-ad v-model-ust" aria-hidden="true">@BrandName</span>
+                </p>
+            }
+        </div>
+    </div>
+
+    <div class="wrap v-hero-alt">
+        <div class="v-hero-not">
+            @if (Lead is not null)
+            {
+                <p class="v-hero-fiyat">
+                    <span class="tutar">@PriceText.Tl(Lead.GunlukFiyat)</span><span class="birim">/ gün</span>
+                    <span class="kdv">@(Lead.KdvDahil ? "KDV dahil" : "KDV hariç")</span>
+                </p>
+            }
+            <p class="v-hero-metin">
+                @if (!string.IsNullOrWhiteSpace(Sehir))
+                {
+                    @* Hizmet bölgesi firmanın kendi şube adreslerinden türer (ServiceArea) — taahhüt değil, bilgi. *@
+                    <strong>@Sehir bölgesinde araç kiralama.</strong>@(" ")
+                }
+                @Intro
+            </p>
+        </div>
+        <div class="v-arama">
+            <h1 id="hero-baslik">Tarihinizi seçin, müsait araçları ve net fiyatı görün</h1>
+            <AramaFormu Hedef="/musaitlik" Subeler="Subeler" />
+        </div>
+    </div>
+</section>
+
+@code {
+    [Parameter] public string? Marka { get; set; }
+    [Parameter] public FleetBranding? Branding { get; set; }
+    [Parameter] public IReadOnlyList<string> Subeler { get; set; } = [];
+    [Parameter] public IReadOnlyList<FleetShowcaseCard> Kartlar { get; set; } = [];
+    [Parameter] public string? Sehir { get; set; }
+
+    /// <summary>Sahnedeki ilan: kapak fotoğrafı olan İLK ilan (sıra firmanın vitrin sırası); hiçbirinde
+    /// fotoğraf yoksa ilk ilan (sahne grafit zemine düşer).</summary>
+    private FleetShowcaseCard? Lead => Kartlar.FirstOrDefault(c => c.CoverPhotoId is not null) ?? Kartlar.FirstOrDefault();
+
+    private string BrandName => !string.IsNullOrWhiteSpace(Marka) ? Marka!
+        : !string.IsNullOrWhiteSpace(Branding?.Marka) ? Branding!.Marka! : "Araç kiralama";
+
+    /// <summary>Sabit metin, yalnız sistemin davranışını söyler (T1: teslimat/kasko gibi firma vaadi YOK).
+    /// Filo adedi tenant verisi.</summary>
+    private string Intro
+    {
+        get
+        {
+            var fleet = Kartlar.Count > 1 ? $"Filodaki {Kartlar.Count} aracın" : "Her aracın";
+            return $"{fleet} günlük fiyatı ilanında yazılı. Tarih seçince gün sayısına göre toplamı görür, "
+                 + "beğendiğiniz araç için talep bırakırsınız; ekip sizi arar.";
+        }
+    }
+
+    /// <summary>Uzun model adı ekrana sığsın diye yazı boyu kademesi (CSS'te clamp ile).</summary>
+    private static string SizeClass(string name) => name.Length switch
+    {
+        <= 12 => "v-model-k",
+        <= 22 => "v-model-o",
+        _ => "v-model-u",
+    };
+}
