@@ -4,7 +4,7 @@
 
    `alt` marka adıdır: bağlantının erişilebilir adı zaten "<Marka> ana sayfa" (aria-label), görsel
    yüklenemezse de firma adı okunur kalır. Genişlik bilinmiyor (her firmanın logosu farklı oranda);
-   yükseklik sabit (40px) olduğu için dikey kayma yok. *@
+   yüksekliği tema css'i sabitler (tarife: mobil 32px, masaüstü 44px) — dikey kayma yok. *@
 @if (!string.IsNullOrEmpty(LogoVersion))
 {
     <img src="@($"/marka/logo?v={Uri.EscapeDataString(LogoVersion)}")" alt="@Name" height="40" decoding="async" />
