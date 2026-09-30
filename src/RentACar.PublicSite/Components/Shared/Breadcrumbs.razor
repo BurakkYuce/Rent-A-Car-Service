@@ -1,0 +1,65 @@
+@using System.Text.Json
+
+@* Görünür sayfa yolu + BreadcrumbList JSON-LD — ikisi TEK kaynaktan, birbirinden ayrışamaz.
+   Son öğe bulunulan sayfadır: bağlantı değil, `aria-current="page"`. JSON-LD yalnız kanonik kök
+   varsa basılır (şema MUTLAK adres ister; yarım veri basmaktansa hiç basmamak doğru).
+   `MarkupString` güvenli: System.Text.Json varsayılan kodlayıcısı `<`/`>`/`&` kaçırır — firma
+   verisinden `</script>` üretilemez (YapisalVeri.razor ile aynı gerekçe). *@
+
+<nav class="yol wrap" aria-label="Sayfa yolu">
+    <ol>
+        @for (var i = 0; i < Items.Count; i++)
+        {
+            var item = Items[i];
+            @if (i == Items.Count - 1 || item.Path is null)
+            {
+                <li><span aria-current="@(i == Items.Count - 1 ? "page" : null)">@item.Label</span></li>
+            }
+            else
+            {
+                <li><a href="@item.Path">@item.Label</a></li>
+            }
+        }
+    </ol>
+</nav>
+
+@if (_json is { Length: > 0 })
+{
+    @* Etiket de MarkupString: Razor düz öznitelikteki `+`'yı `&#x2B;` diye kodluyor ve ham HTML'i
+       düzenli ifadeyle tarayan araçlar bloğu kaçırıyor (SEO denetimi L-6). *@
+    @((MarkupString)$"<script type=\"application/ld+json\">{_json}</script>")
+}
+
+@code {
+    public sealed record Item(string Label, string? Path);
+
+    /// <summary>Kökten bulunulan sayfaya sıralı öğeler. Son öğe bulunulan sayfa.</summary>
+    [Parameter, EditorRequired] public IReadOnlyList<Item> Items { get; set; } = [];
+
+    /// <summary>Kanonik kök (https://host). Yoksa JSON-LD basılmaz.</summary>
+    [Parameter] public string? KanonikKok { get; set; }
+
+    private string? _json;
+
+    protected override void OnParametersSet()
+    {
+        var root = string.IsNullOrWhiteSpace(KanonikKok) ? null : KanonikKok.TrimEnd('/');
+        if (root is null || Items.Count == 0) { _json = null; return; }
+
+        var list = Items.Select((it, i) => new Dictionary<string, object?>
+        {
+            ["@type"] = "ListItem",
+            ["position"] = i + 1,
+            ["name"] = it.Label,
+            // Son öğe (bulunulan sayfa) için `item` isteğe bağlı; yolu varsa yine yazılır.
+            ["item"] = it.Path is null ? null : root + it.Path,
+        }.Where(kv => kv.Value is not null).ToDictionary(kv => kv.Key, kv => kv.Value));
+
+        _json = JsonSerializer.Serialize(new Dictionary<string, object?>
+        {
+            ["@context"] = "https://schema.org",
+            ["@type"] = "BreadcrumbList",
+            ["itemListElement"] = list.ToList(),
+        });
+    }
+}

@@ -1,0 +1,21 @@
+@* Firma işareti: logo yüklüyse görsel, değilse marka adı (levha yazısı). Üst bar ve alt bilgi aynı
+   bileşeni kullanır — ikisi ayrışmasın. Logo adresi sürüm taşır (/marka/logo?v=…): uç bu sürümle
+   gelen isteğe bir yıllık `immutable` önbellek verir, logo değişince adres de değişir.
+
+   `alt` marka adıdır: bağlantının erişilebilir adı zaten "<Marka> ana sayfa" (aria-label), görsel
+   yüklenemezse de firma adı okunur kalır. Genişlik bilinmiyor (her firmanın logosu farklı oranda);
+   yükseklik sabit (40px) olduğu için dikey kayma yok. *@
+@if (!string.IsNullOrEmpty(LogoVersion))
+{
+    <img src="@($"/marka/logo?v={Uri.EscapeDataString(LogoVersion)}")" alt="@Name" height="40" decoding="async" />
+}
+else
+{
+    <span class="marka-ad">@Name</span>
+}
+
+@code {
+    [Parameter, EditorRequired] public string Name { get; set; } = "";
+    /// <summary><see cref="RentACar.Application.Fleet.FleetBranding.LogoSurum"/> — null ise logo yok.</summary>
+    [Parameter] public string? LogoVersion { get; set; }
+}

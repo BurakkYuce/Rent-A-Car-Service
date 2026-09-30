@@ -5,9 +5,9 @@
 
 @if (Sorular.Count > 0)
 {
-    <section class="bolum" id="sss">
-        <div class="container">
-            <h2 class="section-title">Sık Sorulan Sorular</h2>
+    <section class="bolum bolum-kontrast" id="sss" aria-labelledby="sss-baslik">
+        <div class="wrap">
+            <h2 id="sss-baslik" class="bolum-baslik">Sık sorulan sorular</h2>
             <div class="sss-liste">
                 @foreach (var k in Sorular.Take(Adet))
                 {
@@ -22,7 +22,7 @@
             </div>
             @if (Sorular.Count > Adet)
             {
-                <p class="ust-linkler"><a href="/sss">Tüm soruları gör (@Sorular.Count)</a></p>
+                <p class="linkler"><a href="/sss">Tüm sorular (@Sorular.Count)</a></p>
             }
         </div>
     </section>

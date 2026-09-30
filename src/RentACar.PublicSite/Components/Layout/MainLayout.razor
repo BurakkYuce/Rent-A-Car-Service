@@ -7,128 +7,106 @@
 @inject BlogService Blog
 @inject SiteContentService Icerik
 
-@* PR-15: site kabuğu (üst bar + alt bilgi) BURAYA taşındı. Önce her sayfa kendi
-   başlığını/iletişim satırını basıyordu; marka ve gezinme tek yerde olmalı.
-   Sayfaların kendi <h1>'i KALIR (sayfa başlığı) — üst bardaki marka ondan ayrıdır. *@
-<div class="page">
-    <header class="site-bar">
-        <div class="site-bar-ic">
-            <a class="site-marka" href="/">@BrandName</a>
-            <nav class="site-nav">
-                <a href="/">Filomuz</a>
-                <a href="/musaitlik">Müsaitlik ve Fiyat</a>
-                @if (_hasFaq) { <a href="/sss">S.S.S.</a> }
-                @if (_blogVar) { <a href="/blog">Blog</a> }
-                <a href="/iletisim">İletişim</a>
+@* PR-15: site kabuğu (üst bar + alt bilgi) tek yerde; sayfaların kendi <h1>'i KALIR.
+
+   Firma kimliği: logo yüklüyse /marka/logo (sürümlü adres, uzun önbellek), yoksa marka adı levha
+   yazısıyla. Vurgu rengi App.razor'daki <style> bloğundan gelir (BrandPalette).
+
+   MOBİL: üst bar tek satır ve yapışkan değil; menü <details> ile (JS yok). İletişim (Ara / WhatsApp)
+   ekranın altındaki sabit çubukta — SEO denetiminde 375px'te üst bar 182px'ti ve eylemler ilk ekranın
+   dışında kalıyordu. Kanal yoksa çubuk hiç basılmaz (T2). *@
+<div class="page @(_altbar ? "altbar-acik" : null)">
+    <a class="gorunmez atla" href="#icerik">İçeriğe geç</a>
+    <header class="bar">
+        <div class="wrap bar-ic">
+            <a class="marka" href="/" aria-label="@($"{BrandName} ana sayfa")">
+                <BrandMark Name="@BrandName" LogoVersion="@_branding?.LogoSurum" />
+            </a>
+            <nav class="nav-genis" aria-label="Ana menü">
+                @foreach (var (href, label) in _navItems) { <a href="@href">@label</a> }
             </nav>
+            @if (_waLink is not null)
+            {
+                <a class="btn btn-cizgi bar-tel" href="@_waLink" target="_blank" rel="noopener noreferrer">WhatsApp</a>
+            }
             @if (_telLink is not null)
             {
-                @* Numara METİN olarak da görünür: `tel:` linkini açamayan masaüstünde de işe yarasın. *@
-                <a class="btn-cta" href="@_telLink">@_branding!.Tel</a>
+                @* Numara METİN olarak da görünür: `tel:` açamayan masaüstünde de işe yarasın. *@
+                <a class="btn btn-brand bar-tel" href="@_telLink">@_phone</a>
             }
+            <details class="menu">
+                <summary>Menü</summary>
+                <ul class="menu-liste">
+                    <li><a href="/">Ana sayfa</a></li>
+                    @foreach (var (href, label) in _navItems) { <li><a href="@href">@label</a></li> }
+                </ul>
+            </details>
         </div>
     </header>
 
-    <main>
+    <main id="icerik" tabindex="-1">
         @Body
     </main>
 
-    <footer class="site-footer">
-        <div class="site-footer-ic">
+    <footer class="alt">
+        <div class="wrap alt-ic">
             <div>
-                <h2>@BrandName</h2>
-                @if (!string.IsNullOrWhiteSpace(_branding?.Adres)) { <p>@_branding!.Adres</p> }
+                <a class="marka" href="/"><BrandMark Name="@BrandName" LogoVersion="@_branding?.LogoSurum" /></a>
+                @if (!string.IsNullOrWhiteSpace(_branding?.Adres)) { <p class="small">@_branding!.Adres</p> }
             </div>
-            <div>
-                <h2>İletişim</h2>
-                <ul>
-                    @if (_telLink is not null) { <li><a href="@_telLink">@_branding!.Tel</a></li> }
-                    @if (!string.IsNullOrWhiteSpace(_branding?.Email))
-                    {
-                        <li><a href="@($"mailto:{_branding!.Email}")">@_branding!.Email</a></li>
-                    }
-                </ul>
-            </div>
-            <div>
-                <h2>Sayfalar</h2>
-                <ul>
-                    <li><a href="/">Filomuz</a></li>
-                    <li><a href="/musaitlik">Müsaitlik ve fiyat sorgula</a></li>
-                    @if (_hasFaq) { <li><a href="/sss">Sık sorulan sorular</a></li> }
-                    @if (_blogVar) { <li><a href="/blog">Blog</a></li> }
-                    <li><a href="/iletisim">İletişim</a></li>
-                    @* PR-16: firmanın kendi yazdığı sayfalar (sıra alanına göre).
-                       Yasal metinler bu listeden ÇIKARILDI — kendi sütunlarında yaşıyorlar,
-                       aksi halde alt bilgide iki kez görünürlerdi. *@
-                    @foreach (var sf in _otherPages)
-                    {
-                        <li><a href="@($"/{sf.Slug}")">@sf.Baslik</a></li>
-                    }
-                </ul>
-            </div>
-            @* Yasal sütunu YALNIZ yayında yasal sayfa varsa basılır: yayında olmayan bir slug'a
-               link vermek 404 üretir (Sayfa.razor bilinçli olarak gerçek 404 döner). Sabit
-               "/gizlilik" linki basmak, sayfa hiç yazılmamışken kırık bağlantı demekti. *@
-            @if (_legalPages.Count > 0)
+            @if (_telLink is not null || _waLink is not null || !string.IsNullOrWhiteSpace(_branding?.Email))
             {
                 <div>
-                    <h2>Yasal</h2>
+                    <p class="alt-baslik">İletişim</p>
                     <ul>
-                        @foreach (var sf in _legalPages)
+                        @if (_telLink is not null) { <li><a href="@_telLink">@_phone</a></li> }
+                        @if (_waLink is not null) { <li><a href="@_waLink" target="_blank" rel="noopener noreferrer">WhatsApp'tan yazın</a></li> }
+                        @if (!string.IsNullOrWhiteSpace(_branding?.Email))
                         {
-                            <li><a href="@($"/{sf.Slug}")">@sf.Baslik</a></li>
+                            <li><a href="@($"mailto:{_branding!.Email}")">@_branding!.Email</a></li>
                         }
                     </ul>
                 </div>
             }
+            <div>
+                <p class="alt-baslik">Sayfalar</p>
+                <ul>
+                    <li><a href="/">Ana sayfa</a></li>
+                    @foreach (var (href, label) in _navItems) { <li><a href="@href">@label</a></li> }
+                    @* PR-16: firmanın kendi yazdığı sayfalar; yasal metinler kendi sütununda. *@
+                    @foreach (var sf in _otherPages) { <li><a href="@($"/{sf.Slug}")">@sf.Baslik</a></li> }
+                </ul>
+            </div>
+            @* Yasal sütunu YALNIZ yayında yasal sayfa varsa: yayında olmayan slug'a link 404 üretir. *@
+            @if (_legalPages.Count > 0)
+            {
+                <div>
+                    <p class="alt-baslik">Yasal</p>
+                    <ul>
+                        @foreach (var sf in _legalPages) { <li><a href="@($"/{sf.Slug}")">@sf.Baslik</a></li> }
+                    </ul>
+                </div>
+            }
         </div>
-        <div class="site-footer-alt">© @DateTime.Now.Year @BrandName</div>
+        <div class="alt-son"><div class="wrap">© @DateTime.Now.Year @BrandName</div></div>
     </footer>
 
-    @* ---- Çerez bilgilendirme şeridi ----
-       `hidden` SUNUCUDAN gelir; yalnız `js/rc-cerez.js` açar (bkz. o dosyanın başlığı):
-       JS yoksa şerit hiç görünmez ve sayfa tam çalışır.
+    @if (_altbar)
+    {
+        <nav class="altbar" aria-label="Hızlı iletişim">
+            @if (_telLink is not null) { <a class="btn btn-brand" href="@_telLink">Ara</a> }
+            @if (_waLink is not null) { <a class="btn btn-cizgi" href="@_waLink" target="_blank" rel="noopener noreferrer">WhatsApp</a> }
+        </nav>
+    }
 
-       METİN DÜRÜSTLÜĞÜ: bu sitede analitik/izleme/reklam çerezi YOK (kod okunarak doğrulandı —
-       Program.cs'te oturum/analitik yok, üçüncü taraf betik yok, tek çerez rezervasyon talep
-       formundaki antiforgery/CSRF çerezi). Zorunlu çerez için izin alınmaz; bu yüzden burada
-       "Kabul et / Reddet" ikilisi YOK — reddedilecek bir izleme olmadığı halde "Reddet"
-       göstermek, kullanıcıya sahte bir seçim (ve sahte bir koruma hissi) sunardı. Şerit bir
-       ONAY değil BİLGİLENDİRME'dir; tek eylem "Tamam"dır.
-       İleride izin gerektiren bir çerez eklenirse: gerçek Kabul/Reddet düğmeleri buraya gelir ve
-       rc-cerez.js'teki ANAHTAR v2'ye çıkarılır (eski kayıt yeni izni kapsamaz). *@
-    <section id="cerez-serit" class="cerez-serit" hidden aria-label="Çerez bilgilendirmesi">
-        @* MOBİL KISALTMA: metin tek parça 470 karakterdi ve şerit 375px'te 286px yer kaplıyordu
-           (ekranın %43'ü) — telefonda şerit sayfayı yiyordu. Metin İKİYE bölündü:
-             .cerez-ozet   → her yerde görünen ÇEKİRDEK bilgi (tek başına da doğru ve yeterli);
-             .cerez-detay  → yalnız ≥641px'te görünen teknik ayrıntı (site.css mobil bloğu gizler).
-           Masaüstünde ikisi peş peşe basılır ve eskisiyle aynı tam metin okunur; hiçbir bilgi
-           silinmedi, mobilde yalnız SIRALANDI. Ayrıntı, çerez politikası sayfası yayındaysa
-           "Ayrıntılı bilgi" bağlantısıyla mobilde de erişilebilir kalır; sayfa yayında değilse
-           özet metnin kendisi tek başına doğru bilgiyi verdiği için eksik bilgi doğmaz. *@
-        <p class="cerez-metin">
-            <span class="cerez-ozet">Bu sitede <strong>yalnızca zorunlu çerezler</strong> kullanılır;
-                ziyaretçi takibi, reklam ve analitik çerezi yoktur.</span>
-            <span class="cerez-detay">Rezervasyon talep formunu açtığınızda, formu sahte isteklere
-                karşı korumak için tarayıcınıza tek bir teknik çerez yazılır; üçüncü taraf hiçbir
-                betik yüklenmez. Zorunlu çerezler için izin alınmadığından burada reddedilecek bir
-                izleme yoktur.</span>
-            @if (_cookiePolicySlug is not null)
-            {
-                <a href="@($"/{_cookiePolicySlug}")">Ayrıntılı bilgi</a>
-            }
-        </p>
-        <button type="button" class="btn-cta" data-cerez-kapat>Tamam</button>
-    </section>
+    <CookieNotice PolicySlug="@_cookiePolicySlug" />
 </div>
 
 @code {
     private FleetBranding? _branding;
-    private string? _telLink;
-    private bool _blogVar;
-    private bool _hasFaq;
-    // Yayındaki içerik sayfaları alt bilgide İKİYE ayrılır: yasal metinler kendi sütununda
-    // (görünürlük + KVKK/çerez şeridinin hedefi), gerisi "Sayfalar" sütununda.
+    private string? _telLink, _waLink, _phone;
+    private bool _altbar;
+    private IReadOnlyList<(string Href, string Label)> _navItems = [("/musaitlik", "Araçlar ve fiyatlar"), ("/iletisim", "İletişim")];
     private IReadOnlyList<SayfaOzet> _otherPages = [];
     private IReadOnlyList<SayfaOzet> _legalPages = [];
     private string? _cookiePolicySlug;
@@ -137,18 +115,29 @@
 
     protected override async Task OnInitializedAsync()
     {
-        // Kabuk, içerik servisleri patlasa DA basılmalı: alan adı henüz çözülmemiş ya da site
-        // kapatılmış olabilir (App.razor'daki canonical ile aynı savunma).
+        // Kabuk, içerik servisleri patlasa DA basılmalı (alan adı çözülmemiş / site kapalı olabilir).
         try
         {
             _branding = await Showcase.GetBrandingAsync();
-            _telLink = PhoneLink.Tel(_branding.Tel);
-            _blogVar = (await Blog.ListPublishedAsync()).Count > 0;
+            // Ofis telefonu yoksa mobil; WhatsApp numarası yoksa mobil (firmaların çoğu aynı numarayı kullanıyor).
+            _phone = string.IsNullOrWhiteSpace(_branding.Tel) ? _branding.MobilTel : _branding.Tel;
+            _telLink = PhoneLink.Tel(_phone);
+            _waLink = PhoneLink.Wa(string.IsNullOrWhiteSpace(_branding.WhatsApp) ? _branding.MobilTel : _branding.WhatsApp,
+                $"Merhaba, {BrandName} araç kiralama hakkında bilgi almak istiyorum.");
+            _altbar = _telLink is not null || _waLink is not null;
+
+            var hasFaq = (await Icerik.PublishedFaqAsync()).Count > 0;
+            var hasBlog = (await Blog.ListPublishedAsync()).Count > 0;
+            var nav = new List<(string, string)> { ("/musaitlik", "Araçlar ve fiyatlar") };
+            if (hasFaq) nav.Add(("/sss", "Sık sorulanlar"));
+            if (hasBlog) nav.Add(("/blog", "Blog"));
+            nav.Add(("/iletisim", "İletişim"));
+            _navItems = nav;
+
             var pages = await Icerik.PublishedPagesAsync();
             _legalPages = pages.Where(LegalPages.Legal).ToList();
             _otherPages = pages.Where(s => !LegalPages.Legal(s)).ToList();
             _cookiePolicySlug = LegalPages.CookiePolicySlug(pages);
-            _hasFaq = (await Icerik.PublishedFaqAsync()).Count > 0;
         }
         catch
         {

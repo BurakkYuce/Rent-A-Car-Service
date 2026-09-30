@@ -127,6 +127,17 @@ app.Use(async (ctx, next) =>
     await next();
 });
 
+// Gövdesiz hata yanıtları (404 başta) kabuklu /not-found sayfasıyla yeniden yürütülür; DURUM KODU
+// KORUNUR. SEO denetimi H-2: yayından kalkan ilan, yanlış slug ve eşleşmeyen adres 404 dönüyordu ama
+// gövde 0 bayttı — eski bir bağlantıdan gelen ziyaretçi menüsüz beyaz ekran görüyordu. Güvenlik
+// başlıklarından SONRA (yeniden yürütülen yanıt da aynı CSP'yi taşır), tenant çözümlemesinden ÖNCE
+// (yeniden yürütülen istek tenant middleware'inden yine geçer). AYNI DI kapsamı kullanılır
+// (createScopeForStatusCodePages: false): ölçüldü — yeni kapsamda Blazor sayfası tenant'ı göremiyor,
+// 404 sayfası markasız ve filosuz basılıyordu. Aynı kapsamda PublicTenantContext zaten aynı Host'tan
+// çözülmüş durumda. Bilinmeyen host tenant middleware'inde gövdesiz 404 alır — /not-found da o host
+// için çözülemez; firma sızmaz.
+app.UseStatusCodePagesWithReExecute("/not-found", createScopeForStatusCodePages: false);
+
 app.UseRateLimiter(); // PR-8 — ForwardedHeaders'tan SONRA (gerçek IP partition'ı)
 
 // PR-19: `UseStaticFiles()` DEĞİL `MapStaticAssets()` — ERP (RentACar.Web) zaten bunu kullanıyor.

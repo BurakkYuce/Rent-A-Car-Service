@@ -4,18 +4,19 @@
      2. talep formu               → PublicBookingRequest (rezervasyon DEĞİL, lead)
      3. personel dönüştürür       → DonusturAsync → Cari + Rezervasyon + sözleşme
    Özellikle 2. adımdaki "rezervasyon değil, talep" ifadesi ÖNEMLİ: ziyaretçi formu doldurup
-   aracın kendisine ayrıldığını sanmamalı — sistemde de öyle çalışmıyor. *@
+   aracın kendisine ayrıldığını sanmamalı — sistemde de öyle çalışmıyor.
 
-<section class="bolum" id="nasil">
-    <div class="container">
-        <h2 class="section-title">3 adımda araç kiralayın</h2>
+   Numaralar bilgi taşır (gerçek bir sıra) — CSS sayacı, metne gömülmedi. *@
+
+<section class="bolum" id="nasil" aria-labelledby="nasil-baslik">
+    <div class="wrap">
+        <h2 id="nasil-baslik" class="bolum-baslik">Üç adımda araç kiralayın</h2>
         <ol class="adimlar">
-            @foreach (var (n, title, description) in Steps)
+            @foreach (var (title, description) in Steps)
             {
-                <li class="adim">
-                    <span class="adim-no" aria-hidden="true">@n</span>
+                <li>
                     <h3>@title</h3>
-                    <p class="muted small">@description</p>
+                    <p>@description</p>
                 </li>
             }
         </ol>
@@ -23,13 +24,13 @@
 </section>
 
 @code {
-    private static readonly (int No, string Baslik, string Aciklama)[] Steps =
+    private static readonly (string Baslik, string Aciklama)[] Steps =
     [
-        (1, "Aracı seçin",
-            "Tarihlerinizi girin, o aralıkta müsait araçları ve günlük/haftalık/aylık fiyatlarını görün."),
-        (2, "Talep bırakın",
+        ("Aracı seçin",
+            "Tarihlerinizi girin; o aralıkta müsait araçları ve gün sayısına göre toplam fiyatı görün."),
+        ("Talep bırakın",
             "Adınız ve telefonunuzla kısa formu doldurun. Bu bir rezervasyon değil, talep kaydıdır."),
-        (3, "Ekip sizi arasın",
+        ("Ekip sizi arasın",
             "Talebiniz onaylanınca sözleşmeniz hazırlanır ve aracınızı teslim alırsınız."),
     ];
 }

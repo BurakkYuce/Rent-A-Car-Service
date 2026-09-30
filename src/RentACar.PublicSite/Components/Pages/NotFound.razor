@@ -1,20 +1,88 @@
 @page "/not-found"
+@using Microsoft.AspNetCore.Diagnostics
+@using RentACar.Application.Fleet
+@inject FleetShowcaseService Showcase
 
-<PageTitle>Bulunamadı</PageTitle>
+@* 404 (ve gövdesiz diğer hata durumları) sayfası — KABUKLA birlikte basılır.
 
-@* Sayfa HİÇBİR düzen sınıfı kullanmıyordu: <h1> doğrudan <main>'in içindeydi ve mobilde
-   metin ekranın sol kenarına yapışıyordu (kenar boşluğu yalnız `.container`'dan geliyor).
-   Sitenin diğer sayfalarıyla AYNI kabuk kullanılıyor — boşluk ve tipografi tek yerden
-   gelsin, 404 sayfası "yarım kalmış" görünmesin.
+   NEDEN: SEO denetimi H-2 — yayından kalkmış ilan, yanlış slug ya da eşleşmeyen adres 404 dönüyordu
+   ama GÖVDE 0 BAYTTI: menüsüz beyaz ekran. Sayfalar durum kodunu 404'e çekince .NET 10 gövdeyi
+   göndermiyor; eşleşmeyen adresin zaten uç noktası yok. Program.cs'teki
+   `UseStatusCodePagesWithReExecute("/not-found")` gövdesiz her hata yanıtını buraya yeniden yürütür;
+   DURUM KODU KORUNUR (arama motoru yine 404 görür, soft-404 yok).
 
-   Ayrıca bir ÇIKIŞ yolu eklendi: 404'e düşen ziyaretçinin tek eylemi tarayıcı geri
-   düğmesi olmamalı. *@
-<div class="container">
-    <header class="site-header">
-        <h1>Sayfa bulunamadı</h1>
-        <p class="contact">Aradığınız sayfa taşınmış, kaldırılmış ya da adresi yanlış
-            yazılmış olabilir.</p>
-    </header>
+   Bu adres DOĞRUDAN istenirse de 404 döner — yoksa /not-found 200 ile indekslenirdi.
 
-    <a class="back-link" href="/">← Ana sayfaya dön</a>
+   404 dışı bir kod (ör. 400 geçersiz form, 500) aynı yoldan gelirse "bulunamadı" DENMEZ — yanlış
+   yönlendirmek yerine genel bir hata metni basılır.
+
+   Çıkış yolu: filodan birkaç araç (veri varsa, T2) + ana bağlantılar. *@
+
+<PageTitle>@(_isNotFound ? "Sayfa bulunamadı" : "Bir sorun oluştu")</PageTitle>
+
+<div class="wrap sayfa-ust">
+    @if (_isNotFound)
+    {
+        <p class="hata-kod" aria-hidden="true">404</p>
+        <h1>Aradığınız sayfa burada değil</h1>
+        <p class="giris">Sayfa taşınmış, araç yayından kaldırılmış ya da adres yanlış yazılmış olabilir.
+            Filodaki araçlara göz atabilir ya da bize ulaşabilirsiniz.</p>
+    }
+    else
+    {
+        <h1>Bir sorun oluştu</h1>
+        <p class="giris">İsteğiniz tamamlanamadı. Sayfayı yeniden açmayı deneyin; sorun sürerse bize ulaşın.</p>
+    }
+    <ul class="linkler">
+        <li><a href="/musaitlik">Araçlar ve fiyatlar</a></li>
+        <li><a href="/">Ana sayfa</a></li>
+        <li><a href="/iletisim">İletişim</a></li>
+    </ul>
 </div>
+
+@if (_cards.Count > 0)
+{
+    <section class="wrap bolum-ic" aria-labelledby="nf-filo">
+        <h2 id="nf-filo">Filomuzdan</h2>
+        <ul class="ilanlar">
+            @foreach (var c in _cards)
+            {
+                <li>
+                    <AracKarti Slug="@c.Slug" Baslik="@c.Baslik" CoverPhotoId="c.CoverPhotoId"
+                               YilAralik="@c.YilAralik" GunlukFiyat="c.GunlukFiyat" KdvDahil="c.KdvDahil"
+                               Ozellikler="c.Ozellikler" Adet="c.Adet"
+                               TeklifLinki="@QuoteLink.Build(c.Slug, dailyPrice: c.GunlukFiyat)" />
+                </li>
+            }
+        </ul>
+    </section>
+}
+
+@code {
+    private const int CardCount = 3;
+
+    [CascadingParameter] public HttpContext? Http { get; set; }
+
+    private bool _isNotFound = true;
+    private IReadOnlyList<FleetShowcaseCard> _cards = [];
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (Http is not null)
+        {
+            var reExecuted = Http.Features.Get<IStatusCodeReExecuteFeature>() is not null;
+            if (!reExecuted) Http.Response.StatusCode = StatusCodes.Status404NotFound; // doğrudan istek
+            _isNotFound = Http.Response.StatusCode == StatusCodes.Status404NotFound;
+        }
+
+        if (!_isNotFound) return;
+        try
+        {
+            _cards = [.. (await Showcase.ListShowcaseGroupsAsync()).Take(CardCount)];
+        }
+        catch
+        {
+            // Tenant çözülmemiş / içerik okunamadı → yalnız bağlantılar kalır.
+        }
+    }
+}

@@ -1,9 +1,54 @@
 @page "/talep-alindi"
+@using RentACar.Application.Common
+@using RentACar.Application.Fleet
+@inject FleetShowcaseService Showcase
 
-<PageTitle>Talebiniz alındı</PageTitle>
+@* Talep sonrası sayfa. "Sırada ne var" adımları SİSTEMİN akışı (BolumNasilCalisir ile aynı gerçek):
+   talep bir lead kaydıdır, personel arar, onaylanırsa sözleşme hazırlanır — firma adına süre vaadi
+   (ör. "15 dakikada döneriz") YAZILMAZ (T1). Beklemek istemeyen için iletişim kanalları (varsa). *@
 
-<div class="container">
+<PageTitle>Talebiniz alındı — @(_branding?.Marka ?? "RentPro")</PageTitle>
+
+<div class="wrap-dar sayfa-ust">
+    <div class="onay-isaret" aria-hidden="true"></div>
     <h1>Talebiniz alındı</h1>
-    <p class="muted-note">Teşekkürler! Ekibimiz en kısa sürede sizinle iletişime geçecek.</p>
-    <p><a href="/">← Ana sayfaya dön</a></p>
+    <p class="giris">Teşekkürler. Ekibimiz talebinizi inceleyip en kısa sürede sizinle iletişime geçecek.</p>
+
+    <h2>Sırada ne var?</h2>
+    <ol class="adimlar">
+        <li><h3>İnceleme</h3><p>Ekip, istediğiniz tarihlerde aracın uygunluğunu kontrol eder.</p></li>
+        <li><h3>Arama</h3><p>Sizi arayıp fiyatı ve teslim ayrıntılarını teyit eder.</p></li>
+        <li><h3>Sözleşme</h3><p>Onayınızla sözleşme hazırlanır, aracınızı teslim alırsınız.</p></li>
+    </ol>
+
+    @if (_telLink is not null || _waLink is not null)
+    {
+        <p class="bolum-ic">Beklemek istemiyorsanız bize doğrudan ulaşabilirsiniz.</p>
+        <div class="cta-dugmeler">
+            @if (_telLink is not null) { <a class="btn btn-brand" href="@_telLink">Ara: @_phone</a> }
+            @if (_waLink is not null) { <a class="btn btn-cizgi" href="@_waLink" target="_blank" rel="noopener noreferrer">WhatsApp</a> }
+        </div>
+    }
+    <ul class="linkler"><li><a href="/">Ana sayfaya dön</a></li></ul>
 </div>
+
+@code {
+    private FleetBranding? _branding;
+    private string? _telLink, _waLink, _phone;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            _branding = await Showcase.GetBrandingAsync();
+            _phone = string.IsNullOrWhiteSpace(_branding.Tel) ? _branding.MobilTel : _branding.Tel;
+            _telLink = PhoneLink.Tel(_phone);
+            _waLink = PhoneLink.Wa(string.IsNullOrWhiteSpace(_branding.WhatsApp) ? _branding.MobilTel : _branding.WhatsApp,
+                "Merhaba, sitenizden araç kiralama talebi bıraktım.");
+        }
+        catch
+        {
+            // Marka çözülemezse sayfa kanalsız basılır.
+        }
+    }
+}

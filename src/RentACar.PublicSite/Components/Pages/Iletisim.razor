@@ -12,64 +12,68 @@
    haritada aç bağlantısı (dış link, kullanıcının kendi uygulamasında açılır).
 
    Çalışma saatleri gibi ek bilgiler için firma "Site İçeriği"nden bir sayfa açar (ör.
-   "Çalışma Saatleri") — TenantSettings'e yarım bağlanmış yeni bir alan EKLENMEDİ. *@
+   "Çalışma Saatleri") — TenantSettings'e yarım bağlanmış yeni bir alan EKLENMEDİ.
+
+   Başlık hiyerarşisi: h1 → her kanal h2 (eskiden h2 atlanıp h3'e iniliyordu). Kanal yoksa kutusu yok (T2). *@
 
 <PageTitle>İletişim — @(_b?.Marka ?? "RentPro")</PageTitle>
 
-<div class="container">
-    <header class="site-header">
-        <h1>İletişim</h1>
-        <p class="contact">Aşağıdaki kanallardan bize ulaşabilir ya da doğrudan
-            <a href="/musaitlik">müsaitlik ve fiyat sorgulayabilirsiniz</a>.</p>
-    </header>
+<Breadcrumbs Items="Crumbs" />
 
-    <div class="grid">
-        @if (!string.IsNullOrWhiteSpace(_b?.Adres))
-        {
-            <div class="card"><div class="card-body">
-                <h3>Adres</h3>
-                <p>@_b!.Adres</p>
-                @* Dış link: kullanıcının kendi harita uygulamasında açılır (gömme YOK, CSP). *@
-                <a class="link" href="@($"https://www.google.com/maps/search/?api=1&query={Uri.EscapeDataString(_b!.Adres!)}")"
-                   target="_blank" rel="noopener noreferrer">Haritada aç</a>
-            </div></div>
-        }
+<div class="wrap sayfa-ust">
+    <h1>İletişim</h1>
+    <p class="giris">Aşağıdaki kanallardan bize ulaşabilir ya da doğrudan
+        <a href="/musaitlik">müsaitlik ve fiyat sorgulayabilirsiniz</a>.</p>
+</div>
 
+<div class="wrap">
+    <ul class="kanallar">
         @if (_telLink is not null || _mobileLink is not null)
         {
-            <div class="card"><div class="card-body">
-                <h3>Telefon</h3>
-                @if (_telLink is not null) { <p><a href="@_telLink">@_b!.Tel</a></p> }
-                @if (_mobileLink is not null) { <p><a href="@_mobileLink">@_b!.MobilTel</a> <span class="muted small">(mobil)</span></p> }
-            </div></div>
+            <li>
+                <h2>Telefon</h2>
+                @if (_telLink is not null) { <p><a class="buyuk-baglanti" href="@_telLink">@_b!.Tel</a></p> }
+                @if (_mobileLink is not null) { <p><a class="buyuk-baglanti" href="@_mobileLink">@_b!.MobilTel</a> <span class="muted small">mobil</span></p> }
+            </li>
         }
-
-        @if (!string.IsNullOrWhiteSpace(_b?.Email))
-        {
-            <div class="card"><div class="card-body">
-                <h3>E-posta</h3>
-                <p><a href="@($"mailto:{_b!.Email}")">@_b!.Email</a></p>
-            </div></div>
-        }
-
         @if (_waLink is not null)
         {
-            <div class="card"><div class="card-body">
-                <h3>WhatsApp</h3>
+            <li>
+                <h2>WhatsApp</h2>
                 <p class="muted small">Hazır bir mesajla konuşma açar.</p>
-                <a class="btn-cta" href="@_waLink" target="_blank" rel="noopener noreferrer">WhatsApp'tan yaz</a>
-            </div></div>
+                <a class="btn btn-brand" href="@_waLink" target="_blank" rel="noopener noreferrer">WhatsApp'tan yazın</a>
+            </li>
         }
-    </div>
+        @if (!string.IsNullOrWhiteSpace(_b?.Email))
+        {
+            <li>
+                <h2>E-posta</h2>
+                <p><a class="buyuk-baglanti" href="@($"mailto:{_b!.Email}")">@_b!.Email</a></p>
+            </li>
+        }
+        @if (!string.IsNullOrWhiteSpace(_b?.Adres))
+        {
+            <li>
+                <h2>Adres</h2>
+                <p>@_b!.Adres</p>
+                @* Dış link: kullanıcının kendi harita uygulamasında açılır (gömme YOK, CSP). *@
+                <a href="@($"https://www.google.com/maps/search/?api=1&query={Uri.EscapeDataString(_b!.Adres!)}")"
+                   target="_blank" rel="noopener noreferrer">Haritada aç</a>
+            </li>
+        }
+    </ul>
 
     @if (_telLink is null && _mobileLink is null && _waLink is null
          && string.IsNullOrWhiteSpace(_b?.Email) && string.IsNullOrWhiteSpace(_b?.Adres))
     {
-        <p class="empty-state">İletişim bilgileri henüz girilmemiş.</p>
+        <p class="bos-durum">İletişim bilgileri henüz girilmemiş.</p>
     }
 </div>
 
 @code {
+    private static readonly IReadOnlyList<Breadcrumbs.Item> Crumbs =
+        [new("Ana sayfa", "/"), new("İletişim", "/iletisim")];
+
     private FleetBranding? _b;
     private string? _telLink, _mobileLink, _waLink;
 

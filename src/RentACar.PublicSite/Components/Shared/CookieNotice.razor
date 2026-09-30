@@ -1,0 +1,37 @@
+@* ---- Çerez bilgilendirme şeridi ----
+   `hidden` SUNUCUDAN gelir; yalnız `js/rc-cerez.js` açar (bkz. o dosyanın başlığı):
+   JS yoksa şerit hiç görünmez ve sayfa tam çalışır. `id="cerez-serit"` ve `data-cerez-kapat`
+   o betiğin sözleşmesidir — değiştirilirse betik şeridi bulamaz.
+
+   METİN DÜRÜSTLÜĞÜ: bu sitede analitik/izleme/reklam çerezi YOK (kod okunarak doğrulandı —
+   Program.cs'te oturum/analitik yok, üçüncü taraf betik yok, tek çerez rezervasyon talep
+   formundaki antiforgery/CSRF çerezi). Zorunlu çerez için izin alınmaz; bu yüzden burada
+   "Kabul et / Reddet" ikilisi YOK — reddedilecek bir izleme olmadığı halde "Reddet"
+   göstermek, kullanıcıya sahte bir seçim (ve sahte bir koruma hissi) sunardı. Şerit bir
+   ONAY değil BİLGİLENDİRME'dir; tek eylem "Tamam"dır.
+   İleride izin gerektiren bir çerez eklenirse: gerçek Kabul/Reddet düğmeleri buraya gelir ve
+   rc-cerez.js'teki ANAHTAR v2'ye çıkarılır (eski kayıt yeni izni kapsamaz).
+
+   MOBİL: metin İKİ parça. `.cerez-ozet` her yerde görünen çekirdek bilgi (tek başına doğru ve
+   yeterli); `.cerez-detay` yalnız geniş ekranda. Mobilde şerit tek satırlık bir çubuk (denetim:
+   375px'te 159px'ti); ayrıntı, çerez politikası sayfası yayındaysa bağlantıyla erişilebilir. *@
+<section id="cerez-serit" class="cerez-serit" hidden aria-label="Çerez bilgilendirmesi">
+    <p class="cerez-metin">
+        <span class="cerez-ozet">Bu sitede <strong>yalnızca zorunlu çerezler</strong> kullanılır;
+            ziyaretçi takibi, reklam ve analitik çerezi yoktur.</span>
+        <span class="cerez-detay">Rezervasyon talep formunu açtığınızda, formu sahte isteklere
+            karşı korumak için tarayıcınıza tek bir teknik çerez yazılır; üçüncü taraf hiçbir
+            betik yüklenmez. Zorunlu çerezler için izin alınmadığından burada reddedilecek bir
+            izleme yoktur.</span>
+        @if (PolicySlug is not null)
+        {
+            <a href="@($"/{PolicySlug}")">Ayrıntılı bilgi</a>
+        }
+    </p>
+    <button type="button" class="btn btn-brand" data-cerez-kapat>Tamam</button>
+</section>
+
+@code {
+    /// <summary>Yayındaki çerez politikası sayfasının slug'ı; yoksa bağlantı basılmaz (T2).</summary>
+    [Parameter] public string? PolicySlug { get; set; }
+}

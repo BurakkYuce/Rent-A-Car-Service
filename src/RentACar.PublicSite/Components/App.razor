@@ -15,10 +15,40 @@
     {
         <link rel="canonical" href="@_canonical" />
     }
-    @* PR-15: `app.css` KALDIRILDI — Blazor şablonundan kalan `body{padding:2rem}` kuralı
-       `.container`ın kendi boşluğuyla çakışıyordu ve kabuk barının kenara yapışmasını engelliyordu. *@
+    <meta name="theme-color" content="#f5f6f3" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#121417" media="(prefers-color-scheme: dark)" />
+
+    @* YAZI TİPİ: Barlow (gövde) + Barlow Condensed (başlık, fiyat, düğme) — karayolu levhası ve plaka
+       yazısından türeyen bir aile; sitenin "yol" kimliğini yazı taşır. İki dosya × iki alt küme = ~72 KB
+       (eski Inter + Sora ~183 KB). latin-ext ZORUNLU: Ğ/ğ, Ş/ş, İ ve ₺ orada; yalnız latin yüklenirse
+       Türkçe başlıklar harf harf yedek yazı tipine düşer.
+
+       @font-face bu <style> içinde, CSS dosyasında DEĞİL: adresler `@Assets[...]` ile PARMAK İZLİ basılır
+       (bir yıl `immutable` önbellek) ve önyükleme (preload) adresiyle BİREBİR aynı olur — CSS'teki düz
+       `url()` parmak izi alamazdı ve önyüklenen dosya ikinci kez inerdi. CSP: `style-src` zaten
+       'unsafe-inline' (Program.cs); yeni bir taviz yok.
+
+       Dört dosyanın dördü de önyüklenir: her sayfada hem başlık hem gövde yazısı var ve Türkçe metin
+       iki alt kümeyi de indirtir. Ölçüldü: yalnız başlık önyüklenince telefonda LCP (hero paragrafı,
+       gövde yazısı) yazı tipi değişimini bekleyip ~2,3 sn'ye çıkıyordu. *@
+    <link rel="preload" as="font" type="font/woff2" crossorigin href="@Assets["fonts/barlow-condensed-600-latin.woff2"]" />
+    <link rel="preload" as="font" type="font/woff2" crossorigin href="@Assets["fonts/barlow-condensed-600-latin-ext.woff2"]" />
+    <link rel="preload" as="font" type="font/woff2" crossorigin href="@Assets["fonts/barlow-400-latin.woff2"]" />
+    <link rel="preload" as="font" type="font/woff2" crossorigin href="@Assets["fonts/barlow-400-latin-ext.woff2"]" />
+    <style>
+        @@font-face{font-family:"Barlow";font-style:normal;font-weight:400;font-display:swap;src:url("@Assets["fonts/barlow-400-latin-ext.woff2"]") format("woff2");unicode-range:@LatinExt}
+        @@font-face{font-family:"Barlow";font-style:normal;font-weight:400;font-display:swap;src:url("@Assets["fonts/barlow-400-latin.woff2"]") format("woff2");unicode-range:@Latin}
+        @@font-face{font-family:"Barlow Condensed";font-style:normal;font-weight:600;font-display:swap;src:url("@Assets["fonts/barlow-condensed-600-latin-ext.woff2"]") format("woff2");unicode-range:@LatinExt}
+        @@font-face{font-family:"Barlow Condensed";font-style:normal;font-weight:600;font-display:swap;src:url("@Assets["fonts/barlow-condensed-600-latin.woff2"]") format("woff2");unicode-range:@Latin}
+        @* Yedek yazı tipinin ölçüsü Barlow'a yaklaştırılır: yazı tipi inince satırlar zıplamasın (CLS). *@
+        @@font-face{font-family:"Barlow Fallback";src:local("Arial");size-adjust:93%;ascent-override:100%;descent-override:20%;line-gap-override:0%}
+        @@font-face{font-family:"Barlow Condensed Fallback";src:local("Arial");size-adjust:80%;ascent-override:112%;descent-override:22%;line-gap-override:0%}
+        @* Firma vurgu rengi (TenantSettings.SiteVurguRengi) — BrandPalette açık/koyu tema için AA'yı geçen
+           tonları üretir. Çıktı çözümlenmiş RGB'den yazılır; ham ayar metni CSS'e hiç girmez. *@
+        @((MarkupString)_brandCss)
+    </style>
     <link rel="icon" href="favicon.svg" type="image/svg+xml" />
-    <link rel="stylesheet" href="site.css" />
+    <link rel="stylesheet" href="@Assets["site.css"]" />
     <HeadOutlet />
 </head>
 
@@ -33,17 +63,35 @@
     @* Çerez bilgilendirme şeridi — sitedeki TEK betik (~1 KB). Harici dosya ŞART: CSP
        `script-src 'self'` inline betiği bloklar. `defer` ile ayrıştırma engellenmez; şerit
        zaten sunucudan `hidden` geldiği için geç açılması düzen kaymasına yol açmaz (sabit
-       konumlu, akış dışı). *@
-    <script src="js/rc-cerez.js" defer></script>
+       konumlu, akış dışı). Adres parmak izli: bir yıl önbellekte kalır, değişince adres değişir. *@
+    <script src="@Assets["js/rc-cerez.js"]" defer></script>
 </body>
 
 </html>
 
 @code {
+    /// <summary>Barlow alt küme aralıkları (fontsource ile aynı). ₺ (U+20BA) latin-ext'te.</summary>
+    private const string Latin =
+        "U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,"
+        + "U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD";
+    private const string LatinExt =
+        "U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304,U+0308,U+0329,U+1D00-1DBF,"
+        + "U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF";
+
     private string? _canonical;
+    private string _brandCss = BrandPalette.Css(null);
 
     protected override async Task OnInitializedAsync()
     {
+        try
+        {
+            _brandCss = BrandPalette.Css((await Showcase.GetBrandingAsync()).VurguRengi);
+        }
+        catch
+        {
+            // Marka çözülemedi (alan adı çözülmemiş / site kapalı) → varsayılan renk. Sayfa YİNE basılır.
+        }
+
         try
         {
             var host = await Showcase.GetCanonicalHostAsync();

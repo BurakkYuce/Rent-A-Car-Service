@@ -17,12 +17,16 @@
 <SayfaMeta Baslik="@($"Sık Sorulan Sorular — {_brand ?? "RentPro"}")"
            Aciklama="@SssAciklama" Yol="/sss" Marka="_branding" KanonikKok="@_canonicalRoot" />
 
-<div class="container">
-    <header class="site-header"><h1>Sık Sorulan Sorular</h1></header>
+<Breadcrumbs Items="Crumbs" />
 
+<div class="wrap sayfa-ust">
+    <h1>Sık sorulan sorular</h1>
+</div>
+
+<div class="wrap">
     @if (_questions.Count == 0)
     {
-        <p class="empty-state">Henüz soru eklenmedi.</p>
+        <p class="bos-durum">Henüz soru eklenmedi.</p>
     }
     else
     {
@@ -42,6 +46,9 @@
 </div>
 
 @code {
+    private static readonly IReadOnlyList<Breadcrumbs.Item> Crumbs =
+        [new("Ana sayfa", "/"), new("Sık sorulan sorular", "/sss")];
+
     [CascadingParameter] public HttpContext? Http { get; set; }
 
     private IReadOnlyList<SssSatiri> _questions = [];
