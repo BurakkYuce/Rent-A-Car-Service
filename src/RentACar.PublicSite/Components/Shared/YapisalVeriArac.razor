@@ -38,21 +38,37 @@
 
         var root = string.IsNullOrWhiteSpace(KanonikKok) ? null : KanonikKok.TrimEnd('/');
 
+        // Araç özellikleri ilanın "sitede görünsün" satırlarından (etiket eşleşmesi; yoksa alan YOK — T2).
+        string? Feature(params string[] labels) => Detay.Ozellikler
+            .FirstOrDefault(o => labels.Any(l => string.Equals(o.Etiket?.Trim(), l, StringComparison.OrdinalIgnoreCase))
+                                 && !string.IsNullOrWhiteSpace(o.Deger))?.Deger?.Trim();
+        // Model yılı yalnız TEK yıl ise (ilan birden çok yılı kapsıyorsa "2021-2023" bir tarih değil).
+        var year = Detay.YilAralik is { Length: 4 } y && y.All(char.IsAsciiDigit) ? y : null;
+
         var node = new Dictionary<string, object?>
         {
             ["@context"] = "https://schema.org",
             ["@type"] = "Car",
             ["name"] = Detay.Baslik,
             ["url"] = root is null ? null : $"{root}/araclar/{Detay.Slug}",
-            // Kapak görseli MUTLAK adres olmalı (arama motoru göreli yolu çözemez).
+            ["brand"] = Feature("Marka") is { } brand ? new Dictionary<string, object?> { ["@type"] = "Brand", ["name"] = brand } : null,
+            ["model"] = Feature("Model"),
+            ["vehicleModelDate"] = year,
+            ["vehicleTransmission"] = Feature("Vites", "Şanzıman"),
+            ["fuelType"] = Feature("Yakıt", "Yakıt Tipi"),
+            // Görseller MUTLAK adres olmalı (arama motoru göreli yolu çözemez); sayfadaki TÜM fotoğraflar.
             ["image"] = root is null || Detay.PhotoIds.Count == 0
                 ? null
-                : $"{root}/foto/{Detay.PhotoIds[0]}",
+                : Detay.PhotoIds.Select(id => $"{root}/foto/{id}").ToArray(),
             ["offers"] = new Dictionary<string, object?>
             {
                 ["@type"] = "Offer",
                 ["url"] = root is null ? null : $"{root}/araclar/{Detay.Slug}",
+                // Üst düzey fiyat: ürün snippet'i fiyatı buradan okur (günlük fiyat; birim aşağıda).
+                ["price"] = Detay.GunlukFiyat,
                 ["priceCurrency"] = "TRY",
+                ["seller"] = root is null ? null : new Dictionary<string, object?> { ["@id"] = root + "/#firma" },
+                // `availability` BİLİNÇLİ OLARAK YOK (başlıktaki dürüstlük notu): müsaitlik tarihe bağlı.
                 ["priceSpecification"] = new Dictionary<string, object?>
                 {
                     ["@type"] = "UnitPriceSpecification",
@@ -64,6 +80,6 @@
             },
         };
 
-        _json = JsonSerializer.Serialize(node, Opt);
+        _json = JsonLd.Serialize(node); // null alanlar budanır (T2)
     }
 }

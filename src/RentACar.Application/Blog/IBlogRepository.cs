@@ -16,7 +16,9 @@ public sealed record BlogDetail(
     BlogPostDurum Durum, DateTimeOffset? YayinTarihi, bool KapakVar,
     string? AltBaslik = null, string? SeoBaslik = null, string? MetaAciklama = null,
     string? AnahtarKelimeler = null, string? Yazar = null, string? KapakAlt = null,
-    bool AramaDisi = false)
+    bool AramaDisi = false,
+    /// <summary>Son güncelleme (UpdatedAtUtc ?? CreatedAtUtc) — JSON-LD dateModified ve article:modified_time.</summary>
+    DateTimeOffset? GuncellemeUtc = null)
 {
     /// <summary>Arama başlığı — SEO başlığı verilmemişse görünen başlığa düşer (TEK yerde karar).</summary>
     public string AramaBasligi => string.IsNullOrWhiteSpace(SeoBaslik) ? Baslik : SeoBaslik!;

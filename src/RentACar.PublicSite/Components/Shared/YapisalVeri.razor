@@ -1,27 +1,39 @@
 @using System.Text.Json
 @using System.Text.Json.Serialization
+@using System.Text.RegularExpressions
 @using RentACar.Application.Fleet
 @using RentACar.Application.SiteIcerik
+@using RentACar.Domain.Entities
 
-@* PR-19 — arama motorları için yapısal veri (JSON-LD): LocalBusiness + FAQPage.
-   Şema tipleri sektörde DEĞİŞMEZ, içerik tenant'tan gelir. Eksik alan atlanır (T2).
+@* PR-19 — arama motorları için yapısal veri (JSON-LD): AutoRental (LocalBusiness) + FAQPage.
+   Şema tipleri sektörde DEĞİŞMEZ, içerik tenant'tan gelir. Eksik alan HİÇ basılmaz (T2) — uydurma yok:
+   - `@id` = {kök}/#firma: BlogPosting.publisher ve Offer.seller aynı varlığa bağlanır.
+   - `logo`: firma logosu yüklüyse /marka/logo (mutlak, sürümlü).
+   - `priceRange`: yayındaki ilanların en düşük–en yüksek GÜNLÜK fiyatı (ilandan).
+   - `geo`: yalnız aktif şubelerden BİRİNDE hem enlem hem boylam girilmişse (ilk bulunan).
+   - `openingHours`: şubenin çalışma saati metni ZATEN schema.org biçimindeyse ("Mo-Fr 09:00-18:00");
+     "09:00-18:00" gibi günsüz metin BASILMAZ — günleri varsaymak firma adına bilgi uydurmak olurdu.
+   - `address.addressRegion/addressLocality`: tüm aktif şubeler aynı il (ve ilçe) ise.
+   - `sameAs`: sosyal hesap verisi modelde YOK → basılmaz.
 
-   `MarkupString` BURADA GÜVENLİ ve tek meşru kullanımı — gerekçesi:
-   çıktı `System.Text.Json` ile ÜRETİLİYOR ve varsayılan `JavaScriptEncoder`, `<` `>` `&` gibi
-   karakterleri `<` biçiminde kaçırıyor. Yani tenant verisi (firma adı, SSS cevabı) ne
-   içerirse içersin `</script>` dizisi ÜRETİLEMEZ, script bloğundan kaçış mümkün değil.
-   Elle string birleştirilseydi bu güvence olmazdı. *@
+   `MarkupString` BURADA GÜVENLİ: çıktı System.Text.Json ile üretiliyor ve varsayılan kodlayıcı `<` `>` `&`
+   karakterlerini kaçırıyor — tenant verisi ne içerirse içersin `</script>` üretilemez. *@
 
 @if (_json is { Length: > 0 })
 {
-    <script type="application/ld+json">@((MarkupString)_json)</script>
+    @((MarkupString)$"<script type=\"application/ld+json\">{_json}</script>")
 }
 
 @code {
     [Parameter] public FleetBranding? Marka { get; set; }
+    /// <summary>Basılacak SSS — sayfada GÖRÜNEN sorular (ana sayfada özet kadar; yönerge: işaretlenen içerik görünür olmalı).</summary>
     [Parameter] public IReadOnlyList<SssSatiri> Sorular { get; set; } = [];
-    /// <summary>Kanonik site adresi (https://…). Yoksa `url` alanı atlanır.</summary>
-    [Parameter] public string? KanonikUrl { get; set; }
+    /// <summary>Kanonik kök (https://host). Yoksa mutlak adres isteyen alanlar (url, @id, logo) atlanır.</summary>
+    [Parameter] public string? KanonikKok { get; set; }
+    /// <summary>Aktif şubeler (geo, çalışma saatleri, il/ilçe). Boşsa bu alanlar yok.</summary>
+    [Parameter] public IReadOnlyList<Branch> Subeler { get; set; } = [];
+    /// <summary>Yayındaki ilanlar (priceRange). Boşsa alan yok.</summary>
+    [Parameter] public IReadOnlyList<FleetShowcaseCard> Kartlar { get; set; } = [];
 
     private string? _json;
 
@@ -29,33 +41,20 @@
     {
         DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
         WriteIndented = false,
-        // Varsayılan encoder BİLİNÇLİ olarak korunuyor: `<`/`>`/`&` kaçırılır → script'ten kaçış yok.
     };
+
+    /// <summary>schema.org openingHours biçimi: gün(-gün)[,gün…] SS:DD-SS:DD; birden çok kural virgülle.</summary>
+    private static readonly Regex OpeningHours = new(
+        @"^(Mo|Tu|We|Th|Fr|Sa|Su)(-(Mo|Tu|We|Th|Fr|Sa|Su))?(,(Mo|Tu|We|Th|Fr|Sa|Su)(-(Mo|Tu|We|Th|Fr|Sa|Su))?)* ([01]\d|2[0-3]):[0-5]\d-([01]\d|2[0-4]):[0-5]\d$",
+        RegexOptions.CultureInvariant);
 
     protected override void OnParametersSet()
     {
         var nodes = new List<object>();
+        var root = string.IsNullOrWhiteSpace(KanonikKok) ? null : KanonikKok.TrimEnd('/');
 
         if (!string.IsNullOrWhiteSpace(Marka?.Marka))
-        {
-            nodes.Add(new Dictionary<string, object?>
-            {
-                ["@context"] = "https://schema.org",
-                ["@type"] = "AutoRental",   // LocalBusiness'ın araç kiralamaya özel alt tipi
-                ["name"] = Marka!.Marka,
-                ["url"] = Empty(KanonikUrl),
-                ["telephone"] = Empty(Marka.Tel) ?? Empty(Marka.MobilTel),
-                ["email"] = Empty(Marka.Email),
-                ["address"] = Empty(Marka.Adres) is { } address
-                    ? new Dictionary<string, object?>
-                    {
-                        ["@type"] = "PostalAddress",
-                        ["streetAddress"] = address,
-                        ["addressCountry"] = "TR",
-                    }
-                    : null,
-            });
-        }
+            nodes.Add(Business(Marka!, root));
 
         if (Sorular.Count > 0)
         {
@@ -79,8 +78,55 @@
         _json = nodes.Count switch
         {
             0 => null,
-            1 => JsonSerializer.Serialize(nodes[0], Opt),
-            _ => JsonSerializer.Serialize(nodes, Opt),   // birden fazla düğüm → dizi
+            1 => JsonLd.Serialize(nodes[0]),
+            _ => JsonLd.Serialize(nodes),   // birden fazla düğüm → dizi
+        };
+    }
+
+    private Dictionary<string, object?> Business(FleetBranding b, string? root)
+    {
+        var cities = Subeler.Select(s => Empty(s.Il)).Where(x => x is not null).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+        var districts = Subeler.Select(s => Empty(s.Ilce)).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+        var oneCity = cities.Count == 1 && Subeler.All(s => Empty(s.Il) is not null);
+        var geoBranch = Subeler.FirstOrDefault(s => s.Enlem is not null && s.Boylam is not null);
+        var hours = Subeler.Select(s => Empty(s.CalismaSaatleri)).FirstOrDefault(h => h is not null && OpeningHours.IsMatch(h));
+
+        object? address = null;
+        if (Empty(b.Adres) is not null || oneCity)
+        {
+            address = new Dictionary<string, object?>
+            {
+                ["@type"] = "PostalAddress",
+                ["streetAddress"] = Empty(b.Adres),
+                ["addressLocality"] = oneCity && districts.Count == 1 ? districts[0] : null,
+                ["addressRegion"] = oneCity ? cities[0] : null,
+                ["addressCountry"] = "TR",
+            };
+        }
+
+        return new Dictionary<string, object?>
+        {
+            ["@context"] = "https://schema.org",
+            ["@type"] = "AutoRental",   // LocalBusiness'ın araç kiralamaya özel alt tipi
+            ["@id"] = root is null ? null : root + "/#firma",
+            ["name"] = b.Marka,
+            ["url"] = root is null ? null : root + "/",
+            ["logo"] = root is not null && !string.IsNullOrEmpty(b.LogoSurum)
+                ? $"{root}/marka/logo?v={Uri.EscapeDataString(b.LogoSurum)}" : null,
+            ["telephone"] = Empty(b.Tel) ?? Empty(b.MobilTel),
+            ["email"] = Empty(b.Email),
+            ["address"] = address,
+            ["geo"] = geoBranch is null ? null : new Dictionary<string, object?>
+            {
+                ["@type"] = "GeoCoordinates",
+                ["latitude"] = geoBranch.Enlem,
+                ["longitude"] = geoBranch.Boylam,
+            },
+            ["openingHours"] = hours,
+            ["priceRange"] = Kartlar.Count == 0 ? null
+                : Kartlar.Min(c => c.GunlukFiyat) == Kartlar.Max(c => c.GunlukFiyat)
+                    ? PriceText.Tl(Kartlar.Min(c => c.GunlukFiyat))
+                    : $"{PriceText.Tl(Kartlar.Min(c => c.GunlukFiyat))}–{PriceText.Tl(Kartlar.Max(c => c.GunlukFiyat))}",
         };
     }
 

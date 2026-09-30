@@ -36,14 +36,23 @@
     /// <summary>Kökten bulunulan sayfaya sıralı öğeler. Son öğe bulunulan sayfa.</summary>
     [Parameter, EditorRequired] public IReadOnlyList<Item> Items { get; set; } = [];
 
-    /// <summary>Kanonik kök (https://host). Yoksa JSON-LD basılmaz.</summary>
+    /// <summary>Kanonik kök (https://host). Verilmezse bileşen KENDİSİ kanonik host'tan çözer (istek host'u
+    /// DEĞİL); o da yoksa (site yayında değil) JSON-LD basılmaz.</summary>
     [Parameter] public string? KanonikKok { get; set; }
+
+    [Inject] private RentACar.Application.Fleet.FleetShowcaseService Showcase { get; set; } = default!;
 
     private string? _json;
 
-    protected override void OnParametersSet()
+    protected override async Task OnParametersSetAsync()
     {
-        var root = string.IsNullOrWhiteSpace(KanonikKok) ? null : KanonikKok.TrimEnd('/');
+        var given = KanonikKok;
+        if (string.IsNullOrWhiteSpace(given))
+        {
+            try { given = await Showcase.GetCanonicalRootAsync(); }
+            catch { given = null; } // tenant çözülemedi → yalnız görünür yol
+        }
+        var root = string.IsNullOrWhiteSpace(given) ? null : given.TrimEnd('/');
         if (root is null || Items.Count == 0) { _json = null; return; }
 
         var list = Items.Select((it, i) => new Dictionary<string, object?>
@@ -55,7 +64,7 @@
             ["item"] = it.Path is null ? null : root + it.Path,
         }.Where(kv => kv.Value is not null).ToDictionary(kv => kv.Key, kv => kv.Value));
 
-        _json = JsonSerializer.Serialize(new Dictionary<string, object?>
+        _json = JsonLd.Serialize(new Dictionary<string, object?>
         {
             ["@context"] = "https://schema.org",
             ["@type"] = "BreadcrumbList",

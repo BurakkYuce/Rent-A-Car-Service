@@ -16,10 +16,12 @@
 
 <PageTitle>@(_branding?.Marka ?? "RentPro") — Araç Kiralama</PageTitle>
 
-@* DİKKAT: `KanonikUrl="_kanonik"` yazmak Razor'da DÜZ METİN geçirir (string tipli
+@* DİKKAT: `KanonikKok="_kanonik"` yazmak Razor'da DÜZ METİN geçirir (string tipli
    parametrede tırnak içi literaldir). İlk yazımda öyleydi ve JSON-LD'ye `"url":"_kanonik"`
-   basılıyordu — arama motorlarına çöp adres yayınlanacaktı. İfade için `@@` ZORUNLU. *@
-<YapisalVeri Marka="_branding" Sorular="_faq" KanonikUrl="@_canonical" />
+   basılıyordu — arama motorlarına çöp adres yayınlanacaktı. İfade için `@@` ZORUNLU.
+   FAQPage yalnız sayfada GÖRÜNEN sorular (BolumSss ile aynı adet — SEO L-4). *@
+<YapisalVeri Marka="_branding" Sorular="@(_faq.Take(FaqSummaryCount).ToList())" KanonikKok="@_canonicalRoot"
+             Subeler="_activeBranches" Kartlar="@(_cards ?? [])" />
 @* Açıklama tenant verisinden KURULUR, sabit metin yazılmaz: her firma için farklı olmalı
    (çok-kiracılı site). Filo sayısı varsa cümleye girer — "3 araçlık filo" somut bir bilgi. *@
 <SayfaMeta Baslik="@($"{_branding?.Marka ?? "RentPro"} — Araç Kiralama")"
@@ -90,8 +92,8 @@
     private string? CoverImage => _cards?.FirstOrDefault(c => c.CoverPhotoId is not null) is { } k
         ? $"/foto/{k.CoverPhotoId}/thumb" : null;
     private IReadOnlyList<string> _branches = [];
+    private IReadOnlyList<RentACar.Domain.Entities.Branch> _activeBranches = [];
     private string? _area;
-    private string? _canonical;
     private string? _canonicalRoot;
     private string? _termsPage;
 
@@ -107,15 +109,14 @@
         try
         {
             var active = await Subeler.ListActiveAsync();
+            _activeBranches = active;
             _branches = [.. active.Select(b => b.Ad)];
             _area = ServiceArea.Describe(active.Select(b => (b.Il, b.Ilce)));
         }
         catch { _branches = []; }
 
-        var host = await Showcase.GetCanonicalHostAsync();
-        _canonical = host is null ? null : $"https://{host}/";
-        // og:image mutlak adres ister; kanonik KÖK (sondaki eğik çizgisiz) ondan türer.
-        _canonicalRoot = host is null ? null : $"https://{host}";
+        // og:image/JSON-LD mutlak adres ister; kanonik KÖK (sondaki eğik çizgisiz) tek yardımcıdan.
+        _canonicalRoot = await Showcase.GetCanonicalRootAsync();
 
         var pages = await Icerik.PublishedPagesAsync();
         _termsPage = pages.FirstOrDefault(s => ConditionSlugs.Contains(s.Slug)) is { } k

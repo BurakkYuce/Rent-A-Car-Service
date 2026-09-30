@@ -13,11 +13,12 @@
 @* FAQPage yapısal verisi: ana sayfada zaten basılıyordu ama ASIL SSS SAYFASINDA yoktu —
    arama motorunun "zengin sonuç" (açılır soru-cevap) çıkarabileceği tek sayfa burasıyken.
    Mevcut YapisalVeri bileşeni yeniden kullanılıyor (ikinci bir JSON-LD üreticisi yazılmadı). *@
-<YapisalVeri Marka="_branding" Sorular="_questions" KanonikUrl="@_canonical" />
+@* İşletme düğümünün `url`'si SİTE KÖKÜ (işletme sitenin kendisi; SEO H-3 ek bulgu: eskiden "/sss" idi). *@
+<YapisalVeri Marka="_branding" Sorular="_questions" KanonikKok="@_canonicalRoot" />
 <SayfaMeta Baslik="@($"Sık Sorulan Sorular — {_brand ?? "RentPro"}")"
            Aciklama="@SssAciklama" Yol="/sss" Marka="_branding" KanonikKok="@_canonicalRoot" />
 
-<Breadcrumbs Items="Crumbs" />
+<Breadcrumbs Items="Crumbs" KanonikKok="@_canonicalRoot" />
 
 <div class="wrap sayfa-ust">
     <h1>Sık sorulan sorular</h1>
@@ -54,7 +55,6 @@
     private IReadOnlyList<SssSatiri> _questions = [];
     private string? _brand;
     private FleetBranding? _branding;
-    private string? _canonical;
     private string? _canonicalRoot;
 
     /// <summary>Açıklama İLK SORUDAN kurulur — sabit cümle yerine sayfanın gerçek içeriğini
@@ -74,10 +74,8 @@
         }
         catch { /* marka çözülemezse sayfa yine basılır */ }
 
-        if (Http is not null)
-        {
-            _canonicalRoot = $"https://{Http.Request.Host.Value}";
-            _canonical = _canonicalRoot + "/sss";
-        }
+        // Kök KANONİK host'tan (istek host'u DEĞİL — SEO H-3): og:url ve JSON-LD adresleri <link rel=canonical>
+        // ile birebir aynı olmalı; ziyaretçi subdomain'den gelse de özel alan adı basılır.
+        _canonicalRoot = await Showcase.GetCanonicalRootAsync();
     }
 }
