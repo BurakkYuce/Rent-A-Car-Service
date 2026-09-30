@@ -1,0 +1,59 @@
+@using RentACar.Application.Common
+@using RentACar.Application.Fleet
+@using RentACar.Application.SiteIcerik
+
+@* Vitrin alt bilgi — sahne ve kapanış bandıyla aynı grafit zemin; sayfa açık başlar, koyu biter.
+   Sütunlar VERİYE BAĞLI (T2): iletişim kanalı yoksa İletişim sütunu, yayında yasal sayfa yoksa Yasal
+   sütunu hiç basılmaz (yayında olmayan slug'a bağlantı 404 üretir). *@
+
+<footer class="v-alt">
+    <div class="wrap v-alt-ic">
+        <div class="v-alt-marka">
+            <a class="v-marka" href="/"><BrandMark Name="@BrandName" LogoVersion="@Branding?.LogoSurum" /></a>
+            @if (!string.IsNullOrWhiteSpace(Branding?.Adres)) { <p>@Branding!.Adres</p> }
+        </div>
+        @if (TelLink is not null || WaLink is not null || !string.IsNullOrWhiteSpace(Branding?.Email))
+        {
+            <div>
+                <p class="v-alt-baslik">İletişim</p>
+                <ul>
+                    @if (TelLink is not null) { <li><a href="@TelLink">@Phone</a></li> }
+                    @if (WaLink is not null) { <li><a href="@WaLink" target="_blank" rel="noopener noreferrer">WhatsApp'tan yazın</a></li> }
+                    @if (!string.IsNullOrWhiteSpace(Branding?.Email)) { <li><a href="@($"mailto:{Branding!.Email}")">@Branding!.Email</a></li> }
+                </ul>
+            </div>
+        }
+        <div>
+            <p class="v-alt-baslik">Sayfalar</p>
+            <ul>
+                <li><a href="/">Ana sayfa</a></li>
+                <li><a href="/musaitlik">Araçlar ve fiyatlar</a></li>
+                @foreach (var sf in Sayfalar) { <li><a href="@($"/{sf.Slug}")">@sf.Baslik</a></li> }
+                <li><a href="/iletisim">İletişim</a></li>
+            </ul>
+        </div>
+        @if (YasalSayfalar.Count > 0)
+        {
+            <div>
+                <p class="v-alt-baslik">Yasal</p>
+                <ul>
+                    @foreach (var sf in YasalSayfalar) { <li><a href="@($"/{sf.Slug}")">@sf.Baslik</a></li> }
+                </ul>
+            </div>
+        }
+    </div>
+    <div class="wrap v-alt-son">© @DateTime.Now.Year @BrandName</div>
+</footer>
+
+@code {
+    [Parameter] public FleetBranding? Branding { get; set; }
+    [Parameter] public IReadOnlyList<SayfaOzet> Sayfalar { get; set; } = [];
+    [Parameter] public IReadOnlyList<SayfaOzet> YasalSayfalar { get; set; } = [];
+
+    private string BrandName => string.IsNullOrWhiteSpace(Branding?.Marka) ? "RentPro" : Branding!.Marka!;
+    private string? Phone => string.IsNullOrWhiteSpace(Branding?.Tel) ? Branding?.MobilTel : Branding!.Tel;
+    private string? TelLink => PhoneLink.Tel(Phone);
+    private string? WaLink => PhoneLink.Wa(
+        string.IsNullOrWhiteSpace(Branding?.WhatsApp) ? Branding?.MobilTel : Branding!.WhatsApp,
+        $"Merhaba, {BrandName} araç kiralama hakkında bilgi almak istiyorum.");
+}
