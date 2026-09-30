@@ -88,6 +88,7 @@ public sealed class PublicSiteDesignTests(PostgresFixture fx)
 
         Assert.Contains("name=\"bas\"", html);
         Assert.Contains("Üç adımda araç kiralayın", html);
+        Assert.DoesNotContain("bölgesinde araç kiralama", html); // şube il/ilçesi yok → bölge cümlesi yok (T2)
         Assert.DoesNotContain("Günlük fiyatlar", html);
         Assert.DoesNotContain("id=\"filo\"", html);
         Assert.DoesNotContain("Örnek hesap", html);

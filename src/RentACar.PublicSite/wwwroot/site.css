@@ -245,8 +245,17 @@ img { max-width: 100%; height: auto; }
 .hero-bilgi li::before { content: ""; width: .5rem; height: .5rem; border-radius: 1px; background: var(--brand); }
 @media (min-width: 960px) {
   .hero { padding-block: var(--s5) calc(var(--s5) + 6px); }
-  .hero-grid { grid-template-columns: minmax(0, 1.4fr) minmax(320px, 1fr); gap: var(--s5); align-items: start; }
+  /* Tahta (fiyat listesi + örnek hesap) sol kolona göre DİKEY ORTALANIR: kısa filoda altında boş kolon
+     kalmaz. Uzatmak (stretch) denendi: az satırda liste ile örnek arasında büyük boşluk açıyordu. */
+  .hero-grid { grid-template-columns: minmax(0, 1.4fr) minmax(320px, 1fr); gap: var(--s5); align-items: center; }
 }
+@media screen and (max-width: 640px) {
+  .hero-alt-uzun { display: none; } /* telefonda ilk ekranda arama düğmesi görünsün */
+}
+.hero-alt strong { color: var(--ink); font-weight: 600; }
+.tarife-ornek { margin-top: var(--s2); padding-top: var(--s2); border-top: 1.5px dashed var(--line-strong); }
+.tarife-ornek p { margin: 0 0 .25rem; }
+.tarife-ornek .tarife-not:last-child { margin: .5rem 0 0; }
 
 /* ---- Arama formu (AramaFormu.razor) ---- */
 .arama {
@@ -487,33 +496,35 @@ main:focus { outline: none; }
 /* ---- Çerez bilgilendirme şeridi (CookieNotice.razor + js/rc-cerez.js) ----
    Sunucudan `hidden` gelir; `display:flex` hidden'ın `display:none`'ını EZDİĞİ için gizleme burada
    AÇIKÇA geri alınır — yoksa JS kapalı ziyaretçide şerit kapatılamaz biçimde görünürdü. */
+/* KOMPAKT ALT ÇUBUK: yüzen kart DEĞİL, ekranın en altına yapışık ince bir şerit (geniş ekranda tek
+   satır, ~56px). İlk sürümde yüzen kart ilk ekrandaki arama düğmesini, tarife notunu ve hero'nun yol
+   çizgisini örtüyordu (ekran görüntüsüyle görüldü). Metin tek cümle (CookieNotice.razor). */
 .cerez-serit[hidden] { display: none; }
 .cerez-serit {
-  position: fixed; left: var(--gutter); right: var(--gutter); bottom: var(--s2); z-index: 50;
-  display: flex; align-items: center; gap: var(--s2);
-  max-width: 1100px; margin: 0 auto; padding: .75rem var(--s2);
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 50;
+  display: flex; align-items: center; justify-content: center; gap: var(--s2);
+  padding: .5rem var(--gutter) calc(.5rem + env(safe-area-inset-bottom));
   background: var(--surface); color: var(--ink);
-  border: 1px solid var(--line-strong); border-radius: var(--r-m); box-shadow: var(--lift);
+  border-top: 1px solid var(--line-strong); box-shadow: 0 -8px 24px -18px rgb(0 0 0 / 35%);
 }
-.cerez-metin { margin: 0; flex: 1; font-size: .9375rem; line-height: 1.45; color: var(--ink-2); }
+.cerez-metin { margin: 0; font-size: .9375rem; line-height: 1.4; color: var(--ink-2); max-width: 80ch; }
 .cerez-metin strong { color: var(--ink); }
-.cerez-metin a { white-space: nowrap; }
-.cerez-ozet, .cerez-detay { display: inline; }
-.cerez-serit .btn { min-height: 44px; padding-inline: 1.1rem; }
+.cerez-metin a { white-space: nowrap; margin-left: .35rem; }
+.cerez-serit .btn { min-height: 40px; padding-inline: 1.1rem; flex: none; }
 
-/* MOBİL (≤640px): şerit tek satırlık bir çubuk — denetimde 375px'te 159px'ti (ekranın %21'i). Teknik
-   ayrıntı gizlenir; çekirdek bilgi tek başına doğru. Alt eylem çubuğu açıksa şerit onun ÜSTÜNDE durur.
-   `screen and` ZORUNLU (yazdırmada tetiklenmesin). */
+/* MOBİL: şerit görünürken alt eylem çubuğunun YERİNE geçer (ikisi üst üste binip ilk ekranı yemesin);
+   "Tamam" sonrası çubuk geri gelir. `:has` desteklemeyen eski tarayıcıda şerit çubuğun üstüne biner
+   (zararsız: "Tamam" ile kapanır). `screen and` ZORUNLU (yazdırmada tetiklenmesin). */
+@media screen and (max-width: 899px) {
+  .page:has(> .cerez-serit:not([hidden])) .altbar { display: none; }
+  .page.altbar-acik:has(> .cerez-serit:not([hidden])) { --altbar: 0px; }
+}
 @media screen and (max-width: 640px) {
-  .cerez-serit { left: .5rem; right: .5rem; bottom: .5rem; padding: .5rem .5rem .5rem .75rem; gap: .5rem; }
+  .cerez-serit { justify-content: space-between; gap: .75rem; }
   .cerez-metin { font-size: .8125rem; line-height: 1.35; }
-  .cerez-detay { display: none; }
   /* Satır içi "Ayrıntılı bilgi": satır kutusunu büyütmeden dokunma alanını 44px'e çıkarır. */
   .cerez-metin a { padding-block: .85rem; }
   .iki-sutun { grid-template-columns: 1fr; }
-}
-@media screen and (max-width: 899px) {
-  .altbar-acik .cerez-serit { bottom: calc(64px + env(safe-area-inset-bottom) + .5rem); }
 }
 
 /* ---- Hareket: tek kural — kullanıcı azaltılmış hareket istiyorsa hiçbir geçiş yok. ---- */

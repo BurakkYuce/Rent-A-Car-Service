@@ -11,10 +11,18 @@
     <div class="wrap hero-grid">
         <div>
             <h1 id="hero-baslik">Tarihinizi seçin, müsait araçları ve net fiyatı görün</h1>
+            @* Yerel arama ifadesi (SEO H-4): hizmet bölgesi aktif şubelerin il/ilçesinden (ServiceArea);
+               veri yoksa cümle hiç basılmaz (T2). İkinci cümle telefonda gizli: ilk ekranda arama düğmesi
+               görünsün (site.css .hero-alt-uzun). *@
             <p class="hero-alt">
+                @if (!string.IsNullOrWhiteSpace(Bolge))
+                {
+                    <strong>@Bolge bölgesinde araç kiralama.</strong>@(" ")
+                }
                 @(string.IsNullOrWhiteSpace(Marka) ? "Filomuzdaki" : $"{Marka} filosundaki")
-                her aracın günlük, haftalık ve aylık fiyatı ilanında yazılı. Tarih seçtiğinizde gün sayısına
-                göre toplamı hesaplarız; beğendiğiniz araç için talep bırakırsınız, ekip sizi arar.
+                her aracın günlük, haftalık ve aylık fiyatı ilanında yazılı.
+                <span class="hero-alt-uzun">Tarih seçtiğinizde gün sayısına göre toplamı hesaplarız; beğendiğiniz
+                    araç için talep bırakırsınız, ekip sizi arar.</span>
             </p>
 
             <AramaFormu Hedef="/musaitlik" Subeler="Subeler" />
@@ -54,6 +62,22 @@
                 {
                     <p class="tarife-son"><a href="/musaitlik">Tüm filo (@Kartlar.Count araç)</a></p>
                 }
+                @* ÖRNEK HESAP: uydurma rakam değil — en uygun ilanın kendi günlük fiyatıyla 3 gün. 1-7 gün kademesi
+                   ilanın günlük fiyatıdır (FleetShowcaseService.DailyEquivalent), yani aynı tarihlerle yapılan
+                   aramanın göstereceği toplamla aynı. Tahtanın altına oturur: hero'nun sağ kolonu boş kalmaz. *@
+                @if (Rows.Count > 0)
+                {
+                    var o = Rows[0];
+                    <div class="tarife-ornek">
+                        <p class="tarife-not">Örnek hesap: @o.Baslik, 3 gün</p>
+                        <p class="fis-hesap">3 gün × @PriceText.Tl(o.GunlukFiyat)</p>
+                        <p class="fis-toplam">
+                            <span class="tutar">@PriceText.Tl(o.GunlukFiyat * ExampleDays)</span>
+                            <span class="kdv">@(o.KdvDahil ? "KDV dahil" : "KDV hariç")</span>
+                        </p>
+                        <p class="tarife-not">8 gün ve üzerinde haftalık, 30 gün ve üzerinde aylık fiyat uygulanır (ilanda varsa).</p>
+                    </div>
+                }
             </aside>
         }
     </div>
@@ -62,8 +86,11 @@
 @code {
     /// <summary>Tarife tahtasında en fazla kaç satır (fazlası "Tüm filo" bağlantısıyla).</summary>
     private const int MaxRows = 6;
+    private const int ExampleDays = 3;
 
     [Parameter] public string? Marka { get; set; }
+    /// <summary>Hizmet bölgesi ("Esenyurt, İstanbul"); null → bölge cümlesi basılmaz.</summary>
+    [Parameter] public string? Bolge { get; set; }
     [Parameter] public IReadOnlyList<string> Subeler { get; set; } = [];
     [Parameter] public IReadOnlyList<FleetShowcaseCard> Kartlar { get; set; } = [];
 
