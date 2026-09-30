@@ -168,5 +168,19 @@ public sealed partial class PublicSiteThemeContractTests
         }
         using (var r = await client.GetAsync("/"))
             Assert.False(r.Headers.Contains("X-Robots-Tag"));
+
+        // 404 sayfası da önizlenen temayla basılır (durum 404 kalır); diğer sorgu parametreleri taşınmaz.
+        using (var r = await client.GetAsync("/araclar/olmayan-ilan?tema=vitrin&x=1"))
+        {
+            var html = await r.Content.ReadAsStringAsync();
+            Assert.Equal(HttpStatusCode.NotFound, r.StatusCode);
+            Assert.Matches(@"css/tema-vitrin\.[a-z0-9]+\.css", html);
+            Assert.Contains("burada değil", WebUtility.HtmlDecode(html));
+        }
+        using (var r = await client.GetAsync("/yok/boyle/bir/adres?tema=olmayan"))
+        {
+            Assert.Equal(HttpStatusCode.NotFound, r.StatusCode);
+            Assert.Matches(@"css/tema-tarife\.[a-z0-9]+\.css", await r.Content.ReadAsStringAsync());
+        }
     }
 }

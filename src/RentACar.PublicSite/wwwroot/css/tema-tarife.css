@@ -118,10 +118,17 @@
 .bar { background: var(--surface); border-bottom: 1px solid var(--line); }
 .bar-ic { display: flex; align-items: center; gap: var(--space-2); min-height: 60px; }
 .marka { display: inline-flex; align-items: center; margin-right: auto; color: var(--ink); text-decoration: none; min-height: 44px; }
-.marka img { display: block; height: 40px; width: auto; max-width: 200px; object-fit: contain; }
-/* Koyu temada logo açık bir levha üstünde: logoların çoğu şeffaf zeminli KOYU yazı. */
+/* Logo YÜKSEKLİK tabanlı: mobil 32px, masaüstü 44px; geniş (yatay) logolar genişlik sınırında durur
+   (object-fit: contain, oran bozulmaz). Şeffaf kenar sunucuda kırpılır (ImageProcessing.TryCreateWebLogo) —
+   kırpmasız logo 40px yükseklikte bile ~70px genişlikte, okunmaz kalıyordu. */
+.marka img { display: block; height: 32px; width: auto; max-width: 180px; object-fit: contain; object-position: left center; }
+/* Koyu temada logo açık bir levha üstünde: logoların çoğu şeffaf zeminli KOYU yazı. Levha dolgusu
+   yüksekliğe eklenir (content-box); görünür logo boyu açık temayla aynı kalır. */
 @media (prefers-color-scheme: dark) {
-  .marka img { background: var(--p-paper); padding: 4px 8px; border-radius: var(--radius-s); box-sizing: content-box; height: 32px; }
+  .marka img { background: var(--p-paper); padding: 4px 8px; border-radius: var(--radius-s); box-sizing: content-box; }
+}
+@media (min-width: 900px) {
+  .marka img { height: 44px; max-width: 260px; }
 }
 .marka-ad { font: 600 1.5rem/1 var(--font-display); letter-spacing: .01em; }
 .nav-genis { display: none; }
@@ -161,7 +168,7 @@
 .alt-baslik { font: 600 1.125rem/1.2 var(--font-display); color: var(--ink); margin: 0 0 var(--space-1); }
 .alt ul { list-style: none; margin: 0; padding: 0; }
 .alt li a { display: inline-flex; align-items: center; min-height: 40px; color: var(--ink-muted); }
-.alt .marka img { height: 36px; }
+.alt .marka img { height: 40px; max-width: 220px; }
 .alt-son { border-top: 1px solid var(--line); padding-block: var(--space-2); font-size: var(--step--1); color: var(--ink-subtle); }
 
 /* ---- Hero slotu (TarifeHero.razor): soru + arama + tarife tahtası; alt kenardan kesikli yol çizgisi. ---- */
