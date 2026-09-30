@@ -1,0 +1,81 @@
+@using RentACar.Application.Fleet
+
+@* Tema "kontuar" — Card slotu. İmza SABİT (Components/Themes/README.md): Kart, Tarih.
+
+   Kart değil, KALKIŞ PANOSU SATIRI: ortak `.ilanlar` listesi bu temada tek sütunlu lacivert bir panodur;
+   her satır araç, vites, yakıt, fiyat ve durum. Değerler bir TANIM LİSTESİ (<dl>): ekran okuyucu her hücreyi
+   etiketiyle okur ("Vites, Otomatik"); etiketler görünür ve cümle düzeninde. Dar ekranda hücreler ikişerli
+   ızgaraya sarar — yatay kaydırma yok. Vites/yakıt ilanda "sitede görünsün" değilse hücre basılmaz (T2).
+
+   İKİ mod (T1): tarih SEÇİLMİŞSE (Kart.Gun/Toplam dolu) "3 gün toplam" + "3 × ₺1.500" + "müsait" adedi;
+   tarih YOKSA günlük fiyat + filo adedi — "müsait" DENMEZ, tarihsiz bilinemez.
+
+   Etkileşim: başlık bağlantısı ::after ile satırı kaplar; "Teklif iste" üstte ayrı hedef. İç içe <a> yok.
+   Durum hücresindeki turuncu nokta İŞARETTİR: bilgi metinde de yazılı, renk tek başına taşımaz. *@
+<article class="kt-satir @(Kart.Isaret is not null ? "kt-satir-isaretli" : null)">
+    <div class="kt-satir-foto">
+        @if (Kart.CoverPhotoId is { } photoId)
+        {
+            @* Küçük görsel; satırda ~120 px. Tembel — yalnız ilk ekrandaki ilk satır (Oncelikli) hemen iner. *@
+            <img src="@($"/foto/{photoId}/thumb")" alt="" width="400" height="267"
+                 loading="@(Kart.Oncelikli ? "eager" : "lazy")" fetchpriority="@(Kart.Oncelikli ? "high" : null)" decoding="async" />
+        }
+    </div>
+    <div class="kt-satir-ad">
+        @if (!string.IsNullOrWhiteSpace(Kart.Isaret)) { <p class="kt-isaret">@Kart.Isaret</p> }
+        <h3><a href="@Kart.DetayLinki">@Kart.Baslik</a></h3>
+        @if (!string.IsNullOrWhiteSpace(Kart.YilAralik)) { <p class="kt-satir-yil">@Kart.YilAralik model</p> }
+    </div>
+    <dl class="kt-hucreler">
+        @if (Feature("Vites") is { } gear)
+        {
+            <div class="kt-hucre kt-hucre-vites"><dt>Vites</dt><dd>@gear</dd></div>
+        }
+        @if (Feature("Yakıt") is { } fuel)
+        {
+            <div class="kt-hucre kt-hucre-yakit"><dt>Yakıt</dt><dd>@fuel</dd></div>
+        }
+        @if (Kart.Gun is { } days && Kart.Toplam is { } total)
+        {
+            <div class="kt-hucre kt-hucre-fiyat">
+                <dt>@days gün toplam</dt>
+                <dd>
+                    <span class="kt-tutar">@PriceText.Tl(total)</span>
+                    <small>@days × @PriceText.Tl(Kart.GunlukFiyat), @VatText</small>
+                </dd>
+            </div>
+        }
+        else
+        {
+            <div class="kt-hucre kt-hucre-fiyat">
+                <dt>Günlük</dt>
+                <dd><span class="kt-tutar">@PriceText.Tl(Kart.GunlukFiyat)</span><small>@VatText</small></dd>
+            </div>
+        }
+        <div class="kt-hucre kt-hucre-durum">
+            <dt>Durum</dt>
+            <dd><span class="kt-nokta" aria-hidden="true"></span>@StatusText</dd>
+        </div>
+    </dl>
+    <div class="kt-satir-eylem">
+        <a class="btn btn-brand" href="@Kart.TeklifLinki">Teklif iste</a>
+    </div>
+</article>
+
+@code {
+    /// <summary>Kartın tüm verisi (fiyat, hesap, teklif bağlantısı, işaret, öncelik).</summary>
+    [Parameter, EditorRequired] public ListingCard Kart { get; set; } = default!;
+    /// <summary>Seçilen aralık; null → tarihsiz gezinti. Satır hesabı Kart.Gun/Toplam'dan (tek kaynak).</summary>
+    [Parameter] public StayDates? Tarih { get; set; }
+
+    private string VatText => Kart.KdvDahil ? "KDV dahil" : "KDV hariç";
+
+    /// <summary>Durum hücresi. "Müsait" YALNIZ tarih seçiliyse (kirada olanlar düşülmüştür).</summary>
+    private string StatusText => Kart.Gun is null
+        ? (Kart.Adet > 1 ? $"Filoda {Kart.Adet} araç" : "Filoda")
+        : (Kart.Adet > 1 ? $"{Kart.Adet} araç müsait" : "Müsait");
+
+    private string? Feature(string label)
+        => Kart.Ozellikler.FirstOrDefault(o => string.Equals(o.Etiket, label, StringComparison.OrdinalIgnoreCase))
+            ?.Deger is { Length: > 0 } v ? v : null;
+}

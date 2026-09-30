@@ -26,6 +26,11 @@
             </select>
         </label>
     }
+    else if (TekSubeGoster && Subeler.Count == 1)
+    {
+        @* Tek şubede seçim kutusu yok; tema isterse teslim noktası METİN olarak yazılır (kontuar koçanı). *@
+        <p class="arama-sube">Teslim: <strong>@Subeler[0]</strong></p>
+    }
     @if (!string.IsNullOrWhiteSpace(Ilan))
     {
         @* İlan detayından gelindiyse sonuçta o ilan öne alınır (bkz. Musaitlik.razor). *@
@@ -51,6 +56,9 @@
     /// <summary>true: geniş ekranda tek satır (sonuç sayfasının üstü). false: dikey (hero, panel).</summary>
     [Parameter] public bool Satir { get; set; }
     [Parameter] public string AriaLabel { get; set; } = "Müsait araç ara";
+    /// <summary>true: tek şubeli firmada şube adı "Teslim: …" satırı olarak basılır (varsayılan kapalı —
+    /// yalnız isteyen tema açar; diğer temaların çıktısı değişmez).</summary>
+    [Parameter] public bool TekSubeGoster { get; set; }
 
     private static string Today => SiteDate.TodayIso;
 }

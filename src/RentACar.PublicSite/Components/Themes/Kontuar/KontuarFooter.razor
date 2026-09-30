@@ -1,0 +1,54 @@
+@using RentACar.Application.Fleet
+
+@* Tema "kontuar" — Footer slotu. İmza SABİT (Components/Themes/README.md): Branding, Sayfalar, YasalSayfalar.
+
+   Kontuarın künyesi: ilk sütun "nerede, nasıl ulaşılır" (adres + kanallar) — teslim yapan firmada ziyaretçinin
+   en çok aradığı bilgi. Kanal yoksa satırı basılmaz; yasal sütun YALNIZ yayında yasal sayfa varsa (T2). *@
+<footer class="kt-alt">
+    <div class="wrap kt-alt-ic">
+        <div class="kt-alt-kunye">
+            <a class="kt-marka" href="/" aria-label="@($"{Name} ana sayfa")">
+                <BrandMark Name="@Name" LogoVersion="@Branding?.LogoSurum" />
+            </a>
+            @if (!string.IsNullOrWhiteSpace(Branding?.Adres)) { <p>@Branding!.Adres</p> }
+            @if (_contact.TelLink is not null || _contact.WaLink is not null || _contact.Email is not null)
+            {
+                <ul class="kt-alt-kanal" aria-label="İletişim">
+                    @if (_contact.TelLink is not null) { <li><a href="@_contact.TelLink">@_contact.Phone</a></li> }
+                    @if (_contact.WaLink is not null) { <li><a href="@_contact.WaLink" target="_blank" rel="noopener noreferrer">WhatsApp'tan yazın</a></li> }
+                    @if (_contact.Email is not null) { <li><a href="@($"mailto:{_contact.Email}")">@_contact.Email</a></li> }
+                </ul>
+            }
+        </div>
+        <nav aria-labelledby="kt-alt-sayfalar">
+            <h2 id="kt-alt-sayfalar" class="kt-alt-baslik">Sayfalar</h2>
+            <ul>
+                @foreach (var s in Sayfalar) { <li><a href="@s.Href">@s.Label</a></li> }
+            </ul>
+        </nav>
+        @if (YasalSayfalar.Count > 0)
+        {
+            <nav aria-labelledby="kt-alt-yasal">
+                <h2 id="kt-alt-yasal" class="kt-alt-baslik">Yasal</h2>
+                <ul>
+                    @foreach (var s in YasalSayfalar) { <li><a href="@s.Href">@s.Label</a></li> }
+                </ul>
+            </nav>
+        }
+    </div>
+    <div class="kt-alt-son"><div class="wrap">© @DateTime.Now.Year @Name</div></div>
+</footer>
+
+@code {
+    /// <summary>Firma bilgisi (ad, adres, logo sürümü, iletişim). Null → nötr kabuk.</summary>
+    [Parameter] public FleetBranding? Branding { get; set; }
+    /// <summary>Ana sayfa + menü + firmanın kendi içerik sayfaları (yasal olanlar HARİÇ).</summary>
+    [Parameter] public IReadOnlyList<SiteLink> Sayfalar { get; set; } = [];
+    /// <summary>Yayındaki yasal sayfalar; boşsa sütun yok.</summary>
+    [Parameter] public IReadOnlyList<SiteLink> YasalSayfalar { get; set; } = [];
+
+    private ContactLinks _contact = ContactLinks.From(null);
+    private string Name => string.IsNullOrWhiteSpace(Branding?.Marka) ? "RentPro" : Branding!.Marka!;
+
+    protected override void OnParametersSet() => _contact = ContactLinks.From(Branding, Name);
+}
