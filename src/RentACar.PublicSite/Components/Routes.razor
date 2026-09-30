@@ -1,4 +1,8 @@
-﻿<Router AppAssembly="typeof(Program).Assembly" NotFoundPage="typeof(Pages.NotFound)">
+@* NotFoundPage BİLİNÇLİ YOK: .NET 10'da Router'ın NotFoundPage'i tanımlıyken yanıt 404 olduğunda sayfa
+   kabuğun (MainLayout) async hazırlığı beklenmeden basılıyordu — 404 sayfası markasız/menüsüz çıkıyordu
+   (ölçüldü). 404 gövdesi Program.cs'teki UseStatusCodePagesWithReExecute("/not-found") ile üretilir;
+   eşleşmeyen tek parçalı adresleri zaten Sayfa.razor (/{Slug}) yakalayıp 404'e çeviriyor. *@
+<Router AppAssembly="typeof(Program).Assembly">
     <Found Context="routeData">
         <RouteView RouteData="routeData" DefaultLayout="typeof(Layout.MainLayout)" />
         <FocusOnNavigate RouteData="routeData" Selector="h1" />
