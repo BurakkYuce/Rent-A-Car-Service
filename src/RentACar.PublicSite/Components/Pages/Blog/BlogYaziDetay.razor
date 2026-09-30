@@ -50,7 +50,11 @@
         }
         @if (seo.YayinTarihi is { } yt)
         {
-            <meta property="article:published_time" content="@yt.ToString("yyyy-MM-dd")" />
+            <meta property="article:published_time" content="@yt.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture)" />
+        }
+        @if (seo.GuncellemeUtc is { } mt)
+        {
+            <meta property="article:modified_time" content="@mt.UtcDateTime.ToString("yyyy-MM-dd'T'HH:mm:ss'Z'", System.Globalization.CultureInfo.InvariantCulture)" />
         }
     </HeadContent>
     <YapisalVeriBlog Yazi="_post" Marka="_branding" KanonikKok="@_canonicalRoot" />
@@ -179,9 +183,9 @@
                   : !string.IsNullOrWhiteSpace(_post.Ozet) ? _post.Ozet
                   : ContentText.Summary(_post.Icerik);
 
-        // og:/JSON-LD mutlak adres ister; host isteğin KENDİSİNDEN alınır (aynı içerik hem
-        // subdomain hem özel domainden servis edilebiliyor — App.razor'daki canonical ile aynı kural).
-        if (Http is not null) _canonicalRoot = $"https://{Http.Request.Host.Value}";
+        // og:/JSON-LD mutlak adres ister; kök KANONİK host'tan (istek host'u DEĞİL — SEO H-3): aynı içerik
+        // hem subdomain hem özel domainden servis edilebiliyor; og:url App.razor'daki canonical ile birebir aynı.
+        _canonicalRoot = await Showcase.GetCanonicalRootAsync();
 
         // Diğer yazılar: bu yazı hariç, en yeniler. Ayrı bir sorgu yok — liste zaten yayındakileri döner.
         _related = [.. (await Blog.ListPublishedAsync())

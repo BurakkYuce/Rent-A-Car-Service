@@ -55,16 +55,29 @@
             },
             // Kelime sayısı: AI arama yüzeyleri içeriğin derinliğini bununla ölçüyor.
             ["wordCount"] = RentACar.Application.Common.ContentText.WordCount(y.Icerik),
-            ["datePublished"] = y.YayinTarihi?.ToString("yyyy-MM-dd"),
+            ["datePublished"] = y.YayinTarihi?.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture),
+            // Son güncelleme (kayıt damgası); yayın tarihinden ÖNCE görünemez (taslakken yapılan düzenleme).
+            ["dateModified"] = y.GuncellemeUtc is { } m
+                ? (y.YayinTarihi is { } p && m < p ? p : m).UtcDateTime.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture)
+                : null,
             ["mainEntityOfPage"] = root is null ? null : $"{root}/blog/{y.Slug}",
             ["image"] = root is not null && y.KapakVar ? $"{root}/blog-kapak/{y.Id}" : null,
             ["publisher"] = string.IsNullOrWhiteSpace(Marka?.Marka) ? null : new Dictionary<string, object?>
             {
                 ["@type"] = "Organization",
+                // Ana sayfadaki AutoRental düğümüyle AYNI varlık.
+                ["@id"] = root is null ? null : root + "/#firma",
                 ["name"] = Marka!.Marka,
+                ["logo"] = root is not null && !string.IsNullOrEmpty(Marka.LogoSurum)
+                    ? new Dictionary<string, object?>
+                    {
+                        ["@type"] = "ImageObject",
+                        ["url"] = $"{root}/marka/logo?v={Uri.EscapeDataString(Marka.LogoSurum)}",
+                    }
+                    : null,
             },
         };
 
-        _json = JsonSerializer.Serialize(model, Opt);
+        _json = JsonLd.Serialize(model); // null alanlar budanır (T2)
     }
 }

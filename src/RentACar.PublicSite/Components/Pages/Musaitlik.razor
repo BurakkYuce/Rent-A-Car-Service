@@ -136,8 +136,9 @@
     protected override async Task OnInitializedAsync()
     {
         _branding = await Showcase.GetBrandingAsync();
-        if (Http is not null) _canonicalRoot = $"https://{Http.Request.Host.Value}";
-        if (await Showcase.GetCanonicalHostAsync() is { } host) _crumbRoot = $"https://{host}";
+        // Kök KANONİK host'tan (istek host'u DEĞİL — SEO H-3); og:url, breadcrumb ve canonical aynı kök.
+        _canonicalRoot = await Showcase.GetCanonicalRootAsync();
+        _crumbRoot = _canonicalRoot;
         _branches = (await Subeler.ListActiveAsync()).Select(s => s.Ad).ToList();
 
         _start = ParseDate(Bas);
