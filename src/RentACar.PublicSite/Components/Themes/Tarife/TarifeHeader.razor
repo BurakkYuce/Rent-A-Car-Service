@@ -1,0 +1,46 @@
+@using RentACar.Application.Fleet
+
+@* Tema "tarife" — Header slotu. İmza SABİT (Components/Themes/README.md): Branding, Nav.
+
+   Firma işareti: logo yüklüyse /marka/logo (sürümlü), yoksa marka adı (BrandMark, ortak). MOBİL: tek satır,
+   yapışkan değil, menü <details> (JS yok); iletişim alt eylem çubuğunda (MainLayout). Genişte telefon ve
+   WhatsApp üst barda. *@
+
+<header class="bar">
+    <div class="wrap bar-ic">
+        <a class="marka" href="/" aria-label="@($"{Name} ana sayfa")">
+            <BrandMark Name="@Name" LogoVersion="@Branding?.LogoSurum" />
+        </a>
+        <nav class="nav-genis" aria-label="Ana menü">
+            @foreach (var n in Nav) { <a href="@n.Href">@n.Label</a> }
+        </nav>
+        @if (_contact.WaLink is not null)
+        {
+            <a class="btn btn-cizgi bar-tel" href="@_contact.WaLink" target="_blank" rel="noopener noreferrer">WhatsApp</a>
+        }
+        @if (_contact.TelLink is not null)
+        {
+            @* Numara METİN olarak da görünür: `tel:` açamayan masaüstünde de işe yarasın. *@
+            <a class="btn btn-brand bar-tel" href="@_contact.TelLink">@_contact.Phone</a>
+        }
+        <details class="menu">
+            <summary>Menü</summary>
+            <ul class="menu-liste">
+                <li><a href="/">Ana sayfa</a></li>
+                @foreach (var n in Nav) { <li><a href="@n.Href">@n.Label</a></li> }
+            </ul>
+        </details>
+    </div>
+</header>
+
+@code {
+    /// <summary>Firma bilgisi (ad, logo sürümü, iletişim). Null → nötr kabuk.</summary>
+    [Parameter] public FleetBranding? Branding { get; set; }
+    /// <summary>Ana menü bağlantıları ("Ana sayfa" hariç; veri yoksa SSS/Blog listede yok).</summary>
+    [Parameter] public IReadOnlyList<SiteLink> Nav { get; set; } = [];
+
+    private ContactLinks _contact = ContactLinks.From(null);
+    private string Name => string.IsNullOrWhiteSpace(Branding?.Marka) ? "RentPro" : Branding!.Marka!;
+
+    protected override void OnParametersSet() => _contact = ContactLinks.From(Branding, Name);
+}

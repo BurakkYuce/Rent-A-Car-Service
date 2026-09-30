@@ -121,6 +121,33 @@ test('ayarlar: site vurgu rengi okunur, değiştirilince PUT gövdesinde gider; 
   await expect(color).toHaveValue('#c0392b'); // sunucunun normalize ettiği değer
 });
 
+test('ayarlar: site teması radyo ile seçilir (kayıtsızsa tarife seçili), önizleme bağlantıları yeni sekmede', async ({
+  page,
+}) => {
+  const errors = collectErrors(page);
+  const writes = await settingsEndpoints(page);
+  await open(page);
+  const group = page.getByRole('radiogroup', { name: 'Site teması' });
+  await expect(group.getByRole('radio', { name: /^Tarife:/ })).toBeChecked();
+
+  for (const [name, key] of [
+    ['Tarife', 'tarife'],
+    ['Vitrin', 'vitrin'],
+    ['Kontuar', 'kontuar'],
+  ] as const) {
+    const link = page.getByRole('link', { name: `${name} temasını önizle` });
+    await expect(link).toHaveAttribute('href', `//ornek.site.test/?tema=${key}`);
+    await expect(link).toHaveAttribute('target', '_blank');
+    await expect(link).toHaveAttribute('rel', 'noopener noreferrer');
+  }
+
+  await group.getByRole('radio', { name: /^Kontuar:/ }).check();
+  await page.getByRole('button', { name: 'Ayarları kaydet' }).click();
+  await expect.poll(() => writes.length).toBe(1);
+  expect(body(writes[0])['siteTemasi']).toBe('kontuar');
+  expect(errors).toEqual([]);
+});
+
 test('ayarlar: doğrulama hatasında form korunur (sunucu alan hatası alanın altında)', async ({
   page,
 }) => {

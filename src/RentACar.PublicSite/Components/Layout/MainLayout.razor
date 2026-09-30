@@ -1,101 +1,43 @@
 @inherits LayoutComponentBase
 @using RentACar.Application.Blog
-@using RentACar.Application.Common
 @using RentACar.Application.Fleet
 @using RentACar.Application.SiteIcerik
 @inject FleetShowcaseService Showcase
 @inject BlogService Blog
 @inject SiteContentService Icerik
+@inject ThemeAccessor Themes
 
-@* PR-15: site kabuğu (üst bar + alt bilgi) tek yerde; sayfaların kendi <h1>'i KALIR.
+@* Site kabuğu. Veri (marka, menü, sayfalar) BURADA toplanır; üst bar ve alt bilgi aktif temanın
+   Header/Footer SLOTLARIYLA çizilir (Components/Themes/README.md — imzalar sabit). Alt eylem çubuğu ve
+   çerez şeridi TEMADAN BAĞIMSIZ (ortak davranış, base.css).
 
-   Firma kimliği: logo yüklüyse /marka/logo (sürümlü adres, uzun önbellek), yoksa marka adı levha
-   yazısıyla. Vurgu rengi App.razor'daki <style> bloğundan gelir (BrandPalette).
-
-   MOBİL: üst bar tek satır ve yapışkan değil; menü <details> ile (JS yok). İletişim (Ara / WhatsApp)
-   ekranın altındaki sabit çubukta — SEO denetiminde 375px'te üst bar 182px'ti ve eylemler ilk ekranın
-   dışında kalıyordu. Kanal yoksa çubuk hiç basılmaz (T2). *@
+   MOBİL: iletişim (Ara / WhatsApp) ekranın altındaki sabit çubukta; kanal yoksa çubuk basılmaz (T2).
+   `data-slot` sarmalayıcıları `display: contents` (base.css) — temanın yapışkan barı bozulmaz. *@
 <div class="page @(_altbar ? "altbar-acik" : null)">
     <a class="gorunmez atla" href="#icerik">İçeriğe geç</a>
-    <header class="bar">
-        <div class="wrap bar-ic">
-            <a class="marka" href="/" aria-label="@($"{BrandName} ana sayfa")">
-                <BrandMark Name="@BrandName" LogoVersion="@_branding?.LogoSurum" />
-            </a>
-            <nav class="nav-genis" aria-label="Ana menü">
-                @foreach (var (href, label) in _navItems) { <a href="@href">@label</a> }
-            </nav>
-            @if (_waLink is not null)
-            {
-                <a class="btn btn-cizgi bar-tel" href="@_waLink" target="_blank" rel="noopener noreferrer">WhatsApp</a>
-            }
-            @if (_telLink is not null)
-            {
-                @* Numara METİN olarak da görünür: `tel:` açamayan masaüstünde de işe yarasın. *@
-                <a class="btn btn-brand bar-tel" href="@_telLink">@_phone</a>
-            }
-            <details class="menu">
-                <summary>Menü</summary>
-                <ul class="menu-liste">
-                    <li><a href="/">Ana sayfa</a></li>
-                    @foreach (var (href, label) in _navItems) { <li><a href="@href">@label</a></li> }
-                </ul>
-            </details>
-        </div>
-    </header>
+    <div data-slot="header">
+        @if (_theme is not null)
+        {
+            <DynamicComponent Type="_theme.Header" Parameters="HeaderParams" />
+        }
+    </div>
 
     <main id="icerik" tabindex="-1">
         @Body
     </main>
 
-    <footer class="alt">
-        <div class="wrap alt-ic">
-            <div>
-                <a class="marka" href="/"><BrandMark Name="@BrandName" LogoVersion="@_branding?.LogoSurum" /></a>
-                @if (!string.IsNullOrWhiteSpace(_branding?.Adres)) { <p class="small">@_branding!.Adres</p> }
-            </div>
-            @if (_telLink is not null || _waLink is not null || !string.IsNullOrWhiteSpace(_branding?.Email))
-            {
-                <div>
-                    <p class="alt-baslik">İletişim</p>
-                    <ul>
-                        @if (_telLink is not null) { <li><a href="@_telLink">@_phone</a></li> }
-                        @if (_waLink is not null) { <li><a href="@_waLink" target="_blank" rel="noopener noreferrer">WhatsApp'tan yazın</a></li> }
-                        @if (!string.IsNullOrWhiteSpace(_branding?.Email))
-                        {
-                            <li><a href="@($"mailto:{_branding!.Email}")">@_branding!.Email</a></li>
-                        }
-                    </ul>
-                </div>
-            }
-            <div>
-                <p class="alt-baslik">Sayfalar</p>
-                <ul>
-                    <li><a href="/">Ana sayfa</a></li>
-                    @foreach (var (href, label) in _navItems) { <li><a href="@href">@label</a></li> }
-                    @* PR-16: firmanın kendi yazdığı sayfalar; yasal metinler kendi sütununda. *@
-                    @foreach (var sf in _otherPages) { <li><a href="@($"/{sf.Slug}")">@sf.Baslik</a></li> }
-                </ul>
-            </div>
-            @* Yasal sütunu YALNIZ yayında yasal sayfa varsa: yayında olmayan slug'a link 404 üretir. *@
-            @if (_legalPages.Count > 0)
-            {
-                <div>
-                    <p class="alt-baslik">Yasal</p>
-                    <ul>
-                        @foreach (var sf in _legalPages) { <li><a href="@($"/{sf.Slug}")">@sf.Baslik</a></li> }
-                    </ul>
-                </div>
-            }
-        </div>
-        <div class="alt-son"><div class="wrap">© @DateTime.Now.Year @BrandName</div></div>
-    </footer>
+    <div data-slot="footer">
+        @if (_theme is not null)
+        {
+            <DynamicComponent Type="_theme.Footer" Parameters="FooterParams" />
+        }
+    </div>
 
     @if (_altbar)
     {
         <nav class="altbar" aria-label="Hızlı iletişim">
-            @if (_telLink is not null) { <a class="btn btn-brand" href="@_telLink">Ara</a> }
-            @if (_waLink is not null) { <a class="btn btn-cizgi" href="@_waLink" target="_blank" rel="noopener noreferrer">WhatsApp</a> }
+            @if (_contact.TelLink is not null) { <a class="btn btn-brand" href="@_contact.TelLink">Ara</a> }
+            @if (_contact.WaLink is not null) { <a class="btn btn-cizgi" href="@_contact.WaLink" target="_blank" rel="noopener noreferrer">WhatsApp</a> }
         </nav>
     }
 
@@ -103,40 +45,51 @@
 </div>
 
 @code {
+    private SiteTheme? _theme;
     private FleetBranding? _branding;
-    private string? _telLink, _waLink, _phone;
+    private ContactLinks _contact = ContactLinks.From(null);
     private bool _altbar;
-    private IReadOnlyList<(string Href, string Label)> _navItems = [("/musaitlik", "Araçlar ve fiyatlar"), ("/iletisim", "İletişim")];
-    private IReadOnlyList<SayfaOzet> _otherPages = [];
-    private IReadOnlyList<SayfaOzet> _legalPages = [];
+    private IReadOnlyList<SiteLink> _nav = [new("/musaitlik", "Araçlar ve fiyatlar"), new("/iletisim", "İletişim")];
+    private IReadOnlyList<SiteLink> _pages = [];
+    private IReadOnlyList<SiteLink> _legal = [];
     private string? _cookiePolicySlug;
 
-    private string BrandName => string.IsNullOrWhiteSpace(_branding?.Marka) ? "RentPro" : _branding!.Marka!;
+    private Dictionary<string, object?> HeaderParams => new()
+    {
+        ["Branding"] = _branding,
+        ["Nav"] = _nav,
+    };
+
+    private Dictionary<string, object?> FooterParams => new()
+    {
+        ["Branding"] = _branding,
+        ["Sayfalar"] = _pages,
+        ["YasalSayfalar"] = _legal,
+    };
 
     protected override async Task OnInitializedAsync()
     {
+        _theme = await Themes.GetAsync();
+        _pages = [new("/", "Ana sayfa"), .. _nav];
         // Kabuk, içerik servisleri patlasa DA basılmalı (alan adı çözülmemiş / site kapalı olabilir).
         try
         {
             _branding = await Showcase.GetBrandingAsync();
-            // Ofis telefonu yoksa mobil; WhatsApp numarası yoksa mobil (firmaların çoğu aynı numarayı kullanıyor).
-            _phone = string.IsNullOrWhiteSpace(_branding.Tel) ? _branding.MobilTel : _branding.Tel;
-            _telLink = PhoneLink.Tel(_phone);
-            _waLink = PhoneLink.Wa(string.IsNullOrWhiteSpace(_branding.WhatsApp) ? _branding.MobilTel : _branding.WhatsApp,
-                $"Merhaba, {BrandName} araç kiralama hakkında bilgi almak istiyorum.");
-            _altbar = _telLink is not null || _waLink is not null;
+            _contact = ContactLinks.From(_branding, string.IsNullOrWhiteSpace(_branding.Marka) ? "RentPro" : _branding.Marka);
+            _altbar = _contact.TelLink is not null || _contact.WaLink is not null;
 
-            var hasFaq = (await Icerik.PublishedFaqAsync()).Count > 0;
-            var hasBlog = (await Blog.ListPublishedAsync()).Count > 0;
-            var nav = new List<(string, string)> { ("/musaitlik", "Araçlar ve fiyatlar") };
-            if (hasFaq) nav.Add(("/sss", "Sık sorulanlar"));
-            if (hasBlog) nav.Add(("/blog", "Blog"));
-            nav.Add(("/iletisim", "İletişim"));
-            _navItems = nav;
+            var nav = new List<SiteLink> { new("/musaitlik", "Araçlar ve fiyatlar") };
+            if ((await Icerik.PublishedFaqAsync()).Count > 0) nav.Add(new("/sss", "Sık sorulanlar"));
+            if ((await Blog.ListPublishedAsync()).Count > 0) nav.Add(new("/blog", "Blog"));
+            nav.Add(new("/iletisim", "İletişim"));
+            _nav = nav;
 
+            // Yayındaki içerik sayfaları İKİYE ayrılır: yasal metinler kendi sütununda (görünürlük + çerez
+            // şeridinin hedefi), gerisi "Sayfalar"da.
             var pages = await Icerik.PublishedPagesAsync();
-            _legalPages = pages.Where(LegalPages.Legal).ToList();
-            _otherPages = pages.Where(s => !LegalPages.Legal(s)).ToList();
+            _legal = [.. pages.Where(LegalPages.Legal).Select(s => new SiteLink($"/{s.Slug}", s.Baslik))];
+            _pages = [new("/", "Ana sayfa"), .. _nav,
+                .. pages.Where(s => !LegalPages.Legal(s)).Select(s => new SiteLink($"/{s.Slug}", s.Baslik))];
             _cookiePolicySlug = LegalPages.CookiePolicySlug(pages);
         }
         catch

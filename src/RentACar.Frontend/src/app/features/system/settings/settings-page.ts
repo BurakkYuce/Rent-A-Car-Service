@@ -28,6 +28,7 @@ import { TextInput } from '@shared/form/kontroller/text-input';
 import { Checkbox } from '@shared/form/kontroller/checkbox';
 import { NumberInput } from '@shared/form/kontroller/number-input';
 import { Selection } from '@shared/form/kontroller/selection';
+import { RadioGroup } from '@shared/form/kontroller/radio-group';
 import type { SecenekOgesi } from '@shared/form/kontroller/secenek';
 
 import { PageBand } from '../../../kabuk/sayfa-bandi/page-band';
@@ -38,13 +39,16 @@ import {
   SECRET_CLEAR_FLAGS,
   SECRET_FLAGS,
   SETTINGS_FIELDS,
+  SITE_THEMES,
   SMTP_PORTS,
   type SecretField,
   type SettingsDto,
+  type SiteTheme,
   secretsToClear,
   settingsBody,
   settingsFormValue,
   settingsServerValues,
+  themePreviewUrl,
 } from './settings-model';
 import { SettingsActions } from './settings-actions';
 
@@ -98,6 +102,7 @@ const MAX_LENGTH: Readonly<Partial<Record<string, number>>> = {
     Checkbox,
     NumberInput,
     Selection,
+    RadioGroup,
     SettingsActions,
   ],
   styleUrl: '../system.scss',
@@ -132,6 +137,21 @@ export class SettingsPage {
   protected readonly dto = signal<SettingsDto | null>(null);
   protected readonly loadError = signal<string | null>(null);
   protected readonly submit = formSubmission();
+
+  /** Site teması radyo kartları: ad + bir cümle açıklama (etiket tek metin). */
+  protected readonly themeKeys = SITE_THEMES;
+  protected readonly themeOptions: readonly SecenekOgesi<string>[] = SITE_THEMES.map((k) => ({
+    deger: k,
+    etiket: `${this.themeName(k)}: ${this.t(`sistem.ayarlar.tema.${k}.aciklama`)}`,
+  }));
+
+  protected themeName(key: SiteTheme): string {
+    return this.t(`sistem.ayarlar.tema.${key}.ad`);
+  }
+
+  protected previewUrl(host: string, key: SiteTheme): string {
+    return themePreviewUrl(host, key);
+  }
 
   protected readonly priceTypes: readonly SecenekOgesi<string>[] = PRICE_TYPES.map((p) => ({
     deger: p,

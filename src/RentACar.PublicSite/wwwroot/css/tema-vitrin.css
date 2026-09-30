@@ -1,0 +1,4 @@
+/* GEÇİCİ YER TUTUCU — "vitrin" teması ayrı PR'da yazılıyor. O PR bu dosyayı tamamen değiştirir:
+   ilk :root bloğu primitive'ler, ardından semantik + bileşen token'ları, koyu tema ve slot stilleri
+   (sözleşme: Components/Themes/README.md). O zamana kadar tarife'nin görünümünü devralır. */
+@import url("tema-tarife.css");

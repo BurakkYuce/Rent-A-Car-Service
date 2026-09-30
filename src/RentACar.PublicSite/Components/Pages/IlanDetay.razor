@@ -139,10 +139,7 @@
                     @foreach (var c in _similar)
                     {
                         <li>
-                            <AracKarti Slug="@c.Slug" Baslik="@c.Baslik" CoverPhotoId="c.CoverPhotoId"
-                                       YilAralik="@c.YilAralik" GunlukFiyat="c.GunlukFiyat" KdvDahil="c.KdvDahil"
-                                       Ozellikler="c.Ozellikler" Adet="c.Adet"
-                                       TeklifLinki="@QuoteLink.Build(c.Slug, dailyPrice: c.GunlukFiyat)" />
+                            <ThemedCard Kart="@ListingCard.From(c, QuoteLink.Build(c.Slug, dailyPrice: c.GunlukFiyat))" />
                         </li>
                     }
                 </ul>

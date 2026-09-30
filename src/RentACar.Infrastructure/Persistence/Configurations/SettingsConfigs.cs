@@ -34,6 +34,7 @@ internal sealed class TenantSettingsConfig : IEntityTypeConfiguration<TenantSett
         e.Property(x => x.RenkRezAtananPlaka).HasMaxLength(7);
         e.Property(x => x.RenkKiralanmayan).HasMaxLength(7);
         e.Property(x => x.SiteVurguRengi).HasMaxLength(7); // halka açık site vurgu rengi
+        e.Property(x => x.SiteTemasi).HasMaxLength(20);    // halka açık site teması (SiteThemeKeys)
         e.Property(x => x.EFaturaKullanici).HasMaxLength(128);
         e.Property(x => x.EFaturaSifreEnc).HasMaxLength(1024);
         e.Property(x => x.SmsBaslik).HasMaxLength(64);

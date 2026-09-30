@@ -1,0 +1,30 @@
+@using RentACar.Application.Fleet
+@inject ThemeAccessor Themes
+
+@* Hero slotu — ana sayfa bununla basar; aktif temanın Hero bileşeni çizilir.
+   Parametre sözlüğü SABİT imza: Marka, Branding, Subeler, Kartlar, Sehir (Components/Themes/README.md). *@
+@if (_type is not null)
+{
+    <DynamicComponent Type="_type" Parameters="Params" />
+}
+
+@code {
+    [Parameter] public string? Marka { get; set; }
+    [Parameter] public FleetBranding? Branding { get; set; }
+    [Parameter] public IReadOnlyList<string> Subeler { get; set; } = [];
+    [Parameter] public IReadOnlyList<FleetShowcaseCard> Kartlar { get; set; } = [];
+    [Parameter] public string? Sehir { get; set; }
+
+    private Type? _type;
+
+    private Dictionary<string, object?> Params => new()
+    {
+        [nameof(Marka)] = Marka,
+        [nameof(Branding)] = Branding,
+        [nameof(Subeler)] = Subeler,
+        [nameof(Kartlar)] = Kartlar,
+        [nameof(Sehir)] = Sehir,
+    };
+
+    protected override async Task OnInitializedAsync() => _type = (await Themes.GetAsync()).Hero;
+}

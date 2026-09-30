@@ -34,4 +34,31 @@ public sealed partial class UiSystemSecurityTests
         saved = await Json(await Send(admin, HttpMethod.Put, Settings, new { siteVurguRengi = "", surum = version }));
         Assert.Equal(System.Text.Json.JsonValueKind.Null, saved.GetProperty("siteVurguRengi").ValueKind);
     }
+
+    // Site teması: yalnız bilinen anahtar (büyük harf normalize), bilinmeyen → 400 siteTemasi, boş → null (tarife),
+    // başka firmaya sızmaz.
+    [Fact]
+    public async Task Site_theme_round_trips_validates_and_stays_in_tenant()
+    {
+        var e = await _kit.SetupAsync();
+        var admin = await _kit.LoginAsync(e, Who.Admin);
+        var version = (await Json(await admin.C.GetAsync(Settings))).GetProperty("surum").GetString();
+
+        var saved = await Json(await Send(admin, HttpMethod.Put, Settings, new { siteTemasi = "Vitrin", surum = version }));
+        Assert.Equal("vitrin", saved.GetProperty("siteTemasi").GetString());
+        version = saved.GetProperty("surum").GetString();
+
+        foreach (var bad in new[] { "mavi", "tarife;}", "vitrin2" })
+            await Problem(await Send(admin, HttpMethod.Put, Settings, new { siteTemasi = bad, surum = version }),
+                HttpStatusCode.BadRequest, "dogrulama", "siteTemasi");
+        Assert.Equal("vitrin", (await Json(await admin.C.GetAsync(Settings))).GetProperty("siteTemasi").GetString());
+
+        var other = await _kit.SetupAsync();
+        var otherAdmin = await _kit.LoginAsync(other, Who.Admin);
+        Assert.Equal(System.Text.Json.JsonValueKind.Null,
+            (await Json(await otherAdmin.C.GetAsync(Settings))).GetProperty("siteTemasi").ValueKind);
+
+        saved = await Json(await Send(admin, HttpMethod.Put, Settings, new { siteTemasi = "", surum = version }));
+        Assert.Equal(System.Text.Json.JsonValueKind.Null, saved.GetProperty("siteTemasi").ValueKind);
+    }
 }

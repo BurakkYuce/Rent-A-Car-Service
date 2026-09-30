@@ -49,11 +49,9 @@
                 {
                     var r = _results[i];
                     <li>
-                        <AracKarti Slug="@r.Slug" Baslik="@r.Baslik" CoverPhotoId="r.CoverPhotoId"
-                                   YilAralik="@r.YilAralik" GunlukFiyat="r.GunlukFiyat" KdvDahil="r.KdvDahil"
-                                   Ozellikler="r.Ozellikler" Gun="r.Gun" Toplam="r.Toplam" Adet="r.Adet"
-                                   Isaret="@(r.Slug == Ilan ? "Baktığınız araç" : null)" Oncelikli="i == 0"
-                                   TeklifLinki="@QuoteLink.Build(r.Slug, Bas, Bit, Sube, r.GunlukFiyat)" />
+                        <ThemedCard Kart="@ListingCard.From(r, QuoteLink.Build(r.Slug, Bas, Bit, Sube, r.GunlukFiyat),
+                                              r.Slug == Ilan ? "Baktığınız araç" : null, i == 0)"
+                                    Tarih="@(new StayDates(_start!.Value, _end!.Value, r.Gun))" />
                     </li>
                 }
             </ul>
@@ -77,7 +75,7 @@
     {
         @* ---- (b) TARİH YOK: misafir filoyu serbestçe geziyor ----
            BURADA "müsait" DENMEZ: tarih olmadan hangi aracın boşta olduğu bilinemez. Kart adet
-           etiketi de "9 araç" der, "9 araç müsait" demez (bkz. AracKarti). *@
+           etiketi de "9 araç" der, "9 araç müsait" demez (bkz. ListingCard / tema Card slotu). *@
         <div class="sonuc-ozet">
             <strong>Filoda @_fleet.Count araç</strong>
             <span class="muted">Günlük fiyatlar aşağıda. Tarih girerseniz o aralıkta gerçekten boşta olanları
@@ -88,11 +86,8 @@
             {
                 var k = _fleet[i];
                 <li>
-                    <AracKarti Slug="@k.Slug" Baslik="@k.Baslik" CoverPhotoId="k.CoverPhotoId"
-                               YilAralik="@k.YilAralik" GunlukFiyat="k.GunlukFiyat" KdvDahil="k.KdvDahil"
-                               Ozellikler="k.Ozellikler" Adet="k.Adet" Oncelikli="i == 0"
-                               Isaret="@(k.Slug == Ilan ? "Baktığınız araç" : null)"
-                               TeklifLinki="@QuoteLink.Build(k.Slug, Bas, Bit, Sube, k.GunlukFiyat)" />
+                    <ThemedCard Kart="@ListingCard.From(k, QuoteLink.Build(k.Slug, Bas, Bit, Sube, k.GunlukFiyat),
+                                          k.Slug == Ilan ? "Baktığınız araç" : null, i == 0)" />
                 </li>
             }
         </ul>
