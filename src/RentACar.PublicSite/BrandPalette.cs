@@ -8,13 +8,15 @@ namespace RentACar.PublicSite;
 ///
 /// <para><b>Neden renk olduğu gibi basılmıyor:</b> firma rengi iki farklı işte kullanılıyor ve ikisinin
 /// kontrast şartı farklı. (1) DOLGU — birincil düğme zemini: üstündeki yazı rengi (siyah/beyaz) burada
-/// SEÇİLİR, renk değişmez; her renk için ikisinden biri en az 4.58:1 verir (WCAG AA metin 4.5:1).
-/// (2) METİN — bağlantı ve fiyat vurgusu sayfa zemininde yazı olarak duruyor: sarı ya da açık yeşil
-/// bir firma rengi açık zeminde okunmaz. Bu yüzden metin varyantı, zeminle 4.5:1'e ulaşana kadar
-/// koyulaştırılır (koyu temada açıklaştırılır). Firmanın dolgu rengi korunur, okunabilirlik de.</para>
+/// SEÇİLİR; her renk için ikisinden biri en az 4.58:1 verir (WCAG AA metin 4.5:1).
+/// (2) METİN — bağlantı ve fiyat vurgusu sayfa zemininde ve hafif tonlu kutularda (<c>--brand-soft</c>)
+/// yazı olarak duruyor: sarı ya da açık yeşil bir firma rengi açık zeminde okunmaz. Bu yüzden metin
+/// varyantı, sayfa zemini VE hafif tonla 4.5:1'e ulaşana kadar koyulaştırılır (koyu temada açıklaştırılır).</para>
 ///
-/// <para><b>Koyu tema dolgusu:</b> çok koyu bir firma rengi (lacivert) koyu zeminde düğmeyi görünmez
-/// yapar. Dolgu, koyu zeminle en az 3:1 (WCAG 1.4.11 bileşen sınırı) olana kadar açıklaştırılır.</para>
+/// <para><b>Dolgunun kendisi:</b> düğme sayfada görünmeli (WCAG 1.4.11, bileşen/zemin 3:1). Açık temada
+/// kağıtla 3:1'i tutmayan renk (sarı, açık yeşil, beyaz) koyulaştırılır; koyu temada çok koyu renk
+/// (lacivert) koyu zemin ve kart zeminiyle 3:1 olana kadar açıklaştırılır. Firma rengi yeterliyse
+/// AYNEN korunur.</para>
 ///
 /// <para><b>Enjeksiyon:</b> çıktı ham ayar metninden DEĞİL, çözümlenmiş RGB bileşenlerinden yazılır.
 /// Biçimi bozuk bir değer (servis zaten reddediyor) sessizce varsayılana düşer — CSS'e serbest metin
@@ -63,17 +65,23 @@ public static class BrandPalette
         var black = new Rgb(0, 0, 0);
 
         // ---- Açık tema ----
-        var lightFill = baseColor;
-        var lightText = Adjust(baseColor, black, t => Contrast(t, lightPaper) >= TextContrast);
-        var light = new Scheme(lightFill.Hex, OnColor(lightFill).Hex, lightText.Hex,
-            Rgb.Mix(lightPaper, baseColor, 0.12).Hex);
+        // Dolgu kağıtla 3:1'in altındaysa (sarı, açık yeşil, beyaz) düğme sayfada kaybolur → koyulaştırılır.
+        // Üstündeki yazı yeni dolguya göre SEÇİLDİĞİ için yazı kontrastı yine AA.
+        var lightFill = Adjust(baseColor, black, t => Contrast(t, lightPaper) >= UiContrast);
+        var lightSoft = Rgb.Mix(lightPaper, baseColor, 0.12);
+        // Metin hem sayfa zemininde hem hafif ton (seçili satır, bilgi kutusu) üstünde okunur.
+        var lightText = Adjust(baseColor, black,
+            t => Contrast(t, lightPaper) >= TextContrast && Contrast(t, lightSoft) >= TextContrast);
+        var light = new Scheme(lightFill.Hex, OnColor(lightFill).Hex, lightText.Hex, lightSoft.Hex);
 
         // ---- Koyu tema ----
-        var darkFill = Adjust(baseColor, white, t => Contrast(t, darkPaper) >= UiContrast);
+        var darkFill = Adjust(baseColor, white,
+            t => Contrast(t, darkPaper) >= UiContrast && Contrast(t, darkSurface) >= UiContrast);
+        var darkSoft = Rgb.Mix(darkPaper, baseColor, 0.22);
         var darkText = Adjust(baseColor, white,
-            t => Contrast(t, darkPaper) >= TextContrast && Contrast(t, darkSurface) >= TextContrast);
-        var dark = new Scheme(darkFill.Hex, OnColor(darkFill).Hex, darkText.Hex,
-            Rgb.Mix(darkPaper, baseColor, 0.22).Hex);
+            t => Contrast(t, darkPaper) >= TextContrast && Contrast(t, darkSurface) >= TextContrast
+                 && Contrast(t, darkSoft) >= TextContrast);
+        var dark = new Scheme(darkFill.Hex, OnColor(darkFill).Hex, darkText.Hex, darkSoft.Hex);
 
         return new Palette(light, dark);
     }
@@ -162,6 +170,9 @@ public static class BrandPalette
         {
             color = default;
             if (hex is not { Length: 7 } || hex[0] != '#') return false;
+            // Her karakter AÇIKÇA onaltılık: int.TryParse sondaki NUL'u ('\0') yutuyordu.
+            for (var i = 1; i < 7; i++)
+                if (!char.IsAsciiHexDigit(hex[i])) return false;
             if (!int.TryParse(hex.AsSpan(1), NumberStyles.AllowHexSpecifier, CultureInfo.InvariantCulture, out var v))
                 return false;
             color = new Rgb((v >> 16) & 0xff, (v >> 8) & 0xff, v & 0xff);

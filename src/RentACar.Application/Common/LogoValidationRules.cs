@@ -24,17 +24,27 @@ public static class LogoValidationRules
     /// <summary>Bunun altında basılır ama baskıda bulanık olacağı uyarısı verilir.</summary>
     public const int RecommendedWidth = 600;
     public const int MaxWidth = 2000;
+    /// <summary>Yükseklik sınırı. Yalnız genişlik denetlenirken 2000×1.000.000 boyutlu, 1-bit gri, ~244 KB'lık
+    /// bir PNG kabul ediliyordu — çözülünce ~1,4 GB bellek tutan bir dekompresyon bombası. İki kenar da
+    /// sınırlı olunca çözülmüş görüntü en fazla 2000×2000×4 = 16 MB.</summary>
+    public const int MaxHeight = 2000;
     public const int MaxBytes = 1_048_576; // 1 MB — mevcut SetLogoAsync sınırı korunuyor
 
-    /// <summary>Reddedilmesi gerekiyorsa hata mesajı, uygunsa null. Tür + boyut + ölçü kapısı.</summary>
+    /// <summary>Reddedilmesi gerekiyorsa hata mesajı, uygunsa null. Tür + boyut + ölçü kapısı.
+    /// Ölçüsü OKUNAMAYAN dosya reddedilir: boyutu bilinmeyen bir görüntüyü çözmenin maliyeti de bilinmez
+    /// (imzadan sonra çöp taşıyan dosya da bu yoldan düşer).</summary>
     public static string? Reject(byte[] bytes)
     {
         if (bytes.Length == 0) return null; // boş = "logoyu kaldır", çağıran ayrı ele alır
         if (bytes.Length > MaxBytes) return "Logo en fazla 1 MB olabilir.";
         if (ImageValidation.Detect(bytes) != ImageKind.Png)
             return "Logo yalnız PNG olabilir (şeffaf zemin gerekiyor).";
-        if (PngSize.Read(bytes) is { } b && b.Genislik > MaxWidth)
+        if (PngSize.Read(bytes) is not { } b)
+            return "Logo ölçüleri okunamadı; dosya bozuk görünüyor. Dosyayı yeniden kaydedip deneyin.";
+        if (b.Genislik > MaxWidth)
             return $"Logo genişliği en fazla {MaxWidth} piksel olabilir (yüklenen: {b.Genislik}).";
+        if (b.Yukseklik > MaxHeight)
+            return $"Logo yüksekliği en fazla {MaxHeight} piksel olabilir (yüklenen: {b.Yukseklik}).";
         return null;
     }
 
@@ -48,6 +58,12 @@ public static class LogoValidationRules
                 "Logo ölçüleri okunamadı; PDF'te firma adı basılacak. Dosyayı yeniden kaydedip deneyin.");
 
         var (g, y) = b.Value;
+        // Kural sıkılaşmadan ÖNCE kaydedilmiş dev ölçülü logo: PDF motoru onu tam çözerdi (bellek bombası).
+        // Yükleme kapısı artık reddediyor; eski kayıt için PDF yolu da basmaz, metin fallback'i devralır.
+        if (g > MaxWidth || y > MaxHeight)
+            return new LogoDegerlendirme(bytes.Length, g, y, false,
+                $"Logo çok büyük ({g}×{y} px) — PDF'te YOK SAYILACAK. En fazla {MaxWidth}×{MaxHeight} px.");
+
         if (g < IgnoredWidth)
             return new LogoDegerlendirme(bytes.Length, g, y, false,
                 $"Logo çok küçük ({g}×{y} px) — PDF'te YOK SAYILACAK, yerine firma adı basılacak. " +

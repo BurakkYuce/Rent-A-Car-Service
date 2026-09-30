@@ -17,7 +17,7 @@ namespace RentACar.IntegrationTests.Infrastructure;
 /// TestServer'ın Host'u "localhost" ve bu testlerin konusu çözümleme değil.</para>
 /// </summary>
 public sealed class PublicSiteFactory(PostgresFixture pg, Guid tenantId, int searchPermit = 10_000,
-    int bookingPermit = 10_000)
+    int bookingPermit = 10_000, Action<IServiceCollection>? configureServices = null)
     : WebApplicationFactory<NoIndexHeaderMiddleware>
 {
     protected override void ConfigureWebHost(IWebHostBuilder builder)
@@ -33,6 +33,7 @@ public sealed class PublicSiteFactory(PostgresFixture pg, Guid tenantId, int sea
                          .ToList();
             foreach (var d in jobs) s.Remove(d);
             s.AddSingleton<IPublicTenantResolver>(new FixedTenantResolver(tenantId));
+            configureServices?.Invoke(s); // test başına servis sarmalama (ör. çağrı sayacı)
         });
     }
 
