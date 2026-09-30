@@ -39,12 +39,14 @@ public sealed class BrandPaletteTests
     }
 
     [Fact]
-    public void Sari_firma_rengi_dolguda_korunur_ustune_koyu_yazi_metinde_koyulastirilir()
+    public void Sari_firma_rengi_acikta_dolguda_ve_metinde_koyulastirilir_koyuda_aynen_kalir()
     {
         var p = BrandPalette.For("#ffd400");
 
-        Assert.Equal("#ffd400", p.Light.Fill);            // firmanın rengi DEĞİŞMEDİ
-        Assert.Equal("#1d2227", p.Light.OnFill);          // sarı üstünde beyaz okunmaz → koyu yazı
+        // Sarı açık kağıtla ~1.4:1 — düğme sayfada kaybolurdu (WCAG 1.4.11) → dolgu koyulaştırıldı.
+        Assert.NotEqual("#ffd400", p.Light.Fill);
+        Assert.True(OracleContrast(p.Light.Fill, BrandPalette.LightPaper) >= 3.0);
+        Assert.True(OracleContrast(p.Light.OnFill, p.Light.Fill) >= 4.5);
         Assert.NotEqual("#ffd400", p.Light.Text);         // metin varyantı koyulaştırıldı
         Assert.True(OracleContrast(p.Light.Text, BrandPalette.LightPaper) >= 4.5);
         Assert.True(OracleContrast(p.Light.Text, "#ffffff") >= 4.5);
@@ -90,14 +92,56 @@ public sealed class BrandPaletteTests
             var hex = $"#{r}{g}{b}";
             var p = BrandPalette.For(hex);
 
-            Assert.Equal(hex, p.Light.Fill);
+            // Kağıtla zaten 3:1 veren firma rengi AYNEN korunur; vermeyen koyulaştırılır.
+            if (OracleContrast(hex, BrandPalette.LightPaper) >= 3.0) Assert.Equal(hex, p.Light.Fill);
+            Assert.True(OracleContrast(p.Light.Fill, BrandPalette.LightPaper) >= 3.0, $"{hex} açık dolgu");
             Assert.True(OracleContrast(p.Light.OnFill, p.Light.Fill) >= 4.5, $"{hex} açık dolgu yazısı");
             Assert.True(OracleContrast(p.Light.Text, BrandPalette.LightPaper) >= 4.5, $"{hex} açık metin");
+            Assert.True(OracleContrast(p.Light.Text, p.Light.Soft) >= 4.5, $"{hex} açık metin / hafif ton");
             Assert.True(OracleContrast(p.Dark.OnFill, p.Dark.Fill) >= 4.5, $"{hex} koyu dolgu yazısı");
             Assert.True(OracleContrast(p.Dark.Fill, BrandPalette.DarkPaper) >= 3.0, $"{hex} koyu dolgu");
+            Assert.True(OracleContrast(p.Dark.Fill, BrandPalette.DarkSurface) >= 3.0, $"{hex} koyu kart dolgu");
             Assert.True(OracleContrast(p.Dark.Text, BrandPalette.DarkPaper) >= 4.5, $"{hex} koyu metin");
             Assert.True(OracleContrast(p.Dark.Text, BrandPalette.DarkSurface) >= 4.5, $"{hex} koyu kart metni");
+            Assert.True(OracleContrast(p.Dark.Text, p.Dark.Soft) >= 4.5, $"{hex} koyu metin / hafif ton");
         }
+    }
+
+    /// <summary>İncelemede görünmez bulunan dolgular: kağıt #f5f6f3 üstünde sarı ~1.07, açık yeşil ~1.3,
+    /// beyaz ~1.08:1. Her biri kağıtla 3:1'e koyulaştırılmalı, üstündeki yazı yine AA.</summary>
+    [Theory]
+    [InlineData("#ffff00")]
+    [InlineData("#00ff00")]
+    [InlineData("#ffffff")]
+    public void Kagitta_gorunmeyen_dolgu_koyulastirilir(string hex)
+    {
+        Assert.True(OracleContrast(hex, BrandPalette.LightPaper) < 3.0); // senaryonun kendisi
+        var p = BrandPalette.For(hex);
+        Assert.NotEqual(hex, p.Light.Fill);
+        Assert.True(OracleContrast(p.Light.Fill, BrandPalette.LightPaper) >= 3.0);
+        Assert.True(OracleContrast(p.Light.OnFill, p.Light.Fill) >= 4.5);
+    }
+
+    /// <summary>İncelemede #808080 için metin/hafif ton 4.15 (açık) ve 3.95 (koyu), #ffff00 için 4.46 ölçüldü.</summary>
+    [Theory]
+    [InlineData("#808080")]
+    [InlineData("#ffff00")]
+    public void Marka_metni_hafif_ton_uzerinde_de_AA(string hex)
+    {
+        var p = BrandPalette.For(hex);
+        Assert.True(OracleContrast(p.Light.Text, p.Light.Soft) >= 4.5);
+        Assert.True(OracleContrast(p.Dark.Text, p.Dark.Soft) >= 4.5);
+    }
+
+    [Fact]
+    public void Sonda_NUL_ya_da_onaltilik_olmayan_karakter_reddedilir()
+    {
+        Assert.False(BrandPalette.Rgb.TryParse("#12345\0", out _));
+        Assert.False(BrandPalette.Rgb.TryParse("#0b5d6\0", out _));
+        Assert.False(BrandPalette.Rgb.TryParse("#0b5d6 ", out _));
+        Assert.False(BrandPalette.Rgb.TryParse("#+b5d6b", out _));
+        Assert.True(BrandPalette.Rgb.TryParse("#0B5d6b", out var c));
+        Assert.Equal(new BrandPalette.Rgb(0x0b, 0x5d, 0x6b), c);
     }
 
     [Theory]
@@ -109,6 +153,7 @@ public sealed class BrandPaletteTests
     [InlineData("#1234567")]
     [InlineData("12345678")]
     [InlineData("#-12345")]
+    [InlineData("#12345\0")]
     [InlineData("#fff;}</style><script>")]
     public void Bicimsiz_deger_varsayilana_duser_ve_CSSe_sizmaz(string? value)
     {

@@ -21,7 +21,7 @@ public sealed class PublicBrandingRepository(IDbContextFactory<AppDbContext> fac
             .Select(x => new
             {
                 x.FirmaMarka, x.FirmaAdres, x.FirmaTel, x.FirmaEmail, x.FirmaMobilTel, x.WhatsAppNumarasi,
-                x.SiteVurguRengi,
+                x.SiteVurguRengi, x.SiteTemasi,
                 HasLogo = x.LogoBytes != null,
                 Stamp = x.UpdatedAtUtc ?? x.CreatedAtUtc,
             })
@@ -30,7 +30,8 @@ public sealed class PublicBrandingRepository(IDbContextFactory<AppDbContext> fac
         return new FleetBranding(brand, s?.FirmaAdres, s?.FirmaTel, s?.FirmaEmail,
             s?.FirmaMobilTel, s?.WhatsAppNumarasi,
             s?.SiteVurguRengi,
-            s is { HasLogo: true } ? LogoVersion(s.Stamp) : null);
+            s is { HasLogo: true } ? LogoVersion(s.Stamp) : null,
+            s?.SiteTemasi);
     }
 
     public async Task<PublicLogo?> GetLogoAsync(Guid tenantId, CancellationToken ct = default)

@@ -69882,6 +69882,12 @@
               "string"
             ]
           },
+          "siteTemasi": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
           "donemselFaturalamaJob": {
             "type": "boolean"
           },
@@ -70225,6 +70231,12 @@
             ]
           },
           "siteVurguRengi": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "siteTemasi": {
             "type": [
               "null",
               "string"

@@ -3,108 +3,71 @@
 
    KİMLİK: galeri/showroom. Porselen zemin, grafit mürekkep, krom çizgi; sitedeki TEK kroma firma
    rengidir (BrandPalette --brand*). Yazı Archivo: gövde normal genişlik, başlık ve fiyat Expanded
-   (wdth 125) — araç rozetlerinin geniş harfi.
+   (wdth 125, statik örnek) — araç rozetlerinin geniş harfi. @font-face App.razor'da (SiteThemes.Vitrin.Fonts).
 
-   TEK CESUR UNSUR: ana sayfada ilk ilanın kapak fotoğrafı tam genişlik; model adı çok büyük Expanded
-   harfle fotoğrafın ALT KENARINA taşar (üst yarısı fotoğrafta porselen, alt yarısı zeminde grafit —
-   iki kopya, clip-path ile). Arama paneli aynı kenara oturur. Fotoğraf yoksa sahne grafit zemin olur,
-   aynı tipografi kalır (boş gri kutu YOK). Geri kalan her şey sakin: kartlar çerçevesiz, gölgesiz.
+   TEK CESUR UNSUR: ana sayfada ilk fotoğraflı ilanın kapağı tam genişlik SAHNE; model adı çok büyük
+   Expanded harfle sahnenin ALT KENARINA taşar (üstü fotoğrafta açık, altı zeminde koyu — iki kopya,
+   clip-path ile). Arama paneli aynı kenara oturur. Fotoğraf yoksa sahne grafit zemin olur, aynı tipografi
+   kalır (boş gri kutu YOK). Geri kalan her şey sakin: kartlar çerçevesiz, gölgesiz; tek yükseltilmiş yüzey
+   arama/fiyat paneli.
 
-   KATMANLAR: renk literali YALNIZ primitive bloğunda; semantik ve bileşen tokenları primitive'e
-   başvurur; koyu tema yalnız semantikleri yeniden bağlar.
+   KATMANLAR (Components/Themes/README.md): İLK :root bloğu primitive (renk literalleri YALNIZ burada);
+   ikinci :root semantik + bileşen; koyu tema yalnız semantikleri primitive'lere yeniden bağlar.
    ============================================================================= */
 
-@font-face {
-  font-family: "Archivo";
-  font-style: normal; font-weight: 400; font-display: swap;
-  src: url("../fonts/archivo-400-latin-ext.woff2") format("woff2");
-  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
-}
-@font-face {
-  font-family: "Archivo";
-  font-style: normal; font-weight: 400; font-display: swap;
-  src: url("../fonts/archivo-400-latin.woff2") format("woff2");
-  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
-}
-/* 600: <strong>, etiket, menü. Dosya olmasa tarayıcı 400'ü yapay kalınlaştırırdı (bulanık harf). */
-@font-face {
-  font-family: "Archivo";
-  font-style: normal; font-weight: 600; font-display: swap;
-  src: url("../fonts/archivo-600-latin-ext.woff2") format("woff2");
-  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
-}
-@font-face {
-  font-family: "Archivo";
-  font-style: normal; font-weight: 600; font-display: swap;
-  src: url("../fonts/archivo-600-latin.woff2") format("woff2");
-  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
-}
-@font-face {
-  font-family: "Archivo Expanded";
-  font-style: normal; font-weight: 700; font-display: swap;
-  src: url("../fonts/archivo-expanded-700-latin-ext.woff2") format("woff2");
-  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
-}
-@font-face {
-  font-family: "Archivo Expanded";
-  font-style: normal; font-weight: 700; font-display: swap;
-  src: url("../fonts/archivo-expanded-700-latin.woff2") format("woff2");
-  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
-}
-/* Yedek yazı tiplerinin ölçüsü Archivo'ya yaklaştırılır: yazı tipi inince satır zıplamasın (CLS). */
-@font-face { font-family: "Archivo Fallback"; src: local("Arial"); size-adjust: 97%; ascent-override: 92%; descent-override: 22%; line-gap-override: 0%; }
-@font-face { font-family: "Archivo Expanded Fallback"; src: local("Arial Black"), local("Arial"); size-adjust: 112%; ascent-override: 80%; descent-override: 20%; line-gap-override: 0%; }
-
+/* PRIMITIVE */
 :root {
-  color-scheme: light;
-
-  /* primitive */
   --p-porcelain: #f7f7f5;      /* sayfa zemini */
   --p-porcelain-deep: #eeefec; /* ikinci zemin (bant) */
   --p-white: #ffffff;
-  --p-chrome-100: #e4e7e9;     /* ince çizgi */
+  --p-chrome-100: #e4e7e9;     /* ince çizgi (yüzey içi) */
   --p-chrome-300: #c5cbd1;     /* krom: çizgi, ayraç — METİN rengi DEĞİL (porselende 1.6:1) */
-  --p-chrome-500: #8f979e;     /* alan kenarı (UI 3:1) */
-  --p-graphite-400: #6a7178;   /* ipucu metni — porselende 4.8:1 */
-  --p-graphite-500: #555c63;   /* ikincil metin — porselende 6.5:1 */
+  --p-chrome-500: #858d95;     /* alan/panel kenarı (UI 3:1) */
+  --p-graphite-400: #62696f;   /* ipucu metni — beyazda 5.6:1 */
+  --p-graphite-500: #50575e;   /* ikincil metin — porselende 7.1:1 */
   --p-graphite-700: #2a3036;   /* grafit mürekkep — porselende 12.6:1 */
   --p-graphite-800: #20252a;
-  --p-graphite-850: #1b1f23;   /* koyu kart (BrandPalette.DarkSurface) */
-  --p-graphite-900: #14171a;   /* koyu zemin */
-  --p-mist-200: #d9dde0;       /* koyu temada ikincil metin */
-  --p-mist-300: #a9b0b6;       /* koyu temada ipucu */
+  --p-graphite-850: #1b1f23;   /* koyu yüzey = BrandPalette.DarkSurface (firma metin tonu buna göre) */
+  --p-graphite-900: #14171a;   /* koyu zemin — BrandPalette.DarkPaper'a yakın */
   --p-mist-50: #eef0f1;        /* koyu temada mürekkep */
+  --p-mist-200: #c9ced3;       /* koyu temada ikincil metin */
+  --p-mist-300: #a3aab1;       /* koyu temada ipucu */
   --p-signal-red: #b3261e;
   --p-signal-red-light: #f2b8b5;
   --p-signal-green: #1f6b3a;
   --p-signal-green-light: #7fd49a;
-  --p-brand-default: #0b5d6b;  /* BrandPalette.DefaultColor */
-  --p-brand-default-light: #4f9fb0;
-  --p-brand-text-light: #7cc0cf;
+  --p-brand-default: #0b5d6b;  /* BrandPalette.DefaultColor — BrandPalette çıktısı zaten ezer */
+  --p-brand-soft: #e3ebea;
+}
 
-  /* semantic */
+/* SEMANTIC + COMPONENT (açık) */
+:root {
+  color-scheme: light;
   --bg: var(--p-porcelain);
   --bg-alt: var(--p-porcelain-deep);
   --surface: var(--p-white);
   --surface-raised: var(--p-white);
   --ink: var(--p-graphite-700);
   --ink-muted: var(--p-graphite-500);
-  --ink-faint: var(--p-graphite-400);
+  --ink-subtle: var(--p-graphite-400);
   --line: var(--p-chrome-300);
   --line-soft: var(--p-chrome-100);
   --line-strong: var(--p-chrome-500);
   --brand: var(--p-brand-default);
-  --brand-ink: var(--p-white);
+  --on-brand: var(--p-white);
+  --brand-ink: var(--on-brand);
   --brand-text: var(--p-brand-default);
+  --brand-soft: var(--p-brand-soft);
+  /* Tek kroma firma rengidir: vurgu da odur. */
   --accent: var(--brand);
   --accent-ink: var(--brand-ink);
   --focus: var(--p-graphite-700);
   --danger: var(--p-signal-red);
   --ok: var(--p-signal-green);
-  /* Sahne (hero): fotoğraf yoksa zemin; model adının fotoğraf üstündeki kopyası. Tema değişse de
-     sahne karanlık kalır — fotoğrafa benzesin. */
+  /* Sahne (hero), kapanış bandı, alt bilgi: iki temada da koyu — fotoğrafa benzesin. */
   --stage-bg: var(--p-graphite-700);
   --stage-ink: var(--p-porcelain);
+  --stage-shade: var(--p-graphite-900);
 
   --font-display: "Archivo Expanded", "Archivo Expanded Fallback", "Arial Black", sans-serif;
   --font-body: "Archivo", "Archivo Fallback", system-ui, sans-serif;
@@ -115,21 +78,21 @@
   --step-1: 1.25rem;
   --step-2: clamp(1.4rem, 1.25rem + .6vw, 1.75rem);
   --step-3: clamp(1.75rem, 1.4rem + 1.5vw, 2.5rem);
-  --step-4: clamp(2.2rem, 1.5rem + 3vw, 3.6rem);
+  --step-4: clamp(2.1rem, 1.5rem + 2.6vw, 3.4rem);
   --step-5: clamp(2.6rem, .9rem + 7.4vw, 8rem);
 
-  --space-1: .25rem; --space-2: .5rem; --space-3: .75rem; --space-4: 1rem;
-  --space-5: 1.5rem; --space-6: 2.5rem; --space-7: 4rem; --space-8: 6rem;
+  /* Boşluk ölçeği base.css ile aynı anlamda (space-2 = 1rem gövde aralığı). */
+  --space-1: .5rem; --space-2: 1rem; --space-3: 1.5rem; --space-4: 2.5rem;
+  --space-5: 4rem; --space-6: 5rem; --space-7: 6.5rem; --space-8: 8rem;
 
   /* Keskin köşe: vitrin camı, rozet. Hiyerarşiye göre üç ayrı değer. */
   --radius-s: 2px;
   --radius-m: 4px;
   --radius-l: 8px;
-  --shadow-1: 0 1px 0 color-mix(in srgb, var(--p-graphite-700) 8%, transparent);
-  --shadow-2: 0 24px 48px -28px color-mix(in srgb, var(--p-graphite-900) 45%, transparent);
+  --shadow-1: 0 -1px 0 var(--line-soft);
+  --shadow-2: 0 24px 48px -28px color-mix(in srgb, var(--stage-shade) 45%, transparent);
   --measure: 66ch;
 
-  /* component */
   --btn-bg: var(--brand);
   --btn-ink: var(--brand-ink);
   --btn-radius: var(--radius-s);
@@ -139,155 +102,121 @@
   --field-bg: var(--surface);
   --field-border: var(--line-strong);
   --price-ink: var(--ink);
-  --price-mark: var(--brand);
+  --price-mark: transparent;
 }
 
-/* Koyu tema: yalnız semantikler yeniden bağlanır. Zemin BrandPalette.DarkPaper'a yakın tutulur —
-   firma renginin metin tonu o zemine göre 4.5:1'e ayarlanıyor. */
+/* SEMANTIC (koyu) — yalnız primitive'lere referans. Yüzeyler BrandPalette'in ölçtüğü koyu zeminlerle
+   aynı ya da onlar arasında: firma metin tonu (4.5:1) her yüzeyde geçer. */
 @media (prefers-color-scheme: dark) {
   :root {
     color-scheme: dark;
     --bg: var(--p-graphite-900);
-    --bg-alt: var(--p-graphite-800);
+    --bg-alt: var(--p-graphite-850);
     --surface: var(--p-graphite-850);
-    --surface-raised: var(--p-graphite-800);
+    --surface-raised: var(--p-graphite-850);
     --ink: var(--p-mist-50);
     --ink-muted: var(--p-mist-200);
-    --ink-faint: var(--p-mist-300);
+    --ink-subtle: var(--p-mist-300);
     --line: var(--p-graphite-700);
     --line-soft: var(--p-graphite-800);
     --line-strong: var(--p-graphite-400);
-    --brand: var(--p-brand-default-light);
-    --brand-ink: var(--p-graphite-900);
-    --brand-text: var(--p-brand-text-light);
     --focus: var(--p-mist-50);
     --danger: var(--p-signal-red-light);
     --ok: var(--p-signal-green-light);
     --stage-bg: var(--p-graphite-800);
     --stage-ink: var(--p-mist-50);
-    --shadow-1: 0 1px 0 color-mix(in srgb, var(--p-graphite-900) 60%, transparent);
-    --shadow-2: 0 24px 48px -28px color-mix(in srgb, var(--p-graphite-900) 90%, transparent);
+    --shadow-2: 0 24px 48px -28px color-mix(in srgb, var(--stage-shade) 90%, transparent);
   }
 }
 
+/* Yedek yazı tiplerinin ölçüsü Archivo'ya yaklaştırılır: yazı tipi inince satır zıplamasın (CLS). */
+@font-face { font-family: "Archivo Fallback"; src: local("Arial"); size-adjust: 97%; ascent-override: 92%; descent-override: 22%; line-gap-override: 0%; }
+@font-face { font-family: "Archivo Expanded Fallback"; src: local("Arial Black"), local("Arial"); size-adjust: 112%; ascent-override: 80%; descent-override: 20%; line-gap-override: 0%; }
+
 /* =============================================================================
-   Ortak bölümler — markup ortak, burada yalnız vitrin'in yazısı ve çizgisi.
+   Ortak bölümler — markup ortak (base.css yapıyı kurar); burada yalnız vitrin'in yazısı ve çizgisi.
    ============================================================================= */
-body { font-family: var(--font-body); background: var(--bg); color: var(--ink); }
-h1, h2, h3 { font-family: var(--font-display); font-weight: 700; letter-spacing: -.02em; line-height: 1.05; }
+h1, h2, h3 { font-weight: 700; letter-spacing: -.02em; line-height: 1.05; }
 h1 { font-size: var(--step-4); }
 h2 { font-size: var(--step-3); }
 h3 { font-size: var(--step-1); letter-spacing: -.01em; }
-strong, b { font-weight: 600; }
-:focus-visible { outline: 2px solid var(--focus); outline-offset: 3px; }
 
-.btn {
-  min-height: 48px; padding: .6rem 1.25rem; border-radius: var(--btn-radius);
-  font: 700 .9375rem/1.1 var(--font-display); letter-spacing: .01em;
-}
-.btn-brand { background: var(--btn-bg); color: var(--btn-ink); }
-.btn-brand:hover { background: color-mix(in srgb, var(--btn-bg) 86%, var(--ink)); color: var(--btn-ink); }
-.btn-cizgi { background: transparent; color: var(--ink); border-color: var(--line-strong); }
-.btn-cizgi:hover { border-color: var(--ink); }
+.btn { min-height: 48px; padding: .6rem 1.25rem; border-width: 1px; font: 700 .9375rem/1.1 var(--font-display); }
+.btn-brand:hover { background: color-mix(in srgb, var(--btn-bg) 86%, var(--ink)); }
+.btn-cizgi { background: transparent; }
 
-.bolum { padding-block: var(--space-7); }
-.bolum-baslik { margin-bottom: var(--space-5); max-width: 22ch; }
+.bolum-baslik { max-width: 22ch; }
 .bolum-kontrast { background: var(--bg-alt); border: 0; }
-.giris { color: var(--ink-muted); max-width: var(--measure); }
 
-/* Arama formu: alanlar beyaz, kenar krom-koyu; düğme tam genişlik firma rengi. */
-.alan { color: var(--ink-muted); font-size: var(--step--1); font-weight: 600; }
-.alan input, .alan select, .alan textarea {
-  background: var(--field-bg); border: 1px solid var(--field-border); border-radius: var(--radius-s);
-  color: var(--ink); min-height: 48px;
-}
-.alan input:focus-visible, .alan select:focus-visible, .alan textarea:focus-visible { border-color: var(--focus); }
-.arama { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-l); box-shadow: var(--shadow-2); }
+/* Arama formu: beyaz alanlar, ince krom-koyu kenar; tek yükseltilmiş yüzey. */
+.alan { font-weight: 600; }
+.alan input, .alan select, .alan textarea { border-width: 1px; }
+.arama { border: 1px solid var(--line-soft); border-radius: var(--radius-l); }
 
-/* Fiyat: sade — Expanded rakam, altında çizgi YOK; KDV notu kutusuz. */
-.tutar {
-  font: 700 1.625rem/1.1 var(--font-display); letter-spacing: -.02em; color: var(--price-ink);
-  text-decoration: none; font-variant-numeric: tabular-nums;
-}
-.birim { color: var(--ink-faint); font-size: var(--step--1); }
-.kdv { border: 0; padding: 0; color: var(--ink-faint); font-size: var(--step--1); }
-.fis { border-top: 1px solid var(--line); padding-top: var(--space-3); }
-.fis-hesap { color: var(--ink-muted); }
+/* Fiyat: sade — Expanded rakam, altında çizgi YOK, KDV notu kutusuz. */
+.tutar { font: 700 1.625rem/1.1 var(--font-display); letter-spacing: -.02em; text-decoration: none; }
+.kdv { border: 0; padding: 0; color: var(--ink-subtle); }
+.fis { border-top: 1px solid var(--line); }
 
-.ilkeler li::before { width: 100%; height: 1px; background: var(--line); margin-bottom: var(--space-4); border-radius: 0; }
+/* Güven şeridi: vurgu segmenti yerine tam genişlik krom çizgi. */
+.ilkeler li::before { width: 100%; height: 1px; background: var(--line); margin-bottom: var(--space-2); border-radius: 0; }
 .ilkeler strong { font: 600 var(--step-1)/1.25 var(--font-body); }
-.ilkeler span { color: var(--ink-muted); }
 
+/* Adımlar: numara gerçek bir sıra; firma rengine değil mürekkebe yazılır (tek kroma düğmelerde). */
 .adimlar li { border-top: 1px solid var(--line); }
 .adimlar li::before { font: 700 var(--step-3)/1 var(--font-display); color: var(--ink); }
-.adimlar p { color: var(--ink-muted); }
 
-.madde li { color: var(--ink-muted); }
-.ornek-fis { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-l); }
+.ornek-fis { border: 1px solid var(--line); border-radius: var(--radius-l); }
 .ornek-fis dd { font: 700 var(--step-0)/1.3 var(--font-display); }
 .ornek-fis .fis-toplam-satir { border-top: 1px solid var(--line); }
-
-.sss-liste { border-top: 1px solid var(--line); }
-.sss { border-bottom: 1px solid var(--line); }
 .sss > summary { font: 600 var(--step-1)/1.3 var(--font-body); }
-.sss > summary::after { color: var(--ink-faint); }
-.sss p { color: var(--ink-muted); max-width: var(--measure); }
+.sonuc-ozet strong { font-weight: 700; }
 
-/* Kapanış bandı: sahne ile aynı grafit; yol çizgisi yok. */
-.cta-bant { background: var(--stage-bg); color: var(--stage-ink); padding-block: var(--space-7); }
-.cta-bant::before { content: none; }
-.cta-bant h2 { color: var(--stage-ink); font-size: var(--step-3); }
+/* Kapanış bandı: sahne ile aynı grafit. */
+.cta-bant { background: var(--stage-bg); color: var(--stage-ink); padding-block: var(--space-5); }
+.cta-bant h2 { color: var(--stage-ink); }
 .cta-bant p { color: color-mix(in srgb, var(--stage-ink) 80%, var(--stage-bg)); }
 .cta-bant .btn-ters { background: var(--stage-ink); color: var(--stage-bg); }
 .cta-bant .btn-ters:hover { background: color-mix(in srgb, var(--stage-ink) 86%, var(--stage-bg)); color: var(--stage-bg); }
 .cta-bant .btn-ters-cizgi { border-color: color-mix(in srgb, var(--stage-ink) 50%, var(--stage-bg)); color: var(--stage-ink); }
+.cta-bant .btn-ters-cizgi:hover { border-color: var(--stage-ink); color: var(--stage-ink); }
 .cta-bant :focus-visible { outline-color: var(--stage-ink); }
 
-/* İlan detayı: kapak büyük ve köşesiz; panel tek yükseltilmiş yüzey. */
+/* İlan detayı: kapak büyük, panel tek yükseltilmiş yüzey. */
 .detay-bas h1 { font-size: var(--step-4); }
-.detay-kapak img, .kapak-bos { border-radius: var(--radius-m); background: var(--bg-alt); }
+.detay-kapak img, .kapak-bos { background: var(--stage-bg); }
 .panel { background: var(--surface-raised); border: 1px solid var(--line-soft); border-radius: var(--radius-l); box-shadow: var(--shadow-2); }
-.panel h2 { font-size: var(--step-1); }
-.panel .arama { box-shadow: none; border: 0; }
-.tarife-tablo th, .tarife-tablo td { border-bottom-color: var(--line); }
 .tarife-tablo td strong { font: 700 var(--step-1)/1.1 var(--font-display); }
 .tarife-tablo tr:first-child td strong { font-size: var(--step-3); text-decoration: none; }
-.galeri a { border-radius: var(--radius-s); }
+.ozellik-tablo { background: transparent; border: 0; border-top: 1px solid var(--line); border-radius: 0; }
+.ozellik-tablo th, .ozellik-tablo td { padding-inline: 0; }
 /* Sayfa içi bölüm (detayda "diğer araçlar", 404'te filo) ardından bant geliyorsa fiyat satırı banda
    yapışmasın. */
-.bolum-ic { margin-bottom: var(--space-7); }
-.ozellik-tablo { background: transparent; border: 0; border-top: 1px solid var(--line); border-radius: 0; }
-.ozellik-tablo th, .ozellik-tablo td { padding-inline: 0; border-bottom-color: var(--line); }
+.bolum-ic { margin-bottom: var(--space-5); }
 
-.talep-form fieldset { border: 1px solid var(--line); border-radius: var(--radius-l); background: var(--surface); }
+.talep-form fieldset { border: 1px solid var(--line); border-radius: var(--radius-l); }
 .talep-form legend { font: 700 var(--step-1)/1.2 var(--font-display); }
 .ozet-kart { border: 1px solid var(--line); border-radius: var(--radius-l); }
 .kanallar li { border-top: 1px solid var(--line); }
 .buyuk-baglanti { font: 700 var(--step-2)/1.2 var(--font-display); }
-.not-kutu { border-left-color: var(--brand); background: color-mix(in srgb, var(--brand) 10%, var(--bg)); }
-.not-kutu.hata { border-left-color: var(--danger); background: color-mix(in srgb, var(--danger) 10%, var(--bg)); }
-.yazi { background: transparent; border: 0; border-radius: 0; }
-.yazi img, .yazi .foto-yok { border-radius: var(--radius-m); }
 .yazi-ic { padding-inline: 0; }
+.yazi img, .yazi .foto-yok { border-radius: var(--radius-m); }
 .yazi-cta { background: var(--bg-alt); border-radius: var(--radius-l); }
 
 /* 404: rakam dev Expanded, krom — süs (aria-hidden); asıl mesaj başlıkta. */
 .hata-kod { font: 700 clamp(5rem, 3rem + 10vw, 11rem)/.85 var(--font-display); letter-spacing: -.04em; color: var(--line); }
 
-.cerez-serit { background: var(--surface-raised); border: 1px solid var(--line); border-radius: var(--radius-l); box-shadow: var(--shadow-2); }
-.altbar { background: var(--surface); border-top: 1px solid var(--line); }
-
 /* =============================================================================
-   Slot: üst bar (Themes/Vitrin/Header.razor)
+   Slot: üst bar (VitrinHeader.razor)
    ============================================================================= */
 .v-bar { background: var(--bg); border-bottom: 1px solid var(--line); }
-.v-bar-ic { display: flex; align-items: center; gap: var(--space-5); min-height: 64px; }
+.v-bar-ic { display: flex; align-items: center; gap: var(--space-3); min-height: 64px; }
 .v-marka { display: inline-flex; align-items: center; min-height: 44px; margin-right: auto; color: var(--ink); text-decoration: none; }
 .v-marka img { display: block; height: 40px; width: auto; max-width: 200px; object-fit: contain; }
 .v-marka .marka-ad { font: 700 1.25rem/1 var(--font-display); letter-spacing: -.02em; }
 .v-nav { display: none; }
-.v-nav a, .v-menu-liste a { color: var(--ink); text-decoration: none; font-weight: 600; font-size: var(--step--1); }
-.v-nav a { display: inline-flex; align-items: center; min-height: 44px; border-bottom: 2px solid transparent; }
+.v-nav a, .v-menu-liste a { color: var(--ink); text-decoration: none; font-weight: 600; }
+.v-nav a { display: inline-flex; align-items: center; min-height: 44px; font-size: var(--step--1); border-bottom: 2px solid transparent; }
 .v-nav a:hover { border-bottom-color: var(--brand); }
 .v-bar-tel { display: none; }
 .v-menu { position: relative; }
@@ -305,10 +234,10 @@ strong, b { font-weight: 600; }
 .v-menu[open] > summary { border-color: var(--ink); }
 .v-menu-liste {
   position: absolute; right: 0; top: calc(100% + 8px); z-index: 30; min-width: 240px;
-  margin: 0; padding: var(--space-2) 0; list-style: none;
+  margin: 0; padding: var(--space-1) 0; list-style: none;
   background: var(--surface-raised); border: 1px solid var(--line); border-radius: var(--radius-m); box-shadow: var(--shadow-2);
 }
-.v-menu-liste a { display: flex; align-items: center; min-height: 44px; padding: 0 var(--space-4); font-size: var(--step-0); }
+.v-menu-liste a { display: flex; align-items: center; min-height: 44px; padding: 0 var(--space-2); }
 .v-menu-liste a:hover { background: var(--bg-alt); }
 @media (prefers-color-scheme: dark) {
   /* Logoların çoğu şeffaf zeminli KOYU yazı: koyu barda açık bir levhaya oturur. */
@@ -316,29 +245,30 @@ strong, b { font-weight: 600; }
 }
 @media (min-width: 900px) {
   .v-bar { position: sticky; top: 0; z-index: 20; }
-  .v-nav { display: flex; gap: var(--space-5); }
+  .v-nav { display: flex; gap: var(--space-3); }
   .v-menu { display: none; }
   .v-bar-tel { display: inline-flex; }
 }
 
 /* =============================================================================
-   Slot: hero / SAHNE (Themes/Vitrin/Hero.razor) — temanın tek cesur unsuru.
-   Model adı sahnenin alt kenarına --tasma kadar taşar. Gerçek metin (alt kopya, zemin mürekkebi) yalnız
-   kenarın ALTINI, aria-hidden üst kopya (sahne mürekkebi) yalnız ÜSTÜNÜ gösterir; kenar iki kopyada da
-   aynı yerde, çünkü kırpma em cinsinden ve ad bloğu tam --tasma kadar aşağı itilmiş.
+   Slot: hero / SAHNE (VitrinHero.razor) — temanın tek cesur unsuru.
+   Model adı sahnenin alt kenarına --tasma kadar taşar. Gerçek metin (zemin mürekkebi) yalnız kenarın
+   ALTINI, aria-hidden üst kopya (sahne mürekkebi) yalnız ÜSTÜNÜ gösterir. Kırpma em cinsinden ve ad bloğu
+   tam --tasma kadar aşağı itildiği için kenar iki kopyada da aynı yerde; ad birkaç satıra sarsa da yalnız
+   son satır kenara biner (inset yüzdesi bloğun yüksekliğine göre).
    ============================================================================= */
 .v-hero { --tasma: .42em; position: relative; }
 .v-sahne {
   position: relative; display: flex; align-items: flex-end;
-  /* Mobilde kısa: sahne + ad + tarih alanları + düğme, çerez şeridi ve alt çubuk açıkken bile ilk
-     ekranda kalmalı (390×844'te ölçüldü: 42svh'de düğme şeridin altında kalıyordu). */
+  /* Mobilde kısa: sahne + ad + tarih alanları + düğme ilk ekranda kalmalı (390×844 ölçüldü: 42svh'de
+     düğme ekranın altında kalıyordu). */
   min-height: clamp(200px, 29svh, 300px); background: var(--stage-bg);
 }
 .v-sahne-foto { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
 /* Alt kenarda koyulaşma: üst kopyanın açık harfi her fotoğrafta okunsun (işlevsel perde, süs değil). */
 .v-sahne::after {
   content: ""; position: absolute; inset: 40% 0 0; pointer-events: none;
-  background: linear-gradient(to bottom, transparent, color-mix(in srgb, var(--p-graphite-900) 62%, transparent));
+  background: linear-gradient(to bottom, transparent, color-mix(in srgb, var(--stage-shade) 62%, transparent));
 }
 .v-hero-yalin .v-sahne::after { content: none; }
 .v-sahne-ic { position: relative; z-index: 1; width: 100%; }
@@ -348,7 +278,6 @@ strong, b { font-weight: 600; }
   color: var(--ink); text-decoration: none; overflow-wrap: anywhere; text-wrap: balance;
   transform: translateY(var(--tasma));
 }
-.v-model-k { font-size: var(--step-5); }
 .v-model-o { font-size: clamp(2.2rem, .8rem + 6vw, 6.75rem); }
 .v-model-u { font-size: clamp(1.9rem, .8rem + 4.6vw, 5.25rem); }
 .v-model-ad { display: block; clip-path: inset(calc(100% - var(--tasma)) 0 0 0); }
@@ -356,93 +285,96 @@ strong, b { font-weight: 600; }
 a.v-model:hover .v-model-ad { text-decoration: underline; text-decoration-thickness: .06em; text-underline-offset: .08em; }
 a.v-model:focus-visible { outline-offset: 6px; }
 
-.v-hero-alt { display: grid; gap: var(--space-5); padding-top: calc(var(--step-5) * .42 + var(--space-4)); padding-bottom: var(--space-6); }
-.v-hero-fiyat { display: flex; flex-wrap: wrap; align-items: baseline; gap: .25rem .6rem; margin: 0 0 var(--space-2); }
+.v-hero-alt { display: grid; gap: var(--space-3); padding-top: calc(var(--step-5) * .42 + var(--space-2)); padding-bottom: var(--space-4); }
+.v-hero-fiyat { display: flex; flex-wrap: wrap; align-items: baseline; gap: .25rem .6rem; margin: 0 0 var(--space-1); }
 .v-hero-metin { margin: 0; color: var(--ink-muted); max-width: 46ch; }
-.v-arama h1 { font-size: var(--step-1); letter-spacing: -.015em; line-height: 1.2; margin: 0 0 var(--space-3); max-width: 30ch; }
+.v-hero-metin strong { color: var(--ink); }
+.v-arama h1 { font-size: var(--step-1); letter-spacing: -.015em; line-height: 1.2; margin: 0 0 .75rem; max-width: 30ch; }
 .v-arama .arama { box-shadow: none; }
 @media screen and (max-width: 719px) {
   /* Mobil: arama sahnenin hemen altında, not ondan sonra — ana eylem ilk ekranda kalsın. */
-  .v-hero-alt { padding-top: calc(var(--step-5) * .42 + var(--space-3)); gap: var(--space-4); }
+  .v-hero-alt { padding-top: calc(var(--step-5) * .42 + .75rem); gap: var(--space-2); }
   .v-arama { order: -1; }
   .v-arama .arama { padding: 0; background: none; border: 0; }
 }
 @media (min-width: 720px) {
   .v-sahne { min-height: clamp(420px, 62svh, 720px); }
-  .v-hero-alt { grid-template-columns: minmax(0, 1fr) minmax(340px, 420px); align-items: start; column-gap: var(--space-7); }
+  .v-hero-alt { grid-template-columns: minmax(0, 1fr) minmax(340px, 420px); align-items: start; column-gap: var(--space-5); }
   /* Panel sahnenin alt kenarına biner. */
   .v-arama {
     position: relative; z-index: 2; margin-top: calc(-1 * clamp(8rem, 14vw, 13rem));
-    padding: var(--space-5); background: var(--surface-raised); border: 1px solid var(--line-soft);
+    padding: var(--space-3); background: var(--surface-raised); border: 1px solid var(--line-soft);
     border-radius: var(--radius-l); box-shadow: var(--shadow-2);
   }
   .v-arama .arama { padding: 0; border: 0; background: none; }
-  .v-model { max-width: calc(100% - 420px - var(--space-6)); }
+  .v-model { max-width: calc(100% - 420px - var(--space-4)); }
 }
 
 /* =============================================================================
-   Slot: ilan kartı (Themes/Vitrin/Card.razor) — çerçevesiz, gölgesiz, görsel önde.
+   Slot: ilan kartı (VitrinCard.razor) — çerçevesiz, gölgesiz, görsel önde.
    ============================================================================= */
-.ilanlar:has(.v-kart) { gap: var(--space-6) var(--space-5); grid-template-columns: repeat(auto-fill, minmax(min(100%, 300px), 1fr)); }
-.v-kart { position: relative; display: flex; flex-direction: column; height: 100%; background: var(--card-bg); border: 1px solid var(--card-border); border-radius: 0; overflow: visible; }
-.v-kart:hover { box-shadow: none; }
+.ilanlar:has(.v-kart) { gap: var(--space-4) var(--space-3); grid-template-columns: repeat(auto-fill, minmax(min(100%, 300px), 1fr)); }
+.v-kart { position: relative; display: flex; flex-direction: column; height: 100%; background: var(--card-bg); border: 1px solid var(--card-border); }
 .v-kart:has(h3 a:focus-visible) { outline: 2px solid var(--focus); outline-offset: 6px; }
 .v-kart h3 a:focus-visible { outline: none; }
 .v-kart-foto { aspect-ratio: 4 / 3; overflow: hidden; border-radius: var(--card-radius); background: var(--stage-bg); }
 .v-kart-foto img { display: block; width: 100%; height: 100%; object-fit: cover; transition: transform .4s ease; }
+/* Tek hareket: kullanıcının imlecine cevap. */
 .v-kart:hover .v-kart-foto img { transform: scale(1.03); }
 /* Fotoğrafsız ilan: grafit zemin üstünde modelin adı, Expanded — sahnenin küçük karşılığı. */
-.v-foto-yok { display: flex; align-items: flex-end; padding: var(--space-4); }
-.v-foto-yok-ad { font: 700 var(--step-3)/.95 var(--font-display); letter-spacing: -.03em; color: color-mix(in srgb, var(--stage-ink) 55%, var(--stage-bg)); overflow-wrap: anywhere; }
-.v-kart-govde { display: flex; flex: 1; flex-direction: column; gap: var(--space-2); padding-top: var(--space-4); }
+.v-foto-yok { display: flex; align-items: flex-end; padding: var(--space-2); }
+.v-foto-yok-ad { font: 700 var(--step-3)/.95 var(--font-display); letter-spacing: -.03em; color: color-mix(in srgb, var(--stage-ink) 60%, var(--stage-bg)); overflow-wrap: anywhere; }
+.v-kart-govde { display: flex; flex: 1; flex-direction: column; gap: .5rem; padding-top: var(--space-2); }
 .v-kart h3 { margin: 0; font-size: var(--step-1); }
 .v-kart h3 a { color: var(--ink); text-decoration: none; }
 .v-kart h3 a::after { content: ""; position: absolute; inset: 0; z-index: 1; }
-.v-kart-meta { margin: 0; color: var(--ink-faint); font-size: var(--step--1); }
+.v-kart-meta { margin: 0; color: var(--ink-subtle); font-size: var(--step--1); }
+.ozellikler { display: flex; flex-wrap: wrap; margin: 0; padding: 0; list-style: none; }
 .v-kart-ozellik { color: var(--ink-muted); font-size: var(--step--1); }
-.v-kart-ozellik li + li::before { background: var(--line); }
-.v-kart-fiyat { margin-top: auto; padding-top: var(--space-3); display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: var(--space-2) var(--space-4); }
-.v-kart-fiyat .fis-hesap { flex-basis: 100%; margin: 0; font-size: var(--step--1); }
+.v-kart-ozellik li + li::before { content: ""; display: inline-block; width: 1px; height: .85em; margin: 0 .55rem; background: var(--line); vertical-align: -.05em; }
+.v-kart-fiyat { margin-top: auto; padding-top: .75rem; display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: .5rem var(--space-2); }
+.v-kart-fiyat .fis-hesap { flex-basis: 100%; margin: 0; }
 .v-kart-fiyat .fis-toplam { margin: 0; }
 .v-kart-fiyat .tutar { font-size: var(--step-2); }
 .v-kart-teklif {
   position: relative; z-index: 2; display: inline-flex; align-items: center; min-height: 44px;
-  font: 700 .875rem/1 var(--font-display); color: var(--brand-text); text-decoration: underline;
-  text-decoration-thickness: 1px; text-underline-offset: .3em;
+  font: 700 .875rem/1 var(--font-display); color: var(--brand-text);
+  text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: .3em;
 }
 .v-kart-teklif:hover { text-decoration-thickness: 2px; }
-.v-kart .ilan-isaret { top: .75rem; left: .75rem; background: var(--surface-raised); color: var(--ink); border-radius: var(--radius-s); font: 700 .8125rem/1.4 var(--font-display); }
+.v-kart-isaret {
+  position: absolute; z-index: 2; top: .75rem; left: .75rem; margin: 0; padding: .2rem .6rem;
+  background: var(--surface-raised); color: var(--ink); border-radius: var(--radius-s); font: 700 .8125rem/1.4 var(--font-display);
+}
 
 /* =============================================================================
-   Slot: alt bilgi (Themes/Vitrin/Footer.razor)
+   Slot: alt bilgi (VitrinFooter.razor) — sahneyle aynı grafit; sayfa açık başlar, koyu biter.
    ============================================================================= */
 .v-alt {
-  background: var(--stage-bg); color: color-mix(in srgb, var(--stage-ink) 78%, var(--stage-bg));
+  background: var(--stage-bg); color: color-mix(in srgb, var(--stage-ink) 80%, var(--stage-bg));
   /* Kapanış bandı da grafit: ikisi tek blok gibi akmasın diye ince ayraç. */
   border-top: 1px solid color-mix(in srgb, var(--stage-ink) 16%, var(--stage-bg));
 }
 .v-alt a { color: var(--stage-ink); }
 .v-alt :focus-visible { outline-color: var(--stage-ink); }
-.v-alt-ic { display: grid; gap: var(--space-6) var(--space-5); padding-block: var(--space-7) var(--space-6); grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); }
+.v-alt-ic { display: grid; gap: var(--space-4) var(--space-3); padding-block: var(--space-5) var(--space-4); grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); }
 .v-alt-marka { grid-column: 1 / -1; }
 .v-alt-marka .v-marka { color: var(--stage-ink); }
 .v-alt-marka .marka-ad { font-size: var(--step-3); }
-.v-alt-marka p { margin: var(--space-2) 0 0; max-width: 40ch; }
-.v-alt-baslik { margin: 0 0 var(--space-2); font-weight: 600; color: var(--stage-ink); }
+.v-alt-marka p { margin: var(--space-1) 0 0; max-width: 40ch; }
+.v-alt-baslik { margin: 0 0 var(--space-1); font-weight: 600; color: var(--stage-ink); }
 .v-alt ul { list-style: none; margin: 0; padding: 0; }
 .v-alt li a { display: inline-flex; align-items: center; min-height: 40px; text-decoration: none; }
 .v-alt li a:hover { text-decoration: underline; }
-.v-alt-son { padding-block: var(--space-4); border-top: 1px solid color-mix(in srgb, var(--stage-ink) 18%, var(--stage-bg)); font-size: var(--step--1); }
+.v-alt-son { padding-block: var(--space-2); border-top: 1px solid color-mix(in srgb, var(--stage-ink) 18%, var(--stage-bg)); font-size: var(--step--1); }
 @media (min-width: 900px) { .v-alt-marka { grid-column: auto; } }
 
-/* Hareket: yalnız kullanıcının eylemine cevap (hover). Azaltılmış hareket isteyene hiç yok. */
 @media (prefers-reduced-motion: reduce) {
-  .v-kart-foto img { transition: none; }
   .v-kart:hover .v-kart-foto img { transform: none; }
 }
 
 @media print {
-  .v-bar, .v-alt, .v-arama, .v-kart-teklif, .v-menu { display: none !important; }
+  .v-arama, .v-kart-teklif, .v-menu { display: none !important; }
   .v-sahne { min-height: 0; background: none; }
   .v-sahne-foto, .v-sahne::after, .v-model-ust { display: none; }
   .v-model { transform: none; }

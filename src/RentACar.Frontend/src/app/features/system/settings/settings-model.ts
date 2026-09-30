@@ -78,6 +78,7 @@ export const SETTINGS_FIELDS = [
   'iadeIslemSaatSiniri',
   ...COLOR_FIELDS,
   'siteVurguRengi',
+  'siteTemasi',
   'smtpHost',
   'smtpPort',
   'smtpKullanici',
@@ -107,6 +108,21 @@ export const PRICE_TYPES = [
   'KDV Dahil Toplam',
   'Toplam',
 ] as const;
+
+/**
+ * Halka açık site temaları (`SiteThemeKeys.All`; sunucu yalnız bunları kabul eder). Boş = varsayılan (tarife);
+ * formda boş seçenek yok, yüklenen null değer "tarife" gibi gösterilir.
+ */
+export const SITE_THEMES = ['tarife', 'vitrin', 'kontuar'] as const;
+export type SiteTheme = (typeof SITE_THEMES)[number];
+
+/**
+ * Önizleme adresi: firmanın sitesinde `?tema=` (kalıcı değil, arama motoruna kapalı). Şema-göreli (`//host`):
+ * ERP ile site aynı şemayla (üretimde https) yayında; mutlak http(s) adres SPA'da lint ile yasak.
+ */
+export function themePreviewUrl(host: string, theme: SiteTheme): string {
+  return `//${host}/?tema=${encodeURIComponent(theme)}`;
+}
 
 /** `SmtpEndpointGuard.AllowedPorts` (sunucu yalnız bunları kabul eder). */
 export const SMTP_PORTS = [25, 465, 587, 2525] as const;
@@ -145,6 +161,8 @@ export function settingsFormValue(
     out[name] = (SECRET_FIELDS as readonly string[]).includes(name) ? null : (source[name] ?? null);
   }
   for (const flag of CLEAR_FLAG_NAMES) out[flag] = false;
+  // Kayıtlı tema yoksa site varsayılanı (tarife) basıyor: radyo da onu seçili göstersin.
+  out.siteTemasi = out.siteTemasi ?? SITE_THEMES[0];
   return out;
 }
 

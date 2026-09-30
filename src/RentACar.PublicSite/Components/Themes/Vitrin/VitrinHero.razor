@@ -1,7 +1,8 @@
 @using RentACar.Application.Fleet
 @using RentACar.PublicSite.Components.Shared
 
-@* Vitrin hero — temanın TEK cesur unsuru (tema-vitrin.css "Sahne").
+@* Tema "vitrin" — Hero slotu. İmza SABİT (Components/Themes/README.md): Marka, Branding, Subeler,
+   Kartlar, Sehir. Temanın TEK cesur unsuru (tema-vitrin.css "Sahne").
 
    SAHNE: ilk FOTOĞRAFLI ilanın kapağı tam genişlik. Model adı çok büyük Expanded harfle fotoğrafın alt
    kenarına taşar: üst kısmı fotoğraf üstünde açık, alt kısmı sayfa zemininde koyu. Bu iki renk tek metinle
@@ -52,7 +53,14 @@
                     <span class="kdv">@(Lead.KdvDahil ? "KDV dahil" : "KDV hariç")</span>
                 </p>
             }
-            <p class="v-hero-metin">@Intro</p>
+            <p class="v-hero-metin">
+                @if (!string.IsNullOrWhiteSpace(Sehir))
+                {
+                    @* Hizmet bölgesi firmanın kendi şube adreslerinden türer (ServiceArea) — taahhüt değil, bilgi. *@
+                    <strong>@Sehir bölgesinde araç kiralama.</strong>@(" ")
+                }
+                @Intro
+            </p>
         </div>
         <div class="v-arama">
             <h1 id="hero-baslik">Tarihinizi seçin, müsait araçları ve net fiyatı görün</h1>
@@ -76,8 +84,7 @@
         : !string.IsNullOrWhiteSpace(Branding?.Marka) ? Branding!.Marka! : "Araç kiralama";
 
     /// <summary>Sabit metin, yalnız sistemin davranışını söyler (T1: teslimat/kasko gibi firma vaadi YOK).
-    /// Filo adedi tenant verisi. <see cref="Sehir"/> bilinçli kullanılmıyor: "şehirde teslim" bir firma
-    /// taahhüdü olurdu.</summary>
+    /// Filo adedi tenant verisi.</summary>
     private string Intro
     {
         get

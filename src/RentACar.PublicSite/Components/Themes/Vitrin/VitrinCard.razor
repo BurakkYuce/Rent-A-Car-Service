@@ -1,0 +1,90 @@
+@using RentACar.Application.Fleet
+
+@* Tema "vitrin" — Card slotu. İmza SABİT (Components/Themes/README.md): Kart, Tarih.
+
+   Görsel ağırlıklı: 4:3 fotoğraf, çerçevesiz, gölgesiz; ad ve fiyat görselin altında sade. Kart zemini
+   YOK (--card-bg saydam): ızgara bir galeri duvarı gibi okunur, gölgeli kart yığını gibi değil.
+
+   İKİ mod: (a) tarih SEÇİLMİŞ (Kart.Gun/Toplam dolu): "3 gün × ₺1.250" hesabı + toplam + müsait adet;
+   (b) tarih YOK: günlük fiyat + toplam araç adedi ("müsait" DENMEZ — tarihsiz bilinemez, T1).
+
+   Etkileşim: ad bağlantısı ::after ile kartın tamamını kaplar; "Teklif iste" onun üstünde ayrı hedef.
+   İç içe <a> yok. Fotoğraf yoksa grafit zemin üstünde model adı (boş gri kutu değil). *@
+
+<article class="v-kart">
+    @if (!string.IsNullOrWhiteSpace(Kart.Isaret))
+    {
+        <p class="v-kart-isaret">@Kart.Isaret</p>
+    }
+    <div class="v-kart-foto @(Kart.CoverPhotoId is null ? "v-foto-yok" : null)">
+        @if (Kart.CoverPhotoId is { } photoId)
+        {
+            @* Küçük görsel (400 px). Tembel; yalnız ilk ekrandaki ilk kart (Oncelikli) hemen iner (LCP). *@
+            <img src="@($"/foto/{photoId}/thumb")" alt="@Kart.Baslik" width="400" height="300"
+                 loading="@(Kart.Oncelikli ? "eager" : "lazy")" fetchpriority="@(Kart.Oncelikli ? "high" : null)" decoding="async" />
+        }
+        else
+        {
+            <span class="v-foto-yok-ad" aria-hidden="true">@Kart.Baslik</span>
+        }
+    </div>
+    <div class="v-kart-govde">
+        <h3><a href="@Kart.DetayLinki">@Kart.Baslik</a></h3>
+        @if (MetaLine is { Length: > 0 } meta)
+        {
+            <p class="v-kart-meta">@meta</p>
+        }
+        @{ var chips = Chips().Take(4).ToList(); }
+        @if (chips.Count > 0)
+        {
+            @* Yıl zaten üstte yazılı; aynı değeri taşıyan özellik satırı ("2023") ikinci kez basılmaz. *@
+            <ul class="ozellikler v-kart-ozellik" aria-label="Özellikler">
+                @foreach (var o in chips) { <li>@o.Deger</li> }
+            </ul>
+        }
+        <div class="v-kart-fiyat">
+            @if (Kart.Gun is { } g && Kart.Toplam is { } t)
+            {
+                <p class="fis-hesap">@g gün × @PriceText.Tl(Kart.GunlukFiyat)</p>
+                <p class="fis-toplam">
+                    <span class="tutar">@PriceText.Tl(t)</span>
+                    <span class="kdv">@(Kart.KdvDahil ? "KDV dahil" : "KDV hariç")</span>
+                </p>
+            }
+            else
+            {
+                <p class="fis-toplam">
+                    <span class="tutar">@PriceText.Tl(Kart.GunlukFiyat)</span><span class="birim">/ gün</span>
+                    <span class="kdv">@(Kart.KdvDahil ? "KDV dahil" : "KDV hariç")</span>
+                </p>
+            }
+            <a class="v-kart-teklif" href="@Kart.TeklifLinki">Teklif iste</a>
+        </div>
+    </div>
+</article>
+
+@code {
+    /// <summary>Kartın temadan bağımsız verisi (sayfa kurar).</summary>
+    [Parameter, EditorRequired] public ListingCard Kart { get; set; } = default!;
+    /// <summary>Ziyaretçinin seçtiği aralık; null → tarihsiz gezinti. Aralık sonuç özetinde yazılı; kartta
+    /// yalnız gün sayısı (Kart.Gun) kullanılır. İmza gereği alınır.</summary>
+    [Parameter] public StayDates? Tarih { get; set; }
+
+    /// <summary>"2023 model, 3 araç" — tarih seçiliyse "müsait" denebilir (kirada olanlar düşülmüş).</summary>
+    private string? MetaLine
+    {
+        get
+        {
+            var parts = new List<string>(2);
+            if (!string.IsNullOrWhiteSpace(Kart.YilAralik)) parts.Add($"{Kart.YilAralik} model");
+            if (Kart.Adet > 1) parts.Add(Kart.Gun is null ? $"{Kart.Adet} araç" : $"{Kart.Adet} araç müsait");
+            return parts.Count == 0 ? null : string.Join(", ", parts);
+        }
+    }
+
+    private IEnumerable<OzellikGoster> Chips()
+        => string.IsNullOrWhiteSpace(Kart.YilAralik)
+            ? Kart.Ozellikler
+            : Kart.Ozellikler.Where(o => !string.Equals((o.Deger ?? "").Trim(), Kart.YilAralik.Trim(),
+                StringComparison.OrdinalIgnoreCase));
+}

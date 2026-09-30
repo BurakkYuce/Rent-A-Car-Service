@@ -1,0 +1,23 @@
+@inject ThemeAccessor Themes
+
+@* İlan kartı slotu — sayfalar kartı bununla basar; aktif temanın Card bileşeni çizilir.
+   Parametre sözlüğü SABİT imza: Kart, Tarih (Components/Themes/README.md). *@
+@if (_type is not null)
+{
+    <DynamicComponent Type="_type" Parameters="Params" />
+}
+
+@code {
+    [Parameter, EditorRequired] public ListingCard Kart { get; set; } = default!;
+    [Parameter] public StayDates? Tarih { get; set; }
+
+    private Type? _type;
+
+    private Dictionary<string, object?> Params => new()
+    {
+        [nameof(Kart)] = Kart,
+        [nameof(Tarih)] = Tarih,
+    };
+
+    protected override async Task OnInitializedAsync() => _type = (await Themes.GetAsync()).Card;
+}

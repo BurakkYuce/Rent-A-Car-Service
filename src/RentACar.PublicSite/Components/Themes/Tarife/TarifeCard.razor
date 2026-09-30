@@ -1,0 +1,86 @@
+@using RentACar.Application.Fleet
+
+@* Tema "tarife" — Card slotu. İmza SABİT (Components/Themes/README.md): Kart, Tarih.
+
+   İKİ mod: (a) tarih SEÇİLMİŞ (Kart.Gun/Toplam dolu): "3 gün × ₺1.500" hesabı + toplam + müsait adet;
+   (b) tarih YOK: günlük fiyat + toplam araç adedi ("müsait" DENMEZ — tarihsiz bilinemez, T1).
+
+   Etkileşim: kartın tamamı detaya gider (başlık bağlantısı ::after ile kartı kaplar), "Teklif iste"
+   üstte ayrı bir hedef. İç içe <a> yok; klavyede iki ayrı durak. *@
+
+<article class="ilan">
+    @if (!string.IsNullOrWhiteSpace(Kart.Isaret))
+    {
+        <p class="ilan-isaret">@Kart.Isaret</p>
+    }
+    <div class="ilan-foto @(Kart.CoverPhotoId is null ? "foto-yok" : null)">
+        @if (Kart.CoverPhotoId is { } photoId)
+        {
+            @* Küçük görsel (400 px) — kart ekranda ~300-380 px. Tembel; yalnız ilk ekrandaki ilk kart
+               (Oncelikli) hemen ve yüksek öncelikle iner (LCP adayı). *@
+            <img src="@($"/foto/{photoId}/thumb")" alt="@Kart.Baslik" width="400" height="267"
+                 loading="@(Kart.Oncelikli ? "eager" : "lazy")" fetchpriority="@(Kart.Oncelikli ? "high" : null)" decoding="async" />
+        }
+    </div>
+    <div class="ilan-govde">
+        <h3><a href="@Kart.DetayLinki">@Kart.Baslik</a></h3>
+        @if (MetaLine is { Length: > 0 } meta)
+        {
+            <p class="ilan-yil">@meta</p>
+        }
+        @{ var chips = Chips().Take(4).ToList(); }
+        @if (chips.Count > 0)
+        {
+            @* Yıl zaten üstte yazılı; aynı değeri taşıyan özellik satırı ("2023") ikinci kez basılmaz. *@
+            <ul class="ozellikler" aria-label="Özellikler">
+                @foreach (var o in chips) { <li>@o.Deger</li> }
+            </ul>
+        }
+        <div class="fis">
+            @if (Kart.Gun is { } g && Kart.Toplam is { } t)
+            {
+                <p class="fis-hesap">@g gün × @PriceText.Tl(Kart.GunlukFiyat)</p>
+                <p class="fis-toplam">
+                    <span class="tutar">@PriceText.Tl(t)</span>
+                    <span class="kdv">@(Kart.KdvDahil ? "KDV dahil" : "KDV hariç")</span>
+                </p>
+            }
+            else
+            {
+                <p class="fis-toplam">
+                    <span class="tutar">@PriceText.Tl(Kart.GunlukFiyat)</span><span class="birim">/ gün</span>
+                    <span class="kdv">@(Kart.KdvDahil ? "KDV dahil" : "KDV hariç")</span>
+                </p>
+            }
+        </div>
+        <div class="ilan-eylem">
+            <a class="btn btn-brand" href="@Kart.TeklifLinki">Teklif iste</a>
+        </div>
+    </div>
+</article>
+
+@code {
+    /// <summary>Kartın temadan bağımsız verisi (sayfa kurar).</summary>
+    [Parameter, EditorRequired] public ListingCard Kart { get; set; } = default!;
+    /// <summary>Ziyaretçinin seçtiği aralık; null → tarihsiz gezinti. Bu tema aralığı kartta göstermez
+    /// (sonuç özetinde yazılı); imza gereği alınır.</summary>
+    [Parameter] public StayDates? Tarih { get; set; }
+
+    /// <summary>"2023 model, 3 araç" — tarih seçiliyse "müsait" denebilir (kirada olanlar düşülmüş).</summary>
+    private string? MetaLine
+    {
+        get
+        {
+            var parts = new List<string>(2);
+            if (!string.IsNullOrWhiteSpace(Kart.YilAralik)) parts.Add($"{Kart.YilAralik} model");
+            if (Kart.Adet > 1) parts.Add(Kart.Gun is null ? $"{Kart.Adet} araç" : $"{Kart.Adet} araç müsait");
+            return parts.Count == 0 ? null : string.Join(", ", parts);
+        }
+    }
+
+    private IEnumerable<OzellikGoster> Chips()
+        => string.IsNullOrWhiteSpace(Kart.YilAralik)
+            ? Kart.Ozellikler
+            : Kart.Ozellikler.Where(o => !string.Equals((o.Deger ?? "").Trim(), Kart.YilAralik.Trim(),
+                StringComparison.OrdinalIgnoreCase));
+}

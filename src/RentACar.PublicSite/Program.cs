@@ -23,6 +23,10 @@ builder.Services.AddScoped<PublicTenantContext>();
 builder.Services.AddScoped<ITenantContext>(sp => sp.GetRequiredService<PublicTenantContext>());
 builder.Services.AddScoped<ICurrentUser>(sp => sp.GetRequiredService<PublicTenantContext>());
 
+// ---- Site teması (Components/Themes): istek başına bir kez çözülür (?tema= önizleme → firmanın ayarı → tarife). ----
+builder.Services.AddHttpContextAccessor();
+builder.Services.AddScoped<RentACar.PublicSite.Components.Themes.ThemeAccessor>();
+
 // ---- PR-2/PR-3.5: host→tenant çözümleme (Found değilse 404 — asla varsayılan tenant'a düşmez).
 // Singleton ŞART: CachedPublicTenantResolver kendi MemoryCache'ini istekler arası TAŞIMALI — Scoped
 // olsaydı her istekte sıfırdan cache kurulur, cache hiç işe yaramazdı. PublicTenantResolver da

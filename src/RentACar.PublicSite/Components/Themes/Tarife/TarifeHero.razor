@@ -1,20 +1,31 @@
 @using RentACar.Application.Fleet
 
-@* PR-19 — Hero. Başlık ve alt metin SABİT (T1: firmanın vaadini değil, sitenin ne yaptığını
-   anlatır); marka adı, arama formu ve tarife TENANT'tan. Arama `/musaitlik` ile AYNI bileşen (T4).
+@* Tema "tarife" — Hero slotu. İmza SABİT (Components/Themes/README.md):
+   Marka, Branding, Subeler, Kartlar, Sehir.
 
-   TARİFE TAHTASI: filonun gerçek günlük fiyatları, ucuzdan pahalıya, nokta dolgulu satırlarla — ziyaretçi
-   ilk ekranda "ne kadar?" sorusunun cevabını görür. VERİYE BAĞLI: yayında ilan yoksa hiç basılmaz (T2).
-   KDV etiketi ilanın kendi işaretinden; hepsi aynıysa tek not, karışıksa satır başına. *@
+   Başlık ve alt metin SABİT (T1: firmanın vaadini değil, sitenin ne yaptığını anlatır); marka adı, arama
+   formu ve tarife TENANT'tan. Arama `/musaitlik` ile AYNI bileşen (T4).
+
+   TARİFE TAHTASI: filonun gerçek günlük fiyatları, ucuzdan pahalıya, nokta dolgulu satırlarla. VERİYE
+   BAĞLI: yayında ilan yoksa hiç basılmaz (T2). KDV etiketi ilanın kendi işaretinden. Tahtanın altında
+   örnek hesap: en uygun ilanın kendi günlük fiyatıyla 3 gün (1-7 gün kademesi = ilanın günlük fiyatı,
+   FleetShowcaseService.DailyEquivalent; aynı tarihlerle yapılan aramanın toplamıyla aynı). *@
 
 <section class="hero" aria-labelledby="hero-baslik">
     <div class="wrap hero-grid">
         <div>
             <h1 id="hero-baslik">Tarihinizi seçin, müsait araçları ve net fiyatı görün</h1>
+            @* Yerel arama ifadesi (SEO H-4): hizmet bölgesi aktif şubelerin il/ilçesinden (ServiceArea); veri
+               yoksa cümle hiç basılmaz (T2). İkinci cümle telefonda gizli: ilk ekranda arama düğmesi görünsün. *@
             <p class="hero-alt">
+                @if (!string.IsNullOrWhiteSpace(Sehir))
+                {
+                    <strong>@Sehir bölgesinde araç kiralama.</strong>@(" ")
+                }
                 @(string.IsNullOrWhiteSpace(Marka) ? "Filomuzdaki" : $"{Marka} filosundaki")
-                her aracın günlük, haftalık ve aylık fiyatı ilanında yazılı. Tarih seçtiğinizde gün sayısına
-                göre toplamı hesaplarız; beğendiğiniz araç için talep bırakırsınız, ekip sizi arar.
+                her aracın günlük, haftalık ve aylık fiyatı ilanında yazılı.
+                <span class="hero-alt-uzun">Tarih seçtiğinizde gün sayısına göre toplamı hesaplarız; beğendiğiniz
+                    araç için talep bırakırsınız, ekip sizi arar.</span>
             </p>
 
             <AramaFormu Hedef="/musaitlik" Subeler="Subeler" />
@@ -29,6 +40,7 @@
 
         @if (Rows.Count > 0)
         {
+            var o = Rows[0];
             <aside class="tarife" aria-labelledby="tarife-baslik">
                 <h2 id="tarife-baslik">Günlük fiyatlar</h2>
                 <p class="tarife-not">@VatNote</p>
@@ -54,6 +66,15 @@
                 {
                     <p class="tarife-son"><a href="/musaitlik">Tüm filo (@Kartlar.Count araç)</a></p>
                 }
+                <div class="tarife-ornek">
+                    <p class="tarife-not">Örnek hesap: @o.Baslik, 3 gün</p>
+                    <p class="fis-hesap">3 gün × @PriceText.Tl(o.GunlukFiyat)</p>
+                    <p class="fis-toplam">
+                        <span class="tutar">@PriceText.Tl(o.GunlukFiyat * ExampleDays)</span>
+                        <span class="kdv">@(o.KdvDahil ? "KDV dahil" : "KDV hariç")</span>
+                    </p>
+                    <p class="tarife-not">8 gün ve üzerinde haftalık, 30 gün ve üzerinde aylık fiyat uygulanır (ilanda varsa).</p>
+                </div>
             </aside>
         }
     </div>
@@ -62,10 +83,18 @@
 @code {
     /// <summary>Tarife tahtasında en fazla kaç satır (fazlası "Tüm filo" bağlantısıyla).</summary>
     private const int MaxRows = 6;
+    private const int ExampleDays = 3;
 
+    /// <summary>Marka adı (boşsa "Filomuzdaki").</summary>
     [Parameter] public string? Marka { get; set; }
+    /// <summary>Firma bilgisi (iletişim, logo sürümü). Bu tema kullanmıyor; imza gereği alınır.</summary>
+    [Parameter] public FleetBranding? Branding { get; set; }
+    /// <summary>Aktif şube adları (arama formunun seçim kutusu).</summary>
     [Parameter] public IReadOnlyList<string> Subeler { get; set; } = [];
+    /// <summary>Yayındaki ilanlar (servis sırasıyla).</summary>
     [Parameter] public IReadOnlyList<FleetShowcaseCard> Kartlar { get; set; } = [];
+    /// <summary>Hizmet bölgesi ("Esenyurt, İstanbul"); null → bölge cümlesi basılmaz.</summary>
+    [Parameter] public string? Sehir { get; set; }
 
     private IReadOnlyList<FleetShowcaseCard> Rows => [.. Kartlar.OrderBy(c => c.GunlukFiyat).Take(MaxRows)];
     private bool MixedVat => Kartlar.Any(c => c.KdvDahil) && Kartlar.Any(c => !c.KdvDahil);

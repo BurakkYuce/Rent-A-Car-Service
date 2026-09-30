@@ -1,0 +1,54 @@
+@using RentACar.Application.Fleet
+
+@* Tema "tarife" — Footer slotu. İmza SABİT (Components/Themes/README.md): Branding, Sayfalar, YasalSayfalar.
+   Yasal sütunu YALNIZ yayında yasal sayfa varsa (yayında olmayan slug'a link 404 üretir, T2). *@
+
+<footer class="alt">
+    <div class="wrap alt-ic">
+        <div>
+            <a class="marka" href="/"><BrandMark Name="@Name" LogoVersion="@Branding?.LogoSurum" /></a>
+            @if (!string.IsNullOrWhiteSpace(Branding?.Adres)) { <p class="small">@Branding!.Adres</p> }
+        </div>
+        @if (_contact.TelLink is not null || _contact.WaLink is not null || _contact.Email is not null)
+        {
+            <div>
+                <p class="alt-baslik">İletişim</p>
+                <ul>
+                    @if (_contact.TelLink is not null) { <li><a href="@_contact.TelLink">@_contact.Phone</a></li> }
+                    @if (_contact.WaLink is not null) { <li><a href="@_contact.WaLink" target="_blank" rel="noopener noreferrer">WhatsApp'tan yazın</a></li> }
+                    @if (_contact.Email is not null) { <li><a href="@($"mailto:{_contact.Email}")">@_contact.Email</a></li> }
+                </ul>
+            </div>
+        }
+        <div>
+            <p class="alt-baslik">Sayfalar</p>
+            <ul>
+                @foreach (var s in Sayfalar) { <li><a href="@s.Href">@s.Label</a></li> }
+            </ul>
+        </div>
+        @if (YasalSayfalar.Count > 0)
+        {
+            <div>
+                <p class="alt-baslik">Yasal</p>
+                <ul>
+                    @foreach (var s in YasalSayfalar) { <li><a href="@s.Href">@s.Label</a></li> }
+                </ul>
+            </div>
+        }
+    </div>
+    <div class="alt-son"><div class="wrap">© @DateTime.Now.Year @Name</div></div>
+</footer>
+
+@code {
+    /// <summary>Firma bilgisi (ad, adres, logo sürümü, iletişim). Null → nötr kabuk.</summary>
+    [Parameter] public FleetBranding? Branding { get; set; }
+    /// <summary>Ana sayfa + menü + firmanın kendi içerik sayfaları (yasal olanlar HARİÇ).</summary>
+    [Parameter] public IReadOnlyList<SiteLink> Sayfalar { get; set; } = [];
+    /// <summary>Yayındaki yasal sayfalar (KVKK, çerez politikası…); boşsa sütun yok.</summary>
+    [Parameter] public IReadOnlyList<SiteLink> YasalSayfalar { get; set; } = [];
+
+    private ContactLinks _contact = ContactLinks.From(null);
+    private string Name => string.IsNullOrWhiteSpace(Branding?.Marka) ? "RentPro" : Branding!.Marka!;
+
+    protected override void OnParametersSet() => _contact = ContactLinks.From(Branding, Name);
+}

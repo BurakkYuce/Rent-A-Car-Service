@@ -1,6 +1,7 @@
 @using RentACar.Application.Fleet
 @inject FleetShowcaseService Showcase
 @inject NavigationManager Nav
+@inject ThemeAccessor Themes
 <!DOCTYPE html>
 <html lang="tr">
 
@@ -10,86 +11,72 @@
     <base href="/" />
     @* PR-9: canonical — aynı içerik hem subdomain hem özel domain'den servis edilebildiği için
        duplicate-content sinyali oluşur. Host `req.Host`'tan DEĞİL, kanonik kaynaktan okunur; query
-       string ATILIR (parametreli arama sayfaları ayrı ayrı indekslenmesin). *@
+       string ATILIR (parametreli arama ve ?tema= önizlemesi ayrı indekslenmesin). *@
     @if (_canonical is not null)
     {
         <link rel="canonical" href="@_canonical" />
     }
-    <meta name="theme-color" content="#f5f6f3" media="(prefers-color-scheme: light)" />
-    <meta name="theme-color" content="#121417" media="(prefers-color-scheme: dark)" />
+    <meta name="theme-color" content="@_theme.ThemeColorLight" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="@_theme.ThemeColorDark" media="(prefers-color-scheme: dark)" />
 
-    @* YAZI TİPİ: Barlow (gövde) + Barlow Condensed (başlık, fiyat, düğme) — karayolu levhası ve plaka
-       yazısından türeyen bir aile; sitenin "yol" kimliğini yazı taşır. İki dosya × iki alt küme = ~72 KB
-       (eski Inter + Sora ~183 KB). latin-ext ZORUNLU: Ğ/ğ, Ş/ş, İ ve ₺ orada; yalnız latin yüklenirse
-       Türkçe başlıklar harf harf yedek yazı tipine düşer.
-
-       @font-face bu <style> içinde, CSS dosyasında DEĞİL: adresler `@Assets[...]` ile PARMAK İZLİ basılır
-       (bir yıl `immutable` önbellek) ve önyükleme (preload) adresiyle BİREBİR aynı olur — CSS'teki düz
-       `url()` parmak izi alamazdı ve önyüklenen dosya ikinci kez inerdi. CSP: `style-src` zaten
-       'unsafe-inline' (Program.cs); yeni bir taviz yok.
-
-       Dört dosyanın dördü de önyüklenir: her sayfada hem başlık hem gövde yazısı var ve Türkçe metin
-       iki alt kümeyi de indirtir. Ölçüldü: yalnız başlık önyüklenince telefonda LCP (hero paragrafı,
-       gövde yazısı) yazı tipi değişimini bekleyip ~2,3 sn'ye çıkıyordu. *@
-    <link rel="preload" as="font" type="font/woff2" crossorigin href="@Assets["fonts/barlow-condensed-600-latin.woff2"]" />
-    <link rel="preload" as="font" type="font/woff2" crossorigin href="@Assets["fonts/barlow-condensed-600-latin-ext.woff2"]" />
-    <link rel="preload" as="font" type="font/woff2" crossorigin href="@Assets["fonts/barlow-400-latin.woff2"]" />
-    <link rel="preload" as="font" type="font/woff2" crossorigin href="@Assets["fonts/barlow-400-latin-ext.woff2"]" />
-    <style>
-        @@font-face{font-family:"Barlow";font-style:normal;font-weight:400;font-display:swap;src:url("@Assets["fonts/barlow-400-latin-ext.woff2"]") format("woff2");unicode-range:@LatinExt}
-        @@font-face{font-family:"Barlow";font-style:normal;font-weight:400;font-display:swap;src:url("@Assets["fonts/barlow-400-latin.woff2"]") format("woff2");unicode-range:@Latin}
-        @@font-face{font-family:"Barlow Condensed";font-style:normal;font-weight:600;font-display:swap;src:url("@Assets["fonts/barlow-condensed-600-latin-ext.woff2"]") format("woff2");unicode-range:@LatinExt}
-        @@font-face{font-family:"Barlow Condensed";font-style:normal;font-weight:600;font-display:swap;src:url("@Assets["fonts/barlow-condensed-600-latin.woff2"]") format("woff2");unicode-range:@Latin}
-        @* Yedek yazı tipinin ölçüsü Barlow'a yaklaştırılır: yazı tipi inince satırlar zıplamasın (CLS). *@
-        @@font-face{font-family:"Barlow Fallback";src:local("Arial");size-adjust:93%;ascent-override:100%;descent-override:20%;line-gap-override:0%}
-        @@font-face{font-family:"Barlow Condensed Fallback";src:local("Arial");size-adjust:80%;ascent-override:112%;descent-override:22%;line-gap-override:0%}
-        @* Firma vurgu rengi (TenantSettings.SiteVurguRengi) — BrandPalette açık/koyu tema için AA'yı geçen
-           tonları üretir. Çıktı çözümlenmiş RGB'den yazılır; ham ayar metni CSS'e hiç girmez. *@
-        @((MarkupString)_brandCss)
-    </style>
+    @* YAZI TİPLERİ aktif temadan (SiteTheme.Fonts). @font-face bu <style> içinde, CSS dosyasında DEĞİL:
+       adresler `@Assets[...]` ile PARMAK İZLİ basılır (bir yıl `immutable`) ve önyükleme adresiyle BİREBİR
+       aynı olur — CSS'teki düz `url()` parmak izi alamazdı ve önyüklenen dosya iki kez inerdi. Yalnız aktif
+       temanın dosyaları önyüklenir. CSP: `style-src` zaten 'unsafe-inline' (Program.cs). *@
+    @foreach (var file in _theme.FontPreloads)
+    {
+        <link rel="preload" as="font" type="font/woff2" crossorigin href="@Assets[file]" />
+    }
+    @if (_theme.Fonts.Count > 0)
+    {
+        <style>@((MarkupString)FontFaceCss())</style>
+    }
     <link rel="icon" href="favicon.svg" type="image/svg+xml" />
-    <link rel="stylesheet" href="@Assets["site.css"]" />
+    @* CSS üç katman: base.css (ortak yapı, yalnız semantik token) + aktif temanın css'i (primitive →
+       semantic → component + slot stilleri). Sözleşme: Components/Themes/README.md. *@
+    <link rel="stylesheet" href="@Assets["css/base.css"]" />
+    <link rel="stylesheet" href="@Assets[_theme.CssPath]" />
+    @* Firma vurgu rengi — tema css'inden SONRA (aynı özgüllükte sonraki kazanır): --brand/--on-brand/
+       --brand-text/--brand-soft her temada firmanın rengidir. YALNIZ BrandPalette çıktısı basılır; ham
+       ayar değeri (FleetBranding.VurguRengi) ASLA doğrudan stile yazılmaz — CSP style-src 'unsafe-inline'
+       olduğundan tek savunma bu. Firma renk seçmediyse temanın varsayılan vurgusu. *@
+    <style>@((MarkupString)_brandCss)</style>
     <HeadOutlet />
 </head>
 
 <body>
     <Routes />
-    @* PR-19: `blazor.web.js` KALDIRILDI (200.538 bayt, HER sayfada iniyordu).
-       Site %100 statik SSR: `AddRazorComponents()` var ama `AddInteractiveServerComponents` YOK,
-       hiçbir bileşende `@@rendermode` YOK, enhanced form/streaming kullanılmıyor. Dosyanın tek
-       katkısı "enhanced navigation" idi; karşılığında her ziyaretçiye 200 KB indiriliyordu.
-       Sayfa ağırlığı ~210 KB → ~10 KB. Formlar zaten saf GET/POST, `<details>` tarayıcıdan. *@
+    @* PR-19: `blazor.web.js` KALDIRILDI (200.538 bayt, HER sayfada iniyordu). Site %100 statik SSR. *@
 
-    @* Çerez bilgilendirme şeridi — sitedeki TEK betik (~1 KB). Harici dosya ŞART: CSP
-       `script-src 'self'` inline betiği bloklar. `defer` ile ayrıştırma engellenmez; şerit
-       zaten sunucudan `hidden` geldiği için geç açılması düzen kaymasına yol açmaz (sabit
-       konumlu, akış dışı). Adres parmak izli: bir yıl önbellekte kalır, değişince adres değişir. *@
+    @* Çerez bilgilendirme şeridi — sitedeki TEK betik (~1 KB). Harici dosya ŞART: CSP `script-src 'self'`
+       inline betiği bloklar. Şerit sunucudan `hidden` gelir; JS yoksa hiç görünmez. Parmak izli adres. *@
     <script src="@Assets["js/rc-cerez.js"]" defer></script>
 </body>
 
 </html>
 
 @code {
-    /// <summary>Barlow alt küme aralıkları (fontsource ile aynı). ₺ (U+20BA) latin-ext'te.</summary>
-    private const string Latin =
-        "U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,"
-        + "U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD";
-    private const string LatinExt =
-        "U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304,U+0308,U+0329,U+1D00-1DBF,"
-        + "U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF";
-
     private string? _canonical;
+    private SiteTheme _theme = SiteThemes.Tarife;
     private string _brandCss = BrandPalette.Css(null);
+
+    /// <summary>@font-face kuralları — değerler yalnız tema KAYDINDAN (sabit kod), kullanıcı verisi yok.</summary>
+    private string FontFaceCss() => string.Concat(_theme.Fonts.Select(f =>
+        $"@font-face{{font-family:\"{f.Family}\";font-style:normal;font-weight:{f.Weight};font-display:swap;"
+        + $"src:url(\"{Assets[f.File]}\") format(\"woff2\");unicode-range:{f.UnicodeRange}}}"));
 
     protected override async Task OnInitializedAsync()
     {
+        _theme = await Themes.GetAsync();
+        _brandCss = BrandPalette.Css(_theme.DefaultBrand);
         try
         {
-            _brandCss = BrandPalette.Css((await Showcase.GetBrandingAsync()).VurguRengi);
+            if ((await Showcase.GetBrandingAsync()).VurguRengi is { Length: > 0 } accent)
+                _brandCss = BrandPalette.Css(accent);
         }
         catch
         {
-            // Marka çözülemedi (alan adı çözülmemiş / site kapalı) → varsayılan renk. Sayfa YİNE basılır.
+            // Marka çözülemedi (alan adı çözülmemiş / site kapalı) → temanın varsayılan rengi. Sayfa YİNE basılır.
         }
 
         try

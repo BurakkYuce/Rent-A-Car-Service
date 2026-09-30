@@ -200,7 +200,28 @@
               yerTutucu="#rrggbb"
             />
           </rc-alan>
+          <rc-alan
+            [etiket]="'sistem.ayarlar.alan.siteTemasi' | transloco"
+            [ipucu]="'sistem.ayarlar.tema.ipucu' | transloco"
+            grup
+          >
+            <rc-radyo-grubu formControlName="siteTemasi" [secenekler]="themeOptions" />
+          </rc-alan>
         </div>
+        @if (dto()?.webSitesiAdresi; as host) {
+          <p class="not">{{ 'sistem.ayarlar.tema.onizleAciklama' | transloco }}</p>
+          <div class="eylemler">
+            @for (t of themeKeys; track t) {
+              <a
+                class="rc-dugme rc-dugme--kucuk"
+                [href]="previewUrl(host, t)"
+                target="_blank"
+                rel="noopener noreferrer"
+                >{{ 'sistem.ayarlar.tema.onizle' | transloco: { ad: themeName(t) } }}</a
+              >
+            }
+          </div>
+        }
       </section>
 
       <section class="rc-bolum" aria-labelledby="ayar-smtp">
