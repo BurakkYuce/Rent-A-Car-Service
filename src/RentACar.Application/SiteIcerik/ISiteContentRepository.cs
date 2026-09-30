@@ -2,8 +2,10 @@ using RentACar.Domain.Entities;
 
 namespace RentACar.Application.SiteIcerik;
 
-/// <summary>Yönetim listesi satırı — gövde TAŞINMAZ (liste yalnız üstveri gösteriyor).</summary>
-public sealed record SayfaOzet(Guid Id, string Slug, string Baslik, int Sira, bool Yayinda);
+/// <summary>Yönetim listesi satırı — gövde TAŞINMAZ (liste yalnız üstveri gösteriyor).
+/// <paramref name="GuncellemeUtc"/>: son değişiklik (<c>UpdatedAtUtc ?? CreatedAtUtc</c>) — sitemap <c>lastmod</c>.</summary>
+public sealed record SayfaOzet(Guid Id, string Slug, string Baslik, int Sira, bool Yayinda,
+    DateTimeOffset? GuncellemeUtc = null);
 
 /// <summary>Halka açık sayfa gösterimi.</summary>
 public sealed record SayfaGoster(string Slug, string Baslik, string Govde, string? MetaAciklama);

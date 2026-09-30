@@ -80,11 +80,20 @@ builder.Services.AddRateLimiter(o =>
         _ => new FixedWindowRateLimiterOptions
         { PermitLimit = aramaPermit, Window = TimeSpan.FromSeconds(aramaWindowSec), QueueLimit = 0 }));
 
-    // Static-SSR akışı: ham 429 gövdesi yerine anlamlı sayfaya yönlendir (Web'in login deseniyle tutarlı).
+    // M-4: 302 → /cok-istek (200) YERİNE 429 + Retry-After. Yönlendirme tarayıcı botlara "kalıcı
+    // içerik" gibi görünüyordu ve "yavaşla" sinyali kayboluyordu. Ziyaretçi yine boş sayfa görmez:
+    // /cok-istek sayfası 429 durum koduyla gövde olarak render edilir (StatusPageReExecuteMiddleware).
+    o.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
     o.OnRejected = (ctx, _) =>
     {
         RentACar.Application.Observability.RacarMetrics.RateLimitRejected("public-site");
-        ctx.HttpContext.Response.Redirect("/cok-istek");
+        var retryAfter = ctx.Lease.TryGetMetadata(MetadataName.RetryAfter, out var ra)
+            ? (int)Math.Ceiling(ra.TotalSeconds)
+            : Math.Max(talepWindowSec, aramaWindowSec);
+        var res = ctx.HttpContext.Response;
+        res.StatusCode = StatusCodes.Status429TooManyRequests;
+        res.Headers.RetryAfter = Math.Max(1, retryAfter).ToString(System.Globalization.CultureInfo.InvariantCulture);
+        StatusPageReExecuteMiddleware.Request(ctx.HttpContext, "/cok-istek");
         return ValueTask.CompletedTask;
     };
 });
@@ -126,6 +135,16 @@ app.Use(async (ctx, next) =>
         "object-src 'none'";
     await next();
 });
+
+// ---- SEO teknik katmanı (sıra ÖNEMLİ; hepsi UseRouting'den ÖNCE) ----
+// 1) HEAD → GET yönlendirmesi, gövde atılır (M-5: `curl -I /` 404 dönüyordu).
+// 2) X-Robots-Tag (M-3): kararı ÖZGÜN istek yolundan verir → yeniden çalıştırmanın DIŞINDA durur.
+// 3) Durum kodunu koruyan yeniden çalıştırma (M-4 429, L-5 410): yeni yol için uç YENİDEN seçilsin
+//    diye yönlendirme bundan sonra ve AÇIKÇA çağrılır (örtük UseRouting boru hattının başına eklenirdi).
+app.UseMiddleware<HeadRequestMiddleware>();
+app.UseMiddleware<NoIndexHeaderMiddleware>();
+app.UseMiddleware<StatusPageReExecuteMiddleware>();
+app.UseRouting();
 
 app.UseRateLimiter(); // PR-8 — ForwardedHeaders'tan SONRA (gerçek IP partition'ı)
 

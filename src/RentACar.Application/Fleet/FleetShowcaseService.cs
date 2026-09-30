@@ -12,11 +12,12 @@ namespace RentACar.Application.Fleet;
 /// <summary>
 /// PR-14 vitrin kartı — artık SINIF (VehicleGroup) değil İLAN (<see cref="WebIlan"/>) bazlı.
 /// <paramref name="Adet"/>: Σ(VitrinAdet ?? 1) — YALNIZ gösterim, rezervasyon kapasitesi DEĞİL.
+/// <paramref name="GuncellemeUtc"/>: ilanın ya da özelliklerinin en son değiştiği an — sitemap <c>lastmod</c>.
 /// </summary>
 public sealed record FleetShowcaseCard(
     Guid IlanId, string Slug, string Baslik, string? YilAralik, Guid? CoverPhotoId,
     decimal GunlukFiyat, bool KdvDahil, int Adet,
-    IReadOnlyList<OzellikGoster> Ozellikler);
+    IReadOnlyList<OzellikGoster> Ozellikler, DateTimeOffset? GuncellemeUtc = null);
 
 /// <summary>Sitede gösterilen teknik özellik (yalnız <c>Gorunur</c> olanlar taşınır).</summary>
 public sealed record OzellikGoster(string Etiket, string Deger);
@@ -161,9 +162,22 @@ public sealed class FleetShowcaseService(
                 y.Detay.Ilan.Id, y.Detay.Ilan.Slug, y.Detay.Ilan.Baslik, VehicleSignature.YearRange(y.Araclar),
                 meta.Count > 0 ? meta[0].Id : null,
                 y.Detay.Ilan.GunlukFiyat, y.Detay.Ilan.KdvDahil, Count(y.Araclar),
-                CardChips(y.Detay, y.Detay.Ilan.Baslik)));
+                CardChips(y.Detay, y.Detay.Ilan.Baslik), LastModified(y.Detay)));
         }
         return cards;
+    }
+
+    /// <summary>İlan sayfasının içeriğini belirleyen kayıtların (ilan + özellik satırları) en son
+    /// değiştiği an. Özellik tablosu detay sayfasında basıldığı için onun değişikliği de sayfa değişikliğidir.</summary>
+    private static DateTimeOffset LastModified(WebIlanDetay d)
+    {
+        var last = d.Ilan.UpdatedAtUtc ?? d.Ilan.CreatedAtUtc;
+        foreach (var o in d.Ozellikler)
+        {
+            var t = o.UpdatedAtUtc ?? o.CreatedAtUtc;
+            if (t > last) last = t;
+        }
+        return last;
     }
 
     /// <summary>PR-14: yayınlanmamış ilan <b>404</b> döner (null) — eski/paylaşılmış link
@@ -270,4 +284,17 @@ public sealed class FleetShowcaseService(
         _canonicalCache = true;
         return _canonicalValue;
     }
+
+    /// <summary>
+    /// Kanonik KÖK adres (<c>https://{kanonik-host}</c>, sonda eğik çizgi YOK) ya da site yayında
+    /// değilse null. Mutlak adres üreten her yüzey (sitemap, robots, llms.txt, og:url, JSON-LD)
+    /// kökü BURADAN almalı — isteğin Host başlığından değil: ziyaretçi subdomain'den gelse bile
+    /// kanonik adres özel domain olabilir ve iki kaynağın karışması çelişen SEO sinyali üretir.
+    /// </summary>
+    public async Task<string?> GetCanonicalRootAsync(CancellationToken ct = default)
+        => CanonicalRoot(await GetCanonicalHostAsync(ct));
+
+    /// <summary>Saf biçimleyici: host → <c>https://host</c>; null/boş → null.</summary>
+    public static string? CanonicalRoot(string? host)
+        => string.IsNullOrWhiteSpace(host) ? null : $"https://{host.Trim().TrimEnd('/')}";
 }

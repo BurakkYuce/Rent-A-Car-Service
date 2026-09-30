@@ -15,7 +15,7 @@ public sealed class BlogRepository(IDbContextFactory<AppDbContext> factory) : IB
     // Projeksiyonlar TEK yerde — blob kolonlarının kazara SELECT'e sızmasını yapısal olarak engeller.
     private static readonly System.Linq.Expressions.Expression<Func<BlogPost, BlogListItem>> ToListItem =
         p => new BlogListItem(p.Id, p.Baslik, p.Slug, p.Ozet, p.Durum, p.YayinTarihi, p.KapakBytes != null,
-            p.AltBaslik, p.KapakAlt, p.AramaDisi);
+            p.AltBaslik, p.KapakAlt, p.AramaDisi, p.UpdatedAtUtc ?? p.CreatedAtUtc);
 
     private static readonly System.Linq.Expressions.Expression<Func<BlogPost, BlogDetail>> ToDetail =
         p => new BlogDetail(p.Id, p.Baslik, p.Slug, p.Ozet, p.Icerik, p.Durum, p.YayinTarihi, p.KapakBytes != null,
