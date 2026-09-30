@@ -1,4 +1,5 @@
 using RentACar.Application.TenantSettings;
+using RentACar.PublicSite.Components.Themes.Kontuar;
 using RentACar.PublicSite.Components.Themes.Tarife;
 
 namespace RentACar.PublicSite.Components.Themes;
@@ -77,11 +78,27 @@ public static class SiteThemes
         CssPath = "css/tema-vitrin.css",
     };
 
-    public static readonly SiteTheme Kontuar = Tarife with
+    /// <summary>IBM Plex Sans (değişken ağırlık 400–600, tek dosya) + IBM Plex Sans Condensed 600. OFL-IBMPlex.txt.</summary>
+    private static readonly IReadOnlyList<ThemeFont> PlexFonts =
+    [
+        new("IBM Plex Sans", "400 600", "fonts/ibm-plex-sans-latin-ext.woff2", LatinExt),
+        new("IBM Plex Sans", "400 600", "fonts/ibm-plex-sans-latin.woff2", Latin),
+        new("IBM Plex Sans Condensed", "600", "fonts/ibm-plex-sans-condensed-600-latin-ext.woff2", LatinExt),
+        new("IBM Plex Sans Condensed", "600", "fonts/ibm-plex-sans-condensed-600-latin.woff2", Latin),
+    ];
+
+    /// <summary>Kontuar: havalimanı/otel teslimi. Kiralama kuponu + kalkış panosu. Varsayılan vurgu yer-ekibi
+    /// turuncusu; BrandPalette onu kağıtta 3:1 olacak kadar koyulaştırır, üstüne lacivert yazı seçer.</summary>
+    public static readonly SiteTheme Kontuar = new(SiteThemeKeys.Kontuar, "Kontuar",
+        "Bilet ve kalkış panosu düzeni. Havalimanı ve otel teslimi yapan firmalar için.",
+        "css/tema-kontuar.css",
+        [.. PlexFonts.Select(f => f.File)],
+        typeof(KontuarHero), typeof(KontuarCard), typeof(KontuarHeader), typeof(KontuarFooter))
     {
-        Key = SiteThemeKeys.Kontuar, Ad = "Kontuar",
-        Aciklama = "Bilet ve kalkış panosu düzeni. Havalimanı ve otel teslimi yapan firmalar için.",
-        CssPath = "css/tema-kontuar.css",
+        Fonts = PlexFonts,
+        DefaultBrand = "#ff6a13",
+        ThemeColorLight = "#f4f7f9",
+        ThemeColorDark = "#0a131d",
     };
 
     public static readonly IReadOnlyList<SiteTheme> All = [Tarife, Vitrin, Kontuar];

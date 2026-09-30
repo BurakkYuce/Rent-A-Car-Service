@@ -1,0 +1,76 @@
+@using RentACar.Application.Fleet
+
+@* Tema "kontuar" — Hero slotu. İmza SABİT (Components/Themes/README.md): Marka, Branding, Subeler, Kartlar, Sehir.
+
+   KİRALAMA KUPONU: arama formu ORTAK <AramaFormu> (T4 — alan adları/doğrulama tek kaynak, GET /musaitlik,
+   JS yok); bu tema onu YALNIZ CSS ile bir kupona çevirir: sol gövde (alış + iade tarihi), delikli ayırıcı,
+   sağ koçan (şube + "Müsait araçları göster"). Delik ve çentikler mask + radial-gradient (tema-kontuar.css).
+   Sarmalayıcı `.kt-kupon` gölgeyi `filter: drop-shadow` ile verir — maske formun kendi gölgesini keserdi.
+
+   Başlık ve alt metin SABİT (T1: sitenin ne yaptığını anlatır, firma vaadi değil). Hizmet bölgesi, filo özeti
+   ve teslim noktaları VERİYE BAĞLI (T2): veri yoksa satır basılmaz. Uydurma bilet numarası / barkod YOK.
+
+   MOBİL: kupon dikey (gövde üstte, delik yatay, koçan altta); alt metnin ikinci cümlesi telefonda gizli —
+   "Müsait araçları göster" 390×844'te ilk ekranda, alt iletişim çubuğunun üstünde kalır. *@
+<section class="kt-hero" aria-labelledby="hero-baslik">
+    <div class="wrap">
+        <h1 id="hero-baslik">Tarihinizi girin, müsait aracı ve net fiyatı görün</h1>
+        <p class="kt-hero-alt">
+            @if (!string.IsNullOrWhiteSpace(Sehir))
+            {
+                <strong>@Sehir bölgesinde araç kiralama.</strong>@(" ")
+            }
+            @(string.IsNullOrWhiteSpace(Marka) ? "Filomuzdaki" : $"{Marka} filosundaki")
+            her aracın günlük fiyatı ilanında yazılı.
+            <span class="kt-hero-alt-uzun">Tarih seçtiğinizde gün sayısına göre toplamı gösteririz; talep
+                bırakırsınız, ekip sizi arar.</span>
+        </p>
+
+        <div class="kt-kupon">
+            <AramaFormu Hedef="/musaitlik" Subeler="Subeler" />
+        </div>
+
+        @* Kuponun alt yazısı: sistemin davranışı, firma taahhüdü DEĞİL (T1). *@
+        <ul class="kt-kupon-not">
+            <li>Kayıt gerekmez</li>
+            <li>Talep bırakmak ücretsiz</li>
+            <li>İlandaki fiyat sözleşmeye aynen geçer</li>
+        </ul>
+
+        @if (Kartlar.Count > 0)
+        {
+            <p class="kt-hero-filo">
+                Filoda @Kartlar.Count araç; en uygun günlük fiyat @PriceText.Tl(Kartlar.Min(c => c.GunlukFiyat)).
+                <a href="#filo">Araçları gör</a>
+            </p>
+        }
+
+        @if (Subeler.Count > 0)
+        {
+            @* Teslim noktaları: her şube, o şubeye süzülmüş aramaya gider (tek şubede de basılır —
+               arama formu tek şubede seçim kutusu göstermediği için şube adı yalnız burada görünür). *@
+            <div class="kt-noktalar">
+                <h2 class="kt-noktalar-baslik">Teslim noktaları</h2>
+                <ul>
+                    @foreach (var s in Subeler)
+                    {
+                        <li><a href="@($"/musaitlik?sube={Uri.EscapeDataString(s)}")">@s</a></li>
+                    }
+                </ul>
+            </div>
+        }
+    </div>
+</section>
+
+@code {
+    /// <summary>Marka adı (boşsa "Filomuzdaki").</summary>
+    [Parameter] public string? Marka { get; set; }
+    /// <summary>Firma bilgisi. Bu tema kullanmıyor; imza gereği alınır.</summary>
+    [Parameter] public FleetBranding? Branding { get; set; }
+    /// <summary>Aktif şube adları (arama formu + teslim noktaları).</summary>
+    [Parameter] public IReadOnlyList<string> Subeler { get; set; } = [];
+    /// <summary>Yayındaki ilanlar (filo özeti).</summary>
+    [Parameter] public IReadOnlyList<FleetShowcaseCard> Kartlar { get; set; } = [];
+    /// <summary>Hizmet bölgesi ("Esenyurt, İstanbul"); null → bölge cümlesi basılmaz.</summary>
+    [Parameter] public string? Sehir { get; set; }
+}

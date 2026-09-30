@@ -1,4 +1,433 @@
-/* GEÇİCİ YER TUTUCU — "kontuar" teması ayrı PR'da yazılıyor. O PR bu dosyayı tamamen değiştirir:
-   ilk :root bloğu primitive'ler, ardından semantik + bileşen token'ları, koyu tema ve slot stilleri
-   (sözleşme: Components/Themes/README.md). O zamana kadar tarife'nin görünümünü devralır. */
-@import url("tema-tarife.css");
+/* PRIMITIVE — ham değerler. Renk literalleri YALNIZ bu ilk :root bloğunda (yapısal test kilitler). */
+:root {
+  --p-white: #ffffff;
+  --p-terminal-50: #f9fbfc;
+  --p-terminal-100: #f4f7f9;   /* terminal açığı — BrandPalette.LightPaper'dan AÇIK (firma metin tonu AA kalır) */
+  --p-terminal-200: #e7edf2;
+  --p-terminal-300: #cfd8e0;
+  --p-terminal-400: #8a98a7;   /* alan/panel çerçevesi — zeminde 3:1 */
+  --p-navy-900: #16263a;       /* lacivert mürekkep */
+  --p-navy-700: #3b4d63;       /* ikincil metin — zeminde 7.9:1 */
+  --p-navy-600: #52647a;       /* ipucu metni — beyazda 6.1:1 */
+  --p-navy-400: #a9b8c8;
+  --p-navy-300: #c3cfdb;
+  --p-night-950: #0a131d;      /* koyu zemin — BrandPalette.DarkPaper'dan KOYU */
+  --p-night-900: #0f1925;
+  --p-night-850: #131d2b;      /* koyu kart — BrandPalette.DarkSurface'tan koyu */
+  --p-night-800: #1a2738;
+  --p-night-700: #24344a;
+  --p-night-600: #3a5070;
+  --p-night-100: #e9eff5;
+  --p-board-900: #16263a;      /* kalkış panosu levhası (iki temada) */
+  --p-board-800: #1c2f47;
+  --p-board-700: #2a3f5a;
+  --p-orange-500: #ff6a13;     /* yer-ekibi turuncusu — METİN rengi olarak ASLA (açık zeminde 2.5:1) */
+  --p-red-700: #b3261e;
+  --p-red-300: #ff8f86;
+  --p-green-700: #1d6b3c;
+  --p-green-300: #86d6a0;
+  --p-mask-on: #000000;
+  --p-mask-off: #00000000;
+  --p-shadow-1: 0 -8px 24px -18px rgb(22 38 58 / 30%);
+  --p-shadow-2: 0 1px 0 rgb(22 38 58 / 6%), 0 22px 44px -28px rgb(22 38 58 / 42%);
+  --p-ticket-drop: drop-shadow(0 16px 22px rgb(22 38 58 / 14%)) drop-shadow(0 1px 1px rgb(22 38 58 / 14%));
+  --p-shadow-1-dark: 0 -8px 24px -18px rgb(0 0 0 / 70%);
+  --p-shadow-2-dark: 0 1px 0 rgb(0 0 0 / 35%), 0 22px 44px -26px rgb(0 0 0 / 80%);
+  --p-ticket-drop-dark: drop-shadow(0 16px 26px rgb(0 0 0 / 55%));
+}
+
+/* =============================================================================
+   Tema "kontuar" — havalimanı / otel teslimi yapan, transfer ağırlıklı firma.
+
+   KİMLİK: teslim kontuarının dünyası. Terminal açığı zemin, lacivert mürekkep, yer-ekibi turuncusu. İki
+   cesur unsur birbirinin devamı: arama formu bir KİRALAMA KUPONU (sol gövde tarihler, delikli ayırıcı, sağ
+   koçan şube + düğme) ve filo listesi bir KALKIŞ PANOSU (lacivert levha; araç, vites, fiyat, durum
+   satırları). Geri kalan sakin: kart yığını yok, gradyan süs yok, sayfa açılış animasyonu yok.
+
+   TURUNCU KURALI: turuncu yalnız EYLEM (firma renk seçmediyse birincil düğme; BrandPalette onu kağıtta 3:1
+   olacak kadar koyulaştırır) ve İŞARET (pano durum noktası, teslim noktası kenarı, "baktığınız araç",
+   fiyat alt çizgisi). Metin rengi olarak ASLA; metin gereken yerde --brand-text.
+
+   YAZI: IBM Plex Sans Condensed 600 (başlık, pano, fiyat, düğme) + IBM Plex Sans (gövde, değişken ağırlık
+   400–600). Monospace YOK: pano rakamları `tabular-nums` ile hizalanır. @font-face App.razor'da (parmak
+   izli adres, SiteThemes.Kontuar.Fonts); burada yalnız ölçüsü yaklaştırılmış yedekler (CLS).
+   ============================================================================= */
+
+@font-face { font-family: "IBM Plex Sans Fallback"; src: local("Arial"); size-adjust: 101%; ascent-override: 101%; descent-override: 27%; line-gap-override: 0%; }
+@font-face { font-family: "IBM Plex Sans Condensed Fallback"; src: local("Arial"); size-adjust: 86%; ascent-override: 118%; descent-override: 32%; line-gap-override: 0%; }
+
+/* SEMANTIC + COMPONENT (açık) */
+:root {
+  color-scheme: light;
+  --bg: var(--p-terminal-100);
+  --bg-alt: var(--p-terminal-200);
+  --surface: var(--p-white);
+  --surface-raised: var(--p-white);
+  --ink: var(--p-navy-900);
+  --ink-muted: var(--p-navy-700);
+  --ink-subtle: var(--p-navy-600);
+  --line: var(--p-terminal-300);
+  --line-strong: var(--p-terminal-400);
+  --brand: var(--p-orange-500);
+  --on-brand: var(--p-navy-900);
+  --brand-ink: var(--on-brand);
+  --brand-text: var(--p-navy-900);
+  --brand-soft: var(--p-terminal-200);
+  --accent: var(--p-orange-500);
+  --accent-ink: var(--p-navy-900);
+  --focus: var(--p-navy-900);
+  --danger: var(--p-red-700);
+  --ok: var(--p-green-700);
+
+  --font-display: "IBM Plex Sans Condensed", "IBM Plex Sans Condensed Fallback", "Arial Narrow", sans-serif;
+  --font-body: "IBM Plex Sans", "IBM Plex Sans Fallback", system-ui, sans-serif;
+  /* Tip ölçeği ~1.25; gövde 17px (form alanında iOS yakınlaştırması tetiklenmez). */
+  --step--1: .875rem;
+  --step-0: 1.0625rem;
+  --step-1: 1.3125rem;
+  --step-2: clamp(1.5rem, 1.32rem + .8vw, 1.875rem);
+  --step-3: clamp(1.875rem, 1.5rem + 1.7vw, 2.5rem);
+  --step-4: clamp(2rem, 1.5rem + 2.4vw, 3.25rem);
+  --step-5: clamp(2.25rem, 1.5rem + 3.4vw, 4rem);
+  /* Aralık ölçeği base.css ile aynı anlamda (1 = sıkı, 5 = bölüm, 8 = en geniş); kontuar biraz daha sıkı. */
+  --space-1: .5rem; --space-2: 1rem; --space-3: 1.5rem; --space-4: 2.25rem;
+  --space-5: 3.5rem; --space-6: 4.5rem; --space-7: 6rem; --space-8: 7.5rem;
+  --radius-s: 4px; --radius-m: 10px; --radius-l: 16px;
+  --shadow-1: var(--p-shadow-1);
+  --shadow-2: var(--p-shadow-2);
+  --measure: 66ch;
+
+  --btn-bg: var(--brand);
+  --btn-ink: var(--brand-ink);
+  --btn-radius: var(--radius-s);
+  --card-bg: var(--surface);
+  --card-radius: var(--radius-m);
+  --card-border: var(--line);
+  --field-bg: var(--p-terminal-50);
+  --field-border: var(--line-strong);
+  --price-ink: var(--ink);
+  --price-mark: var(--accent);
+
+  /* Tema bileşenleri: kupon ve pano */
+  --ticket-bg: var(--surface);
+  --ticket-drop: var(--p-ticket-drop);
+  --ticket-notch: 13px;
+  --mask-on: var(--p-mask-on);
+  --mask-off: var(--p-mask-off);
+  --logo-plate: var(--p-terminal-100);
+  --board-bg: var(--p-board-900);
+  --board-ink: var(--p-night-100);
+  --board-muted: var(--p-navy-300);
+  --board-line: var(--p-board-700);
+  --board-row-hover: var(--p-board-800);
+}
+
+/* SEMANTIC (koyu) — yalnız primitive'lere referans */
+@media (prefers-color-scheme: dark) {
+  :root {
+    color-scheme: dark;
+    --bg: var(--p-night-950);
+    --bg-alt: var(--p-night-900);
+    --surface: var(--p-night-850);
+    --surface-raised: var(--p-night-800);
+    --ink: var(--p-night-100);
+    --ink-muted: var(--p-navy-400);
+    --ink-subtle: var(--p-navy-400);
+    --line: var(--p-night-700);
+    --line-strong: var(--p-night-600);
+    --on-brand: var(--p-night-950);
+    --brand-text: var(--p-night-100);
+    --brand-soft: var(--p-night-800);
+    --accent-ink: var(--p-night-950);
+    --focus: var(--p-night-100);
+    --danger: var(--p-red-300);
+    --ok: var(--p-green-300);
+    --shadow-1: var(--p-shadow-1-dark);
+    --shadow-2: var(--p-shadow-2-dark);
+    --field-bg: var(--p-night-900);
+    --ticket-drop: var(--p-ticket-drop-dark);
+    --logo-plate: var(--p-terminal-100);
+    --board-bg: var(--p-board-900);
+    --board-line: var(--p-board-700);
+  }
+}
+
+/* ---- Genel ton ---- */
+h1 { line-height: 1.04; letter-spacing: -.01em; }
+h2, h3 { letter-spacing: -.005em; }
+.btn { letter-spacing: .005em; }
+
+/* Pano durum noktası / telefon noktası — İŞARET (bilgi yanında metinle de yazılı). */
+.kt-nokta {
+  display: inline-block; flex: none; width: .5rem; height: .5rem; margin-right: .5rem;
+  border-radius: 50%; background: var(--accent); vertical-align: .08em;
+}
+
+/* ---- Üst bar ---- */
+.kt-bar { background: var(--surface); border-bottom: 1px solid var(--line); }
+.kt-bar-ic { display: flex; align-items: center; gap: var(--space-2); min-height: 60px; }
+.kt-marka { display: inline-flex; align-items: center; min-height: 44px; margin-right: auto; color: var(--ink); text-decoration: none; }
+.kt-marka img { display: block; height: 40px; width: auto; max-width: 200px; object-fit: contain; }
+.kt-marka .marka-ad { font: 600 1.5rem/1 var(--font-display); letter-spacing: -.01em; }
+.kt-nav { display: none; }
+.kt-nav a { display: inline-flex; align-items: center; min-height: 44px; color: var(--ink); text-decoration: none; }
+.kt-nav a:hover { text-decoration: underline; text-underline-offset: .3em; }
+.kt-bar-tel { display: none; }
+.kt-menu { position: relative; }
+.kt-menu > summary {
+  display: inline-flex; align-items: center; gap: .45em; min-height: 44px; padding: 0 .8rem;
+  list-style: none; cursor: pointer; border: 1.5px solid var(--line-strong); border-radius: var(--radius-s);
+  font: 600 1.0625rem/1 var(--font-display);
+}
+.kt-menu > summary::-webkit-details-marker { display: none; }
+/* Üç çizgi simgesi CSS'ten — metin "Menü" ekran okuyucuya da söyler. */
+.kt-menu > summary::before {
+  content: ""; width: 16px; height: 12px;
+  background: linear-gradient(currentColor 0 0) top / 100% 2px no-repeat,
+              linear-gradient(currentColor 0 0) center / 100% 2px no-repeat,
+              linear-gradient(currentColor 0 0) bottom / 100% 2px no-repeat;
+}
+.kt-menu[open] > summary { border-color: var(--ink); }
+.kt-menu ul {
+  position: absolute; right: 0; top: calc(100% + 8px); z-index: 30; min-width: 240px;
+  margin: 0; padding: var(--space-1) 0; list-style: none;
+  background: var(--surface-raised); border: 1px solid var(--line); border-radius: var(--radius-m); box-shadow: var(--shadow-2);
+}
+.kt-menu a { display: flex; align-items: center; min-height: 44px; padding: 0 var(--space-2); color: var(--ink); text-decoration: none; }
+.kt-menu a:hover { background: var(--bg); }
+@media (min-width: 900px) {
+  .kt-bar { position: sticky; top: 0; z-index: 20; }
+  .kt-nav { display: flex; gap: var(--space-3); }
+  .kt-menu { display: none; }
+  .kt-bar-tel {
+    display: inline-flex; align-items: center; min-height: 44px; padding: 0 0 0 var(--space-2);
+    border-left: 1px solid var(--line); color: var(--ink); text-decoration: none;
+    font: 600 1.1875rem/1 var(--font-display); font-variant-numeric: tabular-nums;
+  }
+  .kt-bar-tel:hover { text-decoration: underline; text-underline-offset: .3em; }
+}
+/* Koyu temada firma logosu açık bir levha üstünde: logoların çoğu şeffaf zeminli KOYU yazı. */
+@media (prefers-color-scheme: dark) {
+  .kt-marka img { background: var(--logo-plate); padding: 4px 8px; border-radius: var(--radius-s); box-sizing: content-box; height: 32px; }
+}
+
+/* ---- Hero ---- */
+.kt-hero { padding-block: var(--space-3) var(--space-4); border-bottom: 1px solid var(--line); }
+.kt-hero h1 { font-size: var(--step-4); max-width: 21ch; margin: 0 0 .75rem; }
+.kt-hero-alt { color: var(--ink-muted); max-width: 56ch; margin: 0 0 var(--space-3); }
+.kt-hero-alt strong { color: var(--ink); }
+.kt-kupon-not {
+  display: flex; flex-wrap: wrap; gap: .25rem var(--space-3);
+  margin: var(--space-2) 0 0; padding: 0; list-style: none; color: var(--ink-muted); font-size: var(--step--1);
+}
+.kt-kupon-not li { position: relative; padding-left: 1.1rem; }
+.kt-kupon-not li::before {
+  content: ""; position: absolute; left: 0; top: .55em; width: .55rem; height: .3rem;
+  border-left: 2px solid var(--ok); border-bottom: 2px solid var(--ok); transform: rotate(-45deg);
+}
+.kt-hero-filo { margin: var(--space-2) 0 0; color: var(--ink-muted); }
+.kt-hero-filo a { color: var(--ink); font-weight: 600; }
+@media screen and (max-width: 599px) {
+  .kt-hero { padding-top: var(--space-2); }
+  .kt-hero h1 { font-size: 2rem; }
+  .kt-hero-alt { font-size: .9375rem; line-height: 1.45; margin-bottom: var(--space-2); }
+  .kt-hero-alt-uzun { display: none; }
+}
+@media (min-width: 960px) {
+  .kt-hero { padding-block: var(--space-5); }
+  .kt-hero h1 { font-size: var(--step-5); }
+}
+
+/* ---- KUPON (cesur unsur 1/2) — ortak AramaFormu, yalnız CSS ----
+   Tek form, iki bölge: GÖVDE (tarihler) ve KOÇAN (şube + düğme). Aralarında delik çizgisi (aralıklı
+   noktalar, radial-gradient) ve iki yarım daire çentik (mask). Çentik konumu bölge ölçüsünden hesaplanır:
+   genişte koçan sabit genişlikte (sağdan --kesim), dar ekranda gövde sabit yükseklikte (üstten).
+   Gölge sarmalayıcıda `filter: drop-shadow` — box-shadow maskeyle kesilirdi, drop-shadow kesik şekli izler. */
+.kt-kupon { filter: var(--ticket-drop); }
+.kt-kupon .arama {
+  --pad: var(--space-2);
+  --govde-h: 5.125rem;
+  --kesim-y: calc(var(--govde-h) + 1rem);
+  grid-template-columns: minmax(0, 1fr); row-gap: .75rem;
+  padding: var(--pad); border: 0; border-radius: var(--radius-l); box-shadow: none;
+  background:
+    radial-gradient(circle, var(--line-strong) 1.6px, var(--mask-off) 2.1px) left 0 top calc(var(--kesim-y) - 2px) / 10px 4px repeat-x content-box,
+    linear-gradient(var(--ticket-bg), var(--ticket-bg)) border-box;
+  -webkit-mask:
+    radial-gradient(circle var(--ticket-notch) at 0 calc(var(--pad) + var(--kesim-y)), var(--mask-off) 96%, var(--mask-on) 100%),
+    radial-gradient(circle var(--ticket-notch) at 100% calc(var(--pad) + var(--kesim-y)), var(--mask-off) 96%, var(--mask-on) 100%);
+  -webkit-mask-composite: source-in;
+  mask:
+    radial-gradient(circle var(--ticket-notch) at 0 calc(var(--pad) + var(--kesim-y)), var(--mask-off) 96%, var(--mask-on) 100%),
+    radial-gradient(circle var(--ticket-notch) at 100% calc(var(--pad) + var(--kesim-y)), var(--mask-off) 96%, var(--mask-on) 100%);
+  mask-composite: intersect;
+}
+.kt-kupon .arama-tarihler { height: var(--govde-h); margin-bottom: 1.25rem; align-items: end; }
+.kt-kupon .alan input, .kt-kupon .alan select {
+  min-height: 52px; font: 600 1.1875rem/1.1 var(--font-display); font-variant-numeric: tabular-nums;
+}
+.kt-kupon .alan input { padding-inline: .5rem; }
+.kt-kupon .btn { min-height: 54px; font-size: 1.25rem; }
+@media (min-width: 760px) {
+  .kt-kupon .arama {
+    --pad: var(--space-3);
+    --kocan-w: 19rem;
+    --kupon-gap: 3.5rem;
+    --kesim-x: calc(var(--kocan-w) + var(--kupon-gap) / 2);
+    grid-template-columns: minmax(0, 1fr) var(--kocan-w); grid-template-rows: auto auto;
+    column-gap: var(--kupon-gap); align-items: end; padding-top: var(--space-4);
+    background:
+      radial-gradient(circle, var(--line-strong) 1.6px, var(--mask-off) 2.1px) right calc(var(--kesim-x) - 2px) top 0 / 4px 10px repeat-y content-box,
+      linear-gradient(var(--ticket-bg), var(--ticket-bg)) border-box;
+    -webkit-mask:
+      radial-gradient(circle var(--ticket-notch) at calc(100% - var(--pad) - var(--kesim-x)) 0, var(--mask-off) 96%, var(--mask-on) 100%),
+      radial-gradient(circle var(--ticket-notch) at calc(100% - var(--pad) - var(--kesim-x)) 100%, var(--mask-off) 96%, var(--mask-on) 100%);
+    -webkit-mask-composite: source-in;
+    mask:
+      radial-gradient(circle var(--ticket-notch) at calc(100% - var(--pad) - var(--kesim-x)) 0, var(--mask-off) 96%, var(--mask-on) 100%),
+      radial-gradient(circle var(--ticket-notch) at calc(100% - var(--pad) - var(--kesim-x)) 100%, var(--mask-off) 96%, var(--mask-on) 100%);
+    mask-composite: intersect;
+  }
+  .kt-kupon .arama-tarihler { grid-column: 1; grid-row: 1 / 3; height: auto; margin: 0; align-self: end; gap: var(--space-2); }
+  .kt-kupon .arama > .alan { grid-column: 2; grid-row: 1; }
+  .kt-kupon .arama > .btn { grid-column: 2; grid-row: 2; }
+  .kt-kupon .arama-tarihler input { min-height: 60px; font-size: 1.5rem; padding-inline: .75rem; }
+}
+
+/* Teslim noktaları: terminal yön levhası gibi — sol kenarda turuncu işaret, şubeye süzülmüş arama. */
+.kt-noktalar { margin-top: var(--space-4); }
+.kt-noktalar-baslik { font-size: var(--step-1); margin: 0 0 .75rem; }
+.kt-noktalar ul { display: flex; flex-wrap: wrap; gap: var(--space-1); margin: 0; padding: 0; list-style: none; }
+.kt-noktalar a {
+  display: inline-flex; align-items: center; min-height: 44px; padding: 0 var(--space-2) 0 .75rem;
+  background: var(--surface); border: 1px solid var(--line); border-left: 4px solid var(--accent); border-radius: var(--radius-s);
+  color: var(--ink); text-decoration: none; font: 600 1.125rem/1.1 var(--font-display);
+}
+.kt-noktalar a:hover { border-color: var(--line-strong); border-left-color: var(--accent); }
+
+/* ---- KALKIŞ PANOSU (cesur unsur 2/2) ----
+   Ortak `.ilanlar` listesi bu temada kart ızgarası DEĞİL: tek sütunlu lacivert levha, satırlar arasında
+   ince çizgi (terminal panoları karanlıktır; sayfanın geri kalanı açık kalır, koyu temada da levha aynı).
+   Hücreler etiketli (<dl>); genişte sabit sütunlara oturur, dar ekranda ikişerli ızgaraya sarar. */
+.ilanlar {
+  display: block; margin: 0; padding: 0; list-style: none;
+  background: var(--board-bg); color: var(--board-ink); border-radius: var(--card-radius); overflow: hidden;
+}
+.ilanlar > li + li { border-top: 1px solid var(--board-line); }
+.kt-satir {
+  --focus: var(--board-ink);
+  position: relative; display: grid; gap: .75rem var(--space-2); align-items: center;
+  grid-template-columns: 88px minmax(0, 1fr);
+  grid-template-areas: "foto ad" "hucre hucre" "eylem eylem";
+  padding: var(--space-2);
+}
+.kt-satir:hover { background: var(--board-row-hover); }
+.kt-satir:has(h3 a:focus-visible) { outline: 2px solid var(--focus); outline-offset: -4px; }
+.kt-satir h3 a:focus-visible { outline: none; }
+.kt-satir-foto { grid-area: foto; aspect-ratio: 3 / 2; border-radius: var(--radius-s); overflow: hidden; background: var(--board-line); }
+.kt-satir-foto img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.kt-satir-ad { grid-area: ad; min-width: 0; }
+.kt-satir h3 { margin: 0; font-size: 1.375rem; line-height: 1.1; }
+.kt-satir h3 a { color: var(--board-ink); text-decoration: none; }
+.kt-satir h3 a::after { content: ""; position: absolute; inset: 0; z-index: 1; }
+.kt-satir:hover h3 a { text-decoration: underline; text-underline-offset: .2em; text-decoration-thickness: 1px; }
+.kt-satir-yil { margin: .15rem 0 0; color: var(--board-muted); font-size: var(--step--1); }
+.kt-isaret {
+  display: inline-flex; align-items: center; margin: 0 0 .3rem; padding: 0 .45rem;
+  background: var(--accent); color: var(--accent-ink); border-radius: var(--radius-s);
+  font: 600 .875rem/1.6 var(--font-display);
+}
+.kt-satir-isaretli { box-shadow: inset 4px 0 0 var(--accent); }
+.kt-hucreler {
+  grid-area: hucre; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .75rem var(--space-2);
+  margin: 0; font-variant-numeric: tabular-nums;
+}
+.kt-hucre { min-width: 0; }
+.kt-hucre dt { color: var(--board-muted); font-size: .8125rem; line-height: 1.3; }
+.kt-hucre dd { margin: 0; font: 600 1.1875rem/1.25 var(--font-display); }
+.kt-hucre-fiyat small { display: block; color: var(--board-muted); font: 400 .8125rem/1.35 var(--font-body); }
+.kt-tutar { font: 600 1.625rem/1.1 var(--font-display); color: var(--board-ink); }
+.kt-hucre-durum dd { display: flex; align-items: center; }
+.kt-satir-eylem { grid-area: eylem; position: relative; z-index: 2; display: grid; }
+/* Firma rengi koyu (lacivert) olabilir: panoda düğme kaybolmasın diye ince açık çerçeve. */
+.kt-satir-eylem .btn { min-height: 46px; border-color: color-mix(in srgb, var(--board-ink) 35%, var(--btn-bg)); }
+@media (min-width: 760px) {
+  .kt-satir {
+    grid-template-columns: 120px minmax(11rem, 1.1fr) minmax(0, 2.4fr) auto;
+    grid-template-areas: "foto ad hucre eylem";
+    padding: .75rem var(--space-3) .75rem .75rem;
+  }
+  .kt-hucreler { grid-template-columns: minmax(5.5rem, .8fr) minmax(5.5rem, .8fr) minmax(8rem, 1.3fr) minmax(7rem, 1fr); align-items: start; }
+  /* Vites/yakıt eksik satırlarda fiyat ve durum yine AYNI sütunda: pano sütunları hizalı kalsın. */
+  .kt-hucre-vites { grid-column: 1; grid-row: 1; }
+  .kt-hucre-yakit { grid-column: 2; grid-row: 1; }
+  .kt-hucre-fiyat { grid-column: 3; grid-row: 1; }
+  .kt-hucre-durum { grid-column: 4; grid-row: 1; }
+  .kt-satir-eylem .btn { padding-inline: 1.25rem; }
+}
+
+/* ---- Ortak arama formu (/musaitlik) — kuponun küçük kardeşi: aynı kâğıt, iki yanda yarım çentik.
+   İlan detayı panelindeki form (.panel .arama) base.css'teki gibi çerçevesiz kalır. ---- */
+.sayfa-ust > .arama {
+  border: 1px solid var(--line); border-radius: var(--radius-l); box-shadow: none; padding: var(--space-2) var(--space-3);
+  -webkit-mask:
+    radial-gradient(circle 10px at 0 50%, var(--mask-off) 96%, var(--mask-on) 100%),
+    radial-gradient(circle 10px at 100% 50%, var(--mask-off) 96%, var(--mask-on) 100%);
+  -webkit-mask-composite: source-in;
+  mask:
+    radial-gradient(circle 10px at 0 50%, var(--mask-off) 96%, var(--mask-on) 100%),
+    radial-gradient(circle 10px at 100% 50%, var(--mask-off) 96%, var(--mask-on) 100%);
+  mask-composite: intersect;
+}
+.alan input[type="date"] { min-width: 0; font-family: var(--font-display); font-weight: 600; font-variant-numeric: tabular-nums; }
+/* Tarih alanının iç genişliği (takvim simgesi dahil) 1fr sütunu dar ekranda taşırıyordu: sütun 0'a inebilsin. */
+.arama-tarihler { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+
+/* ---- Ortak bölümler: yalnız ton ayarı ---- */
+.sonuc-ozet strong { font-variant-numeric: tabular-nums; }
+/* Tarifenin yol-çizgisi süsü yok; maddeyi pano noktasıyla aynı işaret başlatır. */
+.ilkeler li::before { width: .5rem; height: .5rem; border-radius: 50%; }
+.adimlar li::before { color: var(--ink); }
+.panel { border-width: 1px; border-color: var(--line); border-radius: var(--radius-l); }
+/* Panelde tek birincil eylem ("Teklif iste"); tarih formunun düğmesi ikincil — iki turuncu düğme yan yana olmaz. */
+.panel .arama .btn-brand { background: var(--surface); color: var(--ink); border-color: var(--line-strong); }
+.panel .arama .btn-brand:hover { background: var(--surface); border-color: var(--ink); }
+.not-kutu { border-left-color: var(--accent); background: var(--surface); }
+/* Kapanış bandı panoyla aynı lacivert levha — koyu temada tersine dönmez. */
+.cta-bant { background: var(--board-bg); color: var(--board-ink); }
+.cta-bant h2 { color: var(--board-ink); }
+.cta-bant p { color: var(--board-muted); }
+.cta-bant .btn-ters { background: var(--board-ink); color: var(--board-bg); }
+.cta-bant .btn-ters:hover { background: var(--board-muted); color: var(--board-bg); }
+.cta-bant .btn-ters-cizgi { border-color: var(--board-muted); color: var(--board-ink); }
+.cta-bant .btn-ters-cizgi:hover { border-color: var(--board-ink); color: var(--board-ink); }
+.cta-bant :focus-visible { outline-color: var(--board-ink); }
+
+/* ---- Alt bilgi ---- */
+.kt-alt { background: var(--bg-alt); border-top: 1px solid var(--line); color: var(--ink-muted); }
+.kt-alt-ic {
+  display: grid; gap: var(--space-3) var(--space-4); padding-block: var(--space-4);
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 200px), 1fr));
+}
+.kt-alt-kunye { grid-column: 1 / -1; display: grid; gap: var(--space-1); max-width: 46ch; }
+.kt-alt-kunye p { margin: 0; }
+.kt-alt .kt-marka img { height: 36px; }
+.kt-alt-baslik { margin: 0 0 var(--space-1); font-size: 1.125rem; color: var(--ink); }
+.kt-alt ul { margin: 0; padding: 0; list-style: none; }
+.kt-alt li a { display: inline-flex; align-items: center; min-height: 44px; color: var(--ink-muted); }
+.kt-alt li a:hover { color: var(--ink); }
+.kt-alt-kanal a { color: var(--ink); font-weight: 600; }
+.kt-alt-son { border-top: 1px solid var(--line); padding-block: var(--space-2); font-size: var(--step--1); }
+@media (min-width: 900px) {
+  .kt-alt-ic { grid-template-columns: minmax(0, 1.6fr) repeat(2, minmax(0, 1fr)); }
+  .kt-alt-kunye { grid-column: auto; }
+}
+
+/* ---- Hareket ve yazdırma ---- */
+.kt-satir, .kt-noktalar a { transition: background-color .15s ease, border-color .15s ease; }
+@media print {
+  .kt-kupon, .kt-kupon-not, .kt-satir-eylem, .kt-noktalar { display: none !important; }
+  .sayfa-ust > .arama { -webkit-mask: none; mask: none; }
+  .ilanlar { background: none; border: 1px solid; }
+  .ilanlar, .ilanlar * { color: CanvasText !important; }
+}
