@@ -1,26 +1,103 @@
+@using RentACar.Application.Fleet
+
 @* PR-19 — Hero. Başlık ve alt metin SABİT (T1: firmanın vaadini değil, sitenin ne yaptığını
-   anlatır); marka adı ve arama formu TENANT'tan. Arama, `/musaitlik` ile AYNI bileşen (T4). *@
+   anlatır); marka adı, arama formu ve tarife TENANT'tan. Arama `/musaitlik` ile AYNI bileşen (T4).
 
-<section class="hero">
-    <div class="container hero-ic">
-        <h1>Tarihinizi seçin, müsait araçları ve net fiyatı görün</h1>
-        <p class="hero-alt">
-            @(string.IsNullOrWhiteSpace(Marka) ? "Filomuzdaki" : $"{Marka} filosundaki")
-            araçların günlük, haftalık ve aylık fiyatları ilanlarda yazılıdır.
-            Uygun aracı seçip talep bırakın, ekibimiz sizi arasın.
-        </p>
+   TARİFE TAHTASI: filonun gerçek günlük fiyatları, ucuzdan pahalıya, nokta dolgulu satırlarla — ziyaretçi
+   ilk ekranda "ne kadar?" sorusunun cevabını görür. VERİYE BAĞLI: yayında ilan yoksa hiç basılmaz (T2).
+   KDV etiketi ilanın kendi işaretinden; hepsi aynıysa tek not, karışıksa satır başına. *@
 
-        <AramaFormu Hedef="/musaitlik" Subeler="Subeler" ButonMetni="Müsait araçları göster"
-                    EkSinif="hero-arama" />
+<section class="hero" aria-labelledby="hero-baslik">
+    <div class="wrap hero-grid">
+        <div>
+            <h1 id="hero-baslik">Tarihinizi seçin, müsait araçları ve net fiyatı görün</h1>
+            @* Yerel arama ifadesi (SEO H-4): hizmet bölgesi aktif şubelerin il/ilçesinden (ServiceArea);
+               veri yoksa cümle hiç basılmaz (T2). İkinci cümle telefonda gizli: ilk ekranda arama düğmesi
+               görünsün (site.css .hero-alt-uzun). *@
+            <p class="hero-alt">
+                @if (!string.IsNullOrWhiteSpace(Bolge))
+                {
+                    <strong>@Bolge bölgesinde araç kiralama.</strong>@(" ")
+                }
+                @(string.IsNullOrWhiteSpace(Marka) ? "Filomuzdaki" : $"{Marka} filosundaki")
+                her aracın günlük, haftalık ve aylık fiyatı ilanında yazılı.
+                <span class="hero-alt-uzun">Tarih seçtiğinizde gün sayısına göre toplamı hesaplarız; beğendiğiniz
+                    araç için talep bırakırsınız, ekip sizi arar.</span>
+            </p>
 
-        <p class="hero-ipuclari muted small">
+            <AramaFormu Hedef="/musaitlik" Subeler="Subeler" />
+
             @* Bu üç ifade de sistemin davranışı — firma taahhüdü DEĞİL (T1). *@
-            Kayıt gerekmez · Talep bırakmak ücretsizdir · Fiyat sözleşmeye aynen geçer
-        </p>
+            <ul class="hero-bilgi">
+                <li>Kayıt gerekmez</li>
+                <li>Talep bırakmak ücretsiz</li>
+                <li>İlandaki fiyat sözleşmeye aynen geçer</li>
+            </ul>
+        </div>
+
+        @if (Rows.Count > 0)
+        {
+            <aside class="tarife" aria-labelledby="tarife-baslik">
+                <h2 id="tarife-baslik">Günlük fiyatlar</h2>
+                <p class="tarife-not">@VatNote</p>
+                <ol>
+                    @foreach (var c in Rows)
+                    {
+                        <li>
+                            <a href="@($"/araclar/{c.Slug}")">
+                                <span class="t-ad">
+                                    @c.Baslik
+                                    @if (!string.IsNullOrWhiteSpace(c.YilAralik))
+                                    {
+                                        <small>@c.YilAralik</small>
+                                    }
+                                </span>
+                                <span class="t-dolgu" aria-hidden="true"></span>
+                                <span class="t-fiyat">@PriceText.Tl(c.GunlukFiyat)<small>/gün@(MixedVat && !c.KdvDahil ? " + KDV" : null)</small></span>
+                            </a>
+                        </li>
+                    }
+                </ol>
+                @if (Kartlar.Count > Rows.Count)
+                {
+                    <p class="tarife-son"><a href="/musaitlik">Tüm filo (@Kartlar.Count araç)</a></p>
+                }
+                @* ÖRNEK HESAP: uydurma rakam değil — en uygun ilanın kendi günlük fiyatıyla 3 gün. 1-7 gün kademesi
+                   ilanın günlük fiyatıdır (FleetShowcaseService.DailyEquivalent), yani aynı tarihlerle yapılan
+                   aramanın göstereceği toplamla aynı. Tahtanın altına oturur: hero'nun sağ kolonu boş kalmaz. *@
+                @if (Rows.Count > 0)
+                {
+                    var o = Rows[0];
+                    <div class="tarife-ornek">
+                        <p class="tarife-not">Örnek hesap: @o.Baslik, 3 gün</p>
+                        <p class="fis-hesap">3 gün × @PriceText.Tl(o.GunlukFiyat)</p>
+                        <p class="fis-toplam">
+                            <span class="tutar">@PriceText.Tl(o.GunlukFiyat * ExampleDays)</span>
+                            <span class="kdv">@(o.KdvDahil ? "KDV dahil" : "KDV hariç")</span>
+                        </p>
+                        <p class="tarife-not">8 gün ve üzerinde haftalık, 30 gün ve üzerinde aylık fiyat uygulanır (ilanda varsa).</p>
+                    </div>
+                }
+            </aside>
+        }
     </div>
 </section>
 
 @code {
+    /// <summary>Tarife tahtasında en fazla kaç satır (fazlası "Tüm filo" bağlantısıyla).</summary>
+    private const int MaxRows = 6;
+    private const int ExampleDays = 3;
+
     [Parameter] public string? Marka { get; set; }
+    /// <summary>Hizmet bölgesi ("Esenyurt, İstanbul"); null → bölge cümlesi basılmaz.</summary>
+    [Parameter] public string? Bolge { get; set; }
     [Parameter] public IReadOnlyList<string> Subeler { get; set; } = [];
+    [Parameter] public IReadOnlyList<FleetShowcaseCard> Kartlar { get; set; } = [];
+
+    private IReadOnlyList<FleetShowcaseCard> Rows => [.. Kartlar.OrderBy(c => c.GunlukFiyat).Take(MaxRows)];
+    private bool MixedVat => Kartlar.Any(c => c.KdvDahil) && Kartlar.Any(c => !c.KdvDahil);
+
+    private string VatNote => MixedVat
+        ? "Günlük fiyat, KDV dahil; “+ KDV” yazan satırlara KDV eklenir."
+        : Kartlar.All(c => c.KdvDahil) ? "Günlük fiyat, KDV dahil." : "Günlük fiyat, KDV hariç.";
 }

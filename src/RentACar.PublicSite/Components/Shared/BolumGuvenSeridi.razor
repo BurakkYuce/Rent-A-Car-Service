@@ -1,8 +1,8 @@
 @* PR-19 — güven şeridi. DÖRT MADDE DE SABİT ve bu bilinçli bir kısıt altında yazıldı:
 
    T1 — SABİT METİN, FİRMA ADINA TAAHHÜT VEREMEZ.
-   Referans projede bu şeritte "Tam kasko dahil", "Ücretsiz teslimat" yazıyor; bunlar O FİRMANIN
-   vaatleri. Bizde sigorta opsiyonel bir ek hizmet (`CoverageProduct`) ve teslimat politikası
+   Başka firmaların sitelerinde bu şeritte "Tam kasko dahil", "Ücretsiz teslimat" yazar; bunlar O
+   FİRMANIN vaatleri. Bizde sigorta opsiyonel bir ek hizmet (`CoverageProduct`) ve teslimat politikası
    firmadan firmaya değişiyor — aynı cümleyi koda gömmek, HER tenant'ın sitesinde doğrulanmamış
    bir taahhüt yayınlamak olurdu.
 
@@ -11,17 +11,19 @@
      2. KDV durumu her ilanda yazılı          → WebIlan.KdvDahil, kartta ve detayda basılıyor
      3. müsaitlik anlık filodan hesaplanır    → AvailabilityService
      4. kiralama yazılı sözleşmeyle yapılır   → SozlesmeService + sözleşme PDF'i
-   Kasko/teslimat/km gibi firmaya özel ayrıcalıklar firmanın KENDİ içerik sayfasında anlatılır. *@
+   Kasko/teslimat/km gibi firmaya özel ayrıcalıklar firmanın KENDİ içerik sayfasında anlatılır.
 
-<section class="serit" aria-label="Nasıl çalışıyoruz">
-    <div class="container serit-ic">
-        @foreach (var (title, description) in Items)
-        {
-            <div class="serit-kutu">
-                <strong>@title</strong>
-                <span class="muted small">@description</span>
-            </div>
-        }
+   Görünüm: kutu yok; her madde kısa bir yol çizgisi segmentiyle başlar (site.css .ilkeler). *@
+
+<section class="bolum bolum-kontrast" aria-labelledby="ilke-baslik">
+    <div class="wrap">
+        <h2 id="ilke-baslik" class="bolum-baslik">Fiyat ve süreç baştan açık</h2>
+        <ul class="ilkeler">
+            @foreach (var (title, description) in Items)
+            {
+                <li><strong>@title</strong><span>@description</span></li>
+            }
+        </ul>
     </div>
 </section>
 

@@ -26,17 +26,16 @@
     </HeadContent>
 }
 
-<div class="container">
-    @if (_page is null)
+@* Sayfa yoksa gövde basılmaz: durum kodu 404 ve /not-found kabukla yeniden yürütülür (Program.cs). *@
+@if (_page is not null)
+{
+    <Breadcrumbs Items="@(new Breadcrumbs.Item[] { new("Ana sayfa", "/"), new(_page.Baslik, $"/{Slug}") })" />
+}
+<div class="wrap sayfa-ust">
+    @if (_page is not null)
     {
-        <h1>Sayfa bulunamadı</h1>
-        <p class="empty-state">Aradığınız sayfa yayından kaldırılmış ya da adres yanlış olabilir.</p>
-        <p><a class="back-link" href="/">← Ana sayfaya dön</a></p>
-    }
-    else
-    {
-        <header class="site-header"><h1>@_page.Baslik</h1></header>
-        <article class="blog-icerik">
+        <h1>@_page.Baslik</h1>
+        <article class="metin">
             @* MarkupString KULLANILMAZ: @p normal bir Razor ifadesi olduğu için otomatik HTML-encode
                edilir. İçerik düz metin saklandığından personel gövdeye <script> yazsa ekranda METİN
                görünür — XSS risk sınıfı tasarım gereği yok (blog ile aynı kural, IcerikMetni ortak). *@

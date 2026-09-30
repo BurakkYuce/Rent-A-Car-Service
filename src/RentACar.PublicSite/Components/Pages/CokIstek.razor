@@ -1,9 +1,14 @@
 @page "/cok-istek"
 
+@* Hız sınırı aşıldığında gelinen sayfa (Program.cs OnRejected). Ne olduğunu ve ne yapılacağını söyler. *@
+
 <PageTitle>Çok fazla istek</PageTitle>
 
-<div class="container">
+<div class="wrap-dar sayfa-ust">
     <h1>Biraz yavaşlayalım</h1>
-    <p class="muted-note">Kısa sürede çok fazla istek aldık. Lütfen bir dakika bekleyip tekrar deneyin.</p>
-    <p><a href="/">← Ana sayfaya dön</a></p>
+    <p class="giris">Kısa sürede çok fazla istek aldık. Bir dakika bekleyip yeniden deneyin.</p>
+    <ul class="linkler">
+        <li><a href="/musaitlik">Araçlar ve fiyatlar</a></li>
+        <li><a href="/">Ana sayfa</a></li>
+    </ul>
 </div>

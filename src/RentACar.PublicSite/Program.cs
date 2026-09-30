@@ -139,10 +139,13 @@ app.Use(async (ctx, next) =>
 // ---- SEO teknik katmanı (sıra ÖNEMLİ; hepsi UseRouting'den ÖNCE) ----
 // 1) HEAD → GET yönlendirmesi, gövde atılır (M-5: `curl -I /` 404 dönüyordu).
 // 2) X-Robots-Tag (M-3): kararı ÖZGÜN istek yolundan verir → yeniden çalıştırmanın DIŞINDA durur.
-// 3) Durum kodunu koruyan yeniden çalıştırma (M-4 429, L-5 410): yeni yol için uç YENİDEN seçilsin
+// 3) 404 gövdesi (H-2): gövdesiz 404 yanıtı kabuklu /not-found sayfasıyla doldurulur, durum 404 kalır
+//    (ayrıntı ve neden hazır UseStatusCodePagesWithReExecute değil: NotFoundPageMiddleware.cs).
+// 4) Durum kodunu koruyan yeniden çalıştırma (M-4 429, L-5 410): yeni yol için uç YENİDEN seçilsin
 //    diye yönlendirme bundan sonra ve AÇIKÇA çağrılır (örtük UseRouting boru hattının başına eklenirdi).
 app.UseMiddleware<HeadRequestMiddleware>();
 app.UseMiddleware<NoIndexHeaderMiddleware>();
+app.UseMiddleware<NotFoundPageMiddleware>();
 app.UseMiddleware<StatusPageReExecuteMiddleware>();
 app.UseRouting();
 

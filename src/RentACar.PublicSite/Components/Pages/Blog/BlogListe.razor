@@ -6,50 +6,52 @@
 
 <PageTitle>Blog — @(_branding?.Marka ?? "RentPro")</PageTitle>
 
-<div class="container">
-    <a class="back-link" href="/">← Ana sayfa</a>
-    <h1>Blog</h1>
+<Breadcrumbs Items="Crumbs" />
 
+<div class="wrap sayfa-ust">
+    <h1>Blog</h1>
+</div>
+
+<div class="wrap">
     @if (_posts is { Count: > 0 })
     {
-        <div class="grid">
+        <ul class="yazilar">
             @foreach (var p in _posts)
             {
-                <a class="card" href="@($"/blog/{p.Slug}")">
-                    @if (p.KapakVar)
-                    {
-                        @* loading="lazy": LİSTE kartı, kapak DEĞİL. Mobilde ekrana sığmayan
-                           kartların görselleri ilk boyamayı geciktirmesin (AracKarti.razor ile
-                           aynı davranış). BlogYaziDetay/IlanDetay KAPAK görselleri LCP adayı
-                           olduğu için bilinçli olarak lazy DEĞİL. *@
-                        <img class="card-img" src="@($"/blog-kapak/{p.Id}")" alt="@p.Baslik" loading="lazy" />
-                    }
-                    else
-                    {
-                        <div class="card-img-placeholder" aria-hidden="true"></div>
-                    }
-                    <div class="card-body">
-                        <h3>@p.Baslik</h3>
-                        @if (!string.IsNullOrWhiteSpace(p.Ozet))
+                <li>
+                    <article class="yazi">
+                        @if (p.KapakVar)
                         {
-                            <p>@p.Ozet</p>
+                            @* Liste kartı: tembel yükleme — ekrana sığmayan kartların görselleri ilk boyamayı
+                               geciktirmesin. Blog/ilan DETAY kapakları LCP adayı olduğu için tembel DEĞİL. *@
+                            <img src="@($"/blog-kapak/{p.Id}")" alt="" width="400" height="225" loading="lazy" decoding="async" />
                         }
-                        @if (p.YayinTarihi is { } t)
+                        else
                         {
-                            <div class="chips"><span class="chip">@t.ToString("dd.MM.yyyy")</span></div>
+                            <div class="foto-yok" aria-hidden="true"></div>
                         }
-                    </div>
-                </a>
+                        <div class="yazi-ic">
+                            <h2><a href="@($"/blog/{p.Slug}")">@p.Baslik</a></h2>
+                            @if (!string.IsNullOrWhiteSpace(p.Ozet)) { <p>@p.Ozet</p> }
+                            @if (p.YayinTarihi is { } t)
+                            {
+                                <p class="muted small"><time datetime="@t.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture)">@PriceText.Date(t)</time></p>
+                            }
+                        </div>
+                    </article>
+                </li>
             }
-        </div>
+        </ul>
     }
     else
     {
-        <p class="empty-state">Henüz yazı yayınlanmamış.</p>
+        <p class="bos-durum">Henüz yazı yayınlanmamış.</p>
     }
 </div>
 
 @code {
+    private static readonly IReadOnlyList<Breadcrumbs.Item> Crumbs = [new("Ana sayfa", "/"), new("Blog", "/blog")];
+
     private IReadOnlyList<BlogListItem>? _posts;
     private FleetBranding? _branding;
 

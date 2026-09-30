@@ -13,77 +13,97 @@
            Aciklama="@($"{_branding?.Marka ?? "Firmamız"} filosunda tarihlerinize göre müsait araçları ve net günlük fiyatı görün. Kayıt gerekmez, teklif bırakmak ücretsizdir.")"
            Yol="/musaitlik" Marka="_branding" KanonikKok="@_canonicalRoot" />
 
-<div class="container">
-    <a class="back-link" href="/">← Ana sayfa</a>
-    <h1>Müsaitlik ve Fiyat Sorgula</h1>
+<Breadcrumbs Items="Crumbs" KanonikKok="@_crumbRoot" />
+
+<div class="wrap sayfa-ust">
+    <h1>Müsait araçlar ve fiyatlar</h1>
+    <p class="giris">Alış ve iade tarihini girin; o aralıkta boşta olan araçları ve gün sayısına göre toplam
+        fiyatı gösterelim. Tarih girmeden de tüm filoya göz atabilirsiniz.</p>
+
+    @* PR-19: form ORTAK bileşen (T4) — Hero ile aynı alan adları/doğrulama. GET-querystring: JS yok,
+       paylaşılabilir/geri-tuşuna dost URL. `ilan` taşınır: ilan detayından gelindiyse o araç öne alınır. *@
+    <AramaFormu Satir="true" Bas="@Bas" Bit="@Bit" Sube="@Sube" Ilan="@Ilan" Subeler="_branches" ButonMetni="Ara" />
 
     @if (!string.IsNullOrEmpty(_error))
     {
-        <p class="empty-state">@_error</p>
+        <p class="not-kutu hata" role="alert">@_error</p>
     }
+</div>
 
-    @* PR-19: form ORTAK bileşene çıkarıldı (T4) — Hero ile aynı alan adları/doğrulama.
-       GET-querystring deseni korunuyor: JS yok, paylaşılabilir/geri-tuşuna dost URL. *@
-    <AramaFormu Bas="@Bas" Bit="@Bit" Sube="@Sube" Subeler="_branches" />
-
+<div class="wrap">
     @if (_searched)
     {
         @* ---- (a) TARİH SEÇİLMİŞ: gerçek müsaitlik + dönem toplamı ---- *@
         @if (_results is { Count: > 0 })
         {
-            <p class="muted-note"><strong>@_results.Count araç</strong> müsait ·
-                @_results[0].Gun günlük kiralama · fiyatlar seçtiğiniz gün sayısına göre hesaplandı.</p>
-            <div class="grid">
-                @foreach (var r in _results)
-                {
-                    <AracKarti Slug="@r.Slug" Baslik="@r.Baslik" CoverPhotoId="r.CoverPhotoId"
-                               YilAralik="@r.YilAralik" GunlukFiyat="r.GunlukFiyat" KdvDahil="r.KdvDahil"
-                               Ozellikler="r.Ozellikler" Gun="r.Gun" Toplam="r.Toplam" Adet="r.Adet"
-                               TeklifLinki="@QuotationLink(r.Slug, r.GunlukFiyat)" />
-                }
+            <div class="sonuc-ozet" role="status">
+                <strong>@_results.Count araç müsait</strong>
+                <span class="muted">@RangeText, @_results[0].Gun gün. Fiyatlar gün sayısına göre hesaplandı.</span>
             </div>
+            @if (_requestedTitle is not null && !_requestedAvailable)
+            {
+                <p class="not-kutu">@_requestedTitle bu tarihlerde müsait değil. Aşağıdaki araçlar seçtiğiniz tarihlerde boşta.</p>
+            }
+            <ul class="ilanlar">
+                @for (var i = 0; i < _results.Count; i++)
+                {
+                    var r = _results[i];
+                    <li>
+                        <AracKarti Slug="@r.Slug" Baslik="@r.Baslik" CoverPhotoId="r.CoverPhotoId"
+                                   YilAralik="@r.YilAralik" GunlukFiyat="r.GunlukFiyat" KdvDahil="r.KdvDahil"
+                                   Ozellikler="r.Ozellikler" Gun="r.Gun" Toplam="r.Toplam" Adet="r.Adet"
+                                   Isaret="@(r.Slug == Ilan ? "Baktığınız araç" : null)" Oncelikli="i == 0"
+                                   TeklifLinki="@QuoteLink.Build(r.Slug, Bas, Bit, Sube, r.GunlukFiyat)" />
+                    </li>
+                }
+            </ul>
         }
         else
         {
-            @* PR-20: eskiden burada tek cümle vardı ve ziyaretçi ÇIKMAZ SOKAKTA kalıyordu.
-               Sonuç yoksa bile üç çıkış yolu sunulur: tarihi değiştir (form yukarıda), tüm filoyu
-               gör, ya da doğrudan ulaş. Metin bir vaat içermez — yalnız durumu söyler. *@
-            <p class="empty-state">Seçtiğiniz tarihlerde müsait araç bulunamadı.</p>
-            <p class="ust-linkler">
-                <a href="/musaitlik">Tüm filoyu gör</a>
-                <a href="/iletisim">Bize ulaşın</a>
-            </p>
-            <p class="muted small">Tarihleri biraz esnetmek çoğu zaman sonucu değiştirir;
-                yukarıdaki formdan yeniden deneyebilirsiniz.</p>
+            @* PR-20: sonuç yoksa bile üç çıkış yolu: tarihi değiştir (form yukarıda), tüm filoyu gör,
+               ya da doğrudan ulaş. Metin bir vaat içermez — yalnız durumu söyler. *@
+            <div class="bos-durum" role="status">
+                <h2>Bu tarihlerde müsait araç yok</h2>
+                <p>Tarihleri bir iki gün esnetmek çoğu zaman sonucu değiştirir; yukarıdaki formdan yeniden
+                    deneyebilirsiniz.</p>
+                <ul class="linkler">
+                    <li><a href="/musaitlik">Tüm filoyu gör</a></li>
+                    <li><a href="/iletisim">Bize ulaşın</a></li>
+                </ul>
+            </div>
         }
     }
     else if (_fleet is { Count: > 0 })
     {
         @* ---- (b) TARİH YOK: misafir filoyu serbestçe geziyor ----
-           Tarih girmek ZORUNLU DEĞİL. Eskiden iki alan da `required`'dı ve tarihsiz açılan sayfa
-           bomboş kalıyordu: "önce ne zaman gideceğime karar vereyim" diyen ziyaretçi araçları
-           HİÇ göremiyordu. Artık tüm yayındaki filo, günlük fiyatlarıyla listelenir.
-
            BURADA "müsait" DENMEZ: tarih olmadan hangi aracın boşta olduğu bilinemez. Kart adet
-           çipi de "9 araç" der, "9 araç müsait" demez (bkz. AracKarti). Yanlış söz vermemek,
-           ziyaretçiyi tarih girmeye zorlamaktan daha önemli. *@
-        <p class="muted-note"><strong>@_fleet.Count araç</strong> · günlük fiyatlar aşağıda.
-            Tarih girerseniz o aralıkta <strong>gerçekten boşta olanları</strong> ve
-            seçtiğiniz gün sayısına göre toplam tutarı gösteririz.</p>
-        <div class="grid">
-            @foreach (var k in _fleet)
-            {
-                <AracKarti Slug="@k.Slug" Baslik="@k.Baslik" CoverPhotoId="k.CoverPhotoId"
-                           YilAralik="@k.YilAralik" GunlukFiyat="k.GunlukFiyat" KdvDahil="k.KdvDahil"
-                           Ozellikler="k.Ozellikler" Adet="k.Adet"
-                           TeklifLinki="@QuotationLink(k.Slug, k.GunlukFiyat)" />
-            }
+           etiketi de "9 araç" der, "9 araç müsait" demez (bkz. AracKarti). *@
+        <div class="sonuc-ozet">
+            <strong>Filoda @_fleet.Count araç</strong>
+            <span class="muted">Günlük fiyatlar aşağıda. Tarih girerseniz o aralıkta gerçekten boşta olanları
+                ve toplam tutarı gösteririz.</span>
         </div>
+        <ul class="ilanlar">
+            @for (var i = 0; i < _fleet.Count; i++)
+            {
+                var k = _fleet[i];
+                <li>
+                    <AracKarti Slug="@k.Slug" Baslik="@k.Baslik" CoverPhotoId="k.CoverPhotoId"
+                               YilAralik="@k.YilAralik" GunlukFiyat="k.GunlukFiyat" KdvDahil="k.KdvDahil"
+                               Ozellikler="k.Ozellikler" Adet="k.Adet" Oncelikli="i == 0"
+                               Isaret="@(k.Slug == Ilan ? "Baktığınız araç" : null)"
+                               TeklifLinki="@QuoteLink.Build(k.Slug, Bas, Bit, Sube, k.GunlukFiyat)" />
+                </li>
+            }
+        </ul>
     }
     else if (_fleet is { Count: 0 })
     {
-        <p class="empty-state">Şu anda sitede yayınlanmış araç yok.</p>
-        <p class="ust-linkler"><a href="/iletisim">Bize ulaşın</a></p>
+        <div class="bos-durum">
+            <h2>Şu anda sitede yayınlanmış araç yok</h2>
+            <p>Filomuz hakkında bilgi almak için bize ulaşın.</p>
+            <ul class="linkler"><li><a href="/iletisim">İletişim bilgileri</a></li></ul>
+        </div>
     }
 </div>
 
@@ -96,53 +116,56 @@
     [SupplyParameterFromQuery(Name = "bas")] public string? Bas { get; set; }
     [SupplyParameterFromQuery(Name = "bit")] public string? Bit { get; set; }
     [SupplyParameterFromQuery(Name = "sube")] public string? Sube { get; set; }
+    /// <summary>İlan detayından gelindiyse o ilanın slug'ı — sonuçta öne alınır.</summary>
+    [SupplyParameterFromQuery(Name = "ilan")] public string? Ilan { get; set; }
+
+    private static readonly IReadOnlyList<Breadcrumbs.Item> Crumbs =
+        [new("Ana sayfa", "/"), new("Araçlar ve fiyatlar", "/musaitlik")];
 
     private FleetBranding? _branding;
     private string? _canonicalRoot;
+    private string? _crumbRoot;
     private IReadOnlyList<string> _branches = [];
     private IReadOnlyList<PublicAvailabilityResult>? _results;
     /// <summary>Tarihsiz mod: yayındaki TÜM filo (müsaitlik süzgeci uygulanmadan).</summary>
     private IReadOnlyList<FleetShowcaseCard>? _fleet;
     private bool _searched;
     private string? _error;
+    private string? _requestedTitle;
+    private bool _requestedAvailable;
+    private DateTimeOffset? _start, _end;
 
-    /// <summary>PR-8 talep formuna bağlam taşır: İLAN + tarihler + ziyaretçinin GÖRDÜĞÜ fiyat (snapshot).
-    /// Fiyat InvariantCulture ile yazılır — tr-TR virgülü query string'de yanlış ayrıştırılırdı.
-    /// Tarihler BOŞ olabilir (misafir tarihsiz geziyorsa): talep formu onları kendisi sorar.</summary>
-    private string QuotationLink(string slug, decimal dailyPrice)
-    {
-        var q = System.Web.HttpUtility.ParseQueryString(string.Empty);
-        q["ilan"] = slug; // slug: sayfa ilanı yeniden çözer (yayından kalkmışsa fiyat/başlık taşınmaz)
-        if (!string.IsNullOrWhiteSpace(Bas)) q["bas"] = Bas;
-        if (!string.IsNullOrWhiteSpace(Bit)) q["bit"] = Bit;
-        if (!string.IsNullOrWhiteSpace(Sube)) q["sube"] = Sube;
-        q["fiyat"] = dailyPrice.ToString(System.Globalization.CultureInfo.InvariantCulture);
-        return "/rezervasyon-talebi?" + q;
-    }
+    private string RangeText => _start is { } s && _end is { } e
+        ? $"{PriceText.ShortDate(s)} – {PriceText.ShortDate(e)}" : "";
 
     protected override async Task OnInitializedAsync()
     {
         _branding = await Showcase.GetBrandingAsync();
         if (Http is not null) _canonicalRoot = $"https://{Http.Request.Host.Value}";
+        if (await Showcase.GetCanonicalHostAsync() is { } host) _crumbRoot = $"https://{host}";
         _branches = (await Subeler.ListActiveAsync()).Select(s => s.Ad).ToList();
 
-        var start = ParseDate(Bas);
-        var bit = ParseDate(Bit);
+        _start = ParseDate(Bas);
+        _end = ParseDate(Bit);
 
         // İKİ tarih de girilmemişse (ya da yalnız biri girilmişse) müsaitlik HESAPLANMAZ — tek
         // tarihten aralık uydurmak ziyaretçinin niyetini varsaymak olurdu. Bunun yerine filo
         // listelenir; ziyaretçi isterse ikinci tarihi girip daraltır.
-        if (start is null || bit is null)
+        if (_start is null || _end is null)
         {
-            _fleet = await Showcase.ListShowcaseGroupsAsync();
+            _fleet = PinFirst(await Showcase.ListShowcaseGroupsAsync(), k => k.Slug);
             return;
         }
 
         _searched = true;
         try
         {
-            _results = await Showcase.SearchAvailabilityAsync(start.Value, bit.Value,
+            var results = await Showcase.SearchAvailabilityAsync(_start.Value, _end.Value,
                 string.IsNullOrWhiteSpace(Sube) ? null : Sube);
+            _requestedAvailable = !string.IsNullOrWhiteSpace(Ilan) && results.Any(r => r.Slug == Ilan);
+            if (!string.IsNullOrWhiteSpace(Ilan) && !_requestedAvailable)
+                _requestedTitle = (await Showcase.GetListingDetailAsync(Ilan))?.Baslik;
+            _results = PinFirst(results, r => r.Slug);
         }
         catch (ValidationException ex)
         {
@@ -150,10 +173,15 @@
             // bırakılmaz — filo yine listelenir, düzeltip yeniden deneyebilir.
             _error = ex.Message;
             _searched = false;
-            _fleet = await Showcase.ListShowcaseGroupsAsync();
+            _fleet = PinFirst(await Showcase.ListShowcaseGroupsAsync(), k => k.Slug);
         }
     }
 
+    /// <summary>İlan detayından gelinen aracı listenin başına alır (sıra aksi halde servisinki).</summary>
+    private IReadOnlyList<T> PinFirst<T>(IReadOnlyList<T> items, Func<T, string> slug)
+        => string.IsNullOrWhiteSpace(Ilan) ? items : [.. items.OrderBy(x => slug(x) == Ilan ? 0 : 1)];
+
     private static DateTimeOffset? ParseDate(string? s)
-        => DateTimeOffset.TryParse(s, out var d) ? new DateTimeOffset(d.Date, TimeSpan.Zero) : null;
+        => DateTimeOffset.TryParse(s, System.Globalization.CultureInfo.InvariantCulture,
+            System.Globalization.DateTimeStyles.None, out var d) ? new DateTimeOffset(d.Date, TimeSpan.Zero) : null;
 }

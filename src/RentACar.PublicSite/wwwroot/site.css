@@ -1,861 +1,542 @@
 /* =============================================================================
-   Halka açık site teması (PR-15).
+   Halka açık firma sitesi — "yol ve tarife" teması.
 
-   TOKEN SİSTEMİ: renkler doğrudan yazılmaz, hepsi semantik değişken üzerinden gelir
-   (--surface / --ink / --brand …). Karanlık tema AYNI isimleri yeniden tanımlar →
-   her bileşen kendiliğinden çevrilir. Tema ANAHTARI YOK (bilinçli): sistem tercihi
-   (`prefers-color-scheme`) yeterli; buton JS + localStorage isterdi, statik SSR'da
-   ve `script-src 'self'` altında ayrı bir iştir.
+   KİMLİK: kiralık araç sitelerinin olağan görünümü (stok yol fotoğrafı + mavi düğme) yerine
+   aracın kendi dünyası: karayolu levhası/plaka yazısı (Barlow ailesi), asfalt mürekkebi, yol
+   çizgisi sarısı ve fiyat TARİFESİ. Sitenin tek cesur unsuru fiyatın sunuluşu: "3 gün × ₺1.250"
+   hesabı açıkça yazılır, toplamın altından yol çizgisi geçer (.tutar). Geri kalan her şey sakin.
 
-   DIŞ KAYNAK YOK: fontlar kendi barındırılıyor. PublicSite CSP'si `font-src 'self'`
-   (Program.cs) — Google Fonts'a link vermek sayfayı SESSİZCE fallback font'a düşürür.
+   ÇOK KİRACI: iskelet ortak; firma kimliği logo + ad + vurgu rengiyle gelir. Vurgu rengi
+   App.razor'daki <style> bloğundan (BrandPalette) --brand/--on-brand/--brand-text/--brand-soft
+   olarak basılır; buradaki değerler yalnız o blok yoksa kullanılan varsayılandır.
+
+   TOKEN KURALI: renk doğrudan yazılmaz, semantik değişkenden gelir; koyu tema AYNI isimleri
+   yeniden tanımlar. Tema anahtarı YOK (JS + depolama isterdi) — sistem tercihi yeterli.
+
+   DIŞ KAYNAK YOK: yazı tipleri kendi barındırılıyor (@font-face App.razor'da, parmak izli adres).
+
+   `screen and` KURALI: dar ekran sorguları `screen and (max-width …)` yazılır — çıplak
+   `max-width` yazdırmada da tetiklenir ve A4 çıktı mobil düzene düşer.
    ============================================================================= */
 
-/* ---- Fontlar: Sora (başlık) + Inter (gövde), değişken ağırlık, iki alt küme ----
-   latin-ext ZORUNLU: `ı` (U+0131) latin alt kümesinde ama Ğ/ğ (U+011E-011F),
-   Ş/ş (U+015E-015F) ve İ (U+0130) latin-ext'te. Yalnız latin yüklenirse Türkçe
-   başlıklar harf harf fallback font'a düşer ve tipografi dağılır. */
-@font-face {
-  font-family: 'Sora';
-  font-style: normal;
-  font-weight: 100 800;
-  font-display: swap;
-  src: url('fonts/sora-latin-ext.woff2') format('woff2');
-  unicode-range: U+100-2BA, U+2BD-2C5, U+2C7-2CC, U+2CE-2D7, U+2DD-2FF, U+304, U+308,
-    U+329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0,
-    U+2113, U+2C60-2C7F, U+A720-A7FF;
-}
-@font-face {
-  font-family: 'Sora';
-  font-style: normal;
-  font-weight: 100 800;
-  font-display: swap;
-  src: url('fonts/sora-latin.woff2') format('woff2');
-  unicode-range: U+0-FF, U+131, U+152-153, U+2BB-2BC, U+2C6, U+2DA, U+2DC, U+304, U+308,
-    U+329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
-}
-@font-face {
-  font-family: 'Inter';
-  font-style: normal;
-  font-weight: 100 900;
-  font-display: swap;
-  src: url('fonts/inter-latin-ext.woff2') format('woff2');
-  unicode-range: U+100-2BA, U+2BD-2C5, U+2C7-2CC, U+2CE-2D7, U+2DD-2FF, U+304, U+308,
-    U+329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0,
-    U+2113, U+2C60-2C7F, U+A720-A7FF;
-}
-@font-face {
-  font-family: 'Inter';
-  font-style: normal;
-  font-weight: 100 900;
-  font-display: swap;
-  src: url('fonts/inter-latin.woff2') format('woff2');
-  unicode-range: U+0-FF, U+131, U+152-153, U+2BB-2BC, U+2C6, U+2DA, U+2DC, U+304, U+308,
-    U+329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
-}
-
-/* ---- Aydınlık tema (varsayılan) ---- */
 :root {
   color-scheme: light;
+  --paper: #f5f6f3;        /* sayfa zemini — BrandPalette.LightPaper ile AYNI (kontrast ona göre) */
+  --surface: #ffffff;      /* kart, form */
+  --ink: #1d2227;          /* asfalt */
+  --ink-2: #4f575e;        /* ikincil metin — paper üstünde 6.9:1 */
+  --ink-3: #636b72;        /* ipucu metni — paper üstünde 5.0:1, beyazda 5.4:1 */
+  --line: #dadfd8;
+  --line-strong: #b4bab2;
+  --mark: #f2c230;         /* yol çizgisi sarısı — METİN rengi olarak ASLA (beyazda 1.7:1) */
+  --ok: #1f6b3a;           /* onay işareti — paper üstünde 6.3:1 */
 
-  --surface: #ffffff;
-  --surface-muted: #f4f8fc;
-  --surface-alt: #e9f1fa;
-  --ink: #0a2540;
-  --ink-muted: #46607a;
-  --ink-subtle: #5b7288;      /* AA: 4.68:1 — --surface-muted üzerinde */
-  --line: #dce6f1;
-  --brand: #1668a8;
-  --brand-strong: #0f4f80;
-  --brand-ink: #ffffff;       /* dolu marka zemini üzerindeki metin */
-  --accent: #f59e0b;
-  --accent-strong: #d97f06;
-  --accent-ink: #0a2540;      /* amber zemin üzerinde KOYU metin — beyaz AA'yı geçmiyor */
+  --brand: #0b5d6b;
+  --on-brand: #ffffff;
+  --brand-text: #0b5d6b;
+  --brand-soft: #dde7e5;
+
+  --font-body: "Barlow", "Barlow Fallback", system-ui, sans-serif;
+  --font-display: "Barlow Condensed", "Barlow Condensed Fallback", "Arial Narrow", sans-serif;
+
+  /* Tip ölçeği ~1.25 (majör üçlü): 17 / 21 / 26 / 33+ px. Gövde 17px — telefonda okunur,
+     form alanlarında iOS yakınlaştırması tetiklenmez (≥16px). */
+  --fs-0: 1.0625rem;
+  --fs-1: 1.3125rem;
+  --fs-2: clamp(1.5rem, 1.3rem + .9vw, 1.9rem);
+  --fs-3: clamp(2rem, 1.5rem + 2.2vw, 2.9rem);
+  --fs-hero: clamp(2.4rem, 1.55rem + 3.9vw, 4.4rem);
+  --fs-small: .9375rem;
 
   --s1: .5rem; --s2: 1rem; --s3: 1.5rem; --s4: 2.5rem; --s5: 4rem;
-  --t0: clamp(1rem, .95rem + .2vw, 1.0625rem);
-  --t1: clamp(1.25rem, 1.1rem + .5vw, 1.5rem);
-  --t2: clamp(1.75rem, 1.4rem + 1.4vw, 2.5rem);
-  --r: 12px;
-  --golge: 0 1px 2px rgb(10 37 64 / 6%), 0 4px 16px rgb(10 37 64 / 6%);
+  --gutter: 1rem;
+  --r-s: 6px;              /* alan, düğme, etiket */
+  --r-m: 12px;             /* kart, panel */
+  --lift: 0 1px 0 rgb(29 34 39 / 5%), 0 10px 28px -16px rgb(29 34 39 / 30%);
 }
 
-/* ---- Karanlık tema: AYNI isimler, farklı değerler ---- */
 @media (prefers-color-scheme: dark) {
   :root {
     color-scheme: dark;
-
-    --surface: #0a1828;
-    --surface-muted: #0f2235;
-    --surface-alt: #16304a;
-    --ink: #e9f1fa;
-    --ink-muted: #a7bccf;
-    --ink-subtle: #8ba4bb;    /* AA: 6.25:1 — --surface-muted üzerinde */
-    --line: #21384f;
-    --brand: #4d9bd8;
-    --brand-strong: #6fb0e2;
-    /* Karanlıkta --brand AÇIK bir ton olduğu için üzerine beyaz metin yalnız 3.0:1
-       veriyordu. Çözüm --brand'i koyulaştırmak DEĞİL (o renk metin rengi olarak da
-       kullanılıyor, onu bozardı) → zemin üstü metni TERS ÇEVİR: 6.28:1. */
-    --brand-ink: #06121f;
-    --accent: #ffb13d;
-    --accent-strong: #ffc266;
-    --golge: 0 1px 2px rgb(0 0 0 / 40%), 0 4px 16px rgb(0 0 0 / 30%);
+    --paper: #121417;      /* BrandPalette.DarkPaper */
+    --surface: #1b1f23;    /* BrandPalette.DarkSurface */
+    --ink: #eceeea;
+    --ink-2: #b6bdc2;
+    --ink-3: #9aa2a9;      /* surface üstünde 6.5:1 */
+    --line: #2c3238;
+    --line-strong: #474e55;
+    --ok: #7fd49a;
+    --brand: #4f9fb0;
+    --on-brand: #121417;
+    --brand-text: #7cc0cf;
+    --brand-soft: #1d3035;
+    --lift: 0 1px 0 rgb(0 0 0 / 30%), 0 12px 30px -18px rgb(0 0 0 / 70%);
   }
 }
 
-* { box-sizing: border-box; }
+@media (min-width: 720px) { :root { --gutter: 1.5rem; } }
 
-html { scroll-behavior: smooth; }
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
 
 body {
   margin: 0;
-  background: var(--surface-muted);
+  background: var(--paper);
   color: var(--ink);
-  font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
-  font-size: var(--t0);
-  line-height: 1.6;
+  font-family: var(--font-body);
+  font-size: var(--fs-0);
+  line-height: 1.55;
   -webkit-font-smoothing: antialiased;
-  /* Çerez şeridi `position: fixed` — AÇIKKEN sayfanın son içeriği (alt bilgi, kapanış
-     CTA'sı, "Teklif İste") şeridin ALTINDA kalıyor ve tıklanamıyordu. Telafi boşluğunu
-     js/rc-cerez.js şeridin GERÇEK yüksekliğinden ölçüp bu değişkene yazar; şerit yoksa
-     ya da kapatıldıysa değişken tanımsızdır ve fallback 0px devreye girer. Sabit bir
-     değer yazılamaz: yükseklik metin uzunluğuna ve ekran genişliğine göre değişiyor. */
+  /* Çerez şeridi `position: fixed`; açıkken son içerik altında kalmasın. Boşluğu js/rc-cerez.js
+     şeridin GERÇEK yüksekliğinden ölçüp yazar; şerit yoksa değişken tanımsız → 0. */
   padding-bottom: var(--cerez-bosluk, 0px);
 }
+/* Mobil alt eylem çubuğunun telafisi .page'de: değişkeni açan sınıf .page'de olduğu için (yukarı,
+   body'ye miras gitmez) boşluk da orada verilir. */
+.page { padding-bottom: var(--altbar); }
 
-h1, h2, h3, .fiyat-buyuk {
-  font-family: 'Sora', 'Inter', system-ui, sans-serif;
-  letter-spacing: -.01em;
-}
-
-a { color: var(--brand); text-decoration-thickness: 1px; text-underline-offset: 2px; }
-a:hover { color: var(--brand-strong); }
-
-/* Klavye kullanıcısı nerede olduğunu GÖRMELİ (fare kullanıcısını rahatsız etmeden). */
-:focus-visible {
-  outline: 2px solid var(--brand);
-  outline-offset: 2px;
-  border-radius: 4px;
-}
-
-.container {
-  max-width: 1100px;
-  margin: 0 auto;
-  padding: var(--s3) var(--s2) var(--s5);
-}
-
-/* ---- Site kabuğu: üst bar + alt bilgi (PR-15'te MainLayout'a taşındı) ---- */
-.site-bar {
-  background: var(--surface);
-  border-bottom: 1px solid var(--line);
-  position: sticky;
-  top: 0;
-  z-index: 10;
-}
-
-.site-bar-ic {
-  max-width: 1100px;
-  margin: 0 auto;
-  padding: var(--s2);
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--s2) var(--s3);
-}
-
-.site-marka {
-  font-family: 'Sora', system-ui, sans-serif;
+h1, h2, h3 {
+  font-family: var(--font-display);
   font-weight: 600;
-  font-size: 1.15rem;
-  color: var(--ink);
-  text-decoration: none;
-  margin-right: auto;
+  line-height: 1.08;
+  margin: 0 0 var(--s2);
+  text-wrap: balance;
+}
+h1 { font-size: var(--fs-3); }
+h2 { font-size: var(--fs-2); }
+h3 { font-size: var(--fs-1); line-height: 1.15; }
+p { margin: 0 0 var(--s2); }
+strong, b { font-weight: 600; }
+
+a { color: var(--brand-text); text-decoration-thickness: 1px; text-underline-offset: .18em; }
+a:hover { text-decoration-thickness: 2px; }
+
+img { max-width: 100%; height: auto; }
+
+/* Klavye odağı: iki temada da zeminden ayrışan mürekkep halkası (sarı beyazda 1.7:1 — kullanılmaz). */
+:focus-visible { outline: 2px solid var(--ink); outline-offset: 3px; border-radius: 3px; }
+
+.wrap { max-width: 1160px; margin-inline: auto; padding-inline: var(--gutter); }
+.wrap-dar { max-width: 760px; margin-inline: auto; padding-inline: var(--gutter); }
+.sayfa-ust { padding-block: var(--s3) var(--s2); }
+.sayfa-ust h1 { margin-bottom: var(--s1); }
+.giris { color: var(--ink-2); font-size: 1.125rem; max-width: 62ch; }
+.muted { color: var(--ink-3); }
+.small { font-size: var(--fs-small); }
+.gorunmez {
+  position: absolute; width: 1px; height: 1px; overflow: hidden;
+  clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap;
+}
+.bolum { padding-block: var(--s5); }
+.bolum-baslik { margin-bottom: var(--s3); }
+.bolum-kontrast { background: var(--surface); border-block: 1px solid var(--line); }
+.bolum-alt-bosluk { padding-bottom: var(--s5); }
+.bos-durum { padding: var(--s4) 0; color: var(--ink-2); }
+.linkler { display: flex; flex-wrap: wrap; gap: var(--s1) var(--s3); margin: var(--s2) 0 0; padding: 0; list-style: none; }
+
+/* ---- Düğmeler ----
+   Birincil = firma rengi (dolgu; yazı rengi BrandPalette'ten). İkincil = çizgili. Düğme yazısı
+   levha yazısı (Condensed) — sitedeki eylemler tek bakışta ayırt edilsin. 44px dokunma hedefi. */
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: .5em;
+  min-height: 46px; padding: .55rem 1.15rem;
+  border: 1.5px solid transparent; border-radius: var(--r-s);
+  font: 600 1.125rem/1.1 var(--font-display); letter-spacing: .01em;
+  text-decoration: none; white-space: nowrap; cursor: pointer;
+}
+.btn-brand { background: var(--brand); color: var(--on-brand); }
+.btn-brand:hover { background: color-mix(in srgb, var(--brand) 88%, var(--ink)); color: var(--on-brand); }
+.btn-cizgi { background: var(--surface); color: var(--ink); border-color: var(--line-strong); }
+.btn-cizgi:hover { border-color: var(--ink); color: var(--ink); }
+.btn-genis { width: 100%; }
+
+/* ---- Üst bar ----
+   Mobilde YAPIŞKAN DEĞİL ve tek satır (≤60px): ölçümde 5 bağlantı alt alta sarıp 182px oluyordu.
+   Menü <details> ile açılır (JS yok). Geniş ekranda yapışkan, bağlantılar satırda. */
+.bar { background: var(--surface); border-bottom: 1px solid var(--line); }
+.bar-ic { display: flex; align-items: center; gap: var(--s2); min-height: 60px; }
+.marka { display: inline-flex; align-items: center; margin-right: auto; color: var(--ink); text-decoration: none; min-height: 44px; }
+.marka img { display: block; height: 40px; width: auto; max-width: 200px; object-fit: contain; }
+/* Koyu temada firma logosu açık bir levha üstünde: logoların çoğu şeffaf zeminli KOYU yazı, koyu barda
+   görünmez olurdu. Her firmanın logosunu tek tek bilmediğimiz için güvenli taraf bu. */
+@media (prefers-color-scheme: dark) {
+  .marka img { background: #f5f6f3; padding: 4px 8px; border-radius: var(--r-s); box-sizing: content-box; height: 32px; }
+}
+.marka-ad { font: 600 1.5rem/1 var(--font-display); letter-spacing: .01em; }
+.nav-genis { display: none; }
+.nav-genis a, .menu-liste a { color: var(--ink); text-decoration: none; font-weight: 400; }
+.nav-genis a:hover, .menu-liste a:hover { color: var(--brand-text); text-decoration: underline; }
+.bar-tel { display: none; }
+.menu { position: relative; }
+.menu > summary {
+  list-style: none; display: inline-flex; align-items: center; gap: .4em; min-height: 44px; padding: 0 .75rem;
+  border: 1.5px solid var(--line-strong); border-radius: var(--r-s);
+  font: 600 1.0625rem/1 var(--font-display); cursor: pointer;
+}
+.menu > summary::-webkit-details-marker { display: none; }
+/* Üç çizgi simgesi CSS'ten — metin "Menü" ekran okuyucuya da söyler. */
+.menu > summary::before {
+  content: ""; width: 16px; height: 12px;
+  background: linear-gradient(currentColor 0 0) top / 100% 2px no-repeat,
+              linear-gradient(currentColor 0 0) center / 100% 2px no-repeat,
+              linear-gradient(currentColor 0 0) bottom / 100% 2px no-repeat;
+}
+.menu[open] > summary { border-color: var(--ink); }
+.menu-liste {
+  position: absolute; right: 0; top: calc(100% + 8px); z-index: 30; min-width: 230px;
+  margin: 0; padding: var(--s1) 0; list-style: none;
+  background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-m); box-shadow: var(--lift);
+}
+.menu-liste a { display: flex; align-items: center; min-height: 44px; padding: 0 var(--s2); }
+
+@media (min-width: 900px) {
+  .bar { position: sticky; top: 0; z-index: 20; }
+  .nav-genis { display: flex; gap: var(--s3); }
+  .menu { display: none; }
+  .bar-tel { display: inline-flex; }
 }
 
-.site-nav {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--s3);
+/* ---- Sayfa yolu (breadcrumb) ---- */
+.yol { padding-top: var(--s2); font-size: var(--fs-small); color: var(--ink-3); }
+.yol ol { display: flex; flex-wrap: wrap; gap: .25rem; margin: 0; padding: 0; list-style: none; }
+.yol li + li::before { content: "/"; margin-right: .25rem; color: var(--line-strong); }
+.yol a { color: var(--ink-2); display: inline-flex; min-height: 32px; align-items: center; }
+.yol [aria-current] { color: var(--ink-3); display: inline-flex; min-height: 32px; align-items: center; }
+
+/* ---- Alt bilgi ---- */
+.alt { background: var(--surface); border-top: 1px solid var(--line); color: var(--ink-2); }
+.alt-ic { display: grid; gap: var(--s3); padding-block: var(--s4); grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); }
+.alt-baslik { font: 600 1.125rem/1.2 var(--font-display); color: var(--ink); margin: 0 0 var(--s1); }
+.alt ul { list-style: none; margin: 0; padding: 0; }
+.alt li a { display: inline-flex; align-items: center; min-height: 40px; color: var(--ink-2); }
+.alt .marka img { height: 36px; }
+.alt-son { border-top: 1px solid var(--line); padding-block: var(--s2); font-size: var(--fs-small); color: var(--ink-3); }
+
+/* ---- Mobil alt eylem çubuğu (Ara / WhatsApp) ----
+   Telefonda ilk ekranda iletişim her zaman erişilebilir olsun (denetim: üst barda WhatsApp yoktu,
+   eylemler ekranın altında kalıyordu). Yalnız dar ekranda; geniş ekranda üst bar telefonu gösterir. */
+.altbar { display: none; }
+.page { --altbar: 0px; }
+@media screen and (max-width: 899px) {
+  .page.altbar-acik { --altbar: 64px; }
+  .altbar {
+    position: fixed; left: 0; right: 0; bottom: 0; z-index: 40;
+    display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: .5rem;
+    padding: .5rem var(--gutter) calc(.5rem + env(safe-area-inset-bottom));
+    background: var(--surface); border-top: 1px solid var(--line);
+  }
+  .altbar .btn { min-height: 48px; }
 }
 
-.site-nav a {
-  color: var(--ink-muted);
-  text-decoration: none;
-  font-weight: 500;
+/* ---- Hero: soru + arama + tarife ----
+   Açılış, sektörün en karakteristik anı: "hangi tarihler?". Sağda (mobilde altta) filonun gerçek
+   günlük fiyatları tarife tahtası gibi, nokta dolgulu satırlarla. Alt kenardan kesikli yol çizgisi
+   geçer — sayfadaki sarı yalnız yol işareti olarak kullanılır (şerit + toplamın altı). */
+.hero { position: relative; background: var(--surface); border-bottom: 1px solid var(--line); padding-block: var(--s3) calc(var(--s4) + 6px); }
+.hero::after {
+  content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 6px;
+  background: repeating-linear-gradient(90deg, var(--mark) 0 56px, transparent 56px 92px);
+}
+.hero-grid { display: grid; gap: var(--s4); }
+.hero h1 { font-size: var(--fs-hero); line-height: 1; max-width: 19ch; margin-bottom: var(--s2); }
+.hero-alt { color: var(--ink-2); font-size: clamp(1.0625rem, 1rem + .35vw, 1.1875rem); max-width: 46ch; margin-bottom: var(--s3); }
+.hero-bilgi { display: flex; flex-wrap: wrap; gap: .35rem 1.25rem; margin: var(--s2) 0 0; padding: 0; list-style: none; color: var(--ink-2); font-size: var(--fs-small); }
+.hero-bilgi li { display: inline-flex; align-items: center; gap: .45rem; }
+.hero-bilgi li::before { content: ""; width: .5rem; height: .5rem; border-radius: 1px; background: var(--brand); }
+@media (min-width: 960px) {
+  .hero { padding-block: var(--s5) calc(var(--s5) + 6px); }
+  /* Tahta (fiyat listesi + örnek hesap) sol kolona göre DİKEY ORTALANIR: kısa filoda altında boş kolon
+     kalmaz. Uzatmak (stretch) denendi: az satırda liste ile örnek arasında büyük boşluk açıyordu. */
+  .hero-grid { grid-template-columns: minmax(0, 1.4fr) minmax(320px, 1fr); gap: var(--s5); align-items: center; }
+}
+@media screen and (max-width: 640px) {
+  .hero-alt-uzun { display: none; } /* telefonda ilk ekranda arama düğmesi görünsün */
+}
+.hero-alt strong { color: var(--ink); font-weight: 600; }
+.tarife-ornek { margin-top: var(--s2); padding-top: var(--s2); border-top: 1.5px dashed var(--line-strong); }
+.tarife-ornek p { margin: 0 0 .25rem; }
+.tarife-ornek .tarife-not:last-child { margin: .5rem 0 0; }
+
+/* ---- Arama formu (AramaFormu.razor) ---- */
+.arama {
+  display: grid; gap: .75rem; padding: var(--s2);
+  background: var(--surface); border: 1.5px solid var(--line-strong); border-radius: var(--r-m); box-shadow: var(--lift);
+}
+.arama-tarihler { display: grid; grid-template-columns: 1fr 1fr; gap: .75rem; }
+.alan { display: grid; gap: .3rem; color: var(--ink-2); font-size: var(--fs-small); min-width: 0; }
+.alan input, .alan select, .alan textarea {
+  width: 100%; min-height: 48px; padding: .5rem .7rem;
+  font: inherit; font-size: var(--fs-0); color: var(--ink);
+  background: var(--paper); border: 1.5px solid var(--line-strong); border-radius: var(--r-s);
+}
+.alan textarea { min-height: 96px; resize: vertical; }
+.alan input:hover, .alan select:hover, .alan textarea:hover { border-color: var(--ink-3); }
+.alan input:focus-visible, .alan select:focus-visible, .alan textarea:focus-visible { outline-offset: 1px; border-color: var(--ink); }
+.alan-ipucu { color: var(--ink-3); font-size: .875rem; }
+@media (min-width: 760px) {
+  .arama-satir { grid-template-columns: minmax(0, 2fr) minmax(0, 1fr) auto; align-items: end; }
+  .arama-satir .btn { min-height: 48px; }
 }
 
-.site-nav a:hover { color: var(--brand); }
+/* ---- Tarife tahtası ---- */
+.tarife { border: 1.5px solid var(--line-strong); border-radius: var(--r-m); padding: var(--s3) var(--s3) var(--s2); background: var(--paper); }
+.tarife h2 { font-size: var(--fs-1); margin-bottom: .25rem; }
+.tarife-not { color: var(--ink-3); font-size: .875rem; margin-bottom: var(--s1); }
+.tarife ol { list-style: none; margin: 0; padding: 0; }
+.tarife li + li { border-top: 1px solid var(--line); }
+.tarife a { display: flex; align-items: baseline; gap: .6rem; min-height: 48px; padding-block: .6rem; color: var(--ink); text-decoration: none; }
+.tarife a:hover .t-ad { text-decoration: underline; }
+.t-ad { font: 600 1.1875rem/1.15 var(--font-display); }
+.t-ad small { font: 400 .875rem var(--font-body); color: var(--ink-3); margin-left: .3rem; }
+.t-dolgu { flex: 1; min-width: 1rem; border-bottom: 2px dotted var(--line-strong); transform: translateY(-.3em); }
+.t-fiyat { font: 600 1.375rem/1 var(--font-display); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.t-fiyat small { font: 400 .8125rem var(--font-body); color: var(--ink-3); margin-left: .15rem; }
+.tarife-son { margin: var(--s1) 0 0; font-size: var(--fs-small); }
 
-/* Birincil eylem: "Ara" / WhatsApp — amber zemin, koyu metin (AA). */
-.btn-cta {
-  background: var(--accent);
-  color: var(--accent-ink);
-  border: 0;
-  border-radius: 999px;
-  padding: .5rem 1.1rem;
-  font: inherit;
-  font-weight: 600;
-  text-decoration: none;
-  white-space: nowrap;
-  cursor: pointer;
+/* ---- Fiyat fişi (tek cesur unsur) ----
+   Kartta ve detayda fiyat HESABIYLA yazılır: "3 gün × ₺1.250" + toplam. Toplamın altından yol
+   çizgisi (sarı) geçer. Arka plan DEĞİL alt çizgi: koyu temada açık yazının arkasına sarı basmak
+   kontrastı bozardı; çizgi her iki temada da yazıdan ayrı durur. */
+.fis { margin-top: auto; padding-top: .75rem; border-top: 1.5px dashed var(--line-strong); }
+.fis-hesap { margin: 0 0 .15rem; color: var(--ink-2); font-size: var(--fs-small); font-variant-numeric: tabular-nums; }
+.fis-toplam { display: flex; flex-wrap: wrap; align-items: baseline; gap: .3rem .6rem; }
+.tutar {
+  font: 600 2rem/1.1 var(--font-display); font-variant-numeric: tabular-nums; color: var(--ink);
+  text-decoration: underline; text-decoration-color: var(--mark); text-decoration-thickness: .15em;
+  text-underline-offset: .12em; text-decoration-skip-ink: none;
 }
-.btn-cta:hover { background: var(--accent-strong); color: var(--accent-ink); }
+.birim { color: var(--ink-3); }
+.kdv { font-size: .8125rem; line-height: 1.4; color: var(--ink-2); border: 1px solid var(--line-strong); border-radius: 4px; padding: 0 .4rem; white-space: nowrap; }
 
-.site-footer {
-  background: var(--surface);
-  border-top: 1px solid var(--line);
-  color: var(--ink-muted);
-  margin-top: var(--s5);
+/* ---- İlan kartı (AracKarti.razor) ----
+   Kartın tamamı detay bağlantısı (başlık bağlantısı ::after ile kartı kaplar); "Teklif iste" düğmesi
+   onun ÜSTÜNDE ayrı bir hedef. İç içe <a> yok. */
+.ilanlar { display: grid; gap: var(--s3); grid-template-columns: repeat(auto-fill, minmax(min(100%, 290px), 1fr)); margin: 0; padding: 0; list-style: none; }
+.ilan { position: relative; display: flex; flex-direction: column; height: 100%; background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-m); overflow: hidden; }
+.ilan:hover { border-color: var(--line-strong); box-shadow: var(--lift); }
+.ilan:has(h3 a:focus-visible) { outline: 2px solid var(--ink); outline-offset: 3px; }
+.ilan h3 a:focus-visible { outline: none; }
+.ilan-foto { aspect-ratio: 3 / 2; background: var(--brand-soft); }
+.ilan-foto img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.foto-yok { background: repeating-linear-gradient(135deg, var(--brand-soft) 0 12px, var(--paper) 12px 24px); }
+.ilan-govde { display: flex; flex: 1; flex-direction: column; gap: .6rem; padding: var(--s2); }
+.ilan h3 { margin: 0; font-size: 1.5rem; }
+.ilan h3 a { color: var(--ink); text-decoration: none; }
+.ilan h3 a::after { content: ""; position: absolute; inset: 0; z-index: 1; }
+.ilan-yil { margin: -.35rem 0 0; color: var(--ink-3); font-size: var(--fs-small); }
+.ozellikler { display: flex; flex-wrap: wrap; margin: 0; padding: 0; list-style: none; color: var(--ink-2); font-size: var(--fs-small); }
+.ozellikler li + li::before { content: ""; display: inline-block; width: 1px; height: .85em; margin: 0 .55rem; background: var(--line-strong); vertical-align: -.05em; }
+.ilan-eylem { position: relative; z-index: 2; display: flex; gap: .5rem; margin-top: .25rem; }
+.ilan-eylem .btn { flex: 1; }
+.ilan-isaret {
+  position: absolute; z-index: 2; top: .75rem; left: .75rem; padding: .2rem .6rem; border-radius: 4px;
+  background: var(--ink); color: var(--paper); font: 600 .9375rem/1.3 var(--font-display);
 }
+.sonuc-ozet { display: flex; flex-wrap: wrap; align-items: baseline; gap: .25rem 1rem; margin: var(--s3) 0 var(--s2); }
+.sonuc-ozet strong { font: 600 1.5rem/1.1 var(--font-display); }
+.not-kutu { margin: var(--s2) 0; padding: .85rem 1rem; border-left: 4px solid var(--brand); background: var(--brand-soft); border-radius: 0 var(--r-s) var(--r-s) 0; color: var(--ink); }
+.not-kutu.hata { border-left-color: #b3261e; background: color-mix(in srgb, #b3261e 10%, var(--paper)); }
 
-.site-footer-ic {
-  max-width: 1100px;
-  margin: 0 auto;
-  padding: var(--s4) var(--s2);
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  gap: var(--s3);
+/* ---- İlkeler (güven şeridi) ----
+   Kısa yol işareti (sarı çizgi segmenti) her maddeyi başlatır; kutu yok, çerçeve yok. */
+.ilkeler { display: grid; gap: var(--s3) var(--s4); grid-template-columns: repeat(auto-fit, minmax(min(100%, 230px), 1fr)); margin: 0; padding: 0; list-style: none; }
+.ilkeler li::before { content: ""; display: block; width: 32px; height: 4px; margin-bottom: .75rem; background: var(--mark); border-radius: 1px; }
+.ilkeler strong { display: block; font: 600 1.25rem/1.2 var(--font-display); margin-bottom: .25rem; }
+.ilkeler span { color: var(--ink-2); }
+
+/* ---- Adımlar (gerçek bir sıra: numara bilgi taşır) ---- */
+.adimlar { display: grid; gap: var(--s3); grid-template-columns: repeat(auto-fit, minmax(min(100%, 250px), 1fr)); margin: 0; padding: 0; list-style: none; counter-reset: adim; }
+.adimlar li { counter-increment: adim; padding-top: var(--s2); border-top: 2px solid var(--ink); }
+.adimlar li::before { content: counter(adim); display: block; font: 600 2.75rem/1 var(--font-display); color: var(--brand-text); margin-bottom: .5rem; }
+.adimlar h3 { margin-bottom: .35rem; }
+.adimlar p { margin: 0; color: var(--ink-2); }
+
+/* ---- Fiyat nasıl gösterilir + örnek hesap ---- */
+.fiyat-duzen { display: grid; gap: var(--s4); }
+@media (min-width: 900px) { .fiyat-duzen { grid-template-columns: minmax(0, 1.2fr) minmax(300px, 1fr); align-items: start; } }
+.madde { margin: 0; padding: 0; list-style: none; display: grid; gap: .75rem; }
+.madde li { position: relative; padding-left: 1.6rem; color: var(--ink-2); }
+.madde li::before { content: ""; position: absolute; left: .1rem; top: .5em; width: .75rem; height: .4rem; border-left: 2px solid var(--ok); border-bottom: 2px solid var(--ok); transform: rotate(-45deg); }
+.ornek-fis { background: var(--surface); border: 1.5px solid var(--line-strong); border-radius: var(--r-m); padding: var(--s3); font-variant-numeric: tabular-nums; }
+.ornek-fis h3 { font-size: 1.25rem; margin-bottom: .15rem; }
+.ornek-fis dl { display: grid; grid-template-columns: 1fr auto; gap: .45rem 1rem; margin: var(--s2) 0 0; }
+.ornek-fis dt { color: var(--ink-2); }
+.ornek-fis dd { margin: 0; text-align: right; font: 600 1.1875rem/1.3 var(--font-display); }
+.ornek-fis .fis-toplam-satir { border-top: 1.5px dashed var(--line-strong); padding-top: .6rem; align-self: end; }
+.ornek-fis dt.fis-toplam-satir { color: var(--ink); font-weight: 600; }
+.ornek-fis .tutar { font-size: 1.75rem; }
+
+/* ---- SSS (details) ---- */
+.sss-liste { border-top: 1px solid var(--line); max-width: 820px; }
+.sss { border-bottom: 1px solid var(--line); }
+.sss > summary {
+  display: flex; justify-content: space-between; align-items: center; gap: var(--s2);
+  min-height: 56px; padding-block: .75rem; cursor: pointer; list-style: none;
+  font: 600 1.25rem/1.25 var(--font-display);
 }
+.sss > summary::-webkit-details-marker { display: none; }
+.sss > summary::after { content: "+"; flex: none; width: 1.5rem; text-align: center; font: 400 1.6rem/1 var(--font-body); color: var(--ink-3); }
+.sss[open] > summary::after { content: "\2212"; }
+.sss p { color: var(--ink-2); max-width: 68ch; }
 
-.site-footer h2 {
-  font-size: 1rem;
-  margin: 0 0 var(--s1);
-  color: var(--ink);
-}
+/* ---- Kapanış bandı: asfalt zemin, üstünde kesikli yol çizgisi ---- */
+.cta-bant { position: relative; margin-top: var(--s5); background: var(--ink); color: var(--paper); padding-block: var(--s4); }
+.cta-bant::before { content: ""; position: absolute; left: 0; right: 0; top: 0; height: 6px; background: repeating-linear-gradient(90deg, var(--mark) 0 56px, transparent 56px 92px); }
+.cta-ic { display: flex; flex-wrap: wrap; gap: var(--s3); align-items: center; justify-content: space-between; }
+.cta-bant h2 { margin: 0 0 .25rem; color: var(--paper); }
+.cta-bant p { margin: 0; color: color-mix(in srgb, var(--paper) 82%, var(--ink)); }
+.cta-dugmeler { display: flex; flex-wrap: wrap; gap: .75rem; }
+.cta-bant .btn-ters { background: var(--paper); color: var(--ink); }
+.cta-bant .btn-ters:hover { background: color-mix(in srgb, var(--paper) 88%, var(--ink)); color: var(--ink); }
+.cta-bant .btn-ters-cizgi { border-color: color-mix(in srgb, var(--paper) 55%, var(--ink)); color: var(--paper); background: transparent; }
+.cta-bant .btn-ters-cizgi:hover { border-color: var(--paper); color: var(--paper); }
+.cta-bant :focus-visible { outline-color: var(--paper); }
+/* İçerik ile alt bilgi arası: sayfa bir kapanış bandıyla bitiyorsa bant alt bilgiye yapışır. */
+main { display: block; padding-bottom: var(--s5); }
+main:has(> .cta-bant:last-child) { padding-bottom: 0; }
+main > .cta-bant:last-child { margin-bottom: 0; }
 
-.site-footer a { color: var(--ink-muted); }
-.site-footer a:hover { color: var(--brand); }
-
-.site-footer ul { list-style: none; margin: 0; padding: 0; }
-.site-footer li { margin-bottom: .35rem; }
-
-.site-footer-alt {
-  border-top: 1px solid var(--line);
-  padding: var(--s2);
-  text-align: center;
-  font-size: .85em;
-  color: var(--ink-subtle);
-}
-
-/* ---- Sayfa başlığı ---- */
-.site-header { padding: var(--s4) 0 var(--s3); }
-
-.site-header h1 {
-  font-size: var(--t2);
-  margin: 0 0 var(--s1);
-  font-weight: 600;
-}
-
-.site-header .contact,
-.contact {
-  color: var(--ink-subtle);
-  font-size: var(--t0);
-}
-
-.section-title {
-  font-size: var(--t1);
-  margin: var(--s4) 0 var(--s2);
-  font-weight: 600;
-}
-
-.muted { color: var(--ink-subtle); }
-.small { font-size: .85em; }
-
-/* ---- Kartlar ---- */
-.grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-  gap: var(--s3);
-}
-
-.card {
-  background: var(--surface);
-  border: 1px solid var(--line);
-  border-radius: var(--r);
-  overflow: hidden;
-  text-decoration: none;
-  color: var(--ink);
-  display: block;
-  transition: box-shadow .15s ease, transform .15s ease, border-color .15s ease;
-}
-
-a.card:hover {
-  border-color: var(--brand);
-  box-shadow: var(--golge);
-  transform: translateY(-2px);
-}
-
-@media (prefers-reduced-motion: reduce) {
-  a.card:hover { transform: none; }
-  html { scroll-behavior: auto; }
-}
-
-img.card-img, .card-img-placeholder {
-  aspect-ratio: 3/2;
-  width: 100%;
-  object-fit: cover;
-  display: block;
-  border-radius: var(--r) var(--r) 0 0;
-}
-
-/* Fotoğrafsız kart: EMOJİ KULLANILMAZ (ürün genelinde emoji yok kararı) — nötr
-   bir çizgi deseni. Fotoğraf zaten yayın şartı, bu yalnız yönetim önizlemeleri
-   ve fotoğrafın yüklenememesi hali için bir tutucudur. */
-.card-img-placeholder {
-  background:
-    repeating-linear-gradient(135deg, var(--surface-alt) 0 10px, var(--surface-muted) 10px 20px);
-  border-bottom: 1px solid var(--line);
-}
-
-.card-body { padding: var(--s2); }
-
-.card-body h3 {
-  margin: 0 0 var(--s1);
-  font-size: var(--t1);
-  font-weight: 600;
-}
-
-.card-body p { margin: 0 0 var(--s2); color: var(--ink-muted); }
-
-.chips { display: flex; flex-wrap: wrap; gap: var(--s1); }
-
-.chip {
-  background: var(--surface-alt);
-  border: 1px solid var(--line);
-  border-radius: 999px;
-  padding: .2rem .6rem;
-  font-size: .85em;
-  color: var(--ink-muted);
-}
-
-/* ---- Galeri (detay sayfası) ---- */
-.galeri, .photo-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-  gap: var(--s2);
+/* ---- İlan detayı ----
+   Mobil sıra: başlık → kapak → fiyat + "Teklif iste" (ilk ekranda; denetimde 873px'teydi) → galeri.
+   Geniş ekran: solda kapak + galeri, sağda yapışkan fiyat paneli. */
+.detay { display: grid; gap: var(--s3); grid-template-areas: "bas" "kapak" "panel" "galeri"; }
+.detay-bas { grid-area: bas; }
+.detay-bas h1 { margin-bottom: .35rem; }
+.detay-bas p { margin: 0; color: var(--ink-2); }
+.detay-kapak { grid-area: kapak; margin: 0; }
+.detay-kapak img { display: block; width: 100%; aspect-ratio: 3 / 2; object-fit: cover; border-radius: var(--r-m); background: var(--brand-soft); }
+.kapak-bos { aspect-ratio: 3 / 2; border-radius: var(--r-m); }
+.detay-hizli { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: .75rem 1rem; margin-top: var(--s2); }
+.detay-hizli .fis-toplam { margin: 0; }
+.bolum-ic { margin-top: var(--s5); }
+.bolum-ic > h2 { margin-bottom: var(--s3); }
+.galeri { grid-area: galeri; display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: .5rem; margin: 0; padding: 0; list-style: none; }
+.galeri a { display: block; border-radius: var(--r-s); overflow: hidden; }
+.galeri img { display: block; width: 100%; aspect-ratio: 3 / 2; object-fit: cover; }
+.panel { grid-area: panel; display: grid; gap: var(--s2); align-content: start; padding: var(--s3); background: var(--surface); border: 1.5px solid var(--line-strong); border-radius: var(--r-m); }
+.panel h2 { font-size: var(--fs-1); margin: 0; }
+.panel-not { margin: 0; color: var(--ink-3); font-size: .9rem; }
+@media (min-width: 960px) {
+  .detay { grid-template-columns: minmax(0, 1.55fr) minmax(320px, 1fr); grid-template-areas: "bas bas" "kapak panel" "galeri panel"; column-gap: var(--s4); }
+  .panel { position: sticky; top: 84px; }
+  .detay-hizli { display: none; }
 }
 
-.galeri img, .photo-grid img {
-  width: 100%;
-  aspect-ratio: 3/2;
-  object-fit: cover;
-  border-radius: var(--r);
-  display: block;
-  border: 1px solid var(--line);
-}
+/* Tarife tablosu (detay paneli): Günlük / Haftalık / Aylık, gün başı karşılığıyla. */
+.tarife-tablo { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+.tarife-tablo th, .tarife-tablo td { padding: .55rem 0; border-bottom: 1px solid var(--line); text-align: left; vertical-align: baseline; }
+.tarife-tablo th { font-weight: 400; color: var(--ink-2); }
+.tarife-tablo td { text-align: right; }
+.tarife-tablo td strong { font: 600 1.3125rem/1.1 var(--font-display); }
+.tarife-tablo td small { display: block; color: var(--ink-3); font-size: .8125rem; }
+.tarife-tablo tr:first-child td strong { font-size: 2rem; text-decoration: underline; text-decoration-color: var(--mark); text-decoration-thickness: .15em; text-underline-offset: .12em; text-decoration-skip-ink: none; }
+.panel .arama { box-shadow: none; padding: 0; border: 0; background: none; }
+.panel-eylem { display: grid; gap: .5rem; }
 
-.galeri a, .photo-grid a { border-radius: var(--r); overflow: hidden; display: block; }
-
-/* ---- Teknik özellik tablosu ---- */
-.table-scroll { overflow-x: auto; }
-
-.ozellik-tablo {
-  width: 100%;
-  border-collapse: collapse;
-  background: var(--surface);
-  border: 1px solid var(--line);
-  border-radius: var(--r);
-  overflow: hidden;
-}
-
-.ozellik-tablo th, .ozellik-tablo td {
-  padding: .55rem var(--s2);
-  text-align: left;
-  border-bottom: 1px solid var(--line);
-}
-
+.ozellik-tablo { width: 100%; max-width: 760px; border-collapse: collapse; background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-m); overflow: hidden; }
+.ozellik-tablo th, .ozellik-tablo td { padding: .65rem var(--s2); text-align: left; border-bottom: 1px solid var(--line); }
 .ozellik-tablo tr:last-child th, .ozellik-tablo tr:last-child td { border-bottom: 0; }
-.ozellik-tablo th { color: var(--ink-subtle); font-weight: 500; white-space: nowrap; }
+.ozellik-tablo th { width: 40%; font-weight: 400; color: var(--ink-2); }
 
-/* ---- Uzun metin (blog + içerik sayfaları) ---- */
-.blog-icerik { max-width: 68ch; }
-.blog-icerik p { margin: 0 0 var(--s2); }
-
-.empty-state {
-  color: var(--ink-subtle);
-  padding: var(--s4) 0;
-  text-align: center;
-}
-
-.back-link { display: inline-block; margin-bottom: var(--s3); }
-
-/* `.link` — kart/panel içindeki İKİNCİL eylem bağlantısı (IlanDetay "müsaitlik ve toplam
-   tutar", Iletisim "Haritada aç"). Sınıf iki sayfada KULLANILIYORDU ama CSS'te karşılığı
-   YOKTU: görünüm çıplak <a>'ya düşüyor, birincil eylemden ayırt edilemiyordu.
-   inline-flex seçildi (block değil): bağlantı kendi metni kadar geniş kalır, çevresindeki
-   metin akışı bozulmaz — dokunma kutusu yalnız dikeyde büyür (mobil bloğunda 44px'e çıkar). */
-.link {
-  display: inline-flex;
-  align-items: center;
-  gap: .35rem;
-  font-weight: 500;
-  text-decoration: none;
-}
-
-.link:hover { text-decoration: underline; }
-
-/* ---- Müsaitlik arama formu + fiyat kartı (PR-7) ---- */
-.arama-form {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--s2);
-  align-items: flex-end;
-  background: var(--surface);
-  border: 1px solid var(--line);
-  border-radius: var(--r);
-  padding: var(--s2);
-  margin-bottom: var(--s3);
-}
-
-.arama-form label {
-  display: flex;
-  flex-direction: column;
-  gap: .25rem;
-  font-size: .9em;
-  color: var(--ink-muted);
-}
-
-.arama-form input, .arama-form select, .talep-form textarea {
-  font: inherit;
-  color: var(--ink);
-  background: var(--surface);
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  padding: .45rem .6rem;
-}
-
-.arama-form button {
-  font: inherit;
-  font-weight: 600;
-  background: var(--brand);
-  color: var(--brand-ink);
-  border: 0;
-  border-radius: 8px;
-  padding: .55rem 1.2rem;
-  cursor: pointer;
-}
-
-.arama-form button:hover { background: var(--brand-strong); }
-
-.muted-note { color: var(--ink-subtle); margin-bottom: var(--s2); }
-
-.fiyat { display: flex; flex-direction: column; gap: .15rem; margin-bottom: var(--s2); }
-
-.fiyat-buyuk {
-  font-size: var(--t1);
-  font-weight: 600;
-  color: var(--ink);
-}
-
-.fiyat-birim { font-size: .7em; font-weight: 400; color: var(--ink-subtle); }
-.fiyat-kucuk, .fiyat-toplam { font-size: .85em; color: var(--ink-subtle); }
-
-.kart-aksiyon { margin-top: var(--s2); display: flex; gap: var(--s2); }
-
-.ust-linkler { display: flex; flex-wrap: wrap; gap: var(--s3); margin-top: var(--s2); }
-
-/* ---- Talep formu (PR-8) ---- */
-.talep-form { flex-direction: column; align-items: stretch; }
-.talep-form .tam-genislik { width: 100%; }
-.talep-form textarea { width: 100%; }
-
-/* Honeypot: ekran okuyucudan ve gözden gizli — bot doldurur, insan doldurmaz. */
+/* ---- Talep formu ---- */
+.talep { display: grid; gap: var(--s4); }
+@media (min-width: 960px) { .talep { grid-template-columns: minmax(0, 1.5fr) minmax(300px, 1fr); align-items: start; } }
+.talep-form { display: grid; gap: var(--s3); }
+.talep-form fieldset { margin: 0; padding: var(--s3); border: 1.5px solid var(--line-strong); border-radius: var(--r-m); background: var(--surface); display: grid; gap: .9rem; min-width: 0; }
+.talep-form legend { padding: 0 .4rem; margin-left: -.4rem; font: 600 1.3125rem/1.2 var(--font-display); }
+.iki-sutun { display: grid; gap: .9rem; grid-template-columns: 1fr 1fr; }
+.zorunlu { color: var(--ink-3); font-size: .8125rem; }
+.ozet-kart { background: var(--surface); border: 1.5px solid var(--line-strong); border-radius: var(--r-m); overflow: hidden; }
+.ozet-kart img { display: block; width: 100%; aspect-ratio: 3 / 2; object-fit: cover; }
+.ozet-kart-ic { padding: var(--s3); display: grid; gap: .5rem; }
+.ozet-kart h2 { font-size: 1.5rem; margin: 0; }
+/* Honeypot: gözden ve ekran okuyucudan gizli — bot doldurur, insan doldurmaz. */
 .hp-alan { position: absolute; left: -9999px; width: 1px; height: 1px; overflow: hidden; }
 
-/* ---- PR-16: SSS listesi (JS'siz açılır-kapanır) ---- */
-.sss-liste { display: grid; gap: var(--s1); }
+/* ---- Talep alındı ---- */
+.onay-isaret { width: 64px; height: 64px; border-radius: 50%; border: 3px solid var(--ok); position: relative; margin-bottom: var(--s3); }
+.onay-isaret::after { content: ""; position: absolute; left: 20px; top: 14px; width: 14px; height: 26px; border-right: 3px solid var(--ok); border-bottom: 3px solid var(--ok); transform: rotate(45deg); }
 
-.sss {
-  background: var(--surface);
-  border: 1px solid var(--line);
-  border-radius: var(--r);
-  padding: var(--s2);
-}
+/* ---- İletişim ---- */
+.kanallar { display: grid; gap: var(--s3); grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr)); margin: 0; padding: 0; list-style: none; }
+.kanallar li { padding-top: var(--s2); border-top: 2px solid var(--ink); }
+.kanallar h2 { font-size: 1.375rem; margin-bottom: .35rem; }
+.kanallar p { margin: 0 0 .5rem; }
+.buyuk-baglanti { font: 600 1.5rem/1.2 var(--font-display); color: var(--ink); }
 
-.sss > summary {
-  cursor: pointer;
-  font-weight: 600;
-  font-family: 'Sora', system-ui, sans-serif;
-}
+/* ---- Uzun metin: blog + içerik sayfaları ---- */
+.metin { max-width: 68ch; }
+.metin p { margin: 0 0 1.1em; }
+.metin h2 { margin: 1.8em 0 .5em; font-size: var(--fs-2); }
+.metin h3 { margin: 1.4em 0 .4em; }
+.alt-baslik { color: var(--ink-2); font-size: 1.25rem; line-height: 1.4; max-width: 60ch; }
+.kunye { display: flex; flex-wrap: wrap; gap: .35rem 1rem; margin: 0 0 var(--s3); padding: 0; list-style: none; color: var(--ink-3); font-size: var(--fs-small); }
+.blog-kapak { display: block; width: 100%; max-width: 960px; aspect-ratio: 16 / 9; object-fit: cover; border-radius: var(--r-m); margin: 0 0 var(--s3); background: var(--brand-soft); }
+.yazilar { display: grid; gap: var(--s3); grid-template-columns: repeat(auto-fill, minmax(min(100%, 300px), 1fr)); margin: 0; padding: 0; list-style: none; }
+.yazi { position: relative; display: flex; flex-direction: column; height: 100%; background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-m); overflow: hidden; }
+.yazi:hover { border-color: var(--line-strong); }
+.yazi img, .yazi .foto-yok { display: block; width: 100%; aspect-ratio: 16 / 9; object-fit: cover; }
+.yazi-ic { padding: var(--s2); display: grid; gap: .4rem; }
+.yazi h2, .yazi h3 { font-size: 1.375rem; margin: 0; }
+.yazi a { color: var(--ink); text-decoration: none; }
+.yazi a::after { content: ""; position: absolute; inset: 0; }
+.yazi:has(a:focus-visible) { outline: 2px solid var(--ink); outline-offset: 3px; }
+.yazi a:focus-visible { outline: none; }
+.yazi p { margin: 0; color: var(--ink-2); }
+.yazi-cta { display: flex; flex-wrap: wrap; gap: var(--s2); align-items: center; justify-content: space-between; max-width: 68ch; margin: var(--s4) 0; padding: var(--s3); background: var(--brand-soft); border-radius: var(--r-m); }
+.yazi-cta p { margin: .25rem 0 0; color: var(--ink-2); }
 
-.sss[open] > summary { margin-bottom: var(--s1); color: var(--brand); }
-.sss p { margin: 0 0 var(--s1); color: var(--ink-muted); }
-.sss p:last-child { margin-bottom: 0; }
+/* ---- 404 / hata sayfaları ---- */
+.hata-kod { font: 600 clamp(4rem, 3rem + 6vw, 7.5rem)/.9 var(--font-display); color: var(--line-strong); margin: 0 0 var(--s1); font-variant-numeric: tabular-nums; }
 
-/* ============================================================================
-   PR-19 — bölüm şeritleri. Yeni RENK SABİTİ girilmez; her şey mevcut token'lardan
-   (--surface / --surface-alt / --brand / --line) gelir, böylece karanlık tema
-   kendiliğinden çalışır.
-   ============================================================================ */
+/* "İçeriğe geç" bağlantısı: yalnız klavye odağında görünür. */
+.atla:focus { position: fixed; top: .5rem; left: .5rem; z-index: 60; width: auto; height: auto; clip: auto; clip-path: none; padding: .6rem 1rem; background: var(--surface); color: var(--ink); border: 2px solid var(--ink); border-radius: var(--r-s); }
+main:focus { outline: none; }
 
-.bolum { padding: var(--s5) 0; }
-.bolum-alt { background: var(--surface-alt); }
-.bolum .section-title { margin-top: 0; }
-
-/* ---- Hero ---- */
-.hero {
-  background: linear-gradient(180deg, var(--surface-alt) 0%, var(--surface-muted) 100%);
-  border-bottom: 1px solid var(--line);
-  padding: var(--s5) 0 var(--s4);
-}
-
-.hero-ic { max-width: 900px; }
-
-.hero h1 {
-  font-size: clamp(1.9rem, 1.3rem + 2.4vw, 3rem);
-  line-height: 1.15;
-  margin: 0 0 var(--s2);
-  font-weight: 600;
-}
-
-.hero-alt {
-  font-size: clamp(1.02rem, .98rem + .3vw, 1.2rem);
-  color: var(--ink-muted);
-  margin: 0 0 var(--s3);
-  max-width: 62ch;
-}
-
-/* Hero'daki arama kutusu kartla aynı yüzeyde dursun (arka plan gradyanından ayrılsın). */
-.hero-arama { background: var(--surface); box-shadow: var(--golge); margin-bottom: var(--s2); }
-
-.hero-ipuclari { margin: 0; }
-
-/* ---- Güven şeridi ---- */
-.serit {
-  background: var(--surface);
-  border-bottom: 1px solid var(--line);
-}
-
-.serit-ic {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: var(--s3);
-  padding-top: var(--s3);
-  padding-bottom: var(--s3);
-}
-
-.serit-kutu { display: flex; flex-direction: column; gap: .15rem; }
-.serit-kutu strong { font-family: 'Sora', system-ui, sans-serif; }
-
-/* ---- Nasıl çalışır (numaralı adımlar) ---- */
-.adimlar {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-  gap: var(--s3);
-}
-
-.adim {
-  background: var(--surface);
-  border: 1px solid var(--line);
-  border-radius: var(--r);
-  padding: var(--s3);
-}
-
-.adim h3 { margin: var(--s1) 0 .25rem; font-size: var(--t1); font-weight: 600; }
-.adim p { margin: 0; }
-
-.adim-no {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 2rem;
-  height: 2rem;
-  border-radius: 999px;
-  background: var(--brand);
-  color: var(--brand-ink);
-  font-family: 'Sora', system-ui, sans-serif;
-  font-weight: 600;
-}
-
-/* ---- Madde listesi (fiyat açıklaması) ---- */
-.madde-liste {
-  list-style: none;
-  margin: 0 0 var(--s2);
-  padding: 0;
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-  gap: var(--s2);
-}
-
-.madde-liste li {
-  position: relative;
-  padding-left: 1.6rem;
-  color: var(--ink-muted);
-}
-
-/* İşaret CSS'ten geliyor — metne emoji/karakter gömülmüyor. */
-.madde-liste li::before {
-  content: "";
-  position: absolute;
-  left: .35rem;
-  top: .55em;
-  width: .5rem;
-  height: .5rem;
-  border-radius: 999px;
-  background: var(--brand);
-}
-
-/* ---- Kapanış çağrısı ---- */
-.cta-serit {
-  background: var(--brand);
-  color: var(--brand-ink);
-  padding: var(--s4) 0;
-}
-
-.cta-ic {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--s3);
-  align-items: center;
-  justify-content: space-between;
-}
-
-.cta-serit h2 { margin: 0 0 .25rem; color: var(--brand-ink); }
-.cta-serit .muted { color: var(--brand-ink); opacity: .85; }
-
-.cta-butonlar { display: flex; flex-wrap: wrap; gap: var(--s2); }
-
-.btn-ikincil {
-  border: 1px solid var(--brand-ink);
-  color: var(--brand-ink);
-  border-radius: 999px;
-  padding: .5rem 1.1rem;
-  text-decoration: none;
-  font-weight: 600;
-  white-space: nowrap;
-}
-
-.btn-ikincil:hover { background: var(--brand-ink); color: var(--brand); }
-
-/* ---- PR-20: araç detayı (kapak + fiyat kartı) ---- */
-.detay-ust {
-  display: grid;
-  grid-template-columns: minmax(0, 1.6fr) minmax(260px, 1fr);
-  gap: var(--s3);
-  align-items: start;
-  margin-bottom: var(--s4);
-}
-
-/* Dar ekranda tek sütun: fiyat kartı görselin ALTINA iner (karar bilgisi görselden sonra).
-   `screen and` ZORUNLU: çıplak `max-width` yazdırmada da değerlendirilir (ölçüt kâğıt
-   genişliği olur) ve A4 çıktı sessizce mobil düzene düşer. */
-@media screen and (max-width: 720px) {
-  .detay-ust { grid-template-columns: 1fr; }
-}
-
-.detay-kapak {
-  width: 100%;
-  aspect-ratio: 3/2;
-  object-fit: cover;
-  border-radius: var(--r);
-  border: 1px solid var(--line);
-  display: block;
-  margin-bottom: var(--s2);
-}
-
-.detay-gorsel .galeri { grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); }
-
-.fiyat-kart {
-  background: var(--surface);
-  border: 1px solid var(--line);
-  border-radius: var(--r);
-  padding: var(--s3);
-  display: flex;
-  flex-direction: column;
-  gap: var(--s2);
-  box-shadow: var(--golge);
-  /* Uzun özellik tablosunda fiyat ekranda kalsın (yalnız geniş ekranda). */
-  position: sticky;
-  top: calc(var(--s5) + var(--s2));
-}
-
-@media screen and (max-width: 720px) {
-  .fiyat-kart { position: static; }
-}
-
-.fiyat-kart .fiyat { margin: 0; }
-
-.fiyat-kademe { list-style: none; margin: 0; padding: 0; display: grid; gap: .35rem; }
-
-.fiyat-kademe li {
-  display: flex;
-  justify-content: space-between;
-  gap: var(--s2);
-  padding-top: .35rem;
-  border-top: 1px solid var(--line);
-  color: var(--ink-muted);
-}
-
-.btn-cta.tam-genislik { text-align: center; width: 100%; }
-
-/* ---- Blog derinliği (PR: blog SEO + ara başlık + kapanış çağrısı) ---- */
-
-/* Kapak: 16:9 sabit oran — yükseklik yazıdan yazıya zıplamasın (CLS) ve referanstaki
-   1200x675 kapak oranıyla aynı çerçeve kullanılsın. */
-.blog-kapak {
-  aspect-ratio: 16 / 9;
-  object-fit: cover;
-  border-radius: var(--r);
-  margin: var(--s3) 0;
-}
-
-/* Okuma sütunu: uzun satır okumayı zorlaştırır. Referansta da içerik 48rem'de sınırlı.
-   Üst boşluk ŞART: künye çipleri (tarih/yazar/etiket) ile ilk paragraf arasında nefes olmazsa
-   çipler metnin parçası gibi okunuyor (canlı denemede görüldü). */
-.blog-icerik { max-width: 48rem; margin-top: var(--s3); }
-.blog-icerik h2 { margin: var(--s4) 0 var(--s1); font-size: var(--t1); }
-.blog-icerik h3 { margin: var(--s3) 0 var(--s1); font-size: 1.125rem; }
-.blog-icerik p + p { margin-top: var(--s2); }
-
-.blog-cta {
-  display: flex; flex-wrap: wrap; gap: var(--s2);
-  align-items: center; justify-content: space-between;
-  max-width: 48rem;
-  margin: var(--s4) 0;
-  padding: var(--s3);
-  background: var(--surface-alt);
-  border: 1px solid var(--line);
-  border-radius: var(--r);
-}
-.blog-cta p { margin: .25rem 0 0; }
-
-/* Alt başlık: h1'i tamamlayan cümle. Gövde metninden büyük ama başlıktan küçük — okuyucu
-   hiyerarşiyi tipografiden anlasın, ayrı bir etiket açıklamasına gerek kalmasın. */
-.alt-baslik {
-  max-width: 48rem;
-  margin: calc(var(--s1) * -1) 0 var(--s2);
-  font-size: var(--t1);
-  line-height: 1.4;
-  color: var(--ink-muted);
-}
-
-/* ---- Çerez bilgilendirme şeridi ----
-   Şerit sunucudan `hidden` gelir ve yalnız js/rc-cerez.js açar. `display: flex` `hidden`
-   özniteliğinin varsayılan `display: none`'ını EZDİĞİ için gizlemeyi burada AÇIKÇA geri
-   almak zorundayız — yoksa JS kapalı ziyaretçide şerit kapatılamaz biçimde görünürdü. */
+/* ---- Çerez bilgilendirme şeridi (CookieNotice.razor + js/rc-cerez.js) ----
+   Sunucudan `hidden` gelir; `display:flex` hidden'ın `display:none`'ını EZDİĞİ için gizleme burada
+   AÇIKÇA geri alınır — yoksa JS kapalı ziyaretçide şerit kapatılamaz biçimde görünürdü. */
+/* KOMPAKT ALT ÇUBUK: yüzen kart DEĞİL, ekranın en altına yapışık ince bir şerit (geniş ekranda tek
+   satır, ~56px). İlk sürümde yüzen kart ilk ekrandaki arama düğmesini, tarife notunu ve hero'nun yol
+   çizgisini örtüyordu (ekran görüntüsüyle görüldü). Metin tek cümle (CookieNotice.razor). */
 .cerez-serit[hidden] { display: none; }
-
 .cerez-serit {
-  position: fixed;
-  left: var(--s2);
-  right: var(--s2);
-  bottom: var(--s2);
-  z-index: 50;
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--s2);
-  max-width: 1100px;
-  margin: 0 auto;
-  padding: var(--s2) var(--s3);
-  /* Token'lar aynı isimlerle koyu temada yeniden tanımlı → şerit iki temada da okunur;
-     yeni renk TANIMLANMADI. Kenarlık + gölge, sayfanın üstünde durduğunu belli eder. */
-  background: var(--surface);
-  color: var(--ink);
-  border: 1px solid var(--line);
-  border-radius: var(--r);
-  box-shadow: var(--golge);
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 50;
+  display: flex; align-items: center; justify-content: center; gap: var(--s2);
+  padding: .5rem var(--gutter) calc(.5rem + env(safe-area-inset-bottom));
+  background: var(--surface); color: var(--ink);
+  border-top: 1px solid var(--line-strong); box-shadow: 0 -8px 24px -18px rgb(0 0 0 / 35%);
 }
-
-.cerez-metin {
-  margin: 0;
-  flex: 1 1 22rem;          /* dar ekranda düğme alt satıra iner */
-  font-size: .9em;
-  line-height: 1.5;
-  color: var(--ink-muted);
-}
-
+.cerez-metin { margin: 0; font-size: .9375rem; line-height: 1.4; color: var(--ink-2); max-width: 80ch; }
 .cerez-metin strong { color: var(--ink); }
-.cerez-metin a { color: var(--brand); white-space: nowrap; }
+.cerez-metin a { white-space: nowrap; margin-left: .35rem; }
+.cerez-serit .btn { min-height: 40px; padding-inline: 1.1rem; flex: none; }
 
-/* Metin İKİ parçaya bölündü (bkz. MainLayout.razor): `.cerez-ozet` her yerde görünen
-   çekirdek bilgi, `.cerez-detay` yalnız geniş ekranda görünen teknik ayrıntı.
-   Masaüstünde ikisi PEŞ PEŞE tek paragraf gibi okunur — temel kural burada, mobil
-   gizlemesi aşağıdaki medya bloğunda (temel kural medya bloğundan ÖNCE gelmeli,
-   aksi halde aynı özgüllükteki sonraki kural mobil kuralı ezerdi). */
-.cerez-ozet, .cerez-detay { display: inline; }
-
-/* Dar ekranda düğme tam genişlik: parmakla vurulacak hedef küçülmesin. */
-@media screen and (max-width: 520px) {
-  .cerez-serit { padding: var(--s2); }
-  .cerez-serit .btn-cta { width: 100%; text-align: center; }
+/* MOBİL: şerit görünürken alt eylem çubuğunun YERİNE geçer (ikisi üst üste binip ilk ekranı yemesin);
+   "Tamam" sonrası çubuk geri gelir. `:has` desteklemeyen eski tarayıcıda şerit çubuğun üstüne biner
+   (zararsız: "Tamam" ile kapanır). `screen and` ZORUNLU (yazdırmada tetiklenmesin). */
+@media screen and (max-width: 899px) {
+  .page:has(> .cerez-serit:not([hidden])) .altbar { display: none; }
+  .page.altbar-acik:has(> .cerez-serit:not([hidden])) { --altbar: 0px; }
 }
-
-/* ============================================================================
-   MOBİL (≤640px) — DOKUNMA HEDEFLERİ ve ÇEREZ ŞERİDİ KISALTMASI
-
-   Bu blok dosyanın SONUNDA: temel (masaüstü) kurallar yukarıda tanımlı olduğundan
-   aynı özgüllükteki mobil kuralları HİÇBİR şey ezemez. Ters sıra yazılsaydı (mobil
-   önce) sonraki temel kural kazanır ve blok sessizce hiç çalışmazdı.
-
-   `screen and` ZORUNLU: çıplak `max-width` yazdırmada da tetiklenir — kâğıt genişliği
-   ölçüt alınır ve A4 çıktı mobil düzene düşer.
-
-   NEDEN 44px: Apple HIG ve WCAG 2.5.5 asgari dokunma hedefi. Ölçüm öncesinde gezinme
-   ve alt bilgi bağlantıları 20-26px, form alanları 35-41px idi.
-   ============================================================================ */
 @media screen and (max-width: 640px) {
-
-  /* Gezinme ve aksiyon bağlantıları.
-     inline-flex SEÇİLDİ (block DEĞİL): bağlantı kendi metni kadar geniş kalır, satır içi
-     akış ve satır sarması bozulmaz; büyüyen tek şey dikey dokunma kutusudur. `block`
-     yapılsaydı alt bilgi ve kart bağlantıları satır boyunca uzayıp yanlışlıkla
-     tıklanabilir geniş şeritlere dönüşürdü. */
-  .site-nav a,
-  .site-footer li a,
-  .back-link,
-  .kart-aksiyon a,
-  .ust-linkler a,
-  .link {
-    display: inline-flex;
-    align-items: center;
-    min-height: 44px;
-  }
-
-  /* Bağlantı kutusu 44px olunca satır arası ek boşluk hem gereksiz hem de alt bilgiyi
-     mobilde iyice uzatıyor — sıfırlanıyor (dokunma hedefleri zaten ayrışmış durumda). */
-  .site-footer li { margin-bottom: 0; }
-
-  /* Düğmeler: aynı sınıflar hem <a> hem <button> üzerinde kullanılıyor, ikisi de aynı
-     kutu davranışını almalı. justify-content: center gerekli — `.tam-genislik` ile
-     genişleyen düğmede metnin ortalanması artık `text-align`'dan değil flex'ten gelir. */
-  .btn-cta,
-  .btn-ikincil,
-  .arama-form button {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    min-height: 44px;
-  }
-
-  /* Form alanları. font-size DEĞİŞTİRİLMİYOR: `font: inherit` ile 16px geliyor ve iOS
-     Safari 16px altındaki alana odaklanınca sayfayı kendiliğinden yakınlaştırır. */
-  .arama-form input,
-  .arama-form select,
-  .talep-form textarea {
-    min-height: 44px;
-  }
-
-  /* <summary>: display DEĞİŞTİRİLMEZ. flex/inline-flex yapmak açılır-kapanır üçgen
-     işaretini (::marker) yok eder — hedef bu yüzden dikey padding ile büyütülüyor. */
-  .sss > summary {
-    min-height: 44px;
-    padding-block: .55rem;
-  }
-
-  /* Çerez şeridi: teknik ayrıntı gizlenir, ekranı yiyen uzun metin yerine çekirdek bilgi
-     + "Ayrıntılı bilgi" bağlantısı kalır. Ölçüm: 375px'te şerit 286px (ekranın %43'ü) idi. */
-  .cerez-detay { display: none; }
-
-  /* "Ayrıntılı bilgi" SATIR İÇİ bir bağlantı — mobilde ayrıntıya giden TEK yol olduğu için
-     17px'lik hedef yetersiz. Yine de `display` DEĞİŞTİRİLMEZ: inline-flex paragrafın son
-     satırını 44px'e şişirip küçültmeye çalıştığımız şeridi tekrar büyütürdü. Bunun yerine
-     satır içi kutuya dikey padding veriliyor: satır kutusu YÜKSEKLİĞİNİ etkilemez
-     (şerit 159px'te kalır) ama tıklama/dokunma alanını 44px'e çıkarır. */
+  .cerez-serit { justify-content: space-between; gap: .75rem; }
+  .cerez-metin { font-size: .8125rem; line-height: 1.35; }
+  /* Satır içi "Ayrıntılı bilgi": satır kutusunu büyütmeden dokunma alanını 44px'e çıkarır. */
   .cerez-metin a { padding-block: .85rem; }
+  .iki-sutun { grid-template-columns: 1fr; }
 }
+
+/* ---- Hareket: tek kural — kullanıcı azaltılmış hareket istiyorsa hiçbir geçiş yok. ---- */
+.btn, .ilan, .yazi { transition: background-color .15s ease, border-color .15s ease, box-shadow .15s ease; }
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { transition: none !important; animation: none !important; scroll-behavior: auto !important; }
+}
+
+/* ---- Yazdırma: kabuk ve eylemler kağıda çıkmaz; fiyat tablosu ve özellikler kalır. ---- */
+@media print {
+  .bar, .altbar, .cerez-serit, .cta-bant, .alt, .yol, .arama, .ilan-eylem, .panel-eylem, .menu { display: none !important; }
+  body { background: #fff; color: #000; }
+  .hero::after { display: none; }
+}
+

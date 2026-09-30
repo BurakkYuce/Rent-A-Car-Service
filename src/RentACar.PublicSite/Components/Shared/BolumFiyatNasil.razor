@@ -1,30 +1,56 @@
-@* PR-19 — "Fiyatlar nasıl gösteriliyor". Referanstaki "Aylık fiyata neler dahil?" bölümünün
-   BİZE UYARLANMIŞ hâli.
+@using RentACar.Application.Fleet
 
-   NEDEN BAŞLIK DEĞİŞTİ (T1): "fiyata dahil" listesi kasko/bakım/yol yardımı gibi FİRMA
-   TAAHHÜTLERİ demektir; onları koda gömüp her tenant adına vaat edemeyiz. Onun yerine bölüm,
-   sistemin fiyatı NASIL gösterdiğini anlatıyor — hepsi doğrulanabilir. Firmaya özel neyin dahil
-   olduğu, firmanın kendi içerik sayfasında yazılır ve aşağıdaki bağlantı oraya götürür. *@
+@* PR-19 — "Fiyatlar nasıl gösteriliyor". Başka sitelerdeki "Fiyata neler dahil?" bölümünün BİZE
+   UYARLANMIŞ hâli.
 
-<section class="bolum bolum-alt" id="fiyat">
-    <div class="container">
-        <h2 class="section-title">Fiyatlar nasıl gösteriliyor?</h2>
-        <ul class="madde-liste">
-            @foreach (var m in Items)
+   NEDEN BAŞLIK FARKLI (T1): "fiyata dahil" listesi kasko/bakım/yol yardımı gibi FİRMA
+   TAAHHÜTLERİ demektir; onları koda gömüp her tenant adına vaat edemeyiz. Bölüm, sistemin fiyatı
+   NASIL gösterdiğini anlatıyor — hepsi doğrulanabilir. Firmaya özel neyin dahil olduğu, firmanın
+   kendi içerik sayfasında yazılır ve aşağıdaki bağlantı oraya götürür.
+
+   ÖRNEK HESAP: uydurma bir rakam DEĞİL — filonun en uygun ilanının kendi günlük fiyatıyla 3 günlük
+   hesap. 1-7 gün kademesi ilanın günlük fiyatıdır (FleetShowcaseService.DailyEquivalent), yani
+   burada yazan toplam, aynı tarihlerle yapılan aramanın göstereceği toplamla aynı. İlan yoksa
+   fiş basılmaz (T2). *@
+
+<section class="bolum" id="fiyat" aria-labelledby="fiyat-baslik">
+    <div class="wrap fiyat-duzen">
+        <div>
+            <h2 id="fiyat-baslik" class="bolum-baslik">Fiyatlar nasıl gösteriliyor?</h2>
+            <ul class="madde">
+                @foreach (var m in Items) { <li>@m</li> }
+            </ul>
+            @if (KosulSayfasi is { Length: > 0 } path)
             {
-                <li>@m</li>
+                <p class="linkler"><a href="@path">Kiralama koşullarımızın tamamı</a></p>
             }
-        </ul>
-        @if (KosulSayfasi is { Length: > 0 } path)
+        </div>
+
+        @if (Ornek is { } o)
         {
-            <p class="ust-linkler"><a href="@path">Kiralama koşullarımızın tamamı →</a></p>
+            <aside class="ornek-fis" aria-labelledby="ornek-baslik">
+                <h3 id="ornek-baslik">Örnek hesap</h3>
+                <p class="muted small">@o.Baslik, 3 günlük kiralama</p>
+                <dl>
+                    <dt>Günlük fiyat</dt><dd>@PriceText.Tl(o.GunlukFiyat)</dd>
+                    <dt>Gün sayısı</dt><dd>× 3</dd>
+                    <dt class="fis-toplam-satir">Toplam</dt>
+                    <dd class="fis-toplam-satir"><span class="tutar">@PriceText.Tl(o.GunlukFiyat * ExampleDays)</span></dd>
+                </dl>
+                <p class="muted small">@(o.KdvDahil ? "KDV dahil." : "KDV hariç; KDV ayrıca eklenir.") Sekiz gün ve üzerinde haftalık, otuz gün ve üzerinde aylık fiyat uygulanır (ilanda varsa).</p>
+            </aside>
         }
     </div>
 </section>
 
 @code {
+    private const int ExampleDays = 3;
+
     /// <summary>Firmanın kendi yazdığı koşullar sayfası (varsa). Yoksa bağlantı basılmaz (T2).</summary>
     [Parameter] public string? KosulSayfasi { get; set; }
+
+    /// <summary>Örnek hesabın ilanı (genelde en uygun fiyatlı). Null → fiş yok.</summary>
+    [Parameter] public FleetShowcaseCard? Ornek { get; set; }
 
     private static readonly string[] Items =
     [

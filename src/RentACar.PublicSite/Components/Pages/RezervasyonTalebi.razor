@@ -1,45 +1,82 @@
 @page "/rezervasyon-talebi"
 @using RentACar.Application.Branches
 @using RentACar.Application.Fleet
+@using RentACar.PublicSite.Components.Shared
 @inject FleetShowcaseService Showcase
 @inject BranchService Subeler
 
+@* Talep formu. Alan adları (adSoyad/telefon/email/bas/bit/sube/not/ilanId/website) POST ucunun
+   (PublicBookingRequestEndpoints) sözleşmesidir — DEĞİŞTİRİLMEZ.
+
+   Düzen: iki grup (Tarihler, İletişim), telefonda tek sütun; seçilen ilan yanda özet kartı olarak
+   durur — ziyaretçi neyi istediğini görerek doldurur. Tarayıcı otomatik doldurma ipuçları
+   (autocomplete/inputmode) mobilde yazmayı kısaltır. Zorunlu alanlar yazıyla da belirtilir. *@
+
 <PageTitle>Teklif İste — @(_branding?.Marka ?? "RentPro")</PageTitle>
 
-<div class="container">
-    <a class="back-link" href="/musaitlik">← Müsaitlik</a>
-    <h1>Teklif İsteyin</h1>
-    <p class="muted-note">Bilgilerinizi bırakın, en kısa sürede size dönelim. Bu form bir rezervasyon
-        oluşturmaz — ekibimiz size ulaşıp uygunluğu ve fiyatı teyit eder.</p>
+<Breadcrumbs Items="Crumbs" />
 
-    @if (!string.IsNullOrEmpty(Hata))
-    {
-        <p class="empty-state">@Hata</p>
-    }
+<div class="wrap sayfa-ust">
+    <h1>Teklif isteyin</h1>
+    <p class="giris">Bilgilerinizi bırakın, en kısa sürede size dönelim. Bu form bir rezervasyon oluşturmaz;
+        ekibimiz size ulaşıp uygunluğu ve fiyatı teyit eder.</p>
+</div>
 
-    <form method="post" action="/rezervasyon-talebi/gonder" class="arama-form talep-form"><AntiforgeryToken />
-        <label>Ad Soyad<input name="adSoyad" required maxlength="160" /></label>
-        <label>Telefon<input name="telefon" required maxlength="32" placeholder="0555 000 00 00" /></label>
-        <label>E-posta<input name="email" type="email" maxlength="160" /></label>
-        <label>Alış<input name="bas" type="date" value="@Bas" required /></label>
-        <label>İade<input name="bit" type="date" value="@Bit" required /></label>
-        <label>Şube
-            <select name="sube">
-                <option value="">Farketmez</option>
-                @foreach (var s in _branches)
-                {
-                    <option value="@s" selected="@(s == Sube)">@s</option>
-                }
-            </select>
-        </label>
-        <label class="tam-genislik">Not<textarea name="not" rows="3" maxlength="2000"></textarea></label>
+<div class="wrap talep">
+    <form method="post" action="/rezervasyon-talebi/gonder" class="talep-form"><AntiforgeryToken />
+        @if (!string.IsNullOrEmpty(Hata))
+        {
+            <p class="not-kutu hata" role="alert">@Hata</p>
+        }
 
-        @* PR-14: aramadan gelen bağlam — ziyaretçiye gösterilmez, personel için taşınır.
-           İlan SLUG'dan yeniden çözülür: yayından kalkmışsa başlık/fiyat taşınmaz (ziyaretçinin
-           gördüğü fiyat artık geçerli değildir; talep yine oluşur, personel teyit eder). *@
+        <fieldset>
+            <legend>Tarihler</legend>
+            <div class="iki-sutun">
+                <label class="alan"><span>Alış tarihi <span class="zorunlu">(zorunlu)</span></span>
+                    <input name="bas" type="date" value="@Bas" min="@Today" required />
+                </label>
+                <label class="alan"><span>İade tarihi <span class="zorunlu">(zorunlu)</span></span>
+                    <input name="bit" type="date" value="@Bit" min="@Today" required />
+                </label>
+            </div>
+            @if (_branches.Count > 0)
+            {
+                <label class="alan">Şube
+                    <select name="sube">
+                        <option value="">Fark etmez</option>
+                        @foreach (var s in _branches)
+                        {
+                            <option value="@s" selected="@(s == Sube)">@s</option>
+                        }
+                    </select>
+                </label>
+            }
+        </fieldset>
+
+        <fieldset>
+            <legend>İletişim</legend>
+            <label class="alan"><span>Ad soyad <span class="zorunlu">(zorunlu)</span></span>
+                <input name="adSoyad" required maxlength="160" autocomplete="name" />
+            </label>
+            <div class="iki-sutun">
+                <label class="alan"><span>Telefon <span class="zorunlu">(zorunlu)</span></span>
+                    <input name="telefon" type="tel" required maxlength="32" autocomplete="tel" inputmode="tel"
+                           placeholder="0555 000 00 00" />
+                </label>
+                <label class="alan">E-posta
+                    <input name="email" type="email" maxlength="160" autocomplete="email" />
+                </label>
+            </div>
+            <label class="alan">Not
+                <textarea name="not" rows="3" maxlength="2000"></textarea>
+                <span class="alan-ipucu">Teslim yeri, uçuş saati ya da ek sürücü gibi bilgiler.</span>
+            </label>
+        </fieldset>
+
+        @* PR-14: aramadan gelen bağlam. YALNIZ ilan kimliği taşınır — başlık ve fiyatı sunucu ilandan
+           okur; yayından kalkmışsa taşınmaz (talep yine oluşur, personel teyit eder). *@
         @if (_listing is not null)
         {
-            @* YALNIZ ilan kimliği taşınır — başlık ve fiyatı sunucu ilandan okur. *@
             <input type="hidden" name="ilanId" value="@_listing.IlanId" />
         }
 
@@ -48,11 +85,34 @@
             <label>Web sitesi<input name="website" tabindex="-1" autocomplete="off" /></label>
         </div>
 
-        <button type="submit">Teklif İste</button>
+        <button type="submit" class="btn btn-brand btn-genis">Teklif iste</button>
     </form>
+
+    @if (_listing is not null)
+    {
+        <aside class="ozet-kart" aria-labelledby="ozet-baslik">
+            @if (_listing.PhotoIds.Count > 0)
+            {
+                <img src="@($"/foto/{_listing.PhotoIds[0]}/thumb")" alt="" width="400" height="267" decoding="async" />
+            }
+            <div class="ozet-kart-ic">
+                <p class="muted small">Seçtiğiniz araç</p>
+                <h2 id="ozet-baslik">@_listing.Baslik</h2>
+                <p class="fis-toplam">
+                    <span class="tutar">@PriceText.Tl(_listing.GunlukFiyat)</span><span class="birim">/ gün</span>
+                    <span class="kdv">@(_listing.KdvDahil ? "KDV dahil" : "KDV hariç")</span>
+                </p>
+                <p class="muted small">Fiyat ilandan okunur ve talebiniz onaylanırsa sözleşmeye aynen geçer.</p>
+                <a href="@($"/araclar/{_listing.Slug}")">Araç ayrıntıları</a>
+            </div>
+        </aside>
+    }
 </div>
 
 @code {
+    private static readonly IReadOnlyList<Breadcrumbs.Item> Crumbs =
+        [new("Ana sayfa", "/"), new("Teklif iste", "/rezervasyon-talebi")];
+
     /// <summary>PR-14: aramadan gelen ilan adresi (slug).</summary>
     [SupplyParameterFromQuery(Name = "ilan")] public string? Ilan { get; set; }
     [SupplyParameterFromQuery(Name = "bas")] public string? Bas { get; set; }
@@ -64,6 +124,8 @@
     private FleetBranding? _branding;
     private IReadOnlyList<string> _branches = [];
     private FleetShowcaseDetail? _listing; // PR-14: slug'dan çözülen ilan (yayında değilse null)
+
+    private static string Today => SiteDate.TodayIso;
 
     protected override async Task OnInitializedAsync()
     {

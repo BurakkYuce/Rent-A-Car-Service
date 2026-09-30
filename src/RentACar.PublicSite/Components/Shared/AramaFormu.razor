@@ -1,23 +1,24 @@
-@* PR-19 — müsaitlik arama formu. TEK KAYNAK: hem ana sayfadaki Hero hem `/musaitlik` bunu
+@* PR-19 — müsaitlik arama formu. TEK KAYNAK: ana sayfa (Hero), `/musaitlik` ve ilan detayı bunu
    kullanır. İkinci bir kopya yazmak, alan adlarının (`bas`/`bit`/`sube`) ve doğrulama
    kurallarının zamanla ayrışmasına yol açardı.
 
-   GET + querystring: JS YOK, sonuç adresi paylaşılabilir ve geri tuşuna dost. Hero'da
-   `Hedef="/musaitlik"` verilir (form başka sayfadan gönderiliyor), `/musaitlik` içinde
-   boş bırakılır (aynı sayfaya gönderir). *@
+   GET + querystring: JS YOK, sonuç adresi paylaşılabilir ve geri tuşuna dost.
 
-@* TARİH ZORUNLU DEĞİL. Eskiden iki alan da `required`'dı: tarih girmeden gönderilemiyordu ve
-   `/musaitlik` tarihsiz açıldığında bomboş kalıyordu — "önce nereye/ne zaman gideceğime karar
-   vereyim" diyen ziyaretçi araçları hiç göremiyordu. Boş bırakılırsa sayfa tüm filoyu listeler;
-   tarih girilirse gerçek müsaitliğe ve dönem toplamına daralır. *@
-<form method="get" action="@Hedef" class="arama-form @(EkSinif ?? "")">
-    <label>Alış<input name="bas" type="date" value="@Bas" /></label>
-    <label>İade<input name="bit" type="date" value="@Bit" /></label>
-    @if (Subeler.Count > 0)
+   TARİH ZORUNLU DEĞİL: boş bırakılırsa `/musaitlik` tüm filoyu listeler; tarih girilirse gerçek
+   müsaitliğe ve dönem toplamına daralır ("önce aracı göreyim" diyen ziyaretçi çıkmaza girmesin).
+   `min` bugünün (İstanbul) tarihi: geçmiş bir tarihe rezervasyon zaten alınmıyor, tarayıcı daha
+   gönderimde uyarır. JS'siz de çalışır; eski tarayıcı `min`'i yok sayarsa sunucu yine karar verir. *@
+<form method="get" action="@Hedef" class="arama @(Satir ? "arama-satir" : null)" role="search" aria-label="@AriaLabel">
+    <div class="arama-tarihler">
+        <label class="alan">Alış tarihi<input name="bas" type="date" value="@Bas" min="@Today" /></label>
+        <label class="alan">İade tarihi<input name="bit" type="date" value="@Bit" min="@Today" /></label>
+    </div>
+    @if (Subeler.Count > 1)
     {
-        <label>Şube
+        @* Tek şubeli firmada seçim kutusu gürültü: hiç basılmaz. *@
+        <label class="alan">Şube
             <select name="sube">
-                <option value="">Tümü</option>
+                <option value="">Tüm şubeler</option>
                 @foreach (var s in Subeler)
                 {
                     <option value="@s" selected="@(s == Sube)">@s</option>
@@ -25,7 +26,12 @@
             </select>
         </label>
     }
-    <button type="submit">@(ButonMetni ?? "Ara")</button>
+    @if (!string.IsNullOrWhiteSpace(Ilan))
+    {
+        @* İlan detayından gelindiyse sonuçta o ilan öne alınır (bkz. Musaitlik.razor). *@
+        <input type="hidden" name="ilan" value="@Ilan" />
+    }
+    <button type="submit" class="btn btn-brand">@(ButonMetni ?? "Müsait araçları göster")</button>
 </form>
 
 @code {
@@ -35,10 +41,16 @@
     [Parameter] public string? Bas { get; set; }
     [Parameter] public string? Bit { get; set; }
     [Parameter] public string? Sube { get; set; }
+    /// <summary>Öne alınacak ilanın slug'ı (ilan detayından gelen arama).</summary>
+    [Parameter] public string? Ilan { get; set; }
 
-    /// <summary>Şube listesi boşsa seçim kutusu HİÇ basılmaz (tek şubeli firmada gürültü olurdu).</summary>
+    /// <summary>Şube listesi; tek şube (ya da hiç) varsa seçim kutusu basılmaz.</summary>
     [Parameter] public IReadOnlyList<string> Subeler { get; set; } = [];
 
     [Parameter] public string? ButonMetni { get; set; }
-    [Parameter] public string? EkSinif { get; set; }
+    /// <summary>true: geniş ekranda tek satır (sonuç sayfasının üstü). false: dikey (hero, panel).</summary>
+    [Parameter] public bool Satir { get; set; }
+    [Parameter] public string AriaLabel { get; set; } = "Müsait araç ara";
+
+    private static string Today => SiteDate.TodayIso;
 }

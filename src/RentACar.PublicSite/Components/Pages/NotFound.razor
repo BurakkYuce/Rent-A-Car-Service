@@ -1,20 +1,75 @@
 @page "/not-found"
+@using RentACar.Application.Fleet
+@inject FleetShowcaseService Showcase
 
-<PageTitle>Bulunamadı</PageTitle>
+@* 404 sayfası — KABUKLA birlikte basılır.
 
-@* Sayfa HİÇBİR düzen sınıfı kullanmıyordu: <h1> doğrudan <main>'in içindeydi ve mobilde
-   metin ekranın sol kenarına yapışıyordu (kenar boşluğu yalnız `.container`'dan geliyor).
-   Sitenin diğer sayfalarıyla AYNI kabuk kullanılıyor — boşluk ve tipografi tek yerden
-   gelsin, 404 sayfası "yarım kalmış" görünmesin.
+   NEDEN: SEO denetimi H-2 — yayından kalkmış ilan, yanlış slug ya da eşleşmeyen adres 404 dönüyordu
+   ama GÖVDE 0 BAYTTI: menüsüz beyaz ekran. NotFoundPageMiddleware gövdesiz her 404'ü bu sayfayla
+   doldurur; DURUM KODU 404 KALIR (arama motoru soft-404 görmez).
 
-   Ayrıca bir ÇIKIŞ yolu eklendi: 404'e düşen ziyaretçinin tek eylemi tarayıcı geri
-   düğmesi olmamalı. *@
-<div class="container">
-    <header class="site-header">
-        <h1>Sayfa bulunamadı</h1>
-        <p class="contact">Aradığınız sayfa taşınmış, kaldırılmış ya da adresi yanlış
-            yazılmış olabilir.</p>
-    </header>
+   Bu adres DOĞRUDAN istenirse de 404 döner — yoksa /not-found 200 ile indekslenirdi.
 
-    <a class="back-link" href="/">← Ana sayfaya dön</a>
+   Çıkış yolu: filodan birkaç araç (veri varsa, T2) + ana bağlantılar. *@
+
+<PageTitle>Sayfa bulunamadı</PageTitle>
+
+<div class="wrap sayfa-ust">
+    <p class="hata-kod" aria-hidden="true">404</p>
+    <h1>Aradığınız sayfa burada değil</h1>
+    <p class="giris">Sayfa taşınmış, araç yayından kaldırılmış ya da adres yanlış yazılmış olabilir.
+        Filodaki araçlara göz atabilir ya da bize ulaşabilirsiniz.</p>
+    <ul class="linkler">
+        <li><a href="/musaitlik">Araçlar ve fiyatlar</a></li>
+        <li><a href="/">Ana sayfa</a></li>
+        <li><a href="/iletisim">İletişim</a></li>
+    </ul>
 </div>
+
+@if (_cards.Count > 0)
+{
+    <section class="wrap bolum-ic" aria-labelledby="nf-filo">
+        <h2 id="nf-filo">Filomuzdan</h2>
+        <ul class="ilanlar">
+            @foreach (var c in _cards)
+            {
+                <li>
+                    <AracKarti Slug="@c.Slug" Baslik="@c.Baslik" CoverPhotoId="c.CoverPhotoId"
+                               YilAralik="@c.YilAralik" GunlukFiyat="c.GunlukFiyat" KdvDahil="c.KdvDahil"
+                               Ozellikler="c.Ozellikler" Adet="c.Adet"
+                               TeklifLinki="@QuoteLink.Build(c.Slug, dailyPrice: c.GunlukFiyat)" />
+                </li>
+            }
+        </ul>
+    </section>
+}
+
+@code {
+    private const int CardCount = 3;
+
+    [CascadingParameter] public HttpContext? Http { get; set; }
+
+    private IReadOnlyList<FleetShowcaseCard> _cards = [];
+
+    protected override async Task OnInitializedAsync()
+    {
+        // Durum kodu render SIRASINDA değil, başlıklar giderken 404 yapılır: .NET 10 statik SSR, durum 404
+        // olduğu anda kabuğun async hazırlığını beklemeden render'ı bitiriyor (NotFoundPageMiddleware.cs).
+        // Ara katmandan gelen istekte bunu ara katman zaten yapıyor; doğrudan /not-found isteğinde sayfa yapar.
+        if (Http is { } http && !http.Items.ContainsKey(NotFoundPageMiddleware.ItemKey))
+            http.Response.OnStarting(() =>
+            {
+                http.Response.StatusCode = StatusCodes.Status404NotFound;
+                return Task.CompletedTask;
+            });
+
+        try
+        {
+            _cards = [.. (await Showcase.ListShowcaseGroupsAsync()).Take(CardCount)];
+        }
+        catch
+        {
+            // Tenant çözülmemiş / içerik okunamadı → yalnız bağlantılar kalır.
+        }
+    }
+}

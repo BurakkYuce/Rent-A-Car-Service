@@ -7,12 +7,12 @@
 @inject SiteContentService Icerik
 @inject BranchService Subeler
 
-@* PR-19 — ana sayfa artık bölümleri DİZEN ince bir sayfa. Her bölüm kendi bileşeninde
+@* PR-19 — ana sayfa bölümleri DİZEN ince bir sayfa. Her bölüm kendi bileşeninde
    (Components/Shared) ve "sabit anlatı / tenant verisi" ayrımı orada belgeli.
 
-   SIRA bilinçli: önce arama (ziyaretçinin işi), sonra güven, sonra araçlar, sonra süreç/fiyat
-   açıklaması, en sonda SSS + çağrı. Referans projedeki akışın bize uyarlanmış hâli — "yorumlar"
-   ve "kiralama vs satın alma" bölümleri BİLİNÇLİ YOK (bkz. plan Non-Goals). *@
+   SIRA bilinçli: önce arama + gerçek günlük fiyatlar (ziyaretçinin işi), sonra araçlar, sonra
+   güven, süreç ve fiyat açıklaması, en sonda SSS + çağrı. "Yorumlar" ve "kiralama vs satın alma"
+   bölümleri BİLİNÇLİ YOK (bkz. plan Non-Goals). *@
 
 <PageTitle>@(_branding?.Marka ?? "RentPro") — Araç Kiralama</PageTitle>
 
@@ -26,62 +26,36 @@
            Aciklama="@MainDescription" Yol="/" Marka="_branding"
            KanonikKok="@_canonicalRoot" Gorsel="@CoverImage" />
 
-<BolumHero Marka="@_branding?.Marka" Subeler="_branches" />
-
-<BolumGuvenSeridi />
+<BolumHero Marka="@_branding?.Marka" Subeler="_branches" Kartlar="@(_cards ?? [])" Bolge="@_area" />
 
 @* Araçlar — VERİYE BAĞLI: ilan yoksa bölüm hiç basılmaz (T2). Yayınlanmamış bir sitede
    "Şu anda araç yok" yazmaktansa bölümü hiç göstermemek daha iyi; ziyaretçiye yine arama,
-   süreç ve iletişim kalıyor. *@
+   süreç ve iletişim kalıyor. Kart /musaitlik ile AYNI bileşen (tarihsiz mod). *@
 @if (_cards is { Count: > 0 })
 {
-    <section class="bolum" id="filo">
-        <div class="container">
-            <h2 class="section-title">Filomuz</h2>
-            <div class="grid">
+    <section class="bolum" id="filo" aria-labelledby="filo-baslik">
+        <div class="wrap">
+            <h2 id="filo-baslik" class="bolum-baslik">Filomuz</h2>
+            <ul class="ilanlar">
                 @foreach (var c in _cards)
                 {
-                    <a class="card" href="@($"/araclar/{c.Slug}")">
-                        @if (c.CoverPhotoId is { } photoId)
-                        {
-                            <img class="card-img" src="@($"/foto/{photoId}/thumb")" alt="@c.Baslik" loading="lazy" />
-                        }
-                        else
-                        {
-                            <div class="card-img-placeholder" aria-hidden="true"></div>
-                        }
-                        <div class="card-body">
-                            <h3>@c.Baslik</h3>
-                            @if (!string.IsNullOrWhiteSpace(c.YilAralik))
-                            {
-                                <p class="muted small">@c.YilAralik model</p>
-                            }
-                            <div class="chips">
-                                @* Teknik özellikler: personelin sihirbazda "sitede görünsün" dediği satırlar.
-                                   İlk üçü kartta; tamamı detay sayfasında. *@
-                                @foreach (var o in c.Ozellikler.Take(3))
-                                {
-                                    <span class="chip">@o.Deger</span>
-                                }
-                                @if (c.Adet > 1)
-                                {
-                                    <span class="chip">@c.Adet araç</span>
-                                }
-                            </div>
-                            <p class="fiyat">
-                                <strong>@c.GunlukFiyat.ToString("N0") ₺</strong>
-                                <span class="muted small">/ gün · @(c.KdvDahil ? "KDV dahil" : "+ KDV")</span>
-                            </p>
-                        </div>
-                    </a>
+                    <li>
+                        <AracKarti Slug="@c.Slug" Baslik="@c.Baslik" CoverPhotoId="c.CoverPhotoId"
+                                   YilAralik="@c.YilAralik" GunlukFiyat="c.GunlukFiyat" KdvDahil="c.KdvDahil"
+                                   Ozellikler="c.Ozellikler" Adet="c.Adet"
+                                   TeklifLinki="@QuoteLink.Build(c.Slug, dailyPrice: c.GunlukFiyat)" />
+                    </li>
                 }
-            </div>
+            </ul>
         </div>
     </section>
 }
 
+<BolumGuvenSeridi />
+
 <BolumNasilCalisir />
 
+@* Örnek hesap fişi hero'daki tarife tahtasının altına taşındı (boş kolon kalmasın); burada yalnız açıklama. *@
 <BolumFiyatNasil KosulSayfasi="@_termsPage" />
 
 <BolumSss Sorular="_faq" Adet="FaqSummaryCount" />
@@ -118,6 +92,7 @@
     private string? CoverImage => _cards?.FirstOrDefault(c => c.CoverPhotoId is not null) is { } k
         ? $"/foto/{k.CoverPhotoId}/thumb" : null;
     private IReadOnlyList<string> _branches = [];
+    private string? _area;
     private string? _canonical;
     private string? _canonicalRoot;
     private string? _termsPage;
@@ -129,7 +104,14 @@
         _faq = await Icerik.PublishedFaqAsync();
 
         // Şube listesi Hero'daki arama kutusu için; boşsa AramaFormu seçim kutusunu hiç basmaz.
-        try { _branches = [.. (await Subeler.ListAsync()).Select(b => b.Ad)]; }
+        // YALNIZ aktif şubeler (pasif şube ne aramada ne hizmet bölgesinde görünmeli — SEO L-1).
+        // Hizmet bölgesi (il/ilçe) de buradan: yerel arama ifadesi tenant verisinden, sabit metin değil.
+        try
+        {
+            var active = await Subeler.ListActiveAsync();
+            _branches = [.. active.Select(b => b.Ad)];
+            _area = ServiceArea.Describe(active.Select(b => (b.Il, b.Ilce)));
+        }
         catch { _branches = []; }
 
         var host = await Showcase.GetCanonicalHostAsync();
