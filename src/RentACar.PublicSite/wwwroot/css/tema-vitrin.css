@@ -6,8 +6,9 @@
    (wdth 125, statik örnek) — araç rozetlerinin geniş harfi. @font-face App.razor'da (SiteThemes.Vitrin.Fonts).
 
    TEK CESUR UNSUR: ana sayfada ilk fotoğraflı ilanın kapağı tam genişlik SAHNE; model adı çok büyük
-   Expanded harfle sahnenin ALT KENARINA taşar (üstü fotoğrafta açık, altı zeminde koyu — iki kopya,
-   clip-path ile). Arama paneli aynı kenara oturur. Fotoğraf yoksa sahne grafit zemin olur, aynı tipografi
+   Expanded harfle, taban çizgisi sahnenin ALT KENARINA oturur; kenarı yalnız inişli harfler geçer ve
+   kenarın altında koyuya döner (aynı kutuda iki kopya, tek değerli clip-path). Telefonda ad tamamen
+   sahnenin içinde. Arama paneli aynı kenara oturur. Fotoğraf yoksa sahne grafit zemin olur, aynı tipografi
    kalır (boş gri kutu YOK). Geri kalan her şey sakin: kartlar çerçevesiz, gölgesiz; tek yükseltilmiş yüzey
    arama/fiyat paneli.
 
@@ -25,6 +26,7 @@
   --p-chrome-500: #858d95;     /* alan/panel kenarı (UI 3:1) */
   --p-graphite-400: #62696f;   /* ipucu metni — beyazda 5.6:1 */
   --p-graphite-500: #50575e;   /* ikincil metin — porselende 7.1:1 */
+  --p-graphite-600: #394048;   /* koyu temada fotoğrafsız sahne — zemin 900'den belirgin açık */
   --p-graphite-700: #2a3036;   /* grafit mürekkep — porselende 12.6:1 */
   --p-graphite-800: #20252a;
   --p-graphite-850: #1b1f23;   /* koyu yüzey = BrandPalette.DarkSurface (firma metin tonu buna göre) */
@@ -66,6 +68,7 @@
   --ok: var(--p-signal-green);
   /* Sahne (hero), kapanış bandı, alt bilgi: iki temada da koyu — fotoğrafa benzesin. */
   --stage-bg: var(--p-graphite-700);
+  --stage-bg-bare: var(--p-graphite-700);
   --stage-ink: var(--p-porcelain);
   --stage-shade: var(--p-graphite-900);
 
@@ -124,6 +127,7 @@
     --danger: var(--p-signal-red-light);
     --ok: var(--p-signal-green-light);
     --stage-bg: var(--p-graphite-800);
+    --stage-bg-bare: var(--p-graphite-600);
     --stage-ink: var(--p-mist-50);
     --shadow-2: 0 24px 48px -28px color-mix(in srgb, var(--stage-shade) 90%, transparent);
   }
@@ -212,7 +216,10 @@ h3 { font-size: var(--step-1); letter-spacing: -.01em; }
 .v-bar { background: var(--bg); border-bottom: 1px solid var(--line); }
 .v-bar-ic { display: flex; align-items: center; gap: var(--space-3); min-height: 64px; }
 .v-marka { display: inline-flex; align-items: center; min-height: 44px; margin-right: auto; color: var(--ink); text-decoration: none; }
-.v-marka img { display: block; height: 40px; width: auto; max-width: 200px; object-fit: contain; }
+/* Logo YÜKSEKLİK tabanlı: mobil 32px, masaüstü 44px; yatay logolar genişlik sınırında durur (oran bozulmaz,
+   şeffaf kenar sunucuda kırpılır). */
+.v-marka img { display: block; height: 32px; width: auto; max-width: 180px; object-fit: contain; object-position: left center; }
+@media (min-width: 900px) { .v-marka img { height: 44px; max-width: 260px; } }
 .v-marka .marka-ad { font: 700 1.25rem/1 var(--font-display); letter-spacing: -.02em; }
 .v-nav { display: none; }
 .v-nav a, .v-menu-liste a { color: var(--ink); text-decoration: none; font-weight: 600; }
@@ -241,7 +248,7 @@ h3 { font-size: var(--step-1); letter-spacing: -.01em; }
 .v-menu-liste a:hover { background: var(--bg-alt); }
 @media (prefers-color-scheme: dark) {
   /* Logoların çoğu şeffaf zeminli KOYU yazı: koyu barda açık bir levhaya oturur. */
-  .v-marka img { background: var(--p-porcelain); padding: 4px 8px; border-radius: var(--radius-s); box-sizing: content-box; height: 32px; }
+  .v-marka img { background: var(--p-porcelain); padding: 4px 8px; border-radius: var(--radius-s); box-sizing: content-box; }
 }
 @media (min-width: 900px) {
   .v-bar { position: sticky; top: 0; z-index: 20; }
@@ -252,12 +259,15 @@ h3 { font-size: var(--step-1); letter-spacing: -.01em; }
 
 /* =============================================================================
    Slot: hero / SAHNE (VitrinHero.razor) — temanın tek cesur unsuru.
-   Model adı sahnenin alt kenarına --tasma kadar taşar. Gerçek metin (zemin mürekkebi) yalnız kenarın
-   ALTINI, aria-hidden üst kopya (sahne mürekkebi) yalnız ÜSTÜNÜ gösterir. Kırpma em cinsinden ve ad bloğu
-   tam --tasma kadar aşağı itildiği için kenar iki kopyada da aynı yerde; ad birkaç satıra sarsa da yalnız
-   son satır kenara biner (inset yüzdesi bloğun yüksekliğine göre).
+   Adın TABAN ÇİZGİSİ sahnenin alt kenarına oturur: adın tamamı fotoğrafın üstünde (açık); kenarı yalnız
+   inişli harfler (g, y, ş, ç) geçer ve kenarın altında zemin mürekkebine döner.
+   İKİ KOPYA BİREBİR AYNI KUTUDA: ikisi de aynı grid hücresinde (grid-area 1/1) — mutlak konum yok, aynı
+   genişlikte aynı satır kırılımı. Tek değer (--tasma) iki kırpmayı da besler: alt kopya kutunun son
+   --tasma kadarını, üst kopya geri kalanını gösterir; kesim çizgisi ikisinde aynı, kayma yok.
+   --tasma, satır yüksekliği .92 iken satır kutusunun tabanı ile taban çizgisi arası (Archivo'da ≈.14em; bilinçli .128em);
+   blok o kadar aşağı itilir → taban çizgisi kenarın ~1px üstünde (ölçüldü 720–1920px: sapma <1px); yuvarlak harflerin taşması açık kalır, yalnız inişler geçer.
    ============================================================================= */
-.v-hero { --tasma: .42em; position: relative; }
+.v-hero { --tasma: .128em; position: relative; }
 .v-sahne {
   position: relative; display: flex; align-items: flex-end;
   /* Mobilde kısa: sahne + ad + tarih alanları + düğme ilk ekranda kalmalı (390×844 ölçüldü: 42svh'de
@@ -273,19 +283,27 @@ h3 { font-size: var(--step-1); letter-spacing: -.01em; }
 .v-hero-yalin .v-sahne::after { content: none; }
 .v-sahne-ic { position: relative; z-index: 1; width: 100%; }
 .v-model {
-  position: relative; display: block; width: fit-content; max-width: 100%; margin: 0;
+  position: relative; display: grid; width: fit-content; max-width: 100%; margin: 0;
   font: 700 var(--step-5)/.92 var(--font-display); letter-spacing: -.035em;
   color: var(--ink); text-decoration: none; overflow-wrap: anywhere; text-wrap: balance;
   transform: translateY(var(--tasma));
 }
 .v-model-o { font-size: clamp(2.2rem, .8rem + 6vw, 6.75rem); }
 .v-model-u { font-size: clamp(1.9rem, .8rem + 4.6vw, 5.25rem); }
-.v-model-ad { display: block; clip-path: inset(calc(100% - var(--tasma)) 0 0 0); }
-.v-model-ust { position: absolute; inset: 0; color: var(--stage-ink); clip-path: inset(0 0 var(--tasma) 0); }
-a.v-model:hover .v-model-ad { text-decoration: underline; text-decoration-thickness: .06em; text-underline-offset: .08em; }
+.v-model-ad { grid-area: 1 / 1; clip-path: inset(calc(100% - var(--tasma)) 0 0 0); }
+.v-model-ust { color: var(--stage-ink); clip-path: inset(0 0 var(--tasma) 0); }
+a.v-model:hover .v-model-ad { text-decoration: underline; text-decoration-thickness: .05em; text-underline-offset: .05em; }
 a.v-model:focus-visible { outline-offset: 6px; }
+/* Fotoğrafsız düşüş: koyu temada sahne sayfa zemininden belirgin açık olsun (grafit-600 ↔ zemin 900). */
+.v-hero-yalin .v-sahne { background: var(--stage-bg-bare); }
 
-.v-hero-alt { display: grid; gap: var(--space-3); padding-top: calc(var(--step-5) * .42 + var(--space-2)); padding-bottom: var(--space-4); }
+.v-hero-alt { display: grid; gap: var(--space-3); padding-top: var(--space-3); padding-bottom: var(--space-4); }
+@media screen and (max-width: 640px) {
+  /* Telefonda ad iki satıra sarar: TAMAMI sahnenin içinde kalır, kenar geçişi yok, kırpma yok. */
+  .v-hero { --tasma: 0em; }
+  .v-model { transform: none; }
+  .v-sahne-ic { padding-bottom: var(--space-2); }
+}
 .v-hero-fiyat { display: flex; flex-wrap: wrap; align-items: baseline; gap: .25rem .6rem; margin: 0 0 var(--space-1); }
 .v-hero-metin { margin: 0; color: var(--ink-muted); max-width: 46ch; }
 .v-hero-metin strong { color: var(--ink); }
@@ -293,7 +311,7 @@ a.v-model:focus-visible { outline-offset: 6px; }
 .v-arama .arama { box-shadow: none; }
 @media screen and (max-width: 719px) {
   /* Mobil: arama sahnenin hemen altında, not ondan sonra — ana eylem ilk ekranda kalsın. */
-  .v-hero-alt { padding-top: calc(var(--step-5) * .42 + .75rem); gap: var(--space-2); }
+  .v-hero-alt { padding-top: var(--space-2); gap: var(--space-2); }
   .v-arama { order: -1; }
   .v-arama .arama { padding: 0; background: none; border: 0; }
 }
@@ -360,6 +378,8 @@ a.v-model:focus-visible { outline-offset: 6px; }
 .v-alt-ic { display: grid; gap: var(--space-4) var(--space-3); padding-block: var(--space-5) var(--space-4); grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); }
 .v-alt-marka { grid-column: 1 / -1; }
 .v-alt-marka .v-marka { color: var(--stage-ink); }
+/* Alt bilgi iki temada da grafit: koyu yazılı logolar açık levhaya oturur. */
+.v-alt-marka .v-marka img { height: 40px; max-width: 220px; background: var(--p-porcelain); padding: 4px 8px; border-radius: var(--radius-s); box-sizing: content-box; }
 .v-alt-marka .marka-ad { font-size: var(--step-3); }
 .v-alt-marka p { margin: var(--space-1) 0 0; max-width: 40ch; }
 .v-alt-baslik { margin: 0 0 var(--space-1); font-weight: 600; color: var(--stage-ink); }
