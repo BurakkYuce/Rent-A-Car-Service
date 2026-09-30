@@ -37,6 +37,8 @@ builder.Services.AddScoped<TenantHostResolutionMiddleware>();
 // ---- PR-5: Caddy on_demand_tls ask-endpoint cache'i — CachedPublicTenantResolver'ın AYNI Singleton +
 // dedike-MemoryCache deseni (bkz. DomainAskCache.cs). ----
 builder.Services.AddSingleton<DomainAskCache>();
+// Küçültülmüş firma logosu önbelleği (bkz. BrandEndpoints.cs) — aynı dedike-MemoryCache deseni.
+builder.Services.AddSingleton<WebLogoCache>();
 
 // PII blind-index anahtarı — bu proje v1'de PII şifreli alan okumaz/yazmaz, ama Infrastructure paylaşımlı
 // katman olduğu için Web/Api ile AYNI üretim guard'ı (dev dışı ortamda zorunlu) tutarlılık için uygulanır.
@@ -158,6 +160,7 @@ app.UseMiddleware<TenantHostResolutionMiddleware>();
 app.MapHealthChecks("/health/live");
 
 app.MapVehiclePhotoEndpoints(); // PR-4
+app.MapBrandEndpoints(); // firma logosu (/marka/logo)
 app.MapDomainVerificationEndpoints(); // PR-5: Caddy on_demand_tls ask
 app.MapBlogEndpoints(); // PR-6: blog kapak serve
 app.MapPublicBookingRequestEndpoints(); // PR-8: talep formu POST

@@ -32176,6 +32176,7 @@ export interface components {
       renkAlacakli?: null | string;
       renkRezAtananPlaka?: null | string;
       renkKiralanmayan?: null | string;
+      siteVurguRengi?: null | string;
       donemselFaturalamaJob?: boolean;
       donemselOtomatikTahsilat?: boolean;
       /** Format: int32 */
@@ -32244,6 +32245,7 @@ export interface components {
       renkAlacakli?: null | string;
       renkRezAtananPlaka?: null | string;
       renkKiralanmayan?: null | string;
+      siteVurguRengi?: null | string;
       donemselFaturalamaJob?: boolean;
       donemselOtomatikTahsilat?: boolean;
       /** Format: int32 */

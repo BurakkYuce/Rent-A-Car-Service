@@ -105,6 +105,7 @@ public sealed class TenantSettingsService(
             RenkAlacakli = s.RenkAlacakli,
             RenkRezAtananPlaka = s.RenkRezAtananPlaka,
             RenkKiralanmayan = s.RenkKiralanmayan,
+            SiteVurguRengi = s.SiteVurguRengi,
             DonemselFaturalamaJob = s.DonemselFaturalamaJob,
             DonemselOtomatikTahsilat = s.DonemselOtomatikTahsilat,
             MinKiraGun = s.MinKiraGun,
@@ -285,6 +286,9 @@ public sealed class TenantSettingsService(
             s.RenkAlacakli = Renk(m.RenkAlacakli, "RenkAlacakli");
             s.RenkRezAtananPlaka = Renk(m.RenkRezAtananPlaka, "RenkRezAtananPlaka");
             s.RenkKiralanmayan = Renk(m.RenkKiralanmayan, "RenkKiralanmayan");
+            // Halka açık site vurgu rengi — aynı kesin biçim kuralı. Site değeri ayrıca kontrast için
+            // uyarlar (BrandPalette); burada yalnız biçim doğrulanır.
+            s.SiteVurguRengi = Renk(m.SiteVurguRengi, "Site vurgu rengi");
             s.DonemselFaturalamaJob = m.DonemselFaturalamaJob;
             s.DonemselOtomatikTahsilat = m.DonemselOtomatikTahsilat;
             s.MinKiraGun = m.MinKiraGun;

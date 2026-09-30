@@ -77,6 +77,7 @@ export const SETTINGS_FIELDS = [
   'saatFarkiToleransDk',
   'iadeIslemSaatSiniri',
   ...COLOR_FIELDS,
+  'siteVurguRengi',
   'smtpHost',
   'smtpPort',
   'smtpKullanici',

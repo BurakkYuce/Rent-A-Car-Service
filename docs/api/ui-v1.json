@@ -69876,6 +69876,12 @@
               "string"
             ]
           },
+          "siteVurguRengi": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
           "donemselFaturalamaJob": {
             "type": "boolean"
           },
@@ -70213,6 +70219,12 @@
             ]
           },
           "renkKiralanmayan": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "siteVurguRengi": {
             "type": [
               "null",
               "string"

@@ -72,6 +72,62 @@ public sealed class LogoKurallariTests(PostgresFixture fx)
         Assert.NotNull(LogoValidationRules.Reject(Png(800, 240, totalBytes: 1_100_000))); // 1 MB üstü
     }
 
+    /// <summary>M1: incelemede 2000×1.000.000 boyutlu ~244 KB'lık PNG kabul ediliyordu (yalnız genişlik
+    /// denetleniyordu) — çözülünce ~1,4 GB. Beklenen: yükseklik de 2000 ile sınırlı.</summary>
+    [Fact]
+    public void Reddet_dev_yukseklikli_PNG_yi_reddeder()
+    {
+        Assert.NotNull(LogoValidationRules.Reject(Png(2000, 1_000_000)));
+        Assert.NotNull(LogoValidationRules.Reject(Png(100, 2001)));
+        Assert.Null(LogoValidationRules.Reject(Png(2000, 2000)));   // iki kenar da sınırda → kabul
+        Assert.Contains("yüksekliği", LogoValidationRules.Reject(Png(100, 2001))!, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void Reddet_olcusu_okunamayan_PNG_yi_reddeder()
+    {
+        var corrupt = Png(800, 240);
+        corrupt[13] = 0x00;                                      // "IHDR" tipi bozuk → ölçü okunamaz
+        Assert.NotNull(LogoValidationRules.Reject(corrupt));
+
+        var zeroSize = Png(0, 240);                              // IHDR'da sıfır genişlik
+        Assert.NotNull(LogoValidationRules.Reject(zeroSize));
+
+        // Yalnız imza (8 bayt) + birkaç bayt: IHDR'a hiç ulaşmıyor.
+        Assert.NotNull(LogoValidationRules.Reject([0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 1, 2, 3, 4]));
+    }
+
+    /// <summary>L2: PNG imzasından sonra rastgele çöp — eskiden imza yetiyordu, dosya kabul ediliyordu.</summary>
+    [Fact]
+    public void Reddet_imzadan_sonra_cop_tasiyan_dosyayi_reddeder()
+    {
+        var garbage = new byte[4096];
+        new Random(353).NextBytes(garbage);
+        new byte[] { 0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A }.CopyTo(garbage, 0);
+        garbage[12] = 0x00; // tohumdan bağımsız: 12. bayt 'I' olamaz → IHDR yok
+        Assert.NotNull(LogoValidationRules.Reject(garbage));
+    }
+
+    /// <summary>Kural sıkılaşmadan ÖNCE kaydedilmiş dev logo PDF motoruna gitmez (tam çözme = bellek bombası).</summary>
+    [Fact]
+    public void Dev_olculu_eski_logo_PDF_yolunda_YOK_SAYILIR()
+    {
+        Assert.False(LogoValidationRules.IsPrintable(Png(2000, 1_000_000)));
+        Assert.False(LogoValidationRules.IsPrintable(Png(2400, 600)));
+        Assert.True(LogoValidationRules.IsPrintable(Png(2000, 2000)));
+    }
+
+    [Fact]
+    public async Task SetLogoAsync_dev_yukseklikli_PNG_yi_SERVIS_seviyesinde_reddeder()
+    {
+        using var host = new TestHost(fx.AppConnectionString);
+        using var s = host.ScopeFor(Guid.NewGuid());
+        var svc = s.ServiceProvider.GetRequiredService<TenantSettingsService>();
+
+        await Assert.ThrowsAsync<ValidationException>(() => svc.SetLogoAsync(Png(2000, 1_000_000)));
+        Assert.Null((await svc.GetAsync()).LogoBytes);
+    }
+
     [Fact]
     public void Olcusu_okunamayan_PNG_basilmaz()
     {

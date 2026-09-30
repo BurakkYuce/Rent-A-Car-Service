@@ -15,6 +15,7 @@ public static partial class SystemAdminApi
         ("RenkBugunCikacaklar", "renkBugunCikacaklar"), ("RenkOpsiyonlu", "renkOpsiyonlu"),
         ("RenkLimitBakiye", "renkLimitBakiye"), ("RenkAlacakli", "renkAlacakli"),
         ("RenkRezAtananPlaka", "renkRezAtananPlaka"), ("RenkKiralanmayan", "renkKiralanmayan"),
+        ("Site vurgu rengi", "siteVurguRengi"),
         ("SMTP şifresi", "smtpSifre"), ("e-Fatura şifresi", "eFaturaSifre"), ("POS API anahtarı", "posApiKey"),
     ];
 
@@ -58,6 +59,7 @@ public static partial class SystemAdminApi
                      (i.RenkBugunCikacaklar, "renkBugunCikacaklar"), (i.RenkOpsiyonlu, "renkOpsiyonlu"),
                      (i.RenkLimitBakiye, "renkLimitBakiye"), (i.RenkAlacakli, "renkAlacakli"),
                      (i.RenkRezAtananPlaka, "renkRezAtananPlaka"), (i.RenkKiralanmayan, "renkKiralanmayan"),
+                     (i.SiteVurguRengi, "siteVurguRengi"),
                  })
             RentalLimits.Text(value, 7, field, "Renk kodu");
 

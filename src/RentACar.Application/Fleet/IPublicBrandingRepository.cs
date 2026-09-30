@@ -8,6 +8,13 @@ public interface IPublicBrandingRepository
     Task<FleetBranding> GetAsync(Guid tenantId, CancellationToken ct = default);
 
     /// <summary>
+    /// Firma logosu (<c>TenantSettings.LogoBytes</c>) — yüklenmemişse null. <c>LogoUrl</c> BİLİNÇLİ
+    /// kullanılmaz: PublicSite CSP'si <c>img-src 'self'</c>, dış adresteki görsel sessizce kırık görünürdü;
+    /// sunucu tarafında o adresi çekmek de SSRF yüzeyi açardı.
+    /// </summary>
+    Task<PublicLogo?> GetLogoAsync(Guid tenantId, CancellationToken ct = default);
+
+    /// <summary>
     /// PR-9: tenant'ın KANONİK host'u — SEO'nun TEK doğruluk kaynağı. Kural DETERMİNİSTİK olmalı çünkü
     /// PR-5'in Pending sınırı (tenant başına 2) zamanla BİRDEN FAZLA Active özel domain bırakabilir:
     /// **en eski `VerifiedAtUtc`'ye sahip Active Custom** varsa O, yoksa Active subdomain.
