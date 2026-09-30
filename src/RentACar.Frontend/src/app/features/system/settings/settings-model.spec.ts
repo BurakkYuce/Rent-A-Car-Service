@@ -7,6 +7,7 @@ import {
   settingsBody,
   settingsFormValue,
   settingsServerValues,
+  themePreviewUrl,
 } from './settings-model';
 
 /** Elle kurulmuş GET yanıtı: sırlar yalnız `*Tanimli` bayrağıyla gelir. */
@@ -27,6 +28,14 @@ const DTO = {
 } as unknown as SettingsDto;
 
 describe('ayarlar modeli', () => {
+  it('site teması: kayıtsızsa tarife seçili; kayıtlıysa aynen; önizleme adresi ?tema=', () => {
+    expect(settingsFormValue(DTO).siteTemasi).toBe('tarife');
+    expect(settingsFormValue({ ...DTO, siteTemasi: 'kontuar' } as SettingsDto).siteTemasi).toBe(
+      'kontuar',
+    );
+    expect(themePreviewUrl('kiyi.site.test', 'vitrin')).toBe('//kiyi.site.test/?tema=vitrin');
+  });
+
   it('form değeri sır alanlarını DAİMA boş kurar (yanıtta sır yok)', () => {
     const v = settingsFormValue(DTO);
     for (const s of SECRET_FIELDS) expect(v[s]).toBeNull();

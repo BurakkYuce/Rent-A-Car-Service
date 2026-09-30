@@ -192,6 +192,13 @@ public class TenantSettings : ITenantOwned, IAuditable
     public string? SiteVurguRengi { get; set; }
 
     /// <summary>
+    /// Halka açık sitenin teması: <c>tarife</c> / <c>vitrin</c> / <c>kontuar</c> ya da null (= <c>tarife</c>).
+    /// Anahtar listesi <c>SiteThemeKeys</c>'te; bilinmeyen değer yazılamaz (servis reddeder), okunurken de
+    /// varsayılana düşer.
+    /// </summary>
+    public string? SiteTemasi { get; set; }
+
+    /// <summary>
     /// Angular geçişi F1.2 — bu firma yeni arayüzün (<c>/app</c> + <c>/api/ui/v1</c>) PİLOTUNDA mı.
     /// Varsayılan <c>false</c>: <c>/api/ui/v1</c>'in <c>oturum/*</c> ve <c>istemci-hata</c> dışındaki
     /// HER ucu pilot olmayan firmaya 403 <c>pilot_degil</c> döner (sunucu filtresi, UI gizlemesi değil).

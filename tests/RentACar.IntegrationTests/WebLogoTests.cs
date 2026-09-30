@@ -5,7 +5,7 @@ namespace RentACar.IntegrationTests;
 
 /// <summary>
 /// Halka açık site logosu küçültmesi — saf birim testi (DB yok). BAĞIMSIZ ORACLE: beklenen ölçüler elle
-/// hesaplanır (2000×500 → sınır 640×160; oran 4:1 korunur → 640×160).
+/// hesaplanır (şeffaf kenar kırpılır, kalan görünür kutu 640×160 sınırına oran korunarak sığdırılır).
 /// </summary>
 public sealed class WebLogoTests
 {
@@ -24,27 +24,74 @@ public sealed class WebLogoTests
         return data.ToArray();
     }
 
-    [Fact]
-    public void Buyuk_logo_orani_korunarak_kuculur_ve_seffaflik_kalir()
+    /// <summary>Opak dikdörtgen, çevresinde şeffaf kenar boşluğu: (w×h) tuval, içerik (x, y, cw, ch).</summary>
+    private static byte[] PaddedPng(int w, int h, int x, int y, int cw, int ch)
     {
+        using var bmp = new SKBitmap(w, h, SKColorType.Rgba8888, SKAlphaType.Premul);
+        using (var canvas = new SKCanvas(bmp))
+        {
+            canvas.Clear(SKColors.Transparent);
+            using var paint = new SKPaint { Color = SKColors.Red };
+            canvas.DrawRect(x, y, cw, ch, paint);
+        }
+        using var img = SKImage.FromBitmap(bmp);
+        using var data = img.Encode(SKEncodedImageFormat.Png, 100);
+        return data.ToArray();
+    }
+
+    [Fact]
+    public void Buyuk_logo_seffaf_kenar_kirpilip_orani_korunarak_kuculur()
+    {
+        // 2000×500, sol yarı opak → görünür kutu 1000×500; sınır 640×160 → ölçek min(0.64, 0.32) = 0.32 → 320×160.
         var result = ImageProcessing.TryCreateWebLogo(HalfTransparentPng(2000, 500));
         Assert.NotNull(result);
 
         using var decoded = SKBitmap.Decode(result!);
-        Assert.Equal(640, decoded.Width);
+        Assert.Equal(320, decoded.Width);
         Assert.Equal(160, decoded.Height);
-        Assert.Equal(0, decoded.GetPixel(600, 80).Alpha);      // sağ yarı şeffaf kaldı (beyaza basılmadı)
-        Assert.Equal(255, decoded.GetPixel(40, 80).Alpha);     // sol yarı opak
+        Assert.Equal(255, decoded.GetPixel(160, 80).Alpha);    // içerik opak
         Assert.Equal(SKEncodedImageFormat.Png, SKCodec.Create(new MemoryStream(result!)).EncodedFormat);
     }
 
     [Fact]
     public void Yuksekligi_sinirda_olan_dar_logo_yukseklige_gore_kuculur()
     {
-        // 400×400: genişlik sınırı (640) aşılmıyor, yükseklik (160) aşılıyor → 160×160.
+        // 400×400 sol yarı opak → kutu 200×400; ölçek min(3.2, 0.4) = 0.4 → 80×160.
         using var decoded = SKBitmap.Decode(ImageProcessing.TryCreateWebLogo(HalfTransparentPng(400, 400))!);
-        Assert.Equal(160, decoded.Width);
+        Assert.Equal(80, decoded.Width);
         Assert.Equal(160, decoded.Height);
+    }
+
+    /// <summary>Canlıda görülen durum: 470×246 PNG, yazı ortada küçük (geniş şeffaf kenar) → başlıkta okunmuyordu.
+    /// Kenar kırpılır; ölçek gerekmese de (sınır içinde) kırpılmış PNG döner. İçerik kutusu elle: 300×80 @ (85, 83).</summary>
+    /// <summary>Canlıdaki gerçek biçim: şeffaf DEĞİL, beyaz zeminli 470×246 tuval, içerik 300×80 @ (85, 83).
+    /// Dört köşe aynı düz renk → zemin sayılır, kırpılır.</summary>
+    [Fact]
+    public void Beyaz_zeminli_logo_da_kirpilir()
+    {
+        using var bmp = new SKBitmap(470, 246, SKColorType.Rgba8888, SKAlphaType.Premul);
+        using (var canvas = new SKCanvas(bmp))
+        {
+            canvas.Clear(SKColors.White);
+            using var paint = new SKPaint { Color = new SKColor(0x1f, 0x3c, 0x88) };
+            canvas.DrawRect(85, 83, 300, 80, paint);
+        }
+        using var img = SKImage.FromBitmap(bmp);
+        using var data = img.Encode(SKEncodedImageFormat.Png, 100);
+
+        using var decoded = SKBitmap.Decode(ImageProcessing.TryCreateWebLogo(data.ToArray())!);
+        Assert.Equal(300, decoded.Width);
+        Assert.Equal(80, decoded.Height);
+    }
+
+    [Fact]
+    public void Kucuk_ama_kenarli_logo_buyutulmeden_kirpilir()
+    {
+        using var decoded = SKBitmap.Decode(ImageProcessing.TryCreateWebLogo(PaddedPng(470, 246, 85, 83, 300, 80))!);
+        Assert.Equal(300, decoded.Width);
+        Assert.Equal(80, decoded.Height);
+        Assert.Equal(255, decoded.GetPixel(0, 0).Alpha);          // kenar boşluğu kalmadı
+        Assert.Equal(255, decoded.GetPixel(299, 79).Alpha);
     }
 
     /// <summary>Gerçek, çözülebilir 1-bit gri PNG'yi ELLE kurar (IHDR + tek IDAT + IEND, CRC'li). Tüm satırlar
@@ -131,7 +178,8 @@ public sealed class WebLogoTests
     [Fact]
     public void Kucuk_logo_buyutulmez_ve_bozuk_dosya_patlamaz()
     {
-        Assert.Null(ImageProcessing.TryCreateWebLogo(HalfTransparentPng(300, 80))); // zaten sınır içinde
+        Assert.Null(ImageProcessing.TryCreateWebLogo(PaddedPng(300, 80, 0, 0, 300, 80))); // sınır içinde, kenarsız
+        Assert.Null(ImageProcessing.TryCreateWebLogo(PaddedPng(300, 80, 0, 0, 0, 0)));   // tamamen şeffaf
         Assert.Null(ImageProcessing.TryCreateWebLogo([0x89, 0x50, 0x4E, 0x47, 1, 2, 3]));
         Assert.Null(ImageProcessing.TryCreateWebLogo([]));
     }

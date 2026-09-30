@@ -106,6 +106,7 @@ public sealed class TenantSettingsService(
             RenkRezAtananPlaka = s.RenkRezAtananPlaka,
             RenkKiralanmayan = s.RenkKiralanmayan,
             SiteVurguRengi = s.SiteVurguRengi,
+            SiteTemasi = s.SiteTemasi,
             DonemselFaturalamaJob = s.DonemselFaturalamaJob,
             DonemselOtomatikTahsilat = s.DonemselOtomatikTahsilat,
             MinKiraGun = s.MinKiraGun,
@@ -289,6 +290,12 @@ public sealed class TenantSettingsService(
             // Halka açık site vurgu rengi — aynı kesin biçim kuralı. Site değeri ayrıca kontrast için
             // uyarlar (BrandPalette); burada yalnız biçim doğrulanır.
             s.SiteVurguRengi = Renk(m.SiteVurguRengi, "Site vurgu rengi");
+            // Site teması: yalnız bilinen anahtar ya da boş (= varsayılan). Bilinmeyen değer sitede zaten
+            // varsayılana düşerdi, ama saklamak ayarlar ekranında olmayan bir seçimi "kayıtlı" gösterirdi.
+            s.SiteTemasi = string.IsNullOrWhiteSpace(m.SiteTemasi) ? null
+                : SiteThemeKeys.Normalize(m.SiteTemasi)
+                  ?? throw new ValidationException("Site teması geçersiz. Geçerli değerler: "
+                                                   + string.Join(", ", SiteThemeKeys.All) + ".");
             s.DonemselFaturalamaJob = m.DonemselFaturalamaJob;
             s.DonemselOtomatikTahsilat = m.DonemselOtomatikTahsilat;
             s.MinKiraGun = m.MinKiraGun;

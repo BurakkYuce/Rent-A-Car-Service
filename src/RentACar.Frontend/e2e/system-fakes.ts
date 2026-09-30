@@ -54,6 +54,7 @@ export const settings = (extra: Record<string, unknown> = {}) => ({
   renkRezAtananPlaka: null,
   renkKiralanmayan: null,
   siteVurguRengi: '#0b5d6b',
+  siteTemasi: null,
   donemselFaturalamaJob: false,
   donemselOtomatikTahsilat: false,
   minKiraGun: null,

@@ -438,6 +438,23 @@
       "siteGorunum": "Web sitesi görünümü",
       "siteGorunumAciklama": "Firmanızın halka açık web sitesinde kullanılır. Logo yukarıdaki logo bölümünden yüklenir ve sitenin başlığında ve alt bilgisinde görünür.",
       "siteVurguIpucu": "Düğme ve vurgu rengi, #rrggbb biçiminde. Boş bırakılırsa sitenin varsayılan rengi kullanılır. Site, yazıların okunabilmesi için bu rengi gerektiğinde koyulaştırır ya da açar.",
+      "tema": {
+        "ipucu": "Sitenin tasarımı. Logonuz ve vurgu renginiz her temada kullanılır; içerik ve fiyatlar aynı kalır.",
+        "onizleAciklama": "Önizleme bağlantısı kaydetmeden, sitenizi seçilen temayla yeni sekmede açar. Önizleme arama motorlarına kapalıdır.",
+        "onizle": "{{ad}} temasını önizle",
+        "tarife": {
+          "ad": "Tarife",
+          "aciklama": "Fiyat şeffaflığı öne çıkar: günlük fiyat tahtası ve açık hesap. Bütçe ve şehir kiralaması için."
+        },
+        "vitrin": {
+          "ad": "Vitrin",
+          "aciklama": "Fotoğraf öne çıkar: büyük kapak görseli ve sade kartlar. Özenli fotoğraflı, üst segment filo için."
+        },
+        "kontuar": {
+          "ad": "Kontuar",
+          "aciklama": "Bilet ve kalkış panosu düzeni. Havalimanı ve otel teslimi yapan firmalar için."
+        }
+      },
       "smtp": "SMTP (e-posta gönderimi)",
       "smtpAciklama": "Müşteriye giden e-postalar bu sunucudan gönderilir. Port 465 örtük SSL, 587 STARTTLS olarak bağlanır; şifreli olmayan bağlantıda parola gönderilmez. Sunucu yalnız 25, 465, 587 ve 2525 portlarını kabul eder.",
       "smtpSifreIpucu": "Sunucu, port ya da kullanıcı değişirse şifre yeniden girilmelidir.",
@@ -492,6 +509,7 @@
         "renkRezAtananPlaka": "Plakası atanmış rezervasyon",
         "renkKiralanmayan": "Kiralanmayan araç",
         "siteVurguRengi": "Site vurgu rengi",
+        "siteTemasi": "Site teması",
         "smtpHost": "SMTP sunucusu",
         "smtpPort": "SMTP portu",
         "smtpKullanici": "SMTP kullanıcı",

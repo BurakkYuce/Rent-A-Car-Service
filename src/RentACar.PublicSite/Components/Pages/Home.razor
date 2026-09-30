@@ -26,7 +26,8 @@
            Aciklama="@MainDescription" Yol="/" Marka="_branding"
            KanonikKok="@_canonicalRoot" Gorsel="@CoverImage" />
 
-<BolumHero Marka="@_branding?.Marka" Subeler="_branches" Kartlar="@(_cards ?? [])" Bolge="@_area" />
+@* Hero ve kart aktif temanın SLOTLARIYLA çizilir (Components/Themes); veri burada toplanır. *@
+<ThemedHero Marka="@_branding?.Marka" Branding="_branding" Subeler="_branches" Kartlar="@(_cards ?? [])" Sehir="@_area" />
 
 @* Araçlar — VERİYE BAĞLI: ilan yoksa bölüm hiç basılmaz (T2). Yayınlanmamış bir sitede
    "Şu anda araç yok" yazmaktansa bölümü hiç göstermemek daha iyi; ziyaretçiye yine arama,
@@ -40,10 +41,7 @@
                 @foreach (var c in _cards)
                 {
                     <li>
-                        <AracKarti Slug="@c.Slug" Baslik="@c.Baslik" CoverPhotoId="c.CoverPhotoId"
-                                   YilAralik="@c.YilAralik" GunlukFiyat="c.GunlukFiyat" KdvDahil="c.KdvDahil"
-                                   Ozellikler="c.Ozellikler" Adet="c.Adet"
-                                   TeklifLinki="@QuoteLink.Build(c.Slug, dailyPrice: c.GunlukFiyat)" />
+                        <ThemedCard Kart="@ListingCard.From(c, QuoteLink.Build(c.Slug, dailyPrice: c.GunlukFiyat))" />
                     </li>
                 }
             </ul>

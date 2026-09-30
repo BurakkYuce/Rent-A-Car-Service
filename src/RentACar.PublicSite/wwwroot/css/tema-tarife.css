@@ -1,0 +1,240 @@
+/* PRIMITIVE — ham değerler. Renk literalleri YALNIZ bu ilk :root bloğunda (yapısal test kilitler). */
+:root {
+  --p-paper: #f5f6f3;       /* BrandPalette.LightPaper ile aynı */
+  --p-paper-2: #eceee9;
+  --p-white: #ffffff;
+  --p-asphalt: #1d2227;
+  --p-asphalt-2: #4f575e;   /* paper üstünde 6.9:1 */
+  --p-asphalt-3: #636b72;   /* paper üstünde 5.0:1 */
+  --p-line: #dadfd8;
+  --p-line-2: #b4bab2;
+  --p-road: #f2c230;        /* yol çizgisi sarısı — METİN rengi olarak ASLA (beyazda 1.7:1) */
+  --p-green: #1f6b3a;
+  --p-red: #b3261e;
+  --p-petrol: #0b5d6b;      /* varsayılan firma rengi (SiteThemes.Tarife.DefaultBrand) */
+  --p-night: #121417;       /* BrandPalette.DarkPaper */
+  --p-night-2: #1b1f23;     /* BrandPalette.DarkSurface */
+  --p-night-3: #22272c;
+  --p-fog: #eceeea;
+  --p-fog-2: #b6bdc2;
+  --p-fog-3: #9aa2a9;
+  --p-night-line: #2c3238;
+  --p-night-line-2: #474e55;
+  --p-green-light: #7fd49a;
+  --p-red-light: #ff8a80;
+  --p-shadow: rgb(29 34 39 / 30%);
+  --p-shadow-soft: rgb(29 34 39 / 5%);
+  --p-shadow-night: rgb(0 0 0 / 70%);
+  --p-shadow-night-soft: rgb(0 0 0 / 30%);
+}
+
+/* =============================================================================
+   Tema "tarife" — fiyat şeffaflığıyla satan bütçe/şehir kiralamacısı.
+   Karayolu levhası/plaka yazısı (Barlow ailesi), asfalt mürekkep, yol çizgisi sarısı ve fiyat
+   TARİFESİ. Tek cesur unsur fiyatın sunuluşu: "3 gün × ₺1.500" hesabı + toplamın altında yol çizgisi.
+   Token sözleşmesi: Components/Themes/README.md.
+   ============================================================================= */
+
+/* Yedek yazı tipinin ölçüsü Barlow'a yaklaştırılır: yazı tipi inince satırlar zıplamasın (CLS).
+   Asıl @font-face'ler App.razor'da (parmak izli adres, SiteThemes.Tarife.Fonts). */
+@font-face { font-family: "Barlow Fallback"; src: local("Arial"); size-adjust: 93%; ascent-override: 100%; descent-override: 20%; line-gap-override: 0%; }
+@font-face { font-family: "Barlow Condensed Fallback"; src: local("Arial"); size-adjust: 80%; ascent-override: 112%; descent-override: 22%; line-gap-override: 0%; }
+
+/* SEMANTIC + COMPONENT (açık) */
+:root {
+  color-scheme: light;
+  --bg: var(--p-paper);
+  --bg-alt: var(--p-paper-2);
+  --surface: var(--p-white);
+  --surface-raised: var(--p-white);
+  --ink: var(--p-asphalt);
+  --ink-muted: var(--p-asphalt-2);
+  --ink-subtle: var(--p-asphalt-3);
+  --line: var(--p-line);
+  --line-strong: var(--p-line-2);
+  --brand: var(--p-petrol);
+  --on-brand: var(--p-white);
+  --brand-ink: var(--on-brand);
+  --brand-text: var(--p-petrol);
+  --brand-soft: var(--p-paper-2);
+  --accent: var(--p-road);
+  --accent-ink: var(--p-asphalt);
+  --focus: var(--p-asphalt);
+  --danger: var(--p-red);
+  --ok: var(--p-green);
+
+  --font-body: "Barlow", "Barlow Fallback", system-ui, sans-serif;
+  --font-display: "Barlow Condensed", "Barlow Condensed Fallback", "Arial Narrow", sans-serif;
+  --step--1: .9375rem;
+  --step-0: 1.0625rem;
+  --step-1: 1.3125rem;
+  --step-2: clamp(1.5rem, 1.3rem + .9vw, 1.9rem);
+  --step-3: clamp(2rem, 1.5rem + 2.2vw, 2.9rem);
+  --step-4: clamp(2.2rem, 1.5rem + 3vw, 3.6rem);
+  --step-5: clamp(2.4rem, 1.55rem + 3.9vw, 4.4rem);
+  --space-1: .5rem; --space-2: 1rem; --space-3: 1.5rem; --space-4: 2.5rem;
+  --space-5: 4rem; --space-6: 5rem; --space-7: 6.5rem; --space-8: 8rem;
+  --radius-s: 6px; --radius-m: 12px; --radius-l: 18px;
+  --shadow-1: 0 -8px 24px -18px var(--p-shadow);
+  --shadow-2: 0 1px 0 var(--p-shadow-soft), 0 10px 28px -16px var(--p-shadow);
+  --measure: 68ch;
+
+  --btn-bg: var(--brand);
+  --btn-ink: var(--brand-ink);
+  --btn-radius: var(--radius-s);
+  --card-bg: var(--surface);
+  --card-radius: var(--radius-m);
+  --card-border: var(--line);
+  --field-bg: var(--bg);
+  --field-border: var(--line-strong);
+  --price-ink: var(--ink);
+  --price-mark: var(--accent);
+}
+
+/* SEMANTIC (koyu) — yalnız primitive'lere referans */
+@media (prefers-color-scheme: dark) {
+  :root {
+    color-scheme: dark;
+    --bg: var(--p-night);
+    --bg-alt: var(--p-night-3);
+    --surface: var(--p-night-2);
+    --surface-raised: var(--p-night-3);
+    --ink: var(--p-fog);
+    --ink-muted: var(--p-fog-2);
+    --ink-subtle: var(--p-fog-3);
+    --line: var(--p-night-line);
+    --line-strong: var(--p-night-line-2);
+    --focus: var(--p-fog);
+    --danger: var(--p-red-light);
+    --ok: var(--p-green-light);
+    --accent-ink: var(--p-night);
+    --shadow-1: 0 -8px 24px -18px var(--p-shadow-night);
+    --shadow-2: 0 1px 0 var(--p-shadow-night-soft), 0 12px 30px -18px var(--p-shadow-night);
+  }
+}
+
+/* ---- Header slotu (TarifeHeader.razor): mobilde tek satır ve yapışkan DEĞİL (≤60px), menü <details>.
+   Geniş ekranda yapışkan, bağlantılar satırda. ---- */
+.bar { background: var(--surface); border-bottom: 1px solid var(--line); }
+.bar-ic { display: flex; align-items: center; gap: var(--space-2); min-height: 60px; }
+.marka { display: inline-flex; align-items: center; margin-right: auto; color: var(--ink); text-decoration: none; min-height: 44px; }
+/* Logo YÜKSEKLİK tabanlı: mobil 32px, masaüstü 44px; geniş (yatay) logolar genişlik sınırında durur
+   (object-fit: contain, oran bozulmaz). Şeffaf kenar sunucuda kırpılır (ImageProcessing.TryCreateWebLogo) —
+   kırpmasız logo 40px yükseklikte bile ~70px genişlikte, okunmaz kalıyordu. */
+.marka img { display: block; height: 32px; width: auto; max-width: 180px; object-fit: contain; object-position: left center; }
+/* Koyu temada logo açık bir levha üstünde: logoların çoğu şeffaf zeminli KOYU yazı. Levha dolgusu
+   yüksekliğe eklenir (content-box); görünür logo boyu açık temayla aynı kalır. */
+@media (prefers-color-scheme: dark) {
+  .marka img { background: var(--p-paper); padding: 4px 8px; border-radius: var(--radius-s); box-sizing: content-box; }
+}
+@media (min-width: 900px) {
+  .marka img { height: 44px; max-width: 260px; }
+}
+.marka-ad { font: 600 1.5rem/1 var(--font-display); letter-spacing: .01em; }
+.nav-genis { display: none; }
+.nav-genis a, .menu-liste a { color: var(--ink); text-decoration: none; font-weight: 400; }
+.nav-genis a:hover, .menu-liste a:hover { color: var(--brand-text); text-decoration: underline; }
+.bar-tel { display: none; }
+.menu { position: relative; }
+.menu > summary {
+  list-style: none; display: inline-flex; align-items: center; gap: .4em; min-height: 44px; padding: 0 .75rem;
+  border: 1.5px solid var(--line-strong); border-radius: var(--radius-s);
+  font: 600 1.0625rem/1 var(--font-display); cursor: pointer;
+}
+.menu > summary::-webkit-details-marker { display: none; }
+.menu > summary::before {
+  content: ""; width: 16px; height: 12px;
+  background: linear-gradient(currentColor 0 0) top / 100% 2px no-repeat,
+              linear-gradient(currentColor 0 0) center / 100% 2px no-repeat,
+              linear-gradient(currentColor 0 0) bottom / 100% 2px no-repeat;
+}
+.menu[open] > summary { border-color: var(--ink); }
+.menu-liste {
+  position: absolute; right: 0; top: calc(100% + 8px); z-index: 30; min-width: 230px;
+  margin: 0; padding: var(--space-1) 0; list-style: none;
+  background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-m); box-shadow: var(--shadow-2);
+}
+.menu-liste a { display: flex; align-items: center; min-height: 44px; padding: 0 var(--space-2); }
+@media (min-width: 900px) {
+  .bar { position: sticky; top: 0; z-index: 20; }
+  .nav-genis { display: flex; gap: var(--space-3); }
+  .menu { display: none; }
+  .bar-tel { display: inline-flex; }
+}
+
+/* ---- Footer slotu (TarifeFooter.razor) ---- */
+.alt { background: var(--surface); border-top: 1px solid var(--line); color: var(--ink-muted); }
+.alt-ic { display: grid; gap: var(--space-3); padding-block: var(--space-4); grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); }
+.alt-baslik { font: 600 1.125rem/1.2 var(--font-display); color: var(--ink); margin: 0 0 var(--space-1); }
+.alt ul { list-style: none; margin: 0; padding: 0; }
+.alt li a { display: inline-flex; align-items: center; min-height: 40px; color: var(--ink-muted); }
+.alt .marka img { height: 40px; max-width: 220px; }
+.alt-son { border-top: 1px solid var(--line); padding-block: var(--space-2); font-size: var(--step--1); color: var(--ink-subtle); }
+
+/* ---- Hero slotu (TarifeHero.razor): soru + arama + tarife tahtası; alt kenardan kesikli yol çizgisi. ---- */
+.hero { position: relative; background: var(--surface); border-bottom: 1px solid var(--line); padding-block: var(--space-3) calc(var(--space-4) + 6px); }
+.hero::after {
+  content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 6px;
+  background: repeating-linear-gradient(90deg, var(--accent) 0 56px, transparent 56px 92px);
+}
+.hero-grid { display: grid; gap: var(--space-4); }
+.hero h1 { font-size: var(--step-5); line-height: 1; max-width: 19ch; margin-bottom: var(--space-2); }
+.hero-alt { color: var(--ink-muted); font-size: clamp(1.0625rem, 1rem + .35vw, 1.1875rem); max-width: 46ch; margin-bottom: var(--space-3); }
+.hero-alt strong { color: var(--ink); font-weight: 600; }
+.hero-bilgi { display: flex; flex-wrap: wrap; gap: .35rem 1.25rem; margin: var(--space-2) 0 0; padding: 0; list-style: none; color: var(--ink-muted); font-size: var(--step--1); }
+.hero-bilgi li { display: inline-flex; align-items: center; gap: .45rem; }
+.hero-bilgi li::before { content: ""; width: .5rem; height: .5rem; border-radius: 1px; background: var(--brand); }
+@media (min-width: 960px) {
+  .hero { padding-block: var(--space-5) calc(var(--space-5) + 6px); }
+  /* Tahta sol kolona göre DİKEY ORTALANIR: kısa filoda altında boş kolon kalmaz. */
+  .hero-grid { grid-template-columns: minmax(0, 1.4fr) minmax(320px, 1fr); gap: var(--space-5); align-items: center; }
+}
+@media screen and (max-width: 640px) {
+  .hero-alt-uzun { display: none; } /* telefonda ilk ekranda arama düğmesi görünsün */
+}
+.tarife { border: 1.5px solid var(--line-strong); border-radius: var(--radius-m); padding: var(--space-3) var(--space-3) var(--space-2); background: var(--bg); }
+.tarife h2 { font-size: var(--step-1); margin-bottom: .25rem; }
+.tarife-not { color: var(--ink-subtle); font-size: .875rem; margin-bottom: var(--space-1); }
+.tarife ol { list-style: none; margin: 0; padding: 0; }
+.tarife li + li { border-top: 1px solid var(--line); }
+.tarife a { display: flex; align-items: baseline; gap: .6rem; min-height: 48px; padding-block: .6rem; color: var(--ink); text-decoration: none; }
+.tarife a:hover .t-ad { text-decoration: underline; }
+.t-ad { font: 600 1.1875rem/1.15 var(--font-display); }
+.t-ad small { font: 400 .875rem var(--font-body); color: var(--ink-subtle); margin-left: .3rem; }
+.t-dolgu { flex: 1; min-width: 1rem; border-bottom: 2px dotted var(--line-strong); transform: translateY(-.3em); }
+.t-fiyat { font: 600 1.375rem/1 var(--font-display); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.t-fiyat small { font: 400 .8125rem var(--font-body); color: var(--ink-subtle); margin-left: .15rem; }
+.tarife-son { margin: var(--space-1) 0 0; font-size: var(--step--1); }
+.tarife-ornek { margin-top: var(--space-2); padding-top: var(--space-2); border-top: 1.5px dashed var(--line-strong); }
+.tarife-ornek p { margin: 0 0 .25rem; }
+.tarife-ornek .tarife-not:last-child { margin: .5rem 0 0; }
+
+/* ---- Card slotu (TarifeCard.razor): kartın tamamı detay bağlantısı (başlık ::after), "Teklif iste"
+   üstte ayrı hedef. İç içe <a> yok. ---- */
+.ilan { position: relative; display: flex; flex-direction: column; height: 100%; background: var(--card-bg); border: 1px solid var(--card-border); border-radius: var(--card-radius); overflow: hidden; transition: border-color .15s ease, box-shadow .15s ease; }
+.ilan:hover { border-color: var(--line-strong); box-shadow: var(--shadow-2); }
+.ilan:has(h3 a:focus-visible) { outline: 2px solid var(--focus); outline-offset: 3px; }
+.ilan h3 a:focus-visible { outline: none; }
+.ilan-foto { aspect-ratio: 3 / 2; background: var(--brand-soft); }
+.ilan-foto img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.ilan-govde { display: flex; flex: 1; flex-direction: column; gap: .6rem; padding: var(--space-2); }
+.ilan h3 { margin: 0; font-size: 1.5rem; }
+.ilan h3 a { color: var(--ink); text-decoration: none; }
+.ilan h3 a::after { content: ""; position: absolute; inset: 0; z-index: 1; }
+.ilan-yil { margin: -.35rem 0 0; color: var(--ink-subtle); font-size: var(--step--1); }
+.ozellikler { display: flex; flex-wrap: wrap; margin: 0; padding: 0; list-style: none; color: var(--ink-muted); font-size: var(--step--1); }
+.ozellikler li + li::before { content: ""; display: inline-block; width: 1px; height: .85em; margin: 0 .55rem; background: var(--line-strong); vertical-align: -.05em; }
+.ilan-eylem { position: relative; z-index: 2; display: flex; gap: .5rem; margin-top: .25rem; }
+.ilan-eylem .btn { flex: 1; }
+.ilan-isaret {
+  position: absolute; z-index: 2; top: .75rem; left: .75rem; margin: 0; padding: .2rem .6rem; border-radius: 4px;
+  background: var(--ink); color: var(--bg); font: 600 .9375rem/1.3 var(--font-display);
+}
+
+/* ---- Paylaşılan bölümlere tarife süsü: kapanış bandının üstünde kesikli yol çizgisi ---- */
+.cta-bant::before { content: ""; position: absolute; left: 0; right: 0; top: 0; height: 6px; background: repeating-linear-gradient(90deg, var(--accent) 0 56px, transparent 56px 92px); }
+
+@media print {
+  .hero::after, .cta-bant::before { display: none; }
+  .ilan-eylem { display: none !important; }
+}

@@ -60,19 +60,26 @@ public static class ImageProcessing
             var info = codec.Info;
             if (!FitsWebLogoBudget(info.Width, info.Height)) return null;
 
-            var s = Math.Min(1f, Math.Min((float)maxWidth / info.Width, (float)maxHeight / info.Height));
-            if (s >= 1f) return null; // zaten küçük — özgün dosya servis edilir
-
-            // Ölçekli çözme: codec destekliyorsa (JPEG DCT) doğrudan küçük boyda çözer; PNG'de tam boy döner,
-            // o da yukarıdaki bütçeyle (en fazla 2000×2000) sınırlı.
-            var pre = codec.GetScaledDimensions(s);
+            // Tam boy çözme — yukarıdaki bütçeyle (en fazla 2000×2000, RGBA'da ≤16 MB) sınırlı.
             using var decoded = SKBitmap.Decode(codec,
-                new SKImageInfo(pre.Width, pre.Height, SKColorType.Rgba8888, SKAlphaType.Premul));
+                new SKImageInfo(info.Width, info.Height, SKColorType.Rgba8888, SKAlphaType.Premul));
             if (decoded is null) return null;
-            // Hedef ölçü ÖZGÜN boyuttan (ön-ölçekli çözmede decoded zaten küçüktür).
-            int tw = Math.Max(1, (int)MathF.Round(info.Width * s));
-            int th = Math.Max(1, (int)MathF.Round(info.Height * s));
-            using var resized = decoded.Resize(new SKImageInfo(tw, th, SKColorType.Rgba8888, SKAlphaType.Premul),
+
+            // ŞEFFAF KENAR KIRPMA: logoların çoğu PDF için geniş şeffaf boşlukla yükleniyor; site başlığında
+            // yükseklik sabit olduğu için boşluk logoyu okunmaz küçüklüğe indiriyordu (ölçüldü: 470×246 PNG'de
+            // yazı başlıkta ~70px genişlikte kalıyordu). Görünür piksellerin sınır kutusuna kırpılır.
+            var box = OpaqueBounds(decoded);
+            if (box.IsEmpty) return null; // tamamen şeffaf — özgün dosya
+            var trimmed = box.Width < info.Width || box.Height < info.Height;
+
+            var s = Math.Min(1f, Math.Min((float)maxWidth / box.Width, (float)maxHeight / box.Height));
+            if (s >= 1f && !trimmed) return null; // zaten küçük ve kenarsız — özgün dosya servis edilir
+
+            using var cropped = new SKBitmap();
+            if (!decoded.ExtractSubset(cropped, box)) return null;
+            int tw = Math.Max(1, (int)MathF.Round(box.Width * s));
+            int th = Math.Max(1, (int)MathF.Round(box.Height * s));
+            using var resized = cropped.Resize(new SKImageInfo(tw, th, SKColorType.Rgba8888, SKAlphaType.Premul),
                 new SKSamplingOptions(SKCubicResampler.Mitchell));
             if (resized is null) return null;
             using var image = SKImage.FromBitmap(resized);
@@ -80,6 +87,49 @@ public static class ImageProcessing
             return enc?.ToArray();
         }
         catch { return null; }
+    }
+
+    /// <summary>
+    /// İÇERİĞİN sınır kutusu; hiç içerik yoksa boş kutu. Arka plan sayılan pikseller: (a) neredeyse şeffaf
+    /// (alfa ≤ 8 — kenar yumuşatma artığı kutuyu büyütmesin), (b) dört köşe AYNI düz renkteyse o renge yakın
+    /// opak pikseller (kanal farkı ≤ 16). (b) ölçüldü: canlıdaki logo şeffaf değil BEYAZ zeminli, 470×246
+    /// tuvalde yazı ortada küçük — yalnız şeffaflık kırpması onu hiç küçültmüyordu.
+    /// </summary>
+    private static SKRectI OpaqueBounds(SKBitmap bmp)
+    {
+        const byte alphaThreshold = 8;
+        const int colorTolerance = 16;
+        var px = bmp.GetPixelSpan(); // RGBA8888 (premul): R, G, B, A
+        int w = bmp.Width, h = bmp.Height, rowBytes = bmp.RowBytes;
+
+        int At(int x, int y) => y * rowBytes + x * 4;
+        var corner = At(0, 0);
+        var solidBackground = px[corner + 3] > 255 - colorTolerance
+            && Near(px, corner, At(w - 1, 0), colorTolerance) && Near(px, corner, At(0, h - 1), colorTolerance)
+            && Near(px, corner, At(w - 1, h - 1), colorTolerance);
+
+        int left = w, top = h, right = -1, bottom = -1;
+        for (var y = 0; y < h; y++)
+        {
+            var row = y * rowBytes;
+            for (var x = 0; x < w; x++)
+            {
+                var i = row + x * 4;
+                if (px[i + 3] <= alphaThreshold) continue;
+                if (solidBackground && Near(px, i, corner, colorTolerance)) continue;
+                if (x < left) left = x;
+                if (x > right) right = x;
+                if (y < top) top = y;
+                bottom = y;
+            }
+        }
+        static bool Near(ReadOnlySpan<byte> p, int a, int b, int tol)
+            => Math.Abs(p[a] - p[b]) <= tol && Math.Abs(p[a + 1] - p[b + 1]) <= tol
+               && Math.Abs(p[a + 2] - p[b + 2]) <= tol && Math.Abs(p[a + 3] - p[b + 3]) <= tol;
+
+        // Tek düz renk (içerik yok gibi görünen) opak görüntü zemin DEĞİL, logonun kendisidir: tamamı kalır.
+        if (right < 0) return solidBackground ? new SKRectI(0, 0, w, h) : SKRectI.Empty;
+        return new SKRectI(left, top, right + 1, bottom + 1);
     }
 
     /// <summary>Web logosu için çözülebilecek en büyük görüntü: logo yükleme kuralının iki kenar sınırı

@@ -15,7 +15,7 @@ public static partial class SystemAdminApi
         ("RenkBugunCikacaklar", "renkBugunCikacaklar"), ("RenkOpsiyonlu", "renkOpsiyonlu"),
         ("RenkLimitBakiye", "renkLimitBakiye"), ("RenkAlacakli", "renkAlacakli"),
         ("RenkRezAtananPlaka", "renkRezAtananPlaka"), ("RenkKiralanmayan", "renkKiralanmayan"),
-        ("Site vurgu rengi", "siteVurguRengi"),
+        ("Site vurgu rengi", "siteVurguRengi"), ("Site teması", "siteTemasi"),
         ("SMTP şifresi", "smtpSifre"), ("e-Fatura şifresi", "eFaturaSifre"), ("POS API anahtarı", "posApiKey"),
     ];
 
@@ -53,6 +53,7 @@ public static partial class SystemAdminApi
         RentalLimits.Text(i.SmtpGonderenAd, 128, "smtpGonderenAd", "Gönderen adı");
         RentalLimits.Text(i.FaturaSeriKodu, 3, "faturaSeriKodu", "Fatura seri kodu");
         RentalLimits.Text(i.WhatsAppNumarasi, 32, "whatsAppNumarasi", "WhatsApp numarası");
+        RentalLimits.Text(i.SiteTemasi, 20, "siteTemasi", "Site teması");
         foreach (var (value, field) in new[]
                  {
                      (i.RenkGecikenler, "renkGecikenler"), (i.RenkBugunDonecekler, "renkBugunDonecekler"),
