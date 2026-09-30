@@ -167,7 +167,9 @@ h2, h3 { letter-spacing: -.005em; }
 .kt-bar { background: var(--surface); border-bottom: 1px solid var(--line); }
 .kt-bar-ic { display: flex; align-items: center; gap: var(--space-2); min-height: 60px; }
 .kt-marka { display: inline-flex; align-items: center; min-height: 44px; margin-right: auto; color: var(--ink); text-decoration: none; }
-.kt-marka img { display: block; height: 40px; width: auto; max-width: 200px; object-fit: contain; }
+/* Logo YÜKSEKLİK tabanlı (tarife ile aynı kural): mobil 32px, masaüstü 44px; yatay logolar genişlik
+   sınırında durur (oran bozulmaz). Şeffaf kenar sunucuda kırpılır (ImageProcessing.TryCreateWebLogo). */
+.kt-marka img { display: block; height: 32px; width: auto; max-width: 180px; object-fit: contain; object-position: left center; }
 .kt-marka .marka-ad { font: 600 1.5rem/1 var(--font-display); letter-spacing: -.01em; }
 .kt-nav { display: none; }
 .kt-nav a { display: inline-flex; align-items: center; min-height: 44px; color: var(--ink); text-decoration: none; }
@@ -208,7 +210,10 @@ h2, h3 { letter-spacing: -.005em; }
 }
 /* Koyu temada firma logosu açık bir levha üstünde: logoların çoğu şeffaf zeminli KOYU yazı. */
 @media (prefers-color-scheme: dark) {
-  .kt-marka img { background: var(--logo-plate); padding: 4px 8px; border-radius: var(--radius-s); box-sizing: content-box; height: 32px; }
+  .kt-marka img { background: var(--logo-plate); padding: 4px 8px; border-radius: var(--radius-s); box-sizing: content-box; }
+}
+@media (min-width: 900px) {
+  .kt-bar .kt-marka img { height: 44px; max-width: 260px; }
 }
 
 /* ---- Hero ---- */
@@ -225,8 +230,41 @@ h2, h3 { letter-spacing: -.005em; }
   content: ""; position: absolute; left: 0; top: .55em; width: .55rem; height: .3rem;
   border-left: 2px solid var(--ok); border-bottom: 2px solid var(--ok); transform: rotate(-45deg);
 }
-.kt-hero-filo { margin: var(--space-2) 0 0; color: var(--ink-muted); }
-.kt-hero-filo a { color: var(--ink); font-weight: 600; }
+/* Izgara: mobilde metin → kupon → alt yazı → pano. ≥1024'te üst sıra iki kolon (metin | pano), kupon ve
+   alt yazı altta tam genişlik. Pano yoksa (.kt-hero-panolu değil) tek kolon. */
+.kt-hero-grid { display: grid; grid-template-columns: minmax(0, 1fr); grid-template-areas: "metin" "kupon" "not" "pano"; }
+.kt-hero-metin { grid-area: metin; }
+.kt-kupon { grid-area: kupon; }
+.kt-kupon-not { grid-area: not; }
+.kt-pano { grid-area: pano; margin-top: var(--space-3); }
+@media (min-width: 1024px) {
+  .kt-hero-panolu .kt-hero-grid {
+    grid-template-columns: minmax(0, 1.25fr) minmax(20rem, 1fr); column-gap: var(--space-4);
+    grid-template-areas: "metin pano" "kupon kupon" "not not";
+  }
+  .kt-hero-panolu .kt-pano { margin: 0 0 var(--space-3); align-self: end; }
+  .kt-hero-panolu .kt-hero-metin { align-self: end; }
+}
+
+/* Pano önizlemesi — filo panosunun kısa hali: lacivert levha, gerçek tablo, tabular rakamlar. */
+.kt-pano {
+  padding: var(--space-2) var(--space-3) .75rem; border-radius: var(--card-radius);
+  background: var(--board-bg); color: var(--board-ink); font-variant-numeric: tabular-nums;
+}
+.kt-pano-baslik { margin: 0 0 .25rem; font-size: var(--step-1); color: var(--board-ink); }
+.kt-pano table { width: 100%; border-collapse: collapse; }
+.kt-pano th, .kt-pano td { padding: .6rem 0; text-align: left; vertical-align: baseline; border-bottom: 1px solid var(--board-line); }
+.kt-pano thead th { padding-block: .25rem; font: 400 .8125rem/1.3 var(--font-body); color: var(--board-muted); }
+.kt-pano thead th:last-child, .kt-pano td { text-align: right; }
+.kt-pano tbody th { font: 600 1.1875rem/1.2 var(--font-display); padding-right: var(--space-2); }
+.kt-pano tbody th a { color: var(--board-ink); text-decoration: none; }
+.kt-pano tbody th a::before { content: ""; display: inline-block; width: .5rem; height: .5rem; margin-right: .6rem; border-radius: 50%; background: var(--accent); vertical-align: .1em; }
+.kt-pano tbody th a:hover { text-decoration: underline; text-underline-offset: .2em; }
+.kt-pano td { font: 600 1.375rem/1.1 var(--font-display); white-space: nowrap; }
+.kt-pano td small { display: block; font: 400 .75rem/1.3 var(--font-body); color: var(--board-muted); }
+.kt-pano a:focus-visible { outline-color: var(--board-ink); }
+.kt-pano-son { margin: .6rem 0 0; }
+.kt-pano-son a { display: inline-flex; align-items: center; min-height: 44px; color: var(--board-ink); font-weight: 600; }
 @media screen and (max-width: 599px) {
   .kt-hero { padding-top: var(--space-2); }
   .kt-hero h1 { font-size: 2rem; }
@@ -294,16 +332,16 @@ h2, h3 { letter-spacing: -.005em; }
   .kt-kupon .arama-tarihler input { min-height: 60px; font-size: 1.5rem; padding-inline: .75rem; }
 }
 
-/* Teslim noktaları: terminal yön levhası gibi — sol kenarda turuncu işaret, şubeye süzülmüş arama. */
-.kt-noktalar { margin-top: var(--space-4); }
-.kt-noktalar-baslik { font-size: var(--step-1); margin: 0 0 .75rem; }
-.kt-noktalar ul { display: flex; flex-wrap: wrap; gap: var(--space-1); margin: 0; padding: 0; list-style: none; }
-.kt-noktalar a {
-  display: inline-flex; align-items: center; min-height: 44px; padding: 0 var(--space-2) 0 .75rem;
-  background: var(--surface); border: 1px solid var(--line); border-left: 4px solid var(--accent); border-radius: var(--radius-s);
-  color: var(--ink); text-decoration: none; font: 600 1.125rem/1.1 var(--font-display);
+/* Koçandaki teslim noktası (tek şube): yön levhası gibi — sol kenarda turuncu işaret. */
+.kt-kupon .arama-sube {
+  display: flex; align-items: center; gap: .35rem; min-height: 44px; margin: 0; padding: 0 .75rem;
+  border-left: 4px solid var(--accent); background: var(--field-bg); border-radius: var(--radius-s);
+  color: var(--ink-muted); font-size: var(--step--1);
 }
-.kt-noktalar a:hover { border-color: var(--line-strong); border-left-color: var(--accent); }
+.kt-kupon .arama-sube strong { color: var(--ink); font: 600 1.1875rem/1.1 var(--font-display); }
+@media (min-width: 760px) {
+  .kt-kupon .arama > .arama-sube { grid-column: 2; grid-row: 1; }
+}
 
 /* ---- KALKIŞ PANOSU (cesur unsur 2/2) ----
    Ortak `.ilanlar` listesi bu temada kart ızgarası DEĞİL: tek sütunlu lacivert levha, satırlar arasında
@@ -411,7 +449,7 @@ h2, h3 { letter-spacing: -.005em; }
 }
 .kt-alt-kunye { grid-column: 1 / -1; display: grid; gap: var(--space-1); max-width: 46ch; }
 .kt-alt-kunye p { margin: 0; }
-.kt-alt .kt-marka img { height: 36px; }
+.kt-alt .kt-marka img { height: 40px; max-width: 220px; }
 .kt-alt-baslik { margin: 0 0 var(--space-1); font-size: 1.125rem; color: var(--ink); }
 .kt-alt ul { margin: 0; padding: 0; list-style: none; }
 .kt-alt li a { display: inline-flex; align-items: center; min-height: 44px; color: var(--ink-muted); }
@@ -424,9 +462,9 @@ h2, h3 { letter-spacing: -.005em; }
 }
 
 /* ---- Hareket ve yazdırma ---- */
-.kt-satir, .kt-noktalar a { transition: background-color .15s ease, border-color .15s ease; }
+.kt-satir { transition: background-color .15s ease, border-color .15s ease; }
 @media print {
-  .kt-kupon, .kt-kupon-not, .kt-satir-eylem, .kt-noktalar { display: none !important; }
+  .kt-kupon, .kt-kupon-not, .kt-satir-eylem { display: none !important; }
   .sayfa-ust > .arama { -webkit-mask: none; mask: none; }
   .ilanlar { background: none; border: 1px solid; }
   .ilanlar, .ilanlar * { color: CanvasText !important; }
