@@ -188,36 +188,22 @@ public static class SeoEndpoints
         if (!string.IsNullOrWhiteSpace(value)) target.Add($"- {label}: {value.Trim()}");
     }
 
-    /// <summary>Tarayıcıya kapatılan işlem yolları — içerik değil, form akışının ara/sonuç ekranları.
-    /// <see cref="NoIndexHeaderMiddleware"/> aynı listeyi <c>X-Robots-Tag</c> için kullanır.</summary>
+    /// <summary>İndekslenmemesi gereken işlem yolları — içerik değil, form akışının ara/sonuç ekranları.
+    /// <see cref="NoIndexHeaderMiddleware"/> bunlara <c>X-Robots-Tag: noindex</c> basar.</summary>
     public static readonly IReadOnlyList<string> TransactionPaths = ["/rezervasyon-talebi", "/talep-alindi", "/cok-istek"];
 
     /// <summary>
-    /// Açıkça izin verilen AI arama tarayıcıları. Kendi grupları VAR çünkü robots.txt'te bir tarayıcı
-    /// yalnız KENDİ adını taşıyan grubu okur, `*` grubunu yok sayar — bu yüzden aynı Disallow
-    /// satırları bu gruba da yazılır (yoksa işlem sayfaları bu tarayıcılara açık kalırdı).
-    /// </summary>
-    public static readonly IReadOnlyList<string> AiSearchCrawlers = ["GPTBot", "OAI-SearchBot", "ClaudeBot", "PerplexityBot"];
-
-    /// <summary>
-    /// M-3: robots.txt metni. İşlem sayfaları ve PARAMETRELİ müsaitlik aramaları kapatılır
-    /// (`/musaitlik?` önek eşleşmesi: yalnız sorgu dizgili adresler; parametresiz `/musaitlik`
-    /// sitemap'te ve açık kalır). Kartlardaki `?ilan=…&bas=…` linkleri sonsuz kombinasyon
-    /// üretiyordu; canonical yalnız ipucu olduğu için tarama bütçesi yine harcanıyordu.
+    /// robots.txt metni: herkese (AI arama tarayıcıları dahil) açık + sitemap.
+    /// <para><b>Bilinçli olarak Disallow YOK.</b> İşlem sayfaları ve parametreli müsaitlik aramaları
+    /// <c>X-Robots-Tag: noindex</c> ile dizin dışı tutulur. robots.txt'te engellenseydi tarayıcı o
+    /// adresi hiç istemez, noindex başlığını GÖREMEZ ve bilinen linkler "robots.txt ile engellendi
+    /// ama dizine eklendi" olarak kalabilirdi. Küçük sitede tarama bütçesi sorun değil.</para>
     /// </summary>
     public static string RobotsText(string? canonicalRoot)
     {
-        var rules = new List<string> { "Allow: /" };
-        rules.AddRange(TransactionPaths.Select(p => $"Disallow: {p}"));
-        rules.Add("Disallow: /musaitlik?");
-
-        var sb = new StringBuilder();
-        sb.AppendLine("User-agent: *");
-        foreach (var r in rules) sb.AppendLine(r);
-        sb.AppendLine();
-        sb.AppendLine("# AI arama tarayıcıları: site içeriğine açık, işlem sayfalarına kapalı.");
-        foreach (var bot in AiSearchCrawlers) sb.AppendLine($"User-agent: {bot}");
-        foreach (var r in rules) sb.AppendLine(r);
+        var sb = new StringBuilder()
+            .AppendLine("User-agent: *")
+            .AppendLine("Allow: /");
         if (canonicalRoot is not null) sb.AppendLine().AppendLine($"Sitemap: {canonicalRoot}/sitemap.xml");
         return sb.ToString();
     }

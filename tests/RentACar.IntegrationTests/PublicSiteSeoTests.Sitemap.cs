@@ -76,23 +76,18 @@ public sealed partial class PublicSiteSeoTests
         Assert.DoesNotContain("/blog", await client.GetStringAsync("/llms.txt"));
     }
 
-    /// <summary>M-3: robots.txt — işlem sayfaları ve parametreli müsaitlik kapalı; AI arama
-    /// tarayıcıları kendi gruplarında AÇIK ama aynı Disallow'larla. Metin elle yazıldı.</summary>
+    /// <summary>robots.txt — herkese (AI arama tarayıcıları dahil) açık, Disallow YOK: işlem sayfaları
+    /// ve parametreli arama noindex BAŞLIĞIYLA dizin dışı tutulur (engellenen adreste noindex
+    /// görülemezdi). Metin elle yazıldı.</summary>
     [Fact]
-    public async Task Robots_islem_sayfalarini_ve_parametreli_aramayi_kapatir_AI_taraycilari_acik()
+    public async Task Robots_herkese_acik_Disallow_yok_sitemap_kanonik_kokten()
     {
         var (t, hostName) = await SeedTenantAsync();
         using var factory = new PublicSiteFactory(fx, t);
 
         var body = (await factory.Client().GetStringAsync("/robots.txt")).Replace("\r\n", "\n");
 
-        const string rules = "Allow: /\nDisallow: /rezervasyon-talebi\nDisallow: /talep-alindi\n"
-            + "Disallow: /cok-istek\nDisallow: /musaitlik?\n";
-        var expected = "User-agent: *\n" + rules + "\n"
-            + "# AI arama tarayıcıları: site içeriğine açık, işlem sayfalarına kapalı.\n"
-            + "User-agent: GPTBot\nUser-agent: OAI-SearchBot\nUser-agent: ClaudeBot\nUser-agent: PerplexityBot\n"
-            + rules + "\n"
-            + $"Sitemap: https://{hostName}/sitemap.xml\n";
+        var expected = "User-agent: *\nAllow: /\n\n" + $"Sitemap: https://{hostName}/sitemap.xml\n";
         Assert.Equal(expected, body);
     }
 }
