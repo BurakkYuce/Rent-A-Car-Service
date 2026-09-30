@@ -195,6 +195,15 @@ public sealed class BlogService(IBlogRepository repository, ICurrentUser current
     public Task<IReadOnlyList<BlogListItem>> ListPublishedAsync(CancellationToken ct = default)
         => repository.ListPublishedAsync(ct);
 
+    /// <summary>
+    /// Arama motorlarına ve AI ajanlarına GÖSTERİLEN yazılar: yayındaki yazılardan "arama dışı"
+    /// (<see cref="BlogListItem.AramaDisi"/>) olanlar çıkarılır. Sitemap ve llms.txt BURADAN okur.
+    /// Neden ayrı: arama dışı yazı yayında kalır ve blog listesinde görünür, ama detay sayfası
+    /// <c>noindex</c> basar — sitemap'te görünmesi "gönderilen URL noindex" çelişkisi üretiyordu.
+    /// </summary>
+    public async Task<IReadOnlyList<BlogListItem>> ListIndexableAsync(CancellationToken ct = default)
+        => [.. (await repository.ListPublishedAsync(ct)).Where(p => !p.AramaDisi)];
+
     public Task<BlogDetail?> GetPublishedBySlugAsync(string slug, CancellationToken ct = default)
         => repository.GetPublishedBySlugAsync(slug, ct);
 

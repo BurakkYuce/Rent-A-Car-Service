@@ -34,6 +34,11 @@ https:// {
 	tls {
 		on_demand
 	}
+	# HTML/XML/metin yanıt sıkıştırması (SEO denetimi M-5: HTML sıkıştırılmıyordu).
+	# Sıkıştırma YALNIZ burada yapılır, uygulamada (UseResponseCompression) YOK — iki katman
+	# birden sıkıştırmaya kalkmasın. Uygulamanın önceden sıkıştırılmış statik varlıkları
+	# (Content-Encoding taşıyan yanıtlar) Caddy tarafından yeniden sıkıştırılmaz.
+	encode zstd gzip
 	reverse_proxy 127.0.0.1:5230
 	request_body {
 		max_size 2MB
