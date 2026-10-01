@@ -134,6 +134,8 @@
 .nav-genis { display: none; }
 .nav-genis a, .menu-liste a { color: var(--ink); text-decoration: none; font-weight: 400; }
 .nav-genis a:hover, .menu-liste a:hover { color: var(--brand-text); text-decoration: underline; }
+/* Tıklama alanı en az 44px (diğer temalarla aynı; WCAG 2.5.8): görünür metin aynı, yalnız dikey alan büyür. */
+.nav-genis a { display: inline-flex; align-items: center; min-height: 44px; padding-block: .25rem; }
 .bar-tel { display: none; }
 .menu { position: relative; }
 .menu > summary {
@@ -157,7 +159,7 @@
 .menu-liste a { display: flex; align-items: center; min-height: 44px; padding: 0 var(--space-2); }
 @media (min-width: 900px) {
   .bar { position: sticky; top: 0; z-index: 20; }
-  .nav-genis { display: flex; gap: var(--space-3); }
+  .nav-genis { display: flex; align-items: center; gap: var(--space-3); }
   .menu { display: none; }
   .bar-tel { display: inline-flex; }
 }

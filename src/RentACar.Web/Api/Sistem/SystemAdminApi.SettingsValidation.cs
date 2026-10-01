@@ -54,6 +54,11 @@ public static partial class SystemAdminApi
         RentalLimits.Text(i.FaturaSeriKodu, 3, "faturaSeriKodu", "Fatura seri kodu");
         RentalLimits.Text(i.WhatsAppNumarasi, 32, "whatsAppNumarasi", "WhatsApp numarası");
         RentalLimits.Text(i.SiteTemasi, 20, "siteTemasi", "Site teması");
+        // Tema anahtarı listesi: servis de reddeder, ama alansız mesaj öneki eşlemesine güvenmeden uçta
+        // AÇIKÇA alana bağlanır (errors.siteTemasi) — mesaj metni değişse de alan hatası kaybolmaz.
+        if (!string.IsNullOrWhiteSpace(i.SiteTemasi) && Application.TenantSettings.SiteThemeKeys.Normalize(i.SiteTemasi) is null)
+            throw new ValidationException("Site teması geçersiz. Geçerli değerler: "
+                                          + string.Join(", ", Application.TenantSettings.SiteThemeKeys.All) + ".", "siteTemasi");
         foreach (var (value, field) in new[]
                  {
                      (i.RenkGecikenler, "renkGecikenler"), (i.RenkBugunDonecekler, "renkBugunDonecekler"),

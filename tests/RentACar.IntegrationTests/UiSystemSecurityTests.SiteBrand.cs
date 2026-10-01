@@ -61,4 +61,33 @@ public sealed partial class UiSystemSecurityTests
         saved = await Json(await Send(admin, HttpMethod.Put, Settings, new { siteTemasi = "", surum = version }));
         Assert.Equal(System.Text.Json.JsonValueKind.Null, saved.GetProperty("siteTemasi").ValueKind);
     }
+
+    // Geçersiz tema anahtarı genel (alansız) hata DEĞİL: 400 + errors.siteTemasi, başka alana düşmez; mesaj geçerli
+    // değerleri sayar. Boşluklu/büyük harfli geçersiz değer ve kolon sınırını aşan değer de aynı alana bağlanır.
+    [Fact]
+    public async Task Invalid_site_theme_is_bound_to_siteTemasi_field()
+    {
+        var e = await _kit.SetupAsync();
+        var admin = await _kit.LoginAsync(e, Who.Admin);
+        var version = (await Json(await admin.C.GetAsync(Settings))).GetProperty("surum").GetString();
+
+        foreach (var bad in new[] { " KONTUAR2 ", "Mavi", new string('v', 21) })
+        {
+            var p = await Problem(await Send(admin, HttpMethod.Put, Settings, new { siteTemasi = bad, surum = version }),
+                HttpStatusCode.BadRequest, "dogrulama", "siteTemasi");
+            var fields = p.GetProperty("errors").EnumerateObject().Select(x => x.Name).ToList();
+            Assert.Equal(["siteTemasi"], fields);
+        }
+
+        var last = await Problem(await Send(admin, HttpMethod.Put, Settings, new { siteTemasi = "mavi", surum = version }),
+            HttpStatusCode.BadRequest, "dogrulama", "siteTemasi");
+        var text = last.GetProperty("errors").GetProperty("siteTemasi").ToString();
+        Assert.Contains("tarife", text);
+        Assert.Contains("vitrin", text);
+        Assert.Contains("kontuar", text);
+
+        // Hiçbiri yazılmadı: ayar varsayılanda (null).
+        Assert.Equal(System.Text.Json.JsonValueKind.Null,
+            (await Json(await admin.C.GetAsync(Settings))).GetProperty("siteTemasi").ValueKind);
+    }
 }

@@ -96,4 +96,19 @@ public sealed partial class PublicSiteThemeContractTests(PostgresFixture fx)
         var hits = ColorLiteral().Matches(rest).Select(m => m.Value).ToList();
         Assert.True(hits.Count == 0, $"{key}: primitive bloğu dışında renk literali: " + string.Join(", ", hits));
     }
+
+    // Vitrin sahnesindeki model adı bağlantısı koyulaşan fotoğraf / grafit sahne üstünde durur: genel --focus
+    // (açık modda grafit) orada ~1:1 kalıyordu. Kural: bu seçicinin kendi :focus-visible kuralı var, açık dış
+    // halka (sahne mürekkebi) + koyu iç halka (sahne gölgesi) — ikisi birlikte her zeminde görünür.
+    [Fact]
+    public void Vitrin_sahne_model_baglantisi_cift_odak_halkasi_tasir()
+    {
+        var css = ReadCss(ThemeFile(SiteThemes.Vitrin));
+        var m = Regex.Match(css, @"\.v-sahne\s+a\.v-model:focus-visible\s*\{(?<body>[^}]*)\}");
+        Assert.True(m.Success, "tema-vitrin.css: .v-sahne a.v-model:focus-visible kuralı yok");
+        var body = m.Groups["body"].Value;
+        Assert.Matches(@"outline\s*:[^;]*var\(--stage-ink\)", body);
+        Assert.Matches(@"box-shadow\s*:[^;]*var\(--stage-shade\)", body);
+        Assert.DoesNotContain("--focus", body);
+    }
 }

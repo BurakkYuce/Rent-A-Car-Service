@@ -293,7 +293,13 @@ h3 { font-size: var(--step-1); letter-spacing: -.01em; }
 .v-model-ad { grid-area: 1 / 1; clip-path: inset(calc(100% - var(--tasma)) 0 0 0); }
 .v-model-ust { color: var(--stage-ink); clip-path: inset(0 0 var(--tasma) 0); }
 a.v-model:hover .v-model-ad { text-decoration: underline; text-decoration-thickness: .05em; text-underline-offset: .05em; }
-a.v-model:focus-visible { outline-offset: 6px; }
+/* Odak: ÇİFT halka — açık dış (outline, sahne mürekkebi) + koyu iç (box-shadow, ofset boşluğunu doldurur).
+   Genel --focus açık modda grafit: koyulaşan fotoğraf/grafit sahnede ~1:1 kalıyordu. Çiftin biri her
+   zeminde (açık/koyu fotoğraf, fotoğrafsız sahne, kenarın altındaki sayfa zemini; iki renk modu) seçilir. */
+.v-sahne a.v-model:focus-visible {
+  outline: 3px solid var(--stage-ink); outline-offset: 4px;
+  box-shadow: 0 0 0 4px var(--stage-shade);
+}
 /* Fotoğrafsız düşüş: koyu temada sahne sayfa zemininden belirgin açık olsun (grafit-600 ↔ zemin 900). */
 .v-hero-yalin .v-sahne { background: var(--stage-bg-bare); }
 
