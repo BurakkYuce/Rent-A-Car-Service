@@ -55,8 +55,8 @@ public static class ReturnMath
     }
 
     /// <summary>Uzatma (geç dönüş) günü: kira gün hesabıyla AYNI kural ve AYNI 3 saat toleransı — tek kaynak
-    /// BookingMath.LateReturnDays (kabul bulguları a-kkayit-09 / C-GUN). Uzatma bedeli ve km hakkı (#366 H1)
-    /// AYNI gün sayısını kullanır.</summary>
+    /// BookingMath.LateReturnDays (kabul bulguları a-kkayit-09 / C-GUN), sözleşmede faturalanan güne (c.Gun) göre
+    /// (#376). Uzatma bedeli ve km hakkı (#366 H1) AYNI gün sayısını kullanır.</summary>
     private static int LateDays(RentalContract c, DateTimeOffset actualReturn)
-        => BookingMath.LateReturnDays(c.BasTar, c.BitTar, actualReturn);
+        => BookingMath.LateReturnDays(c.BasTar, c.Gun, c.BitTar, actualReturn);
 }

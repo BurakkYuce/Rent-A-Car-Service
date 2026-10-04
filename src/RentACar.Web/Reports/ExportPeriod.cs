@@ -14,8 +14,9 @@ namespace RentACar.Web.Reports;
 /// Gün değil tam zaman damgası verilirse (eski el yapımı bağlantılar) değer olduğu gibi UTC'ye çevrilir.
 /// <para>Eski davranış: <c>FormParse.Date</c> çıplak günü SUNUCUNUN yerel gece yarısına çeviriyordu — +03 sunucuda
 /// gün bir geri kayıyordu ve <c>to</c> bitiş gününün BAŞI olduğu için bitiş günü dosyaya hiç girmiyordu.</para>
+/// <para><c>public</c>: saat diliminden bağımsız saf testler doğrudan çağırabilsin diye (repoda InternalsVisibleTo yok).</para>
 /// </summary>
-internal sealed record ExportPeriod(
+public sealed record ExportPeriod(
     DateTimeOffset? From, DateTimeOffset? To, DateTimeOffset? FromAnchor, DateTimeOffset? ToAnchor)
 {
     public static ExportPeriod Parse(string? from, string? to)

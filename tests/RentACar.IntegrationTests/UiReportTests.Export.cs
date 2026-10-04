@@ -16,9 +16,39 @@ namespace RentACar.IntegrationTests;
 /// </summary>
 public sealed partial class UiReportTests
 {
-    /// <summary>İstanbul gününün başlangıç anı (UTC) — test kendi hesaplar, üretim yardımcısını çağırmaz.</summary>
+    /// <summary>İstanbul gününün başlangıç anı — test kendi hesaplar: sabit +03 (İstanbul 2016'dan beri yaz saati
+    /// uygulamıyor). Makinenin saat diliminden ve üretim yardımcısından bağımsız.</summary>
     private static DateTimeOffset IstanbulDayStart(DateOnly day)
-        => new(TimeZoneInfo.ConvertTimeToUtc(day.ToDateTime(TimeOnly.MinValue), TenantDay.Slice), TimeSpan.Zero);
+        => new(day.ToDateTime(TimeOnly.MinValue), TimeSpan.FromHours(3));
+
+    /// <summary>
+    /// #373 L2 — saat diliminden bağımsız saf testler: export'un dönem çözümü ekranın kuralıyla aynı.
+    /// from = İstanbul gün başı, to = bitiş gününün sonu (ertesi İstanbul gün başı − 1 µs), gun = UTC gece yarısı çıpası.
+    /// </summary>
+    [Fact]
+    public void Export_period_uses_istanbul_day_bounds_and_utc_anchor()
+    {
+        var day = TenantDay.Day(DateTimeOffset.UtcNow).AddDays(-3);
+        var end = day.AddDays(2);
+        var p = ExportPeriod.Parse(day.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
+            end.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture));
+
+        Assert.Equal(IstanbulDayStart(day), p.From);
+        Assert.Equal(IstanbulDayStart(end.AddDays(1)).AddMicroseconds(-1), p.To);
+        Assert.Equal(new DateTimeOffset(day.ToDateTime(TimeOnly.MinValue), TimeSpan.Zero), p.FromAnchor);
+        Assert.Equal(new DateTimeOffset(end.ToDateTime(TimeOnly.MinValue), TimeSpan.Zero), p.ToAnchor);
+        Assert.Equal(new DateTimeOffset(day.ToDateTime(TimeOnly.MinValue), TimeSpan.Zero),
+            ExportPeriod.DayAnchor(day.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture)));
+        Assert.Equal(new DateTimeOffset(day.AddDays(1).ToDateTime(TimeOnly.MinValue), TimeSpan.Zero).AddMicroseconds(-1),
+            ExportPeriod.DayEnd(day.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture)));
+
+        // Boş gün → bugünün (İstanbul) çıpası; boş dönem → sınırsız.
+        Assert.Equal(new DateTimeOffset(TenantDay.Day(DateTimeOffset.UtcNow).ToDateTime(TimeOnly.MinValue), TimeSpan.Zero),
+            ExportPeriod.DayAnchor(""));
+        var open = ExportPeriod.Parse("", "");
+        Assert.Null(open.From);
+        Assert.Null(open.To);
+    }
 
     private static async Task<string[]> CsvLines(Session s, string url)
     {
@@ -79,8 +109,11 @@ public sealed partial class UiReportTests
     }
 
     /// <summary>
-    /// Ayın 1'i → bugün dönemi tek ay sütunu verir (UTC'ye çevrilmiş dönem başı önceki ayı açıyordu); bugün (İstanbul
-    /// günü başında) başlayan kira hem ekranda hem CSV'de sayılır; Excel 500 vermez (sayfa adında "/" vardı).
+    /// Ayın 1'i → bugün dönemi tek ay sütunu verir (UTC'ye çevrilmiş dönem başı önceki ayı açıyordu); bugün başlayan
+    /// kira hem ekranda hem CSV'de sayılır; Excel 500 vermez (sayfa adında "/" vardı).
+    /// <para>Kira bugünün [00:00Z, 21:00Z) aralığında (İstanbul 12:00 = 09:00Z): hem UTC hem İstanbul takviminde "bugün".
+    /// Eski kod bitiş gününü günün BAŞINDA kestiği için bu kira, saat dilimi ne olursa olsun (CI UTC dahil) dışarıda
+    /// kalıyordu — test makineden bağımsız kırmızıya döner.</para>
     /// </summary>
     [Fact]
     public async Task Comparative_analysis_month_columns_and_exports_match_the_screen()
@@ -94,8 +127,8 @@ public sealed partial class UiReportTests
             await scope.ServiceProvider.GetRequiredService<RentalService>().CreateDirectAsync(new BookingInput
             {
                 MusteriId = e.CustomerA, VehicleId = e.VehicleA, GunlukUcret = 100m,
-                BasTar = IstanbulDayStart(today).AddMinutes(1),
-                BitTar = IstanbulDayStart(today).AddDays(2),
+                BasTar = new DateTimeOffset(today.ToDateTime(new TimeOnly(9, 0)), TimeSpan.Zero),
+                BitTar = new DateTimeOffset(today.AddDays(2).ToDateTime(new TimeOnly(9, 0)), TimeSpan.Zero),
             });
 
         var screen = await GetJson(s, Report + $"/karsilastirmali-analiz?bas={first:yyyy-MM-dd}&bit={today:yyyy-MM-dd}");

@@ -103,6 +103,56 @@ public sealed class ReturnMathTests
         Assert.Equal(100m, r.UzatmaBedeli);
     }
 
+    /// <summary>
+    /// #372 adversarial L1 (probe P2): geç dönüş günü SÖZLEŞMEDE FATURALANAN güne (c.Gun) göre sayılır, planlanan
+    /// süre yeniden hesaplanmaz. ELLE ORACLE: planlanan 2 gün 2 sa 57 dk (kural 2 gün derdi) ama sözleşme 3 gün
+    /// faturalanmış; 5 dk geç dönüş → toplam 2 gün 3 sa 02 dk = 3 gün → 3 − 3 = 0 ek gün (eski kural 3 − 2 = 1 gün
+    /// daha faturalıyordu — müşteri aynı günü iki kez ödüyordu).
+    /// </summary>
+    [Fact]
+    public void Late_days_are_counted_against_billed_days()
+    {
+        var c = Base();
+        c.Gun = 3;
+        c.Tutar = 300m;
+        c.BitTar = Start.AddDays(2).AddHours(2).AddMinutes(57);
+        var r = ReturnMath.Compute(c, returnKm: 1100, returnFuel: 8, actualReturn: c.BitTar.AddMinutes(5));
+        Assert.Equal(0, r.UzatmaGun);
+        Assert.Equal(0m, r.UzatmaBedeli);
+        Assert.Equal(300m, r.GenelToplam);
+    }
+
+    /// <summary>#366 + #376 birleşik probe (a): sözleşme 3 gün faturalanmış, planlanan 2 gün 2 sa 57 dk, 5 dk geç →
+    /// geç gün 0 (faturalanan güne göre), km hakkı 200 × 3 = 600; 650 km → 50 fazla × 5 = 250 (elle).</summary>
+    [Fact]
+    public void Combined_late_rule_and_daily_km_entitlement_within_billed_days()
+    {
+        var c = Base();
+        c.Gun = 3; c.GunlukUcret = 1000m; c.Tutar = 3000m; c.CikisKm = 10_000;
+        c.BitTar = Start.AddDays(2).AddHours(2).AddMinutes(57);
+        c.KmLimit = 600; c.KmLimitGunluk = 200; c.FazlaKmUcret = 5m;
+        var r = ReturnMath.Compute(c, returnKm: 10_650, returnFuel: 8, actualReturn: c.BitTar.AddMinutes(5));
+        Assert.Equal(0, r.UzatmaGun);
+        Assert.Equal(50, r.FazlaKm);
+        Assert.Equal(250m, r.FazlaKmBedeli);
+        Assert.Equal(3250m, r.GenelToplam);
+    }
+
+    /// <summary>#366 + #376 birleşik probe (b): 3 günlük kira 4 sa geç → 1 geç gün (≥ 3 sa); km hakkı
+    /// 200 × (3 + 1) = 800; 800 km → fazla 0; genel toplam 3.000 + 1.000 = 4.000 (elle).</summary>
+    [Fact]
+    public void Combined_late_day_grows_daily_km_entitlement()
+    {
+        var c = Base();
+        c.Gun = 3; c.GunlukUcret = 1000m; c.Tutar = 3000m; c.CikisKm = 10_000;
+        c.BitTar = Start.AddDays(3);
+        c.KmLimit = 600; c.KmLimitGunluk = 200; c.FazlaKmUcret = 5m;
+        var r = ReturnMath.Compute(c, returnKm: 10_800, returnFuel: 8, actualReturn: c.BitTar.AddHours(4));
+        Assert.Equal(1, r.UzatmaGun);
+        Assert.Equal(0, r.FazlaKm);
+        Assert.Equal(4000m, r.GenelToplam);
+    }
+
     [Fact]
     public void Combined_charges_sum()
     {
