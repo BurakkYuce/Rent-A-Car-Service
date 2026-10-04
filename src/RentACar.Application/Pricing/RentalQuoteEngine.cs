@@ -54,7 +54,10 @@ public sealed class RentalQuoteEngine(
         if (req.TahminiKm is < 0) throw new ValidationException("Tahmini KM negatif olamaz.");
 
         var notes = new List<string>();
-        var groupCode = req.AracGrupKod.Trim().ToUpperInvariant();
+        // Kabul B-A2: istek değeri aracın Grup alanından gelebilir — ekrandan açılan araçta grubun ADI. Tanımlı gruba
+        // çözülür (önce Kod, sonra Ad) ve tüm eşleşmeler grubun KODUYLA yapılır; tanımsız değer eskisi gibi kod sayılır.
+        var group = VehicleGroupMatch.Find(await _vehicleGroups.ListActiveAsync(ct), req.AracGrupKod);
+        var groupCode = (group?.Kod ?? req.AracGrupKod).Trim().ToUpperInvariant();
         var channel = req.Kanal?.Trim();
         var branch = req.Sube?.Trim();
         var day = BookingMath.ComputeDays(req.BasTar, req.BitTar);
@@ -85,7 +88,7 @@ public sealed class RentalQuoteEngine(
                     && (k.GecerlilikBit == null || k.GecerlilikBit >= req.BasTar)
                     && WarnSurgeBranch(k, branch)).ToList();
             if (occupancyCandidates.Count > 0
-                && await occupancy.GetGroupOccupancyPercentAsync(groupCode, req.BasTar, req.BitTar, ct) is { } occupancyPercent)
+                && await occupancy.GetGroupOccupancyPercentAsync(groupCode, req.BasTar, req.BitTar, group?.Ad, ct) is { } occupancyPercent)
             {
                 var surge = occupancyCandidates.Where(k => occupancyPercent >= k.EsikYuzde)
                     .OrderByDescending(k => k.EsikYuzde).ThenByDescending(k => k.CarpanYuzde)
@@ -105,7 +108,7 @@ public sealed class RentalQuoteEngine(
             ? "TRY" : matrix!.ParaBirimi!.Trim().ToUpperInvariant();
 
         // 2) Araç grubu kuralları → KM aşım + provizyon/muafiyet + genç sürücü eşiği (kuraldan bağımsız)
-        var group = (await _vehicleGroups.ListActiveAsync(ct)).FirstOrDefault(g => g.Kod == groupCode);
+        // (grup en başta çözüldü — VehicleGroupMatch; Kod ya da Ad.)
         decimal kmOverage = 0m, preAuth = 0m, exemption = 0m;
         var youngDriver = false;
         if (group is null)

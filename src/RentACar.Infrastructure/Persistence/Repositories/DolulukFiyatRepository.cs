@@ -94,7 +94,7 @@ public sealed class OccupancyPriceRuleRepository(IDbContextFactory<AppDbContext>
 public sealed class OccupancyProvider(IDbContextFactory<AppDbContext> factory) : IOccupancyProvider
 {
     public async Task<decimal?> GetGroupOccupancyPercentAsync(
-        string groupCode, DateTimeOffset from, DateTimeOffset to, CancellationToken ct = default)
+        string groupCode, DateTimeOffset from, DateTimeOffset to, string? groupName = null, CancellationToken ct = default)
     {
         var code = groupCode.Trim();
         var fromD = from.UtcDateTime.Date;
@@ -103,10 +103,17 @@ public sealed class OccupancyProvider(IDbContextFactory<AppDbContext> factory) :
         if (to <= from) return null;
 
         await using var db = await factory.CreateDbContextAsync(ct);
-        var vehicleIds = await db.Vehicles.AsNoTracking()
-            .Where(v => v.Grup != null && v.Grup.Trim().ToUpper() == code.ToUpper()
-                && v.Durum != VehicleStatus.Satildi && v.Durum != VehicleStatus.Pasif) // B1
-            .Select(v => v.Id).ToListAsync(ct);
+        // Kabul B-A2: araç Grup'u grubun KODU ya da ADI (ekrandan açılan araç). Ad eşleşmesi araç ekranıyla AYNI
+        // Türkçe-duyarsız kuraldan (VehicleGroupMatch) geçsin diye adaylar belleğe alınır — filo kiracı başına
+        // onlarca/yüzlerce satır, SQL upper() Türkçe İ/ı'yı .NET ile aynı katlamaz.
+        var name = groupName?.Trim();
+        var candidates = await db.Vehicles.AsNoTracking()
+            .Where(v => v.Grup != null && v.Durum != VehicleStatus.Satildi && v.Durum != VehicleStatus.Pasif) // B1
+            .Select(v => new { v.Id, v.Grup }).ToListAsync(ct);
+        var vehicleIds = candidates
+            .Where(v => string.Equals(v.Grup!.Trim(), code, StringComparison.OrdinalIgnoreCase)
+                || (!string.IsNullOrEmpty(name) && TurkishText.EqualsIgnoreTurkishCase(v.Grup!.Trim(), name)))
+            .Select(v => v.Id).ToList();
         if (vehicleIds.Count == 0) return null;
 
         var rentals = await db.Rentals.AsNoTracking()

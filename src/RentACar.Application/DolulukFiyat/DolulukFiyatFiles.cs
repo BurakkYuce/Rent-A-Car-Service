@@ -18,11 +18,13 @@ public interface IOccupancyPriceRuleRepository : IVersionedRepository<DolulukFiy
 
 /// <summary>Grup doluluk yüzdesi sağlayıcısı (FAZ 3.A7). Pencere gün sayısı BİTİŞ-HARİÇ gün farkıdır
 /// (ComputeGun ile hizalı: 5 günlük kira penceresi = 5 araç-gün/araç); grupta araç yoksa null
-/// (0 araçlı grupta %0/%100 anlamsız — surge tetiklenmez).</summary>
+/// (0 araçlı grupta %0/%100 anlamsız — surge tetiklenmez).
+/// Kabul B-A2: araç <c>Grup</c>'u grubun KODU ya da ADI olabilir (ekrandan açılan araç adı taşır) →
+/// <paramref name="groupName"/> verilirse adı taşıyan araçlar da gruba sayılır.</summary>
 public interface IOccupancyProvider
 {
     Task<decimal?> GetGroupOccupancyPercentAsync(
-        string groupCode, DateTimeOffset from, DateTimeOffset to, CancellationToken ct = default);
+        string groupCode, DateTimeOffset from, DateTimeOffset to, string? groupName = null, CancellationToken ct = default);
 }
 
 /// <summary>Doluluk fiyat kuralı giriş modeli.</summary>
