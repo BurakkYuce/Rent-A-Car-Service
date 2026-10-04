@@ -88,6 +88,55 @@ public sealed class CariReportTests(PostgresFixture fx)
         Assert.Equal(3600m, aging.Toplam);
     }
 
+    /// <summary>
+    /// Kabul bulgusu d-rapor-cari-bakiye-03: tahsilat yaşlandırmadan düşmüyordu (bakiye 700, kova 1.400).
+    /// Beklenen değerler elle kurulan senaryodan, FIFO ile kâğıt üstünde hesaplandı.
+    /// </summary>
+    [Fact]
+    public async Task Aging_applies_collections_fifo_to_oldest_debt_and_buckets_sum_to_balance()
+    {
+        using var host = new TestHost(fx.AppConnectionString);
+        using var scope = host.ScopeFor(Guid.NewGuid());
+        var sales = scope.ServiceProvider.GetRequiredService<VehicleSaleService>();
+        var cash = scope.ServiceProvider.GetRequiredService<CashService>();
+        var reports = scope.ServiceProvider.GetRequiredService<ReportService>();
+        var now = TestZaman.Now();
+
+        // A: 75 gün önce 1.200, 45 gün önce 600, 5 gün önce 2.400 borç; bugün 1.500 tahsilat.
+        //    FIFO: 1.500 → önce 1.200 (75 gün) tamamen, sonra 600'ün 300'ü → 45 günlükten 300 kalır.
+        //    Kovalar: 0-30 = 2.400, 31-60 = 300, 61-90 = 0, 90+ = 0 → toplam 2.700 = 4.200 − 1.500.
+        var a = await SeedCustomerAsync(scope, "Fifo", "Borclu");
+        await sales.CreateAsync(new VehicleSaleInput
+        { VehicleId = await SeedVehicleAsync(scope, "34FF01"), AliciCariId = a, SatisNet = 1000m, KdvOrani = 0.20m, Tarih = now.AddDays(-75) });
+        await sales.CreateAsync(new VehicleSaleInput
+        { VehicleId = await SeedVehicleAsync(scope, "34FF02"), AliciCariId = a, SatisNet = 500m, KdvOrani = 0.20m, Tarih = now.AddDays(-45) });
+        await sales.CreateAsync(new VehicleSaleInput
+        { VehicleId = await SeedVehicleAsync(scope, "34FF03"), AliciCariId = a, SatisNet = 2000m, KdvOrani = 0.20m, Tarih = now.AddDays(-5) });
+        await cash.CollectAsync(new CashInput { CariId = a, Tutar = 1500m });
+
+        // B: 1.200 borç, 1.200 tahsilat → bakiye 0 → listede YOK.
+        var b = await SeedCustomerAsync(scope, "Fifo", "Kapali");
+        await sales.CreateAsync(new VehicleSaleInput
+        { VehicleId = await SeedVehicleAsync(scope, "34FF04"), AliciCariId = b, SatisNet = 1000m, KdvOrani = 0.20m, Tarih = now.AddDays(-20) });
+        await cash.CollectAsync(new CashInput { CariId = b, Tutar = 1200m });
+
+        // C: yalnız 500 tahsilat (avans) → alacaklı → yaşlanacak alacak yok → listede YOK.
+        var c = await SeedCustomerAsync(scope, "Fifo", "Avans");
+        await cash.CollectAsync(new CashInput { CariId = c, Tutar = 500m });
+
+        var aging = Assert.Single(await reports.GetAgingAsync(now.AddMinutes(5)));
+        Assert.Equal(a, aging.CariId);
+        Assert.Equal(2400m, aging.B0_30);
+        Assert.Equal(300m, aging.B31_60);
+        Assert.Equal(0m, aging.B61_90);
+        Assert.Equal(0m, aging.B90Plus);
+        Assert.Equal(2700m, aging.Toplam);
+
+        // Kovaların toplamı cari bakiyesiyle aynı (bakiye raporu da elle hesaplanan 2.700'ü vermeli).
+        var balance = (await reports.GetAccountBalancesAsync()).Single(x => x.CariId == a);
+        Assert.Equal(2700m, balance.Bakiye);
+    }
+
     [Fact]
     public async Task Cari_reports_are_tenant_isolated()
     {

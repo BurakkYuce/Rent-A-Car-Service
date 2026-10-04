@@ -112,12 +112,20 @@ public sealed class ReportRepository(IDbContextFactory<AppDbContext> factory) : 
         if (asOf is { } a) q = q.Where(e => e.EntryDateUtc <= a);
 
         var raw = await q
-            .Select(e => new { e.AccountRef, e.Direction, Amount = e.Amount.Amount, Rate = e.Amount.Rate, e.EntryDateUtc })
+            .Select(e => new { e.AccountRef, e.Direction, Amount = e.Amount.Amount, Rate = e.Amount.Rate, e.EntryDateUtc, e.SourceId })
             .ToListAsync(ct);
 
         // Cari adları: DisplayName mapped değil (computed) → Customers bellek-içi çekilip eşlenir.
         var names = (await db.Customers.AsNoTracking().ToListAsync(ct))
             .ToDictionary(c => c.Id, c => c.DisplayName);
+
+        // Geri alma bağları (yaşlandırma FIFO'su ters kaydı asıl kaydıyla eşleştirir): nakit ters kaydı → asıl işlem,
+        // fatura iadesi → kaynak fatura. Defterde ikisi farklı SourceId taşır.
+        var targets = (await db.CashTransactions.AsNoTracking().Where(t => t.TersAlinanId != null)
+                .Select(t => new { t.Id, Target = t.TersAlinanId!.Value }).ToListAsync(ct))
+            .Concat(await db.Invoices.AsNoTracking().Where(i => i.IadeMi && i.KaynakFaturaId != null)
+                .Select(i => new { i.Id, Target = i.KaynakFaturaId!.Value }).ToListAsync(ct))
+            .GroupBy(x => x.Id).ToDictionary(g => g.Key, g => g.First().Target);
 
         return raw
             .Select(r =>
@@ -125,7 +133,8 @@ public sealed class ReportRepository(IDbContextFactory<AppDbContext> factory) : 
                 var id = r.AccountRef ?? Guid.Empty;
                 return new CariLedgerRowDto(
                     id, names.TryGetValue(id, out var n) && !string.IsNullOrWhiteSpace(n) ? n : "(bilinmeyen cari)",
-                    r.Direction, r.Amount * r.Rate, r.EntryDateUtc);
+                    r.Direction, r.Amount * r.Rate, r.EntryDateUtc,
+                    r.SourceId, targets.TryGetValue(r.SourceId, out var target) ? target : null);
             })
             .ToList();
     }
