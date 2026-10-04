@@ -23,6 +23,7 @@ import type { Schema } from '@core/api/ui-tipleri';
 import { newOperationKey } from '@core/form/submit-lock';
 import { ConfirmService } from '@core/geri-bildirim/confirm-service';
 import { ToastService } from '@core/geri-bildirim/toast-service';
+import { DUGME_IZINLERI } from '@core/oturum/dugme-izinleri';
 import { SessionService } from '@core/oturum/session-service';
 import type { CeviriAnahtari } from '@core/i18n/ceviri-anahtarlari';
 import { translationFunction } from '@core/i18n/ceviri';
@@ -116,7 +117,9 @@ export class RateImport {
   private readonly destroyRef = inject(DestroyRef);
   private readonly session = inject(SessionService);
   /** Güvenlik takip (a): kanal toplu silme OperationsDelete ister. */
-  protected readonly canDeleteChannel = computed(() => this.session.izinVar('OperationsDelete'));
+  protected readonly canDeleteChannel = computed(() =>
+    this.session.hasPermissions(DUGME_IZINLERI.tarifeKanalSil.izinler),
+  );
   private readonly t = translationFunction();
   private readonly fileInput = viewChild<ElementRef<HTMLInputElement>>('fileInput');
 
