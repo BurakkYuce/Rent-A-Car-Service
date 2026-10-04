@@ -27824,6 +27824,8 @@ export interface components {
       durum: string;
       faturali: boolean;
       tahsilat: null | components['schemas']['TahsilatBilgisi'];
+      /** Format: double */
+      genelToplam: number | string;
     };
     KiraMusteriOzeti: {
       /** Format: uuid */

@@ -264,8 +264,10 @@ public sealed class UiKiraPanelTests(WebFixture fx)
         var id = await OpenRentalAsync(s, o, vehicle, start, day: 2);
         await Json(await Gonder(s, HttpMethod.Post, $"{Rental}/{id}/teslim", new { cikisKm = 500, cikisYakit = 8 }));
 
-        // ORACLE: 2 gün × 120 brüt = 240; 25 saat geç → 24 saatlik blok yukarı → 2 gün × 120 = 240 uzatma → 480.
-        var actual = start.AddDays(2).AddHours(25);
+        // ORACLE: 2 gün × 120 brüt = 240. Geç dönüş kira gün kuralıyla (3 saat toleransı; kabul bulgusu C-GUN):
+        // 28 saat geç = 1 tam gün + 4 saat (≥ 3 sa) → 2 gün × 120 = 240 uzatma → 480. 25 saat geç (1 gün + 1 sa,
+        // tolerans içinde) ise yalnız 1 gün → 120 → 360.
+        var actual = start.AddDays(2).AddHours(28);
         var r = await Json(await Gonder(s, HttpMethod.Post, $"{Rental}/{id}/donus",
             new { donusKm = 600, donusYakit = 8, gercekDonus = actual }));
         Assert.Equal(2, r.GetProperty("uzatmaGun").GetInt32());
