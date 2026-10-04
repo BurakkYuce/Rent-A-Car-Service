@@ -148,9 +148,15 @@ public sealed class VehicleService(
             throw new DuplicatePlakaException(plate);
 
         var branchId = await ResolveBranchAsync(input.Sube, ct);
+        // Kabul bulgusu: durum elle açık kira/servis/tahsisle çelişen değere çekilemez. Açık kayıtlar her güncellemede
+        // okunur (durum aynı görünse de kilitli satırın durumu arada değişmiş olabilir — karar kilit altındaki değerle).
+        var commitments = existing is null ? VehicleCommitments.None : await _repository.CommitmentsAsync(id, ct);
         void Apply(Vehicle v)
         {
             BranchScope.RequireInScope(_currentUser, v.SubeId, v.Sube); // adversarial M3 + C3 FK (reassign ÖNCESİ)
+            // Kural kontrolleri kilitli satırın GÜNCEL değeriyle (eşzamanlı manuel km / kira teslimi sonrası).
+            if (input.Km != v.Km) Odometer.EnsureNotBackwards(v.Km, input.Km);
+            VehicleStatusRule.EnsureManualChange(v.Durum, input.Durum, commitments);
             v.Plaka = plate;
             v.Marka = Trim(input.Marka);
             v.Tip = Trim(input.Tip);

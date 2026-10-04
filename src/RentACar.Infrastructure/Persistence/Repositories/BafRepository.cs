@@ -76,6 +76,21 @@ public sealed class BafRepository(IDbContextFactory<AppDbContext> factory) : IBa
         {
             await using var db = await _factory.CreateDbContextAsync(ct);
             await using var tx = await db.Database.BeginTransactionAsync(ct); // No tahsisi atomik (boşluksuz)
+
+            // Kabul bulgusu: kiradaki ya da zaten açık tahsisi olan araca tahsis açılamaz. Araç satırı kilitlenir →
+            // aynı araca eşzamanlı iki tahsis (ve kira teslimi, servise başla) serileşir; ikinci istek kilit
+            // çözülünce ilkinin kaydını görür. Kontroller KİLİDİN ARKASINDA.
+            await VehicleCommitmentQueries.LockVehicleAsync(db, row.VehicleId, ct);
+            // F6.1b: aynı işlem anahtarıyla tekrar → mükerrer (409); tahsis kuralı (400) onu gölgelemesin.
+            if (await db.Baflar.AsNoTracking().AnyAsync(x => x.Id == row.Id, ct))
+                throw new RentACar.Application.Common.DuplicateOperationException(PkViolation.Message);
+            if (await VehicleCommitmentQueries.OpenRentalNoAsync(db, row.VehicleId, ct) is { } contractNo)
+                throw new RentACar.Application.Common.ValidationException(
+                    $"Aracın açık kira sözleşmesi var ({contractNo}); kiradaki araca tahsis açılamaz.", "vehicleId");
+            if (await VehicleCommitmentQueries.OpenBafNoAsync(db, row.VehicleId, ct) is { } bafNo)
+                throw new RentACar.Application.Common.ValidationException(
+                    $"Aracın açık tahsisi var ({bafNo}); önce o tahsisi teslim alın ya da iptal edin.", "vehicleId");
+
             row.No = await DocumentNoGenerator.GenerateAsync(db, db.TenantId, DocumentNoType.Baf, ct);
             db.Baflar.Add(row);
             try { await db.SaveChangesAsync(ct); }

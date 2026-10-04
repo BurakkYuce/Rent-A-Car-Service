@@ -14,11 +14,15 @@ public interface IServiceRecordRepository
     /// <summary>
     /// Durum geçişi + (opsiyonel) araç durumu eşlemesi — TEK transaction. Araç durumu yalnız
     /// <paramref name="onlyWhenVehicleIs"/> verildiyse o duruma eşitse değiştirilir (idempotent kuplaj).
+    /// <paramref name="kmLog"/> verildiyse okuma seriye düşer ve araç km'si yalnız İLERİ taşınır
+    /// (<see cref="Vehicles.Odometer.Advance"/>). <paramref name="rejectWhenVehicleRented"/>: araç satırı kilitlenir ve
+    /// aracın açık kirası varsa geçiş reddedilir (alan <c>vehicleId</c>; kabul bulgusu — kiradaki araç servise başlatılamaz).
     /// </summary>
     Task<bool> TransitionAsync(
         Guid id, Action<ServiceRecord> apply,
         VehicleStatus? setVehicleTo, VehicleStatus? onlyWhenVehicleIs,
-        Func<ServiceRecord, VehicleKmLog>? kmLog = null, CancellationToken ct = default);
+        Func<ServiceRecord, VehicleKmLog>? kmLog = null, CancellationToken ct = default,
+        bool rejectWhenVehicleRented = false);
 
     /// <summary>
     /// FAZ-16 — yalnız BİLGİ alanlarını günceller (defter etkisi YOK). Durum/araç kuplajı olmayan

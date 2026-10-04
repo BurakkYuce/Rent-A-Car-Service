@@ -250,7 +250,8 @@ public static class RentalApi
             r.OzelSoforBilgisi, r.Durum.ToString(), r.Faturali,
             collectSet.Contains(r.Id)
                 ? CollectionData(r.Id, r.MusteriId, r.Bakiye, r.Doviz, transactionCounts.GetValueOrDefault(r.Id))
-                : null)).ToList();
+                : null,
+            r.GenelToplam)).ToList();
         return TypedResults.Ok(new Sayfa<KiraListeSatiri>(records, total, request.Sayfa, request.Boyut));
     }
 
