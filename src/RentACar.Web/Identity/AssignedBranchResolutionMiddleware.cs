@@ -16,7 +16,8 @@ namespace RentACar.Web.Identity;
 /// kuraldan geçer. Ofisi hiçbir şubeye bağlı olmayan kayıtta C5 metin yolu aynen kalır.</para>
 /// <para>Kaynak sırası: (1) Users satırının FK'sı (açılış backfill'i ya da interceptor doldurmuşsa — oturum FK'dan önce
 /// açılmış olabilir), yalnız satırdaki şube adı claim'dekiyle AYNIYSA; (2) Branches'ta ad eşleşmesi —
-/// <see cref="BranchBackfill"/> ile BİREBİR kural (<c>lower(btrim)</c>, aynı adda Kod sırası). Çözülemezse boş kalır
+/// <see cref="BranchNameMatch"/> — <see cref="BranchBackfill"/> ile AYNI kural (harf duyarsız aday; birebir ad → aktif
+/// şube → Kod sırası). Çözülemezse boş kalır
 /// (metin yolu; daraltma yok, genişletme yok). Sonuç (boş dahil) 60 sn önbellekte — FK'lı oturum hiç sorgu yapmaz.</para>
 /// <para>TUZAK (bedeli ödendi): sonuç CLAIM'e YAZILMAZ — antiforgery belirteci, NameIdentifier claim'i olmadığında TÜM
 /// claim kümesine bağlanır; claim eklemek girişte verilen XSRF belirtecini geçersiz kılıp her yazmayı 400
@@ -82,11 +83,6 @@ public sealed class AssignedBranchResolutionMiddleware(IMemoryCache cache, IConf
         var sys = new SystemTenantContext { TenantId = tenantId };
         await using var db = new AppDbContext(options, sys, sys);
         await TenantGuc.OpenAsync(db, tenantId, ct);
-        var ids = await db.Database.SqlQuery<Guid>($"""
-            SELECT b."Id" AS "Value" FROM "Branches" b
-            WHERE b."TenantId" = {tenantId} AND lower(btrim(b."Ad")) = lower(btrim({name}))
-            ORDER BY b."Kod" LIMIT 1
-            """).ToListAsync(ct);
-        return ids.Count == 0 ? null : ids[0];
+        return await BranchNameMatch.ResolveAsync(db, tenantId, name, ct); // güvenlik F5: backfill ile TEK kural
     }
 }
