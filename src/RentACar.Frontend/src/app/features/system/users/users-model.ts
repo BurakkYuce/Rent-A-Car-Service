@@ -9,12 +9,17 @@ export const ROLES = ['Admin', 'Yonetici', 'Operator', 'Muhasebe'] as const;
 export type Role = (typeof ROLES)[number];
 
 /**
- * F11.1b güvenlik M2 (sunucu kuralının ekrandaki yansıması; asıl kapı `UserService`/`KullaniciIzinService`):
- * Admin hesabı oluşturma, Admin hesabının parola/aktif işlemleri ve istisnaları yalnız Admin rolüne açıktır.
- * ManageUsers istisnasıyla kullanıcı yöneten bir Yönetici bu düğmeleri görmez (görse de sunucu 403 verir).
+ * Güvenlik tur 2 M1 (sunucu kuralının ekrandaki yansıması; asıl kapı `UserService`/`UserPermissionService` ve uç):
+ * kullanıcı yönetimi YAZMALARI (oluştur, düzenle, aktiflik, parola sıfırla, istisna) yalnız Admin rolüne açıktır.
+ * ManageUsers istisnası almış Admin olmayan kullanıcı ekranı salt okunur görür (görse de sunucu 403 verir).
  */
 export function canManageAccount(actorRole: string | null | undefined, target: UserDto): boolean {
-  return (actorRole === 'Admin' || target.rol !== 'Admin') && !outranks(actorRole, target);
+  return actorRole === 'Admin' && !outranks(actorRole, target);
+}
+
+/** Kullanıcı yönetimi yazma yetkisi (oluşturma formu, istisna formu): yalnız Admin rolü. */
+export function canWriteUsers(actorRole: string | null | undefined): boolean {
+  return actorRole === 'Admin';
 }
 
 /** Rol kıdemi (sunucu `UserService.Rank` ile aynı): Admin > Yönetici > Operatör = Muhasebe. */

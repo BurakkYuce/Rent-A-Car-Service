@@ -56,7 +56,7 @@ test('kullanıcılar (Admin): oluştur new-password + aktif şube; istisna ver; 
   expect(errors).toEqual([]);
 });
 
-test('kullanıcılar (ManageUsers istisnalı Yönetici): Admin hesabı ve ManageUsers izni kapalı (M2)', async ({
+test('kullanıcılar (ManageUsers istisnalı Yönetici): ekran salt okunur, yazma düğmesi/formu yok (güvenlik M1)', async ({
   page,
 }) => {
   await logIn(page, { ...ADMIN_BEN, rol: 'Yonetici' });
@@ -67,16 +67,9 @@ test('kullanıcılar (ManageUsers istisnalı Yönetici): Admin hesabı ve Manage
   const adminRow = page.getByRole('row').filter({ hasText: 'patron' }).first();
   await expect(adminRow.getByRole('button')).toHaveCount(0);
   const opRow = page.getByRole('row').filter({ hasText: 'operator1' }).first();
-  await expect(opRow.getByRole('button', { name: 'Parola sıfırla' })).toBeVisible();
-  await expect(
-    page.getByRole('combobox', { name: 'Rol' }).locator('option', { hasText: 'Admin' }),
-  ).toHaveCount(0);
-  await expect(
-    page.getByRole('combobox', { name: 'İzin' }).locator('option', { hasText: 'ManageUsers' }),
-  ).toHaveCount(0);
-  await expect(
-    page.getByRole('combobox', { name: 'Kullanıcı adı' }).locator('option', { hasText: 'patron' }),
-  ).toHaveCount(0);
+  await expect(opRow.getByRole('button')).toHaveCount(0);
+  await expect(page.getByRole('heading', { name: 'Yeni kullanıcı' })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'İstisnayı kaydet' })).toHaveCount(0);
 });
 
 test('kullanıcılar: ManageUsers yoksa rota açılmaz (uç kapısıyla birebir)', async ({ page }) => {

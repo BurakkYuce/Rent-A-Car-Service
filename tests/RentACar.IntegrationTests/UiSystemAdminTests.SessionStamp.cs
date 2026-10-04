@@ -5,6 +5,8 @@ using RentACar.Application.Common;
 using RentACar.Application.Users;
 using RentACar.Domain.Entities;
 using RentACar.Domain.Enums;
+using RentACar.Infrastructure.Identity;
+using RentACar.Infrastructure.Persistence;
 using RentACar.IntegrationTests.Infrastructure;
 using static RentACar.IntegrationTests.SystemApiTestKit;
 
@@ -116,33 +118,108 @@ public sealed partial class UiSystemAdminTests
     }
 
     [Fact]
-    public async Task F2_kendi_subesini_degistiremez_kidemden_yuksek_rol_veremez()
+    public async Task F2_admin_kendi_subesini_degistiremez()
     {
         var e = await _kit.SetupAsync();
         await _kit.WriteAsync(e.TenantId, db => db.Branches.Add(new Branch { Kod = "SA", Ad = "SubeA", Aktif = true }));
         var admin = await _kit.LoginAsync(e, Who.Admin);
-        var opId = e.UserIds[Who.OperatorA];
-        await Json(await Send(admin, HttpMethod.Put, $"{Users}/{opId}/istisnalar/ManageUsers", new { ver = true }));
-        var op = await _kit.LoginAsync(e, Who.OperatorA);
-
-        // Kendi şube kapsamını kaldıramaz (400 errors[atanmisSube]); hiçbir şey yazılmaz.
-        await Problem(await Send(op, HttpMethod.Put, $"{Users}/{opId}", UpdateBody("Operator", null, await VersionOfAsync(op, opId))),
+        var self = e.UserIds[Who.Admin];
+        await Problem(await Send(admin, HttpMethod.Put, $"{Users}/{self}", UpdateBody("Admin", "SubeA", await VersionOfAsync(admin, self))),
             HttpStatusCode.BadRequest, "dogrulama", "atanmisSube");
-        Assert.Equal("SubeA", (await _kit.ReadAsync(e.TenantId, db => db.Users.AsNoTracking().FirstAsync(u => u.Id == opId))).AtanmisSube);
+        Assert.Null((await _kit.ReadAsync(e.TenantId, db => db.Users.AsNoTracking().FirstAsync(u => u.Id == self))).AtanmisSube);
+    }
 
-        // Kıdeminden yüksek rol veremez: Muhasebe'yi Yönetici yapamaz, Yönetici kullanıcı açamaz, Yönetici'ye dokunamaz.
+    // ---- güvenlik tur 2 M1: kullanıcı/yetki YAZMALARI yalnız Admin rolü (ManageUsers istisnası açmaz) ----
+
+    [Theory]
+    [InlineData(Who.OperatorA)]
+    [InlineData(Who.Manager)]
+    public async Task M1_ManageUsers_istisnali_admin_olmayan_hicbir_yonetim_yazmasi_yapamaz(Who who)
+    {
+        var e = await _kit.SetupAsync();
+        await _kit.WriteAsync(e.TenantId, db => db.Branches.Add(new Branch { Kod = "SA", Ad = "SubeA", Aktif = true }));
+        var admin = await _kit.LoginAsync(e, Who.Admin);
+        await Json(await Send(admin, HttpMethod.Put, $"{Users}/{e.UserIds[who]}/istisnalar/ManageUsers", new { ver = true }));
+        var actor = await _kit.LoginAsync(e, who);
         var accId = e.UserIds[Who.Accounting];
-        await Problem(await Send(op, HttpMethod.Put, $"{Users}/{accId}", UpdateBody("Yonetici", null, await VersionOfAsync(op, accId))),
-            HttpStatusCode.Forbidden, "yetki_yok");
-        await Problem(await Send(op, HttpMethod.Post, Users,
-                new { kullaniciAdi = Random("yo"), gorunenAd = "y", rol = "Yonetici", sifre = WebFixture.RandomPassword() }),
-            HttpStatusCode.Forbidden, "yetki_yok");
-        await Problem(await Send(op, HttpMethod.Post, $"{Users}/{e.UserIds[Who.Manager]}/sifre", new { sifre = WebFixture.RandomPassword() }),
-            HttpStatusCode.Forbidden, "yetki_yok");
-        Assert.Equal(UserRole.Muhasebe, (await _kit.ReadAsync(e.TenantId, db => db.Users.AsNoTracking().FirstAsync(u => u.Id == accId))).Rol);
+        var before = await _kit.ReadAsync(e.TenantId, db => db.Users.AsNoTracking().CountAsync(u => u.TenantId == e.TenantId));
 
-        // Kendi kıdemine eşit/altındaki atama serbest: Muhasebe → Operatör.
-        var moved = await Json(await Send(op, HttpMethod.Put, $"{Users}/{accId}", UpdateBody("Operator", "SubeA", await VersionOfAsync(op, accId))));
-        Assert.Equal("Operator", moved.GetProperty("rol").GetString());
+        // Okuma ManageUsers ile açık kalır.
+        Assert.Equal(HttpStatusCode.OK, (await actor.C.GetAsync(Users)).StatusCode);
+        Assert.Equal(HttpStatusCode.OK, (await actor.C.GetAsync(V1 + "/yetki/ekranlar")).StatusCode);
+
+        var writes = new (HttpMethod M, string Url, object? Body)[]
+        {
+            (HttpMethod.Post, Users, new { kullaniciAdi = Random("k"), gorunenAd = "x", rol = "Operator", sifre = WebFixture.RandomPassword() }),
+            (HttpMethod.Post, Users, new { kullaniciAdi = Random("k"), gorunenAd = "x", rol = "Muhasebe", sifre = WebFixture.RandomPassword() }),
+            (HttpMethod.Put, $"{Users}/{accId}", UpdateBody("Operator", "SubeA", await VersionOfAsync(admin, accId))),
+            (HttpMethod.Post, $"{Users}/{accId}/aktif", new { aktif = false }),
+            (HttpMethod.Post, $"{Users}/{accId}/sifre", new { sifre = WebFixture.RandomPassword() }),
+            (HttpMethod.Put, $"{Users}/{accId}/istisnalar/OperationsDelete", new { ver = true }),
+            (HttpMethod.Put, $"{Users}/{e.UserIds[Who.Admin2]}/istisnalar/OperationsWrite", new { ver = false }),
+            (HttpMethod.Delete, $"{Users}/{e.UserIds[who]}/istisnalar/ManageUsers", null),
+            (HttpMethod.Post, V1 + "/yetki/ekranlar", new { ekranKodu = "personel", roller = new[] { "Operator" }, aktif = true }),
+            (HttpMethod.Post, V1 + "/yetki/kopyala", new { kaynak = "Operator", hedef = "Muhasebe" }),
+            (HttpMethod.Post, V1 + "/yetki/gruplar", new { ad = "sablon" }),
+        };
+        foreach (var (m, url, body) in writes)
+        {
+            var r = await Send(actor, m, url, body);
+            var text = await r.Content.ReadAsStringAsync();
+            Assert.True(r.StatusCode == HttpStatusCode.Forbidden, $"{who} {m} {url}: beklenen 403, gelen {(int)r.StatusCode}: {text}");
+        }
+
+        // Hiçbir şey yazılmadı.
+        Assert.Equal(before, await _kit.ReadAsync(e.TenantId, db => db.Users.AsNoTracking().CountAsync(u => u.TenantId == e.TenantId)));
+        var acc = await _kit.ReadAsync(e.TenantId, db => db.Users.AsNoTracking().FirstAsync(u => u.Id == accId));
+        Assert.Equal((UserRole.Muhasebe, true), (acc.Rol, acc.IsActive));
+        Assert.Equal(0, await _kit.ReadAsync(e.TenantId, db => db.KullaniciIzinIstisnalari.AsNoTracking().CountAsync(x => x.UserId == accId)));
+        Assert.Equal(0, await _kit.ReadAsync(e.TenantId, db => db.KullaniciIzinIstisnalari.AsNoTracking()
+            .CountAsync(x => x.UserId == e.UserIds[Who.Admin2])));
+    }
+
+    [Fact]
+    public async Task L1_baska_surecte_dusurulen_admin_onbellek_bayatken_de_yonetim_yazamaz()
+    {
+        var e = await _kit.SetupAsync();
+        var b = await _kit.LoginAsync(e, Who.Admin2);
+        Assert.Equal(HttpStatusCode.OK, (await b.C.GetAsync(Users)).StatusCode); // damga önbelleği dolu
+        var opts = new DbContextOptionsBuilder<AppDbContext>().UseNpgsql(_kit.Fx.Pg.OwnerConnectionString).Options;
+        await using (var db = new AppDbContext(opts, NullTenantContext.Instance, NullCurrentUser.Instance))
+        {
+            // Başka süreç (ikinci Web örneği) yazdı: bu sürecin önbelleği geçersiz kılınmadı.
+            var u = await db.Users.SingleAsync(x => x.Id == e.UserIds[Who.Admin2]);
+            u.Rol = UserRole.Operator;
+            u.GuvenlikDamgasi = Guid.NewGuid().ToString("N");
+            await db.SaveChangesAsync();
+        }
+        var r = await Send(b, HttpMethod.Post, Users, new { kullaniciAdi = Random("arka"), gorunenAd = "x", rol = "Admin", sifre = WebFixture.RandomPassword() });
+        Assert.True(r.StatusCode is HttpStatusCode.Forbidden or HttpStatusCode.Unauthorized, $"Admin açıldı: {(int)r.StatusCode}");
+        var p = await Send(b, HttpMethod.Post, $"{Users}/{e.UserIds[Who.Admin]}/sifre", new { sifre = WebFixture.RandomPassword() });
+        Assert.True(p.StatusCode is HttpStatusCode.Forbidden or HttpStatusCode.Unauthorized, $"parola sıfırlandı: {(int)p.StatusCode}");
+        // Bayatlık penceresi (L1) en çok 10 sn.
+        Assert.True(UserSessionStateCache.Ttl <= TimeSpan.FromSeconds(10));
+    }
+
+    [Fact]
+    public async Task L2_JWT_damga_ya_da_aktiflik_degisince_belirtec_reddedilir()
+    {
+        var e = await _kit.SetupAsync();
+        using var api = new ApiFactory(_kit.Fx.Pg.AppConnectionString);
+        var op = await api.LoginClientAsync(e.Code, e.Users[Who.OperatorA], e.Password);
+        var acc = await api.LoginClientAsync(e.Code, e.Users[Who.Accounting], e.Password);
+        var opts = new DbContextOptionsBuilder<AppDbContext>().UseNpgsql(_kit.Fx.Pg.OwnerConnectionString).Options;
+        await using (var db = new AppDbContext(opts, NullTenantContext.Instance, NullCurrentUser.Instance))
+        {
+            (await db.Users.SingleAsync(x => x.Id == e.UserIds[Who.OperatorA])).GuvenlikDamgasi = Guid.NewGuid().ToString("N");
+            (await db.Users.SingleAsync(x => x.Id == e.UserIds[Who.Accounting])).IsActive = false;
+            await db.SaveChangesAsync();
+        }
+        Assert.Equal(HttpStatusCode.Unauthorized, (await op.GetAsync("/api/v1/legal")).StatusCode);
+        Assert.Equal(HttpStatusCode.Unauthorized, (await acc.GetAsync("/api/v1/donem-kapanis")).StatusCode);
+
+        // Yeni giriş (yeni damga) çalışır.
+        var op2 = await api.LoginClientAsync(e.Code, e.Users[Who.OperatorA], e.Password);
+        Assert.Equal(HttpStatusCode.OK, (await op2.GetAsync("/api/v1/legal")).StatusCode);
     }
 }

@@ -119,7 +119,21 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
                 {
                     var cache = ctx.HttpContext.RequestServices.GetRequiredService<TenantStatusCache>();
                     if (!await cache.IsActiveAsync(tenantId, ctx.HttpContext.RequestAborted))
+                    {
                         ctx.Fail("Tenant erişimi kapatıldı.");
+                        return;
+                    }
+                    // Güvenlik L2: oturum damgası + aktiflik (web çereziyle AYNI önbellek ve kural) — rol, şube, parola,
+                    // istisna değişince ya da pasifleştirilince belirteç ömrü dolmadan reddedilir.
+                    if (Guid.TryParse(ctx.Principal?.FindFirst(ApiClaims.UserId)?.Value, out var userId))
+                    {
+                        var sessions = ctx.HttpContext.RequestServices
+                            .GetRequiredService<RentACar.Infrastructure.Identity.UserSessionStateCache>();
+                        var state = await sessions.GetAsync(tenantId, userId, ctx.HttpContext.RequestAborted);
+                        var stamp = ctx.Principal?.FindFirst(ApiClaims.SecurityStamp)?.Value;
+                        if (stamp is null || state is not { Active: true } || !string.Equals(stamp, state.Stamp, StringComparison.Ordinal))
+                            ctx.Fail("Oturum geçersiz (yetki değişti); yeniden giriş yapın.");
+                    }
                 }
             },
         };

@@ -16,7 +16,8 @@ public sealed record UserSessionState(string Stamp, bool Active);
 /// </summary>
 public sealed class UserSessionStateCache(IMemoryCache cache, IServiceProvider services)
 {
-    public static readonly TimeSpan Ttl = TimeSpan.FromSeconds(30);
+    /// <summary>Güvenlik L1: çok süreçli kurulumda (ikinci Web örneği, Web↔Api) bayatlık penceresi en çok bu kadar.</summary>
+    public static readonly TimeSpan Ttl = TimeSpan.FromSeconds(10);
     private static string Key(Guid userId) => $"user-session:{userId}";
 
     /// <summary>Damga değeri: null (hiç değişmemiş eski satır) boş metin sayılır — girişte de aynı kuralla yazılır.</summary>

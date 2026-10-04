@@ -61,9 +61,10 @@ public sealed partial class UiSystemSecurityTests
         Assert.Equal(0, await _kit.ReadAsync(e.TenantId, db => db.KullaniciIzinIstisnalari.AsNoTracking()
             .CountAsync(x => x.UserId == e.UserIds[Who.OperatorA])));
 
-        // Admin olmayan hedefte yönetici işlemi hâlâ çalışır.
-        await Json(await Send(manager, HttpMethod.Post, Users, new { kullaniciAdi = Random("op"), rol = "Operator", sifre = pw }),
-            HttpStatusCode.Created);
+        // Güvenlik tur 2 M1: Admin olmayan hedefte de kullanıcı yazması yalnız Admin rolüyle (istisna açmaz).
+        await Problem(await Send(manager, HttpMethod.Post, Users, new { kullaniciAdi = Random("op"), rol = "Operator", sifre = pw }),
+            HttpStatusCode.Forbidden, "yetki_yok");
+        Assert.Equal(HttpStatusCode.OK, (await manager.C.GetAsync(Users)).StatusCode); // okuma açık kalır
     }
 
     [Fact]

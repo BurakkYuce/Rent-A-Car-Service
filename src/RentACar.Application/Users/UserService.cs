@@ -57,6 +57,7 @@ public sealed class UserService(IUserRepository repository, IPasswordHasher hash
     public async Task<Guid> CreateAsync(UserInput input, CancellationToken ct = default)
     {
         RequireAdmin();
+        AdminRoleGuard.Require(_currentUser); // güvenlik tur 2 M1: kullanıcı yazmaları yalnız Admin rolü
         var userName = (input.UserName ?? string.Empty).Trim();
         if (string.IsNullOrWhiteSpace(userName)) throw new ValidationException("Kullanıcı adı zorunludur.");
         if (string.IsNullOrWhiteSpace(input.Password) || input.Password.Length < 6)
@@ -84,6 +85,7 @@ public sealed class UserService(IUserRepository repository, IPasswordHasher hash
     public async Task<bool> SetActiveAsync(Guid id, bool active, CancellationToken ct = default)
     {
         RequireAdmin();
+        AdminRoleGuard.Require(_currentUser); // güvenlik tur 2 M1
         // Kendini pasifleştirme/kilitlenme önlemi.
         if (!active && id == _currentUser.UserId)
             throw new ValidationException("Kendi hesabınızı pasifleştiremezsiniz.");
@@ -116,6 +118,7 @@ public sealed class UserService(IUserRepository repository, IPasswordHasher hash
     public async Task<bool> UpdateAsync(Guid id, UserUpdateInput input, string expectedVersion, CancellationToken ct = default)
     {
         RequireAdmin();
+        AdminRoleGuard.Require(_currentUser); // güvenlik tur 2 M1
         if (string.IsNullOrWhiteSpace(expectedVersion))
             throw new ValidationException("Kayıt sürümü (surum) zorunludur; kaydı yeniden açın.", "surum");
         if (await _repository.FindAsync(id, ct) is not { } current) return false;
@@ -148,6 +151,7 @@ public sealed class UserService(IUserRepository repository, IPasswordHasher hash
     public async Task<bool> ResetPasswordAsync(Guid id, string newPassword, CancellationToken ct = default)
     {
         RequireAdmin();
+        AdminRoleGuard.Require(_currentUser); // güvenlik tur 2 M1
         // F11.2b güvenlik M1: yönetici sıfırlaması KENDİ hesabına uygulanmaz — kendi parolası eski parola doğrulaması
         // ve giriş hız sınırıyla ChangeOwnPasswordAsync'ten değişir (aksi hâlde oturumu ele geçiren eski parolayı
         // bilmeden parolayı değiştirip hesabı kalıcı alırdı).

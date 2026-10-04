@@ -29,7 +29,9 @@ public static partial class SystemAdminApi
 
     private static void MapUsers(RouteGroupBuilder v1)
     {
-        var g = v1.MapGroup("/kullanicilar").WithTags(SystemApiCommon.Tag).RequirePermission(Permission.ManageUsers);
+        // Güvenlik tur 2 M1: okuma ManageUsers; YAZMALAR (oluştur/güncelle/aktiflik/parola/istisna) yalnız Admin rolü.
+        var g = v1.MapGroup("/kullanicilar").WithTags(SystemApiCommon.Tag).RequirePermission(Permission.ManageUsers)
+            .RequireAdminRoleForWrites();
 
         g.MapGet("", async Task<Ok<IReadOnlyList<UserDto>>> (UserService users, UserPermissionService exceptions, CancellationToken ct)
             => TypedResults.Ok(await ListUsersAsync(users, exceptions, ct)));

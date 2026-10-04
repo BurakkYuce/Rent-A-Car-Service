@@ -28,6 +28,7 @@ public sealed class ScreenPermissionService(
     public async Task SetAsync(string screenCode, IEnumerable<UserRole> roller, bool active = true, CancellationToken ct = default)
     {
         PermissionGuard.Require(_currentUser, Permission.ManageUsers);
+        AdminRoleGuard.Require(_currentUser); // güvenlik tur 2 M1: yetki yazmaları yalnız Admin rolü
         var code = Normalize(screenCode);
         if (code.Length == 0) throw new ValidationException("Ekran kodu zorunludur.");
         var roles = roller.Distinct().ToArray();
@@ -45,6 +46,7 @@ public sealed class ScreenPermissionService(
     public async Task<bool> RemoveAsync(string screenCode, CancellationToken ct = default)
     {
         PermissionGuard.Require(_currentUser, Permission.ManageUsers);
+        AdminRoleGuard.Require(_currentUser); // güvenlik tur 2 M1
         await RequireAdminIfAdminAccessChangesAsync(Normalize(screenCode), null, ct);
         return await _repository.DeleteAsync(Normalize(screenCode), ct);
     }
@@ -57,6 +59,7 @@ public sealed class ScreenPermissionService(
     public async Task<int> CopyRoleAsync(UserRole source, UserRole target, CancellationToken ct = default)
     {
         PermissionGuard.Require(_currentUser, Permission.ManageUsers);
+        AdminRoleGuard.Require(_currentUser); // güvenlik tur 2 M1
         if (source == target) throw new ValidationException("Kaynak ve hedef rol farklı olmalıdır.");
         // Admin'e ekran eklemek Admin'in erişimine dokunmaktır → yalnız Admin rolü (#304 L3).
         if (target == UserRole.Admin) RequireAdminRole();
@@ -91,6 +94,7 @@ public sealed class ScreenPermissionService(
     public async Task SnapshotGroupAsync(string name, CancellationToken ct = default)
     {
         PermissionGuard.Require(_currentUser, Permission.ManageUsers);
+        AdminRoleGuard.Require(_currentUser); // güvenlik tur 2 M1
         if (Normalize(name).Length == 0) throw new ValidationException("Şablon adı zorunludur.");
         var items = (await _repository.ListAsync(ct))
             .Select(s => new YetkiGrupKalem(s.EkranKodu, ParseRoles(s.AllowedRolesCsv).Select(r => r.ToString()).ToArray()))
@@ -110,6 +114,7 @@ public sealed class ScreenPermissionService(
     public async Task<int> ApplyGroupAsync(string name, CancellationToken ct = default)
     {
         PermissionGuard.Require(_currentUser, Permission.ManageUsers);
+        AdminRoleGuard.Require(_currentUser); // güvenlik tur 2 M1
         var g = await _group.FindByNameAsync(name.Trim(), ct)
             ?? throw new ValidationException($"Şablon bulunamadı: {name}.");
         var items = (JsonSerializer.Deserialize<List<YetkiGrupKalem>>(g.KalemlerJson) ?? [])
@@ -132,6 +137,7 @@ public sealed class ScreenPermissionService(
     public async Task<bool> DeleteGroupAsync(string name, CancellationToken ct = default)
     {
         PermissionGuard.Require(_currentUser, Permission.ManageUsers);
+        AdminRoleGuard.Require(_currentUser); // güvenlik tur 2 M1
         return await _group.DeleteAsync(name.Trim(), ct);
     }
 

@@ -7,49 +7,52 @@
     </p>
   }
 
-  <section class="rc-bolum" aria-labelledby="kullanici-yeni">
-    <h2 id="kullanici-yeni">{{ 'sistem.kullanici.yeni' | transloco }}</h2>
-    <rc-form-hatalari [hatalar]="createSubmit.genelHatalar()" />
-    <div class="rc-form-izgara" [formGroup]="createForm">
-      <rc-alan [etiket]="'sistem.kullanici.kullaniciAdi' | transloco">
-        <rc-metin-girdisi formControlName="kullaniciAdi" [azamiUzunluk]="128" />
-      </rc-alan>
-      <rc-alan [etiket]="'sistem.kullanici.gorunenAd' | transloco">
-        <rc-metin-girdisi formControlName="gorunenAd" [azamiUzunluk]="256" />
-      </rc-alan>
-      <rc-alan [etiket]="'sistem.kullanici.rolBaslik' | transloco">
-        <rc-secim formControlName="rol" [secenekler]="roleOptions()" />
-      </rc-alan>
-      <rc-alan
-        [etiket]="'sistem.kullanici.sube' | transloco"
-        [ipucu]="'sistem.kullanici.subeIpucu' | transloco"
-      >
-        <rc-secim
-          formControlName="atanmisSube"
-          [secenekler]="branches()"
-          [bosEtiket]="'sistem.kullanici.tumSubeler' | transloco"
-        />
-      </rc-alan>
-      <rc-alan [etiket]="'sistem.kullanici.parola' | transloco">
-        <rc-metin-girdisi
-          formControlName="sifre"
-          tur="password"
-          otomatikTamamlama="new-password"
-          [azamiUzunluk]="128"
-        />
-      </rc-alan>
-      <div class="eylemler">
-        <button
-          type="button"
-          class="rc-dugme rc-dugme--birincil"
-          [disabled]="createSubmit.gonderiliyor()"
-          (click)="create()"
+  @if (actorRole() === 'Admin') {
+    <!-- Güvenlik tur 2 M1: kullanıcı oluşturma yalnız Admin rolüne. -->
+    <section class="rc-bolum" aria-labelledby="kullanici-yeni">
+      <h2 id="kullanici-yeni">{{ 'sistem.kullanici.yeni' | transloco }}</h2>
+      <rc-form-hatalari [hatalar]="createSubmit.genelHatalar()" />
+      <div class="rc-form-izgara" [formGroup]="createForm">
+        <rc-alan [etiket]="'sistem.kullanici.kullaniciAdi' | transloco">
+          <rc-metin-girdisi formControlName="kullaniciAdi" [azamiUzunluk]="128" />
+        </rc-alan>
+        <rc-alan [etiket]="'sistem.kullanici.gorunenAd' | transloco">
+          <rc-metin-girdisi formControlName="gorunenAd" [azamiUzunluk]="256" />
+        </rc-alan>
+        <rc-alan [etiket]="'sistem.kullanici.rolBaslik' | transloco">
+          <rc-secim formControlName="rol" [secenekler]="roleOptions()" />
+        </rc-alan>
+        <rc-alan
+          [etiket]="'sistem.kullanici.sube' | transloco"
+          [ipucu]="'sistem.kullanici.subeIpucu' | transloco"
         >
-          {{ 'sistem.kullanici.olustur' | transloco }}
-        </button>
+          <rc-secim
+            formControlName="atanmisSube"
+            [secenekler]="branches()"
+            [bosEtiket]="'sistem.kullanici.tumSubeler' | transloco"
+          />
+        </rc-alan>
+        <rc-alan [etiket]="'sistem.kullanici.parola' | transloco">
+          <rc-metin-girdisi
+            formControlName="sifre"
+            tur="password"
+            otomatikTamamlama="new-password"
+            [azamiUzunluk]="128"
+          />
+        </rc-alan>
+        <div class="eylemler">
+          <button
+            type="button"
+            class="rc-dugme rc-dugme--birincil"
+            [disabled]="createSubmit.gonderiliyor()"
+            (click)="create()"
+          >
+            {{ 'sistem.kullanici.olustur' | transloco }}
+          </button>
+        </div>
       </div>
-    </div>
-  </section>
+    </section>
+  }
 
   @if (rowError()) {
     <p class="rc-form-mesaji rc-form-mesaji--hata" role="alert">{{ rowError() }}</p>
@@ -287,27 +290,29 @@
         </table>
       </div>
     }
-    <rc-form-hatalari [hatalar]="exceptionSubmit.genelHatalar()" />
-    <div class="rc-form-izgara" [formGroup]="exceptionForm">
-      <rc-alan [etiket]="'sistem.kullanici.kullaniciAdi' | transloco">
-        <rc-secim formControlName="kullaniciId" [secenekler]="targetOptions()" />
-      </rc-alan>
-      <rc-alan [etiket]="'sistem.kullanici.istisna.izin' | transloco">
-        <rc-secim formControlName="izin" [secenekler]="permissionOptions()" />
-      </rc-alan>
-      <rc-alan [etiket]="'sistem.kullanici.istisna.tur' | transloco">
-        <rc-secim formControlName="ver" [secenekler]="kindOptions" />
-      </rc-alan>
-      <div class="eylemler">
-        <button
-          type="button"
-          class="rc-dugme"
-          [disabled]="exceptionSubmit.gonderiliyor()"
-          (click)="saveException()"
-        >
-          {{ 'sistem.kullanici.istisna.kaydet' | transloco }}
-        </button>
+    @if (actorRole() === 'Admin') {
+      <rc-form-hatalari [hatalar]="exceptionSubmit.genelHatalar()" />
+      <div class="rc-form-izgara" [formGroup]="exceptionForm">
+        <rc-alan [etiket]="'sistem.kullanici.kullaniciAdi' | transloco">
+          <rc-secim formControlName="kullaniciId" [secenekler]="targetOptions()" />
+        </rc-alan>
+        <rc-alan [etiket]="'sistem.kullanici.istisna.izin' | transloco">
+          <rc-secim formControlName="izin" [secenekler]="permissionOptions()" />
+        </rc-alan>
+        <rc-alan [etiket]="'sistem.kullanici.istisna.tur' | transloco">
+          <rc-secim formControlName="ver" [secenekler]="kindOptions" />
+        </rc-alan>
+        <div class="eylemler">
+          <button
+            type="button"
+            class="rc-dugme"
+            [disabled]="exceptionSubmit.gonderiliyor()"
+            (click)="saveException()"
+          >
+            {{ 'sistem.kullanici.istisna.kaydet' | transloco }}
+          </button>
+        </div>
       </div>
-    </div>
+    }
   </section>
 </div>

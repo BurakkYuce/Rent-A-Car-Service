@@ -4981,6 +4981,7 @@ export type CeviriAnahtari =
   | 'sistem.yetki.uygula'
   | 'sistem.yetki.uygulaBaslik'
   | 'sistem.yetki.uygulaMesaj'
+  | 'sistem.yetki.yalnizAdmin'
   | 'surum.yeniSurum'
   | 'surum.yenile'
   | 'surum.yenilemeBasarisiz'

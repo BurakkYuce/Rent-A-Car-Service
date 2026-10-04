@@ -23,7 +23,7 @@
     "kullanici": {
       "baslik": "Kullanıcı Yönetimi",
       "aciklama": "Firma kullanıcıları, rolleri, şube kapsamı ve kullanıcı bazlı izin istisnaları. Tüm işlemler denetim kaydına yazılır.",
-      "adminNotu": "Admin hesaplarını oluşturma, düzenleme ve ManageUsers izni verme yalnız Admin rolüne açıktır.",
+      "adminNotu": "Kullanıcı oluşturma, düzenleme, parola sıfırlama ve izin istisnaları yalnız Admin rolüne açıktır; bu ekranı salt okunur görüyorsunuz.",
       "yeni": "Yeni kullanıcı",
       "liste": "Kullanıcılar",
       "kullaniciAdi": "Kullanıcı adı",
@@ -79,6 +79,7 @@
     },
     "yetki": {
       "baslik": "Ekran Yetkileri",
+      "yalnizAdmin": "Ekran yetkisi, rol kopyalama ve şablon değişiklikleri yalnız Admin rolüne açıktır; bu ekranı salt okunur görüyorsunuz.",
       "aciklama": "Rol-izin matrisi (taban) üstüne ekran bazlı sıkılaştırma. Bir ekran için override tanımlarsanız yalnız seçili roller erişir; matris izni yine şarttır — override yetkiyi genişletmez. Override yoksa matris aynen geçerlidir.",
       "overrideler": "Ekran override'ları",
       "overrideYok": "Override yok (tüm ekranlar matrise göre).",

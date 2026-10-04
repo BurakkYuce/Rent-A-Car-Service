@@ -20,7 +20,9 @@ public static partial class SystemAdminApi
 {
     private static void MapPermissions(RouteGroupBuilder v1)
     {
-        var g = v1.MapGroup("/yetki").WithTags(SystemApiCommon.Tag).RequirePermission(Permission.ManageUsers);
+        // Güvenlik tur 2 M1: okuma ManageUsers; ekran yetkisi / rol kopyalama / yetki grubu YAZMALARI yalnız Admin rolü.
+        var g = v1.MapGroup("/yetki").WithTags(SystemApiCommon.Tag).RequirePermission(Permission.ManageUsers)
+            .RequireAdminRoleForWrites();
 
         g.MapGet("/ekranlar", async Task<Ok<IReadOnlyList<ScreenPermissionDto>>> (ScreenPermissionService s, CancellationToken ct)
             => TypedResults.Ok(await ScreensAsync(s, ct)));

@@ -41,6 +41,7 @@ public sealed class UserPermissionService(
     public async Task SetAsync(Guid userId, string permissionName, bool give, CancellationToken ct = default)
     {
         PermissionGuard.Require(currentUser, Permission.ManageUsers);
+        AdminRoleGuard.Require(currentUser); // güvenlik tur 2 M1: istisna yazmaları yalnız Admin rolü
 
         if (!Enum.TryParse<Permission>(permissionName, ignoreCase: false, out var permission))
             throw new ValidationException("Geçersiz izin adı.");
@@ -66,6 +67,7 @@ public sealed class UserPermissionService(
     public async Task<bool> RemoveAsync(Guid userId, string permissionName, CancellationToken ct = default)
     {
         PermissionGuard.Require(currentUser, Permission.ManageUsers);
+        AdminRoleGuard.Require(currentUser); // güvenlik tur 2 M1
         if (currentUser.UserId == userId)
             throw new ValidationException("Kendi izin istisnanızı değiştiremezsiniz (başka bir yönetici yapmalı).");
         // F11.1b güvenlik M2: ManageUsers istisnasını kaldırmak (yasağı kaldırmak = yetki iadesi) ve Admin hesabına
