@@ -402,8 +402,16 @@ public static class Cutover
         // (istek uçsuz kalır → 404 akışı).
         foreach (var c in query.Value ?? "")
             if (c < '!' || c > '~') return null;
+        if (IsPlatformConsoleRoot(path)) return SpaPlatformRoot + query.Value;
         return SpaPath(path.Value) is { } target ? target + query.Value : null;
     }
+
+    /// <summary>
+    /// Konsolun KÖKÜ (<c>/platform</c> ya da <c>/platform/</c>; alt yol değil). Blazor'da bu adreste sayfa yoktu (bu yüzden
+    /// envanter <see cref="Map"/>'te değil); kabul testi: 404 akışıyla firma Panel'ine düşüyordu → yeni konsol kökü.
+    /// </summary>
+    private static bool IsPlatformConsoleRoot(PathString path)
+        => (path.Value ?? "").TrimEnd('/').Equals(PlatformConsoleRoot, StringComparison.OrdinalIgnoreCase);
 
     /// <summary>
     /// SPA menü rotasının (parametresiz) eski Blazor karşılığı (<c>/app/kiralar</c> → <c>/kiralar</c>) — menü kaydı

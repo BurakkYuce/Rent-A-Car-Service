@@ -5,7 +5,7 @@ import { FULL_PAGE_NAVIGATION } from '@core/form/kaydedilmemis-degisiklik';
 import { WarningBannerService } from '@core/geri-bildirim/warning-banner-service';
 import { translationFunction } from '@core/i18n/ceviri';
 
-import { postLoginTarget, safeReturnUrl } from './giris-hatasi';
+import { PILOT_LANDING, postLoginTarget, safeReturnUrl } from './giris-hatasi';
 import { SessionService } from './session-service';
 import type { Permission } from './oturum-tipleri';
 
@@ -40,10 +40,11 @@ export const sessionGuard: CanMatchFn = async () => {
 };
 
 /**
- * İzin şart (canMatch): oturum yoksa girişe; izinlerden biri bile eksikse uyarı bandı + ana sayfa.
- * İzin adları sunucunun etkin izin listesiyle (`ben.izinler`) karşılaştırılır — rol değil izin.
+ * İzin kapısının ortak gövdesi. Red → uyarı bandı + Panel: sunucunun yetki reddi hedefiyle
+ * (`Cutover.ErrorTarget("yetki_yok")` = `/app/panel?hata=yetki_yok`) AYNI yer. Kök (`/`) kullanılmaz — kök
+ * yalnız Panel'e yönlenir; reddin bir ara sayfa üzerinden geçmesine gerek yok.
  */
-export function permissionGuard(...permissions: readonly Permission[]): CanMatchFn {
+function guardWith(allowed: (session: SessionService) => boolean): CanMatchFn {
   return async () => {
     const session = inject(SessionService);
     const router = inject(Router);
@@ -51,10 +52,26 @@ export function permissionGuard(...permissions: readonly Permission[]): CanMatch
     const t = translationFunction();
     await session.initialLoad();
     if (!session.loggedIn()) return redirectToLogin(router);
-    if (permissions.every((permission) => session.izinVar(permission))) return true;
+    if (allowed(session)) return true;
     banner.show({ tur: 'uyari', mesaj: t('oturum.yetkisizSayfa'), kod: 'yetki_yok' });
-    return router.createUrlTree(['/']);
+    return router.createUrlTree([PILOT_LANDING]);
   };
+}
+
+/**
+ * İzin şart (canMatch): oturum yoksa girişe; izinlerden biri bile eksikse uyarı bandı + Panel.
+ * İzin adları sunucunun etkin izin listesiyle (`ben.izinler`) karşılaştırılır — rol değil izin.
+ */
+export function permissionGuard(...permissions: readonly Permission[]): CanMatchFn {
+  return guardWith((session) => permissions.every((permission) => session.izinVar(permission)));
+}
+
+/**
+ * İzinlerden BİRİ yeter (canMatch) — uçların `RequireAnyPermission` karşılığı (ör. araç okuma: OperationsWrite ∨
+ * ViewReports). Red davranışı `permissionGuard` ile aynı (bant + Panel).
+ */
+export function anyPermissionGuard(...permissions: readonly Permission[]): CanMatchFn {
+  return guardWith((session) => permissions.some((permission) => session.izinVar(permission)));
 }
 
 /**

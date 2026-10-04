@@ -2,13 +2,14 @@ import { expect, test, type Page } from '@playwright/test';
 
 import { seriousViolations, collectErrors, logIn } from './ortak';
 
-// Ana sayfa oturum ister (oturumGuard): `ben` sahte API'den gelir.
+// Kabuk oturum ister (oturumGuard): `ben` sahte API'den gelir. Veri istemeyen kabuk sayfası olarak 404 sayfası
+// ve vitrin dizini kullanılır (kök `/app/` Panel'e yönlenir; Panel veri ister).
 test.beforeEach(async ({ page }) => logIn(page));
 
 const backgroundColor = (page: Page) =>
   page.evaluate(() => getComputedStyle(document.body).backgroundColor);
 
-test('yer tutucu sayfa /app/ altında açılır, CSP ihlali yok, axe ciddi/kritik ihlal 0', async ({
+test('bilinmeyen /app adresi 404 sayfasını açar (adres korunur, Panel bağlantısı), CSP ihlali yok, axe ciddi/kritik ihlal 0', async ({
   page,
 }) => {
   const errors = collectErrors(page);
@@ -17,13 +18,19 @@ test('yer tutucu sayfa /app/ altında açılır, CSP ihlali yok, axe ciddi/kriti
     if (yanit.url().endsWith('.woff2')) fonts.push(`${yanit.status()} ${yanit.url()}`);
   });
 
-  const response = await page.goto('/app/');
+  const response = await page.goto('/app/olmayan-sayfa');
   expect(response?.status()).toBe(200);
 
   await expect(page.locator('html')).toHaveAttribute('lang', 'tr');
-  await expect(page.getByRole('heading', { level: 1 })).toHaveText('Yeni arayüz yapım aşamasında');
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText('Sayfa bulunamadı');
+  await expect(page).toHaveURL(/\/app\/olmayan-sayfa$/);
+  await expect(page.getByRole('link', { name: "Panel'e dön" })).toHaveAttribute(
+    'href',
+    '/app/panel',
+  );
+  await expect(page.getByText('yapım aşamasında')).toHaveCount(0);
 
-  // Self-host IBM Plex (ağırlık başına ayrı dosya: sayfadaki ağırlık × alt küme kadar istek). Başlıktaki
+  // Self-host IBM Plex (ağırlık başına ayrı dosya: sayfadaki ağırlık × alt küme kadar istek). Açıklamadaki
   // "ş" latin-ext alt kümesini de çeker; hepsi kendi sunucumuzdan.
   await page.evaluate(() => document.fonts.ready);
   expect(fonts.length).toBeGreaterThanOrEqual(2);
@@ -44,7 +51,7 @@ test('tema: sistem izlenir, açık/koyu seçimi uygulanır ve saklanır; iki tem
   const DARK_BACKGROUND = 'rgb(20, 19, 16)';
 
   await page.emulateMedia({ colorScheme: 'light' });
-  await page.goto('/app/');
+  await page.goto('/app/vitrin');
   await expect(page.getByRole('button', { name: 'Sistem teması' })).toHaveAttribute(
     'aria-pressed',
     'true',

@@ -32,6 +32,15 @@ export const FINANCE_DOCUMENT_ROUTES: Routes = withTranslationBlock('finans-belg
     loadComponent: () => import('./invoices/invoice-lines').then((m) => m.InvoiceLines),
   },
   {
+    // Kabul testi: `/faturalar/{id}` doğrudan açılabilir (kira finans panelindeki fatura no bağlantısı buraya gelir).
+    // Aynı liste ekranı, detayı kimlikle açık; ayrı sekme. Statik `detay-listesi` bundan ÖNCE eşleşir.
+    path: 'faturalar/:id',
+    title: 'Fatura — RentACar',
+    canMatch: [anyPermissionGuard('FinanceWrite', 'ViewReports')],
+    loadComponent: () => import('./invoices/invoice-list').then((m) => m.InvoiceList),
+    canDeactivate: [unsavedChangesGuard],
+  },
+  {
     // Fatura çıktısı: sunucunun PDF ucuna tam sayfa gezinme (Blazor InvoicePrint gibi); sekme açmaz.
     path: 'faturalar/:id/yazdir',
     title: 'Fatura yazdır — RentACar',

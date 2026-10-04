@@ -189,7 +189,8 @@ test('izinsiz kullanıcı rapor rotasına giremez', async ({ page }) => {
   await logIn(page, { ...BEN, izinler: ['OperationsWrite'] });
   await reportEndpoints(page);
   await page.goto(INCOME.yol);
-  await expect(page).toHaveURL(/\/app\/?$/);
+  await expect(page).toHaveURL(/\/app\/panel$/);
+  await expect(page.getByText('Bu sayfayı görüntüleme yetkiniz yok.')).toBeVisible();
 });
 
 test('araç karnesi: kimlikli uç, özet + bölümler, export aracın bağlantısıyla', async ({

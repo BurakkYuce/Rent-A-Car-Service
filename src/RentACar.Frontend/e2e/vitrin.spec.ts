@@ -19,11 +19,15 @@ test('vitrin dizini her çekirdek vitrinine bağlanır (eksiksiz)', async ({ pag
     .getByRole('link')
     .evaluateAll((a) => a.map((e) => e.getAttribute('href')));
   expect([...hrefs].sort()).toEqual([...expected].sort());
+});
 
-  // Ana sayfadan da ulaşılır.
-  await page.goto('/app/');
-  await page.getByRole('link', { name: 'Tüm vitrin' }).click();
-  await expect(page).toHaveURL(/\/app\/vitrin$/);
+test('vitrin gizli: 404 sayfası vitrine bağlantı vermez', async ({ page }) => {
+  await page.goto('/app/olmayan-sayfa');
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText('Sayfa bulunamadı');
+  const hrefs = await page
+    .locator('main a[href]')
+    .evaluateAll((a) => a.map((e) => e.getAttribute('href') ?? ''));
+  expect(hrefs.filter((h) => h.includes('/vitrin'))).toEqual([]);
 });
 
 for (const pageRef of SHOWCASE_PAGES) {

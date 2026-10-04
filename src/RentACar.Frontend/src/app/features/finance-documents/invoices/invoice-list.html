@@ -234,6 +234,10 @@
         <p class="not" id="rc-fatura-detay" aria-busy="true">
           {{ 'finansBelge.yukleniyor' | transloco }}
         </p>
+      } @else if (store.detail.tur() === 'hata') {
+        <p class="rc-form-mesaji rc-form-mesaji--hata" id="rc-fatura-detay" role="alert">
+          {{ 'finansBelge.fatura.bulunamadi' | transloco }}
+        </p>
       }
     </section>
   }
