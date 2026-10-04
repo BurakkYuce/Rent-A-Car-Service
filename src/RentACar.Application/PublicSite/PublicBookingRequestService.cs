@@ -55,7 +55,6 @@ public sealed class PublicBookingRequestService(
     CustomerService customers,
     ReservationService reservations,
     WebSite.IWebListingRepository listings, // PR-14: fiyat/başlık snapshot'ı SUNUCUDAN çözülür
-    Finance.VatDefault vat,          // PR-14: ilan fiyatı KDV dahilse ERP'nin beklediği NET'e çevrilir
     Notifications.CustomerNotificationService notification, // talep alındı bildirimi (anonim yol — guard'sız)
     ICurrentUser currentUser)
 {
@@ -289,10 +288,13 @@ public sealed class PublicBookingRequestService(
                 // Vitrin fiyatı artık motordan DEĞİL ilandan geliyor; bu satır olmasaydı
                 // `PricingService` GunlukUcret=0 görüp tarifeden çözmeye çalışır, tenant tarife
                 // girmediği için 0 kalırdı → müşteri sitede 1.500 ₺ görür, sözleşmede 0 yazardı.
-                GunlukUcret = await NetDailyAsync(request, ct),
+                GunlukUcret = ShownDaily(request),
+                // Kabul bulgusu d-web-talep-03: KDV modu ilanın gösterim biçiminden gelir — kira zinciri
+                // ücreti modla yorumlar (InvoiceService GenelToplam'dan net+KDV ayrıştırır).
                 // `FiyatTuru` KESİNLİKLE "Otomatik" GÖNDERİLMEZ: PricingService o değerde manuel
                 // fiyatı ZORLA SIFIRLAR (`if (otomatik) input.GunlukUcret = 0m`) ve yukarıdaki
                 // fiyat sessizce çöpe giderdi.
+                FiyatTuru = ShownPriceType(request),
             }, ct);
 
             await repository.SetConvertedReservationAsync(id, reservationId, ct);
@@ -310,18 +312,28 @@ public sealed class PublicBookingRequestService(
     private const string WebSource = "Web";
 
     /// <summary>
-    /// PR-14: müşterinin sitede gördüğü fiyatı ERP'nin beklediği NET'e çevirir.
+    /// Müşterinin sitede gördüğü günlük fiyat — DÖNÜŞTÜRÜLMEDEN. Fiyat yoksa (doğrudan forma gelen
+    /// talep) 0 döner → mevcut davranış korunur, motor devreye girer.
     ///
-    /// ERP zincirinin TAMAMI net çalışır (KDV fatura aşamasında eklenir); ilan fiyatı ise KDV
-    /// DAHİL olabilir. Brüt rakamı olduğu gibi geçirmek sözleşmeyi KDV oranı kadar şişirirdi.
-    /// Fiyat yoksa (doğrudan forma gelen talep) 0 döner → mevcut davranış korunur, motor devreye girer.
+    /// <para>Eski hâl (PR-14) "ERP zinciri net çalışır" varsayımıyla KDV dahil fiyatı nete bölüyordu.
+    /// Varsayım YANLIŞTI: fiyat türü boş/"KDV Dahil Günlük" kirada ücret BRÜT'tür ve fatura
+    /// GenelToplam'dan net+KDV ayrıştırır — 1.500 brüt gösterilen talep 1.250 brüt faturalanıyordu
+    /// (kabul bulgusu d-web-talep-03, müşteriye %16,7 eksik fatura). KDV modu artık
+    /// <see cref="ShownPriceType"/> ile açıkça taşınır; dönüşümü PricingService yapar.</para>
     /// </summary>
-    private async Task<decimal> NetDailyAsync(PublicBookingRequest t, CancellationToken ct)
+    private static decimal ShownDaily(PublicBookingRequest t)
+        => t.GosterilenGunlukUcretKdvDahil is { } shown && shown > 0m ? shown : 0m;
+
+    /// <summary>
+    /// İlanın KDV gösterimine karşılık gelen kira fiyat türü: KDV dahil ilan → "KDV Dahil Günlük"
+    /// (ücret aynen brüt); KDV hariç ilan → "Günlük" (NET mod — PricingService tenant KDV oranıyla brüte
+    /// çevirir ve oranı snapshot'lar, fatura aynı orandan ayrıştırır → faturadaki net = sitedeki fiyat).
+    /// Gösterilen fiyat yoksa null (motor/manuel akış eskisi gibi).
+    /// </summary>
+    private static string? ShownPriceType(PublicBookingRequest t)
     {
-        if (t.GosterilenGunlukUcretKdvDahil is not { } shown || shown <= 0m) return 0m;
-        if (t.GosterilenKdvDahil == false) return shown; // zaten net
-        var rate = await vat.RateAsync(ct);
-        return rate > 0m ? Math.Round(shown / (1m + rate), 2, MidpointRounding.AwayFromZero) : shown;
+        if (ShownDaily(t) <= 0m) return null;
+        return t.GosterilenKdvDahil == false ? "Günlük" : "KDV Dahil Günlük";
     }
 
     private static string RequestNote(PublicBookingRequest t)
