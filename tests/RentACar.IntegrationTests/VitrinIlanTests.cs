@@ -499,14 +499,82 @@ public sealed class VitrinIlanTests(PostgresFixture fx)
         Assert.Equal((decimal)expectedNet, invoice.NetTutar);
     }
 
-    /// <summary>Talep → rezervasyon → kira → fatura zincirini uçtan uca yürütür.</summary>
+    /// <summary>
+    /// #361 adversarial kalıcı kilitleri (elle oracle, tenant KDV %20). P1/P2/P3 yukarıdaki testlerde.
+    /// P1b — aylık kademe: 30 gün, aylık 36.000 KDV dahil → günlük 1.200, rezervasyon ve fatura 36.000.
+    /// P4 — KDV hariç + haftalık kademe: 10 gün, haftalık 7.000 net → günlük net 1.000, net toplam 10.000 →
+    /// brüt 12.000; faturada net 10.000 / KDV 2.000.
+    /// </summary>
+    [Fact]
+    public async Task P1b_aylik_kademe_KDV_dahil_gosterilen_toplam_aynen_gecer()
+    {
+        var (res, invoice) = await ConvertAndInvoiceAsync(
+            daily: 1500m, vatIncluded: true, phone: "0555 001 00 01", days: 30, monthly: 36000m);
+        Assert.Equal(1200m, res.GunlukUcret);
+        Assert.Equal(36000m, res.Tutar);
+        Assert.Equal(36000m, invoice.GenelToplam);
+    }
+
+    [Fact]
+    public async Task P4_KDV_haric_haftalik_kademe_net_toplam_faturada_aynen_kalir()
+    {
+        var (res, invoice) = await ConvertAndInvoiceAsync(
+            daily: 1500m, vatIncluded: false, phone: "0555 001 00 04", days: 10, weekly: 7000m);
+        Assert.Equal(12000m, res.Tutar);
+        Assert.Equal(12000m, invoice.GenelToplam);
+        Assert.Equal(10000m, invoice.NetTutar);
+        Assert.Equal(2000m, invoice.KdvTutar);
+    }
+
+    /// <summary>P5 — net toplam ("Toplam") modlu site rezervasyonu DOKUNULMADAN yeniden kaydedilir: tutar ve günlük
+    /// brüt DEĞİŞMEZ (çift gross-up yok). 1.500 net × 3 → brüt 5.400, günlük 1.800.</summary>
+    [Fact]
+    public async Task P5_toplam_modlu_rezervasyon_dokunulmadan_kaydedilince_tutar_degismez()
+    {
+        var (res, invoice) = await ConvertAndInvoiceAsync(
+            daily: 1500m, vatIncluded: false, phone: "0555 001 00 05",
+            edit: (svc, r) => svc.UpdateAsync(r.Id, EditInput(r, r.GunlukUcret)));
+        Assert.Equal(1800m, res.GunlukUcret);
+        Assert.Equal(5400m, res.Tutar);
+        Assert.Equal("Toplam", res.FiyatTuru);
+        Assert.Equal(4500m, invoice.NetTutar);
+    }
+
+    /// <summary>P6 (Medium) — "Toplam" modlu rezervasyonda formdaki "Günlük ücret" (kayıtlı günlük BRÜT) 1.700'e
+    /// çekilir: tutar 3 × 1.700 = 5.100 (eskiden net toplam sayılıp 2.040). Mod "KDV Dahil Günlük"e normalize olur;
+    /// fatura brüt 5.100 / net 4.250 / KDV 850.</summary>
+    [Fact]
+    public async Task P6_toplam_modda_gunluk_ucret_duzenlemesi_gunluk_brut_sayilir()
+    {
+        var (res, invoice) = await ConvertAndInvoiceAsync(
+            daily: 1500m, vatIncluded: false, phone: "0555 001 00 06",
+            edit: (svc, r) => svc.UpdateAsync(r.Id, EditInput(r, 1700m)));
+        Assert.Equal(1700m, res.GunlukUcret);
+        Assert.Equal(5100m, res.Tutar);
+        Assert.Equal("KDV Dahil Günlük", res.FiyatTuru);
+        Assert.Null(res.KdvOranSnapshot);
+        Assert.Equal(5100m, invoice.GenelToplam);
+        Assert.Equal(4250m, invoice.NetTutar);
+        Assert.Equal(850m, invoice.KdvTutar);
+    }
+
+    /// <summary>Düzenleme formunun tam-durum gövdesi: kayıtlı değerler + verilen günlük ücret.</summary>
+    private static RentACar.Application.Bookings.BookingInput EditInput(Reservation r, decimal dailyFee) => new()
+    {
+        MusteriId = r.MusteriId, VehicleId = r.VehicleId, BasTar = r.BasTar, BitTar = r.BitTar,
+        CikisOfisi = r.CikisOfisi, DonusOfisi = r.DonusOfisi, Kaynak = r.Kaynak, Aciklama = r.Aciklama,
+        GunlukUcret = dailyFee, FiyatTuru = r.FiyatTuru,
+    };
+
+    /// <summary>Talep → rezervasyon → (isteğe bağlı düzenleme) → kira → fatura zincirini uçtan uca yürütür.</summary>
     private async Task<(Reservation Res, Invoice Invoice)> ConvertAndInvoiceAsync(
-        decimal daily, bool vatIncluded, string phone, int days = 3, decimal? weekly = null)
+        decimal daily, bool vatIncluded, string phone, int days = 3, decimal? weekly = null, decimal? monthly = null,
+        Func<RentACar.Application.Bookings.ReservationService, Reservation, Task<bool>>? edit = null)
     {
         using var host = new TestHost(fx.AppConnectionString);
         var t = Guid.NewGuid();
         var (listingId, _, vehicleIds) = await SetupListingAsync(
-            host, t, daily: daily, weekly: weekly, vatIncluded: vatIncluded);
+            host, t, daily: daily, weekly: weekly, monthly: monthly, vatIncluded: vatIncluded);
 
         using (var s = host.ScopeFor(t, role: null))
             await s.ServiceProvider.GetRequiredService<PublicBookingRequestService>().CreateAsync(
@@ -522,6 +590,11 @@ public sealed class VitrinIlanTests(PostgresFixture fx)
 
         var reservations = staff.ServiceProvider.GetRequiredService<RentACar.Application.Bookings.ReservationService>();
         var res = (await reservations.GetAsync(resId))!;
+        if (edit is not null)
+        {
+            Assert.True(await edit(reservations, res));
+            res = (await reservations.GetAsync(resId))!;
+        }
         var rentalId = await reservations.ConvertToRentalAsync(resId);
 
         var invoices = staff.ServiceProvider.GetRequiredService<RentACar.Application.Finance.InvoiceService>();
