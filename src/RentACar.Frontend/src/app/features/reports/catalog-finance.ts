@@ -116,10 +116,20 @@ export const CASH_BANK = defineReport({
       kartlar: [
         kb.computed('rapor.alan.kasaGiris', 'para', (s) => s.toplam.kasaGiris),
         kb.computed('rapor.alan.kasaCikis', 'para', (s) => s.toplam.kasaCikis),
-        kb.computed('rapor.alan.kasaBakiye', 'para', (s) => s.toplam.kasaBakiye, true),
+        // Kartlar dönem hareketinin toplamıdır (devir içermez). "Devir satırı" işaretliyken liste devirli yürüyen bakiye
+        // gösterir; kart etiketi "dönem bakiyesi" olur (iki sayı karışmasın — kabul testi).
+        {
+          ...kb.computed('rapor.alan.kasaBakiye', 'para', (s) => s.toplam.kasaBakiye, true),
+          baslikSuzgecle: (f) =>
+            f['devir'] === true ? 'rapor.alan.kasaDonemBakiye' : 'rapor.alan.kasaBakiye',
+        },
         kb.computed('rapor.alan.bankaGiris', 'para', (s) => s.toplam.bankaGiris),
         kb.computed('rapor.alan.bankaCikis', 'para', (s) => s.toplam.bankaCikis),
-        kb.computed('rapor.alan.bankaBakiye', 'para', (s) => s.toplam.bankaBakiye, true),
+        {
+          ...kb.computed('rapor.alan.bankaBakiye', 'para', (s) => s.toplam.bankaBakiye, true),
+          baslikSuzgecle: (f) =>
+            f['devir'] === true ? 'rapor.alan.bankaDonemBakiye' : 'rapor.alan.bankaBakiye',
+        },
       ],
       bolumler: [
         section({

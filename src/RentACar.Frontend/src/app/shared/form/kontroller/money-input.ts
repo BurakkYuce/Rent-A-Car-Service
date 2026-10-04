@@ -60,9 +60,14 @@ export class MoneyInput extends ParsingControl<string | number> {
   readonly kesir = input(2, { transform: numberAttribute });
   readonly negatif = input(false, { transform: booleanAttribute });
   readonly yerTutucu = input('0,00');
+  /**
+   * Para simgesi yerine gösterilecek ek (ör. `%` — oran alanı). Verilmezse para biriminin simgesi. Kabul testi:
+   * "Tevkifat Oranı %" alanında ₺ görünüyordu.
+   */
+  readonly ek = input<string | null>(null);
 
-  protected readonly iconSymbol = computed(() =>
-    getCurrencySymbol(this.paraBirimi(), 'narrow', LOCALE),
+  protected readonly iconSymbol = computed(
+    () => this.ek() ?? getCurrencySymbol(this.paraBirimi(), 'narrow', LOCALE),
   );
   protected readonly metin = signal('');
 

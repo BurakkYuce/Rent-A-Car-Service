@@ -252,6 +252,13 @@ test('detay, detaylı liste, durum panosu, foto sekmesi: içerik + axe', async (
     await page.goto(s.yol);
     await waitReady(page, s);
     expect(await seriousViolations(page), s.ad).toEqual([]);
+    if (s === DETAILED) {
+      // Kabul testi (b-arac-detayli-02): detaylı listede de dışa aktarma (araç listesinin geniş sütunlu ucu).
+      await expect(page.getByRole('link', { name: 'Excel' })).toHaveAttribute(
+        'href',
+        '/listeler/export/araclar?format=excel',
+      );
+    }
   }
   await expect(page.getByRole('gridcell', { name: '2 gün gecikme' })).toBeVisible();
   await expect(page.getByRole('gridcell', { name: 'Ayşe Yılmaz' })).toBeVisible();

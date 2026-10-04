@@ -59,6 +59,19 @@ export interface ReportCard<S> {
   readonly deger: (summary: S) => unknown;
   /** Negatifse hata rengi (net kâr, bakiye). */
   readonly isaretli?: boolean;
+  /**
+   * Başlık ekrandaki süzgece göre değişiyorsa (ör. kasa/banka "Devir satırı" işaretliyken kart devirsiz DÖNEM
+   * bakiyesini gösterir, liste ise devirli yürüyen bakiyeyi — etiket bunu söyler). Yoksa `baslik`.
+   */
+  readonly baslikSuzgecle?: (filters: Readonly<Record<string, unknown>>) => CeviriAnahtari;
+}
+
+/** Kartın ekrandaki başlığı (süzgece bağlıysa ona göre). */
+export function cardTitle<S>(
+  card: ReportCard<S>,
+  filters: Readonly<Record<string, unknown>>,
+): CeviriAnahtari {
+  return card.baslikSuzgecle?.(filters) ?? card.baslik;
 }
 
 /** Özetin içindeki dizi (KDV oranları, kırılımlar, pivot, matris) — sayfasız düz tablo. */

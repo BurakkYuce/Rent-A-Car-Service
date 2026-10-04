@@ -179,6 +179,16 @@ describe('apiHatasinaCevir', () => {
     expect(error.detay).toBe('Not Found');
   });
 
+  it('413 (istek gövdesi sınırı aşıldı) → İngilizce "Content Too Large" değil Türkçe dosya boyutu mesajı', () => {
+    const error = toApiError(problem(413, { title: 'Content Too Large', status: 413 }));
+    expect(error.kod).toBe('bilinmeyen');
+    expect(error.status).toBe(413);
+    expect(error.detay).toBe('Dosya çok büyük; daha küçük bir dosya seçin.');
+    expect(toApiError(problem(413, null)).detay).toBe(
+      'Dosya çok büyük; daha küçük bir dosya seçin.',
+    );
+  });
+
   it('tanınmayan kod → bilinmeyen (HTTP durumundan kod TAHMİN edilmez)', () => {
     const error = toApiError(problem(409, { status: 409, detail: 'x', kod: 'conflict' }));
     expect(error.kod).toBe('bilinmeyen');

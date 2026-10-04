@@ -91,6 +91,7 @@
       "basTar": "Başlangıç",
       "bitTar": "Bitiş",
       "gunlukUcret": "Günlük ücret",
+      "gunlukUcretBrutNot": "Bu değer KDV dahil günlük ücrettir; değiştirirseniz fiyat modu KDV Dahil Günlük olur.",
       "otomatikBos": "Otomatik için boş",
       "fiyatTuru": "Fiyat türü",
       "kampanyaKodu": "Kampanya kodu",

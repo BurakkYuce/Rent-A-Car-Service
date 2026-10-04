@@ -177,7 +177,10 @@
           <rc-alan [etiket]="'rezervasyon.alan.fiyatTuru' | transloco">
             <rc-secim formControlName="fiyatTuru" [secenekler]="priceTypes()" bosEtiket="—" />
           </rc-alan>
-          <rc-alan [etiket]="'rezervasyon.alan.gunlukUcret' | transloco">
+          <rc-alan
+            [etiket]="'rezervasyon.alan.gunlukUcret' | transloco"
+            [ipucu]="grossFeeNote() ? ('rezervasyon.alan.gunlukUcretBrutNot' | transloco) : ''"
+          >
             <rc-para-girdisi
               formControlName="gunlukUcret"
               [yerTutucu]="'rezervasyon.alan.otomatikBos' | transloco"

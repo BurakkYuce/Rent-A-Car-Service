@@ -81,7 +81,7 @@
       "tahsilEtEtiket": "{{plaka}} için tahsil et",
       "baslik": "Tahsilat — {{plaka}} · {{no}}",
       "tutar": "Tutar",
-      "tutarIpucu": "Dönüş öncesi planlanan bakiye; geç dönüş, yakıt ve km farkı dönüşte kapanır.",
+      "tutarIpucu": "Önerilen: {{tutar}} — dönüş öncesi planlanan bakiye; geç dönüş, yakıt ve km farkı dönüşte kapanır.",
       "hesap": "Hesap türü",
       "hesapId": "Hesap (kasa/banka)",
       "hesapBelirtilmemis": "— hesap belirtilmemiş —",

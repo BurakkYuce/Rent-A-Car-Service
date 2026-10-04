@@ -1,7 +1,13 @@
 import type { CeviriAnahtari } from '@core/i18n/ceviri-anahtarlari';
 import type { TabloSutunu } from '@shared/tablo/tablo-modeli';
 
-import type { CatalogColumn, CatalogConfig, CatalogField, CatalogRow } from './catalog-model';
+import {
+  type CatalogColumn,
+  type CatalogConfig,
+  type CatalogField,
+  type CatalogRow,
+  fractionToPercent,
+} from './catalog-model';
 
 type Translate = (key: CeviriAnahtari, params?: Record<string, unknown>) => string;
 
@@ -61,7 +67,14 @@ export function catalogColumns(
           },
         };
       case 'number':
-        return { ...base, tur: 'sayi', haneler: '1.0-4', deger: (r) => toNum(r[col.field]) };
+        return {
+          ...base,
+          tur: 'sayi',
+          haneler: '1.0-4',
+          // Yüzde girilen kesir (ek hizmet KDV): listede de yüzde (0,2 → 20) — formla aynı birim.
+          deger: (r) =>
+            f?.percentOfFraction ? fractionToPercent(toNum(r[col.field])) : toNum(r[col.field]),
+        };
       case 'date':
         return { ...base, tur: 'tarih', deger: (r) => r[col.field] ?? null };
       case 'bool':

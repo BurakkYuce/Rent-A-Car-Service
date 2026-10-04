@@ -99,7 +99,7 @@ export const collectionDescription = (contractNo: string) =>
         <div class="rc-form-izgara">
           <rc-alan
             [etiket]="'kiraListesi.tahsil.tutar' | transloco"
-            [ipucu]="'kiraListesi.tahsil.tutarIpucu' | transloco"
+            [ipucu]="'kiraListesi.tahsil.tutarIpucu' | transloco: { tutar: suggestion() }"
           >
             <rc-para-girdisi formControlName="tutar" [paraBirimi]="currency()" />
           </rc-alan>
@@ -215,6 +215,10 @@ export class CollectPanel {
 
   protected readonly currency = computed(
     () => this.satir().tahsilat?.doviz ?? rentalCurrency(this.satir()),
+  );
+  /** Önerilen tutar para biçiminde (binlik ayırıcılı) — ipucunda; girdi odakta gruplamasız yazım gösterir (a-panel-06). */
+  protected readonly suggestion = computed(() =>
+    formatMoney(count(this.satir().tahsilat?.varsayilanTutar), this.currency()),
   );
   protected readonly aciklama = computed(() => {
     const s = this.satir();

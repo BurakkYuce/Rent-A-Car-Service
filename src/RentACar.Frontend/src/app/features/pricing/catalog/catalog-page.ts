@@ -502,6 +502,8 @@ function validators(f: CatalogField): ValidatorFn[] {
   const v: ValidatorFn[] = [];
   if (f.required) v.push(Validators.required);
   if (f.maxLength) v.push(Validators.maxLength(f.maxLength));
+  // Yüzde girilen oran (API kesir 0–1): ekranda 0–100 (sunucunun "0 ile 1" mesajına düşmeden alan altında).
+  if (f.percentOfFraction) v.push(Validators.min(0), Validators.max(100));
   return v;
 }
 

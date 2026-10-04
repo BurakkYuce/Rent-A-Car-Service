@@ -181,11 +181,13 @@ const EXTRA_SERVICES: CatalogConfig = {
     name(),
     { name: 'birimUcret', label: L('birimUcretNet'), kind: 'money', required: true },
     {
+      // API kesir (0,20); ekranda sigorta ürünüyle AYNI birim: yüzde (20) — dönüşüm istemcide.
       name: 'kdvOrani',
-      label: L('kdvOrani'),
+      label: L('kdvYuzde'),
       kind: 'ratio',
-      defaultValue: 0.2,
-      hint: L('kdvOraniIpucu'),
+      percentOfFraction: true,
+      defaultValue: 20,
+      hint: L('kdvYuzdeIpucu'),
     },
     { name: 'maxGun', label: L('maxGun'), kind: 'int', hint: L('maxGunIpucu') },
     { ...description(), kind: 'textarea' },

@@ -181,7 +181,7 @@
         >
           @for (k of view().kartlar; track $index) {
             <div class="rc-kart">
-              <dt>{{ k.baslik | transloco }}</dt>
+              <dt>{{ cardLabel(k) | transloco }}</dt>
               <dd [class.eksi]="k.isaretli && negative(k.deger(s))">
                 {{ format(k.tur, k.deger(s)) }}
               </dd>
