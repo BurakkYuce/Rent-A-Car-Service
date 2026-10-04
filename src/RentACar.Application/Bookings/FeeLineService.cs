@@ -99,10 +99,10 @@ public sealed class FeeLineService(
     public async Task<VehicleGroup?> ResolveGroupAsync(Guid vehicleId, CancellationToken ct = default)
     {
         var vehicle = await vehicles.FindAsync(vehicleId, ct);
-        var code = vehicle?.Grup?.Trim();
-        if (string.IsNullOrWhiteSpace(code)) return null;
-        return (await groups.ListActiveAsync(ct))
-            .FirstOrDefault(g => string.Equals(g.Kod, code, StringComparison.OrdinalIgnoreCase));
+        var value = vehicle?.Grup?.Trim();
+        if (string.IsNullOrWhiteSpace(value)) return null;
+        // Kabul B-A2: ekrandan açılan araç grubun ADINI taşır — Kod sonra Ad (fiyat motoruyla aynı kural).
+        return VehicleGroupMatch.Find(await groups.ListAsync(ct), value); // tüm gruplar: pasif kod Ad'a düşmez (M1)
     }
 
     /// <summary>
