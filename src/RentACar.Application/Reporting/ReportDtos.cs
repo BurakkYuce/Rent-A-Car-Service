@@ -55,9 +55,13 @@ public sealed record CashboxSummaryDto(
     decimal KasaGiris, decimal KasaCikis, decimal KasaBakiye,
     decimal BankaGiris, decimal BankaCikis, decimal BankaBakiye);
 
-/// <summary>Cari defter satırı (bakiye/yaşlandırma için) — ad çözümlenmiş, base tutar.</summary>
+/// <summary>Cari defter satırı (bakiye/yaşlandırma için) — ad çözümlenmiş, base tutar.
+/// <para><paramref name="SourceId"/>: satırı yazan belge. <paramref name="TargetSourceId"/>: bu belge başka bir belgeyi
+/// geri alıyorsa (nakit ters kaydı → <c>TersAlinanId</c>, fatura iadesi → <c>KaynakFaturaId</c>) o belgenin kimliği —
+/// FIFO yaşlandırma ikisini önce birbirinden düşer.</para></summary>
 public sealed record CariLedgerRowDto(
-    Guid CariId, string Ad, LedgerDirection Direction, decimal Base, DateTimeOffset Tarih);
+    Guid CariId, string Ad, LedgerDirection Direction, decimal Base, DateTimeOffset Tarih,
+    Guid SourceId = default, Guid? TargetSourceId = null);
 
 /// <summary>
 /// Cari bakiye satırı. <paramref name="Bakiye"/> pozitif = müşteri borçlu (alacağımız).
@@ -263,8 +267,8 @@ public sealed class CariBakiyeFilter
 }
 
 /// <summary>
-/// Cari borç yaşlandırma (v1: BRÜT borç — tahsilat FIFO mahsubu yok). Borç (Debit) satırları
-/// yaşa göre kovalanır. Toplam = kovaların toplamı (net bakiye DEĞİL).
+/// Cari borç yaşlandırma — alacak hareketleri (tahsilat/iade) EN ESKİ borçtan FIFO ile düşülür,
+/// kalan borç yaşa göre kovalanır. Toplam = kovaların toplamı = carinin net (borç) bakiyesi.
 /// </summary>
 public sealed record AgingRowDto(
     Guid CariId, string Ad, decimal B0_30, decimal B31_60, decimal B61_90, decimal B90Plus, decimal Toplam);

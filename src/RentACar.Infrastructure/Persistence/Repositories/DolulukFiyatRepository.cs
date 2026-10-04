@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using Npgsql;
 using RentACar.Application.Common;
 using RentACar.Application.DolulukFiyat;
+using RentACar.Application.VehicleGroups;
 using RentACar.Domain.Entities;
 using RentACar.Domain.Enums;
 
@@ -103,10 +104,20 @@ public sealed class OccupancyProvider(IDbContextFactory<AppDbContext> factory) :
         if (to <= from) return null;
 
         await using var db = await factory.CreateDbContextAsync(ct);
-        var vehicleIds = await db.Vehicles.AsNoTracking()
-            .Where(v => v.Grup != null && v.Grup.Trim().ToUpper() == code.ToUpper()
-                && v.Durum != VehicleStatus.Satildi && v.Durum != VehicleStatus.Pasif) // B1
-            .Select(v => v.Id).ToListAsync(ct);
+        // Kabul B-A2 + adversarial M2b: araç Grup'u grubun KODU ya da ADI (ekrandan açılan araç). Üyelik TEK kuraldan:
+        // VehicleGroupMatch.Find(araç.Grup) == hedef grup → bir araç iki grubun filosunda sayılamaz. Hedef grup tanımsız
+        // ya da pasifse eski davranış: ham kod eşitliği. Adaylar belleğe alınır — Türkçe-duyarsız ad karşılaştırması
+        // SQL'e çevrilemez; filo kiracı başına onlarca/yüzlerce satır.
+        var groups = await db.VehicleGroups.AsNoTracking().ToListAsync(ct);
+        var target = VehicleGroupMatch.Find(groups, code);
+        var candidates = await db.Vehicles.AsNoTracking()
+            .Where(v => v.Grup != null && v.Durum != VehicleStatus.Satildi && v.Durum != VehicleStatus.Pasif) // B1
+            .Select(v => new { v.Id, v.Grup }).ToListAsync(ct);
+        var vehicleIds = candidates
+            .Where(v => target is not null
+                ? VehicleGroupMatch.Find(groups, v.Grup)?.Id == target.Id
+                : string.Equals(v.Grup!.Trim(), code, StringComparison.OrdinalIgnoreCase))
+            .Select(v => v.Id).ToList();
         if (vehicleIds.Count == 0) return null;
 
         var rentals = await db.Rentals.AsNoTracking()

@@ -1,6 +1,9 @@
+using Microsoft.EntityFrameworkCore;
 using RentACar.Application.Authorization;
 using RentACar.Application.Reporting;
 using RentACar.Domain.Enums;
+using RentACar.Infrastructure.Persistence;
+using RentACar.Web.Api.Rapor;
 using RentACar.Web.Identity;
 
 namespace RentACar.Web.Reports;
@@ -16,8 +19,14 @@ public static class ReportExportEndpoints
         var grp = app.MapGroup("/raporlar/export").RequirePermission(Permission.ViewReports);
 
         grp.MapGet("/{rapor}", async (string rapor, HttpRequest req, ReportService rs, ReportExportService ex, PdfExportService pdf,
-            RentACar.Application.FinancialAccounts.FinancialAccountService fas) =>
+            RentACar.Application.FinancialAccounts.FinancialAccountService fas, IDbContextFactory<AppDbContext> dbf) =>
         {
+            // KVKK: cari adı/iletişimi ekrandaki TEK kuralla (CustomerMask) — export ham DisplayName yazıyordu.
+            // Ad kümesi tabanlı maske tembel yüklenir (adı olmayan raporlar ek sorgu yapmaz).
+            var ct = req.HttpContext.RequestAborted;
+            CustomerMask? nameMask = null;
+            async Task<CustomerMask> NameMask() => nameMask ??= await CustomerMask.LoadAsync(dbf, null, ct);
+
             // Tarihler EKRANLA AYNI kuralla çözülür (Api/Rapor/ReportPeriod): bağlantılar yyyy-MM-dd İSTANBUL günü
             // taşır. Eskiden FormParse.Date sunucunun yerel saatinde gece yarısına çeviriyordu → +03 sunucuda gün bir
             // geri kayıyor (Günlük Faaliyet / Araç Günlük Durum dünü veriyordu) ve "to" bitiş gününün BAŞI olduğu için
@@ -47,7 +56,7 @@ public static class ReportExportEndpoints
                 "karlilik" => Profitability(await rs.GetProfitabilityAsync(from, to, branch, group, plate,
                     NullIfEmpty(req.Query["kaynak"].ToString()), NullIfEmpty(req.Query["sipp"].ToString()),
                     string.Equals(req.Query["kdv"].ToString(), "dahil", StringComparison.OrdinalIgnoreCase)
-                        ? VatStatus.KdvDahil : VatStatus.Kdvsiz)),
+                        ? VatStatus.KdvDahil : VatStatus.Kdvsiz), await NameMask()),
                 "karlilik-grup" => ProfitabilitySummary(await rs.GetProfitabilitySummaryAsync("grup", from, to)),
                 "karlilik-sube" => ProfitabilitySummary(await rs.GetProfitabilitySummaryAsync("sube", from, to)),
                 "karlilik-segment" => ProfitabilitySummary(await rs.GetProfitabilitySummaryAsync("segment", from, to)),
@@ -58,9 +67,9 @@ public static class ReportExportEndpoints
                 "kasa-banka" => CashBank(account,
                     await rs.GetAccountLedgerAsync(account, from, to, accountId,
                         currency: cbCurrency, transactionType: cbType, branch: cbBranch, carryForward: cbCarryForward),
-                    (await fas.ListAsync()).ToDictionary(h => h.Id, h => h.Ad)),
+                    (await fas.ListAsync()).ToDictionary(h => h.Id, h => h.Ad), await NameMask()),
                 // FAZ-62: ekrandaki filtre export'a AYNEN taşınır (gördüğün = indirdiğin).
-                "cari-bakiye" => AccountBalance(await rs.GetAccountBalancesAsync(new CariBakiyeFilter
+                "cari-bakiye" => await AccountBalance(dbf, ct, await rs.GetAccountBalancesAsync(new CariBakiyeFilter
                 {
                     Ara = NullIfEmpty(req.Query["ara"].ToString()),
                     OzelKod = NullIfEmpty(req.Query["ozelKod"].ToString()),
@@ -82,7 +91,7 @@ public static class ReportExportEndpoints
                         Bas = from,
                         Bit = to
                     })),
-                "yaslandirma" => Aging(await rs.GetAgingAsync(asOf)),
+                "yaslandirma" => await Aging(dbf, ct, await rs.GetAgingAsync(asOf)),
                 // Ekran (ReportApi.Fleet) günleri UTC çıpasıyla verir → aynı çıpa.
                 "doluluk" => Occupancy(await rs.GetOccupancyAsync(
                     period.FromAnchor ?? dayAnchor.AddMonths(-1), period.ToAnchor ?? dayAnchor)),
@@ -92,7 +101,7 @@ public static class ReportExportEndpoints
                 "km-detay" => KmDetail(await rs.GetKmDetailAsync(from, to)),
                 "rezervasyon-kaynak" => ReservationSource(await rs.GetReservationSourceAsync(
                     new RentACar.Application.Reporting.RezervasyonKaynakFilter { Bas = from, Bit = to })),
-                "fatura-donem" => InvoicePeriod(await rs.GetInvoicePeriodAsync(from, to)),
+                "fatura-donem" => InvoicePeriod(await rs.GetInvoicePeriodAsync(from, to), await NameMask()),
                 // FAZ-53 — ekrandaki "Kira Faturalama Durumu" sekmesi (süzgeç birebir taşınır).
                 "kira-fatura-durum" => RentalInvoiceStatus(await rs.GetRentalInvoiceStatusAsync(from, to,
                     new KiraFaturaDurumFilter
@@ -103,7 +112,7 @@ public static class ReportExportEndpoints
                             "yok" => false, "var" => true, _ => (bool?)null
                         },
                         SubeId = Guid.TryParse(req.Query["sube"].ToString(), out var fsid) ? fsid : null
-                    })),
+                    }), await NameMask()),
                 // Ekran (ReportApi.Operations) gün çıpası kullanır → aynı çıpa.
                 "arac-durum-takip" => VehicleStatusTracking(await rs.GetVehicleStatusTrackingAsync(
                     VehicleTrackingFilter(req), period.FromAnchor, period.ToAnchor)),
@@ -118,13 +127,13 @@ public static class ReportExportEndpoints
                         Plaka = plate, Grup = group, Sipp = NullIfEmpty(req.Query["sipp"].ToString()),
                         AracSahibi = NullIfEmpty(req.Query["aracSahibi"].ToString()),
                         Ofis = NullIfEmpty(req.Query["ofis"].ToString())
-                    })),
+                    }), await NameMask()),
                 // Kabul bulgusu d-rapor-gunluk-04: ekranla aynı gün çıpası + ekrandaki şube süzgeci.
                 "gunluk" => Daily(await rs.GetDailyActivityAsync(dayAnchor, branch)),
                 "kdv-listesi" => Vat(await rs.GetVatListAsync(from, to)),
                 // FAZ-53 — KDV geniş format (satır=belge, sütun=oran); ?alis=1 → gelen e-Fatura dahil.
                 "kdv-genis" => VatWide(await rs.GetVatExtendedAsync(from, to,
-                    req.Query["alis"].ToString() is "1" or "on" or "true")),
+                    req.Query["alis"].ToString() is "1" or "on" or "true"), await NameMask()),
                 "ek-hizmet" => AddOn(await rs.GetAddOnReportAsync(from, to)),
                 // FAZ-12 Bölüm C — araç-bazlı pivot (ad-bazlı özet export'u DEĞİŞMEDİ).
                 "ek-hizmet-arac" => AddOnVehiclePivot(await rs.GetAddOnVehiclePivotAsync(from, to)),
@@ -164,13 +173,13 @@ public static class ReportExportEndpoints
     /// TOPLAM satırında yalnız P&amp;L kolonları toplanır — Excel'de yanlışlıkla Gider'e eklenmesinler.
     /// <para>KDV referans kolonları HER ZAMAN dolu (kabul bulgusu d-rapor-karlilik-02): ekran bu bilgiyi bayraktan
     /// bağımsız gösteriyor; eskiden yalnız <c>kdv=dahil</c> ile dolduğu için ekranda görülen değer dosyada boştu.</para></summary>
-    private static Table Profitability(KarlilikDto d)
+    private static Table Profitability(KarlilikDto d, CustomerMask mask)
     {
         var rows = d.Satirlar.Select(s => new object?[]
         {
             s.Plaka, s.Sube, s.Grup, s.Segment, s.Gelir, s.Gider, s.NetKar,
             s.HesaplananKdv, s.GelirKdvDahil,
-            s.Sipp, s.Otopark, s.RezKaynagi, s.CariAd, s.CariBakiye,
+            s.Sipp, s.Otopark, s.RezKaynagi, MaskName(mask, s.CariAd), s.CariBakiye,
             s.DolulukYuzde, s.RevPacd, s.Adr,
             s.ReferansAylikMaliyet, s.ReferansFiloYonetimMaliyeti, s.ReferansToplamMaliyet, s.PotansiyelGelir
         }).ToList();
@@ -224,23 +233,34 @@ public static class ReportExportEndpoints
     /// <summary>FAZ-50 — ekrandaki kolonlarla aynı küme (tutar/döviz eklendi). Tarih YEREL GÜN
     /// olarak yazılır: ham UTC yazmak ekranda 01.03 görünen kaydı export'ta 28.02 yapıyordu.</summary>
     private static Table CashBank(LedgerAccountType account, IReadOnlyList<LedgerLineDto> lines,
-        IReadOnlyDictionary<Guid, string> names)
+        IReadOnlyDictionary<Guid, string> names, CustomerMask mask)
         => new($"{account} Defteri",
             new[] { "Tarih", "Kaynak", "Hesap", "Cari", "Evrak No", "Şube", "Kanal", "Açıklama",
                     "Tutar", "Döviz", "Borç", "Alacak", "Yürüyen Bakiye" },
             lines.Select(l => new object?[]
             { DG(l.Tarih), l.SourceType, names.GetValueOrDefault(l.HesapId ?? Guid.Empty, "—"),
-              l.CariAd, l.BelgeNo, l.Sube, l.Kanal,
+              MaskName(mask, l.CariAd), l.BelgeNo, l.Sube, l.Kanal,
               l.Aciklama, l.Native, l.Doviz, l.Borc, l.Alacak, l.YuruyenBakiye }).ToList());
 
     /// <summary>Export tarihi = YEREL gün+saat (ekranla aynı). Bkz. ListExportCatalog.DG.</summary>
     private static string DG(DateTimeOffset d) => d.LocalDateTime.ToString("yyyy-MM-dd HH:mm");
 
-    private static Table AccountBalance(IReadOnlyList<CariBalanceDto> rows)
-        => new("Cari Bakiye",
+    /// <summary>Ekranla (ReportApi.Customer) aynı: ad, telefon ve e-posta carinin kendi anonimlik bayraklarıyla.</summary>
+    private static async Task<Table> AccountBalance(
+        IDbContextFactory<AppDbContext> dbf, CancellationToken ct, IReadOnlyList<CariBalanceDto> rows)
+    {
+        var mask = await CustomerMask.LoadAsync(dbf, rows.Select(c => c.CariId), ct);
+        return new("Cari Bakiye",
             new[] { "Cari", "Telefon", "Mail Adresi", "Banka", "Döviz", "Borç", "Alacak", "Bakiye" },
             rows.Select(c => new object?[]
-            { c.Ad, c.Telefon, c.Email, c.Banka, c.Doviz, c.ToplamBorc, c.ToplamAlacak, c.Bakiye }).ToList());
+            {
+                mask.Name(c.CariId, c.Ad), mask.Phone(c.CariId, c.Telefon), mask.Email(c.CariId, c.Email),
+                c.Banka, c.Doviz, c.ToplamBorc, c.ToplamAlacak, c.Bakiye
+            }).ToList());
+    }
+
+    /// <summary>Kimliksiz satırdaki cari adı: boşsa boş kalır, anonim carinin adıysa sabit etiket.</summary>
+    private static string? MaskName(CustomerMask mask, string? name) => name is null ? null : mask.Name(name);
 
     /// <summary>FAZ-27 — pivot: ilk kolon kırılım, sonra aylar, en sonda toplam. Ay kolonları
     /// VERİDEN değil pencereden gelir; boş ay da kolon olarak yazılır (ekranla aynı küme).</summary>
@@ -269,9 +289,14 @@ public static class ReportExportEndpoints
         return new Table($"Karşılaştırmalı Analiz ({d.Tablo} / {d.VeriTuru})", headers.ToArray(), rows);
     }
 
-    private static Table Aging(IReadOnlyList<AgingRowDto> rows)
-        => new("Yaşlandırma", new[] { "Cari", "0-30", "31-60", "61-90", "90+", "Toplam" },
-            rows.Select(a => new object?[] { a.Ad, a.B0_30, a.B31_60, a.B61_90, a.B90Plus, a.Toplam }).ToList());
+    private static async Task<Table> Aging(
+        IDbContextFactory<AppDbContext> dbf, CancellationToken ct, IReadOnlyList<AgingRowDto> rows)
+    {
+        var mask = await CustomerMask.LoadAsync(dbf, rows.Select(a => a.CariId), ct);
+        return new("Yaşlandırma", new[] { "Cari", "0-30", "31-60", "61-90", "90+", "Toplam" },
+            rows.Select(a => new object?[] { mask.Name(a.CariId, a.Ad), a.B0_30, a.B31_60, a.B61_90, a.B90Plus, a.Toplam })
+                .ToList());
+    }
 
     private static Table Occupancy(DolulukDto d)
         => KV("Doluluk", ("Araç Sayısı", d.AracSayisi), ("Dönem Gün", d.DonemGun),
@@ -297,18 +322,19 @@ public static class ReportExportEndpoints
         => new("Rezervasyon Kaynak", new[] { "Kaynak", "Adet", "Toplam Gün", "Toplam Ciro" },
             rows.Select(r => new object?[] { r.Kaynak, r.Adet, r.ToplamGun, r.ToplamCiro }).ToList());
 
-    private static Table InvoicePeriod(IReadOnlyList<FaturaDonemRow> rows)
+    private static Table InvoicePeriod(IReadOnlyList<FaturaDonemRow> rows, CustomerMask mask)
         => new("Fatura Dönem", new[] { "No", "Tarih", "Vade", "Cari", "Toplam", "Durum", "İade" },
-            rows.Select(r => new object?[] { r.No, r.Tarih, r.VadeTarihi, r.Cari, r.GenelToplam, r.Durum, r.IadeMi ? "Evet" : "Hayır" }).ToList());
+            rows.Select(r => new object?[]
+            { r.No, r.Tarih, r.VadeTarihi, MaskName(mask, r.Cari), r.GenelToplam, r.Durum, r.IadeMi ? "Evet" : "Hayır" }).ToList());
 
     /// <summary>FAZ-53 — kira faturalama durumu. Tarihler ekrandakiyle AYNI biçimde (belge günü).</summary>
-    private static Table RentalInvoiceStatus(IReadOnlyList<KiraFaturaDurumRow> rows)
+    private static Table RentalInvoiceStatus(IReadOnlyList<KiraFaturaDurumRow> rows, CustomerMask mask)
         => new("Kira Faturalama Durumu",
             new[] { "Kayıt No", "Plaka", "Cari", "Baş. Tarih", "Bit. Tarih", "Kira Durumu",
                     "Çıkış Ofisi", "Faturalanan", "Fatura Adet", "Faturalanan Tutar" },
             rows.Select(r => new object?[]
             {
-                r.SozlesmeNo, r.Plaka, r.Cari,
+                r.SozlesmeNo, r.Plaka, MaskName(mask, r.Cari),
                 ExportDate.Day(r.BasTar), ExportDate.Day(r.BitTar), r.Durum,
                 r.Ofis, r.Faturalanan ? "Evet" : "Hayır", r.FaturaAdet, r.FaturalananTutar
             }).ToList());
@@ -333,11 +359,11 @@ public static class ReportExportEndpoints
             rows.Select(r => new object?[]
             { r.Plaka, r.Sipp, r.Grup, r.Sube, r.AracSahibi, r.ToplamGun, r.DoluGun, r.BakimGun, r.BafGun, r.BosGun }).ToList());
 
-    private static Table VehicleDailyStatus(IReadOnlyList<AracGunlukDurumRow> rows)
+    private static Table VehicleDailyStatus(IReadOnlyList<AracGunlukDurumRow> rows, CustomerMask mask)
     {
         var list = rows.Select(r => new object?[]
         {
-            r.Plaka, r.Sipp, r.Grup, r.AracSahibi, r.CikisOfisi, r.SozlesmeNo, r.Musteri,
+            r.Plaka, r.Sipp, r.Grup, r.AracSahibi, r.CikisOfisi, r.SozlesmeNo, MaskName(mask, r.Musteri),
             ExportDate.Day(r.BasTar), ExportDate.Day(r.BitTar), r.Gun,
             r.GunlukKira, r.GunlukHizmet, r.GunlukToplam
         }).ToList();
@@ -391,11 +417,11 @@ public static class ReportExportEndpoints
     /// FAZ-53 — KDV geniş format. Satış ve alış AYRI toplam satırı alır (tek "TOPLAM" satırı
     /// hesaplanan ve indirilecek KDV'yi birbirine karıştırırdı); en sonda Net KDV satırı.
     /// </summary>
-    private static Table VatWide(KdvGenisDto d)
+    private static Table VatWide(KdvGenisDto d, CustomerMask mask)
     {
         var rows = d.Satirlar.Select(r => new object?[]
         {
-            r.Tur, r.No, ExportDate.Day(r.Tarih), r.Cari, r.Durum,
+            r.Tur, r.No, ExportDate.Day(r.Tarih), MaskName(mask, r.Cari), r.Durum,
             r.Net20, r.Kdv20, r.Net10, r.Kdv10, r.Net1, r.Kdv1, r.Net0,
             r.DigerNet, r.DigerKdv, r.ToplamNet, r.ToplamKdv
         }).ToList();

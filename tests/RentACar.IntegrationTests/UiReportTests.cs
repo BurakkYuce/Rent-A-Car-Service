@@ -25,7 +25,8 @@ namespace RentACar.IntegrationTests;
 /// <item>A'dan nakit tahsilat 3000 → Kasa giriş 3000, A alacak 3000.</item>
 /// </list>
 /// Beklenen: gelir 6000, gider 1000, net kâr 5000, KDV tahsil 1200 / indirilecek 200, kasa 3000−1200 = 1800,
-/// A bakiye 3000, B bakiye 1200, yaşlandırma 0-30 kovası 6000 + 1200 = 7200.
+/// A bakiye 3000, B bakiye 1200, yaşlandırma 0-30 kovası (FIFO: tahsilat en eski borçtan düşer)
+/// (6000 − 3000) + 1200 = 4200.
 /// </summary>
 [Collection("web")]
 public sealed partial class UiReportTests(WebFixture fx)
