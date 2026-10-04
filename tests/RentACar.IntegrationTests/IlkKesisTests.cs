@@ -389,6 +389,24 @@ public sealed class IlkKesisKararTests
         Assert.Equal("/app/kiralar", Cutover.SpaTarget("HEAD", "/kiralar", QueryString.Empty));
     }
 
+    /// <summary>
+    /// Kabul testi (d-platform-giris-03): konsolun kökü <c>/platform</c> eskiden 404 akışıyla firma Panel'ine
+    /// (<c>/app/panel?hata=bulunamadi</c>) düşüyordu. Kök (yalnız kökün kendisi) yeni konsol köküne 301. Haritaya
+    /// (envanter) girmez — Blazor'da <c>/platform</c> @page'i yoktu; alt yollar (POST uçları, dosyalar) yönlenmez.
+    /// </summary>
+    [Theory]
+    [InlineData("/platform", "", "/app/platform")]
+    [InlineData("/platform/", "", "/app/platform")]
+    [InlineData("/Platform", "?x=1", "/app/platform?x=1")]
+    [InlineData("/platform/tenants/create", "", null)]
+    [InlineData("/platformx", "", null)]
+    [InlineData("/app/platform", "", null)]
+    public void Platform_konsol_koku_yeni_konsola_yonlenir(string path, string query, string? expected)
+    {
+        Assert.Equal(expected, Cutover.SpaTarget("GET", path, new QueryString(query.Length == 0 ? null : query)));
+        Assert.Null(Cutover.SpaTarget("POST", path, QueryString.Empty));
+    }
+
     [Fact]
     public void Sorgu_dizesi_AYNEN_tasinir()
     {
@@ -1414,6 +1432,8 @@ public sealed class IlkKesisHostTests(WebFixture fx)
         await MovedAsync(c, "/platform/login", "/app/platform/giris");
         await MovedAsync(c, "/platform/login?hata=1", "/app/platform/giris?hata=1");
         await MovedAsync(c, "/platform/login", "/app/platform/giris", HttpMethod.Head);
+        // Kabul testi: konsol kökü de (eskiden 404 → firma Panel'i).
+        await MovedAsync(c, "/platform", "/app/platform");
         var chain = await ChainAsync(c, "/platform/tenants");
         Assert.Equal(new[] { "/platform/tenants", "/app/platform/kiracilar" }, chain.Select(z => z.Adres));
 
@@ -1462,6 +1482,7 @@ public sealed class IlkKesisHostTests(WebFixture fx)
         await MovedAsync(platform, "/platform/tenants/" + G, "/app/platform/kiracilar/" + G);
         await MovedAsync(platform, "/platform/belgeler", "/app/platform/belgeler");
         await MovedAsync(platform, "/platform/login", "/app/platform/giris");
+        await MovedAsync(platform, "/platform", "/app/platform");
         await RedirectsAsync(platform, "/kiralar", "/app/platform/kiracilar"); // PlatformIsolation: tek adım
         await RedirectsAsync(platform, "/", "/app/platform/kiracilar");
         Assert.Null(await LocationAsync(platform, "/app/platform/kiracilar"));

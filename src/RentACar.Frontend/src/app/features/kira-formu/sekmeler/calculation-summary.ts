@@ -71,6 +71,9 @@ import type { ServerNumber } from '../kira-tipleri';
             @if (breakdown().length > 0) {
               <p class="kf-not">{{ breakdown().join(' · ') }}</p>
             }
+            @if (kmNote(); as km) {
+              <p class="kf-not" data-testid="grup-km-limiti">{{ km }}</p>
+            }
             @for (n of h.notlar ?? []; track $index) {
               <p class="kf-not">{{ n }}</p>
             }
@@ -158,6 +161,23 @@ export class CalculationSummary {
       );
     }
     return row;
+  });
+
+  /**
+   * Kayıtta kiraya kopyalanacak grup km limiti + aşım ücreti (sunucu `GroupKmPolicy` — önizleme == kayıt).
+   * Yeni kira formu km limitini göndermez; bu satır operatöre hangi limitin uygulanacağını gösterir.
+   */
+  protected readonly kmNote = computed(() => {
+    const h = this.d.hesap.veri();
+    if (h?.ok && h.kmSinirsiz) return this.t('kiraFormu.hesap.kmSinirsiz');
+    if (!h?.ok || h.kmLimit === null || h.kmLimit === undefined) return null;
+    const parts = [this.t('kiraFormu.hesap.grupKmLimiti', { km: toNumber(h.kmLimit) })];
+    if (h.fazlaKmUcret !== null && h.fazlaKmUcret !== undefined) {
+      parts.push(
+        this.t('kiraFormu.hesap.grupKmUcreti', { ucret: this.money(h.fazlaKmUcret, h.doviz) }),
+      );
+    }
+    return parts.join(', ');
   });
 
   protected money(v: ServerNumber, currency: string | null | undefined): string {

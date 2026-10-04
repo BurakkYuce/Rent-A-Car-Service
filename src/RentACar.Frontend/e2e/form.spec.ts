@@ -137,7 +137,7 @@ test('kaydedilmemiş değişiklik: başka sekmeye geçiş korur, sekmeyi kapatma
 
   // Uygulama içi gezinme (F3.2 sekmeli çalışma alanı): form sekmesi açık kalır → sorulmaz, değer korunur.
   await page.getByRole('link', { name: 'Ana sayfa' }).click();
-  await expect(page.getByRole('heading', { level: 1 })).toHaveText('Yeni arayüz yapım aşamasında');
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText('Vitrin');
   await expect(page.getByRole('alertdialog')).toHaveCount(0);
   await tabs.getByRole('link', { name: 'Form vitrini' }).click();
   await expect(page.getByRole('textbox', { name: 'Plaka', exact: true })).toHaveValue('06 XYZ 1');
@@ -156,7 +156,7 @@ test('kaydedilmemiş değişiklik: başka sekmeye geçiş korur, sekmeyi kapatma
 
   await close.click();
   await question.getByRole('button', { name: 'Sayfadan ayrıl' }).click();
-  await expect(page.getByRole('heading', { level: 1 })).toHaveText('Yeni arayüz yapım aşamasında');
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText('Vitrin');
   await expect(tabs.getByRole('link', { name: 'Form vitrini' })).toHaveCount(0);
 
   // Tam sayfa terk (sekme kapatma / Blazor ekranına geçiş): beforeunload.
@@ -202,6 +202,6 @@ test('gönder çift tıklanınca tek istek; başarıdan sonra form temiz, gezinm
     void d.dismiss();
   });
   await page.getByRole('link', { name: 'Ana sayfa' }).click();
-  await expect(page.getByRole('heading', { level: 1 })).toHaveText('Yeni arayüz yapım aşamasında');
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText('Vitrin');
   expect(wasAsked).toBe(false);
 });

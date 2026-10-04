@@ -5850,6 +5850,12 @@ namespace RentACar.Infrastructure.Migrations
                     b.Property<int>("KmLimit")
                         .HasColumnType("integer");
 
+                    b.Property<int?>("KmLimitGunluk")
+                        .HasColumnType("integer");
+
+                    b.Property<bool>("KmSinirsiz")
+                        .HasColumnType("boolean");
+
                     b.Property<decimal?>("KomisyonOran")
                         .HasColumnType("numeric(9,4)");
 
@@ -6203,6 +6209,9 @@ namespace RentACar.Infrastructure.Migrations
 
                     b.Property<int>("KmLimit")
                         .HasColumnType("integer");
+
+                    b.Property<bool>("KmSinirsiz")
+                        .HasColumnType("boolean");
 
                     b.Property<decimal?>("KomisyonOran")
                         .HasColumnType("numeric(9,4)");

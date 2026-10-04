@@ -103,7 +103,7 @@ test('Ctrl+K: palet açılır, Türkçe-gevşek arama, klavyeyle SPA sayfası a�
   page,
 }) => {
   const errors = collectErrors(page);
-  await page.goto('/app/');
+  await page.goto('/app/vitrin');
   await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
 
   await page.keyboard.press('Control+K');
@@ -143,7 +143,7 @@ test('390 px: yan menü çekmece — odak içeride, Esc kapatır ve odağı geri
   page,
 }) => {
   await page.setViewportSize({ width: 390, height: 844 });
-  await page.goto('/app/');
+  await page.goto('/app/vitrin');
   const button = page.getByRole('button', { name: 'Menüyü aç' });
   await expect(menu(page)).toBeHidden();
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);

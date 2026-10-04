@@ -32,7 +32,7 @@ import type {
   template: `
     <div class="rc-sayfa-basligi">
       <h1>Tanım vitrini</h1>
-      <a routerLink="/" class="rc-yazdirma-gizle">Ana sayfa</a>
+      <a routerLink="/vitrin" class="rc-yazdirma-gizle">Ana sayfa</a>
     </div>
     <rc-tanim-crud baslik="Araç renkleri" [alanlar]="fields" [kaynak]="kaynak" />
   `,

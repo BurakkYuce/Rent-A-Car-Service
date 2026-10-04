@@ -55,7 +55,6 @@ public sealed class PublicBookingRequestService(
     CustomerService customers,
     ReservationService reservations,
     WebSite.IWebListingRepository listings, // PR-14: fiyat/başlık snapshot'ı SUNUCUDAN çözülür
-    Finance.VatDefault vat,          // PR-14: ilan fiyatı KDV dahilse ERP'nin beklediği NET'e çevrilir
     Notifications.CustomerNotificationService notification, // talep alındı bildirimi (anonim yol — guard'sız)
     ICurrentUser currentUser)
 {
@@ -91,7 +90,13 @@ public sealed class PublicBookingRequestService(
             BitTar = input.BitTar,
             Sube = TrimOrNull(input.Sube),
             Not = TrimOrNull(input.Not),
-            GosterilenGunlukUcretKdvDahil = listing?.Ilan.GunlukFiyat,
+            // Adversarial H1 (#361): sitede gösterilen GÜNLÜK EŞDEĞER (gün kademesi: 8–29 haftalık/7, 30+ aylık/30)
+            // snapshot'lanır — vitrin aramasıyla AYNI fonksiyon. Eskiden hep 1–7 gün fiyatı saklanıyordu:
+            // 10 günlük talepte site 12.857,10 gösterirken rezervasyon 15.000 oluyordu.
+            GosterilenGunlukUcretKdvDahil = listing is null
+                ? null
+                : Fleet.FleetShowcaseService.DailyEquivalent(
+                    listing.Ilan, BookingMath.ComputeDays(input.BasTar, input.BitTar)),
             GosterilenKdvDahil = listing?.Ilan.KdvDahil,
             Durum = PublicBookingRequestDurum.Yeni,
         };
@@ -289,10 +294,13 @@ public sealed class PublicBookingRequestService(
                 // Vitrin fiyatı artık motordan DEĞİL ilandan geliyor; bu satır olmasaydı
                 // `PricingService` GunlukUcret=0 görüp tarifeden çözmeye çalışır, tenant tarife
                 // girmediği için 0 kalırdı → müşteri sitede 1.500 ₺ görür, sözleşmede 0 yazardı.
-                GunlukUcret = await NetDailyAsync(request, ct),
+                GunlukUcret = ShownFee(request),
+                // Kabul bulgusu d-web-talep-03: KDV modu ilanın gösterim biçiminden gelir — kira zinciri
+                // ücreti modla yorumlar (InvoiceService GenelToplam'dan net+KDV ayrıştırır).
                 // `FiyatTuru` KESİNLİKLE "Otomatik" GÖNDERİLMEZ: PricingService o değerde manuel
                 // fiyatı ZORLA SIFIRLAR (`if (otomatik) input.GunlukUcret = 0m`) ve yukarıdaki
                 // fiyat sessizce çöpe giderdi.
+                FiyatTuru = ShownPriceType(request),
             }, ct);
 
             await repository.SetConvertedReservationAsync(id, reservationId, ct);
@@ -310,18 +318,46 @@ public sealed class PublicBookingRequestService(
     private const string WebSource = "Web";
 
     /// <summary>
-    /// PR-14: müşterinin sitede gördüğü fiyatı ERP'nin beklediği NET'e çevirir.
+    /// Müşterinin sitede gördüğü günlük fiyat — DÖNÜŞTÜRÜLMEDEN. Fiyat yoksa (doğrudan forma gelen
+    /// talep) 0 döner → mevcut davranış korunur, motor devreye girer.
     ///
-    /// ERP zincirinin TAMAMI net çalışır (KDV fatura aşamasında eklenir); ilan fiyatı ise KDV
-    /// DAHİL olabilir. Brüt rakamı olduğu gibi geçirmek sözleşmeyi KDV oranı kadar şişirirdi.
-    /// Fiyat yoksa (doğrudan forma gelen talep) 0 döner → mevcut davranış korunur, motor devreye girer.
+    /// <para>Eski hâl (PR-14) "ERP zinciri net çalışır" varsayımıyla KDV dahil fiyatı nete bölüyordu.
+    /// Varsayım YANLIŞTI: fiyat türü boş/"KDV Dahil Günlük" kirada ücret BRÜT'tür ve fatura
+    /// GenelToplam'dan net+KDV ayrıştırır — 1.500 brüt gösterilen talep 1.250 brüt faturalanıyordu
+    /// (kabul bulgusu d-web-talep-03, müşteriye %16,7 eksik fatura). KDV modu artık
+    /// <see cref="ShownPriceType"/> ile açıkça taşınır; dönüşümü PricingService yapar.</para>
     /// </summary>
-    private async Task<decimal> NetDailyAsync(PublicBookingRequest t, CancellationToken ct)
+    private static decimal ShownDaily(PublicBookingRequest t)
+        => t.GosterilenGunlukUcretKdvDahil is { } shown && shown > 0m ? shown : 0m;
+
+    /// <summary>
+    /// Rezervasyona giden ücret alanı, <see cref="ShownPriceType"/> ile birlikte okunur:
+    /// KDV dahil ilanda GÜNLÜK brüt (sitedeki toplam = gün × günlük, PricingService aynı çarpımı yapar);
+    /// KDV hariç ilanda sitedeki NET TOPLAM (= yuvarla(gün × günlük net), vitrin aramasının gösterdiği rakam).
+    ///
+    /// <para>Adversarial L1 (#361): KDV hariç ilan eskiden "Günlük" net moduyla gidiyordu — günlük net önce
+    /// brüte yuvarlanıp gün ile çarpılınca kuruş birikiyordu (999,99 × 3 → fatura neti 2.999,98; 33,33 × 30 →
+    /// 1.000,00). "Toplam" net modunda brüt = yuvarla(net toplam × (1 + oran)) ve faturanın ayrıştırdığı net
+    /// sitedeki net toplamın TA KENDİSİ (yuvarlama hatası 0,005/(1+oran) &lt; yarım kuruş). Genel "Günlük" net
+    /// modu DEĞİŞTİRİLMEDİ: operatörün girdiği günlük net, uzatmada da aynı günlük brütle çarpılmalı.</para>
+    /// </summary>
+    private static decimal ShownFee(PublicBookingRequest t)
     {
-        if (t.GosterilenGunlukUcretKdvDahil is not { } shown || shown <= 0m) return 0m;
-        if (t.GosterilenKdvDahil == false) return shown; // zaten net
-        var rate = await vat.RateAsync(ct);
-        return rate > 0m ? Math.Round(shown / (1m + rate), 2, MidpointRounding.AwayFromZero) : shown;
+        var daily = ShownDaily(t);
+        if (daily <= 0m || t.GosterilenKdvDahil != false) return daily;
+        return Math.Round(daily * BookingMath.ComputeDays(t.BasTar, t.BitTar), 2, MidpointRounding.AwayFromZero);
+    }
+
+    /// <summary>
+    /// İlanın KDV gösterimine karşılık gelen kira fiyat türü: KDV dahil ilan → "KDV Dahil Günlük"
+    /// (ücret aynen brüt); KDV hariç ilan → "Toplam" (NET TOPLAM modu — PricingService tenant KDV oranıyla
+    /// brüte çevirir, günlük brütü türetir ve oranı snapshot'lar; fatura aynı orandan ayrıştırır → faturadaki
+    /// net = sitedeki net toplam). Gösterilen fiyat yoksa null (motor/manuel akış eskisi gibi).
+    /// </summary>
+    private static string? ShownPriceType(PublicBookingRequest t)
+    {
+        if (ShownDaily(t) <= 0m) return null;
+        return t.GosterilenKdvDahil == false ? "Toplam" : "KDV Dahil Günlük";
     }
 
     private static string RequestNote(PublicBookingRequest t)

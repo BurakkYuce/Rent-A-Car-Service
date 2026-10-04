@@ -863,7 +863,7 @@ public sealed class IdempotencyEnvanteriTests(PostgresFixture fx)
         var t = new DateTimeOffset(DateTime.SpecifyKind(DateTime.UtcNow.Date.AddDays(-30), DateTimeKind.Utc), TimeSpan.Zero);
         var id = await svc.CreateManualAsync(new GelenEFaturaInput
         {
-            Ettn = "IDEM-F14", GonderenVkn = "1234567890", GonderenUnvan = "Tedarikçi A.Ş.", Tarih = t,
+            Ettn = TestEttn.Of("IDEM-F14"), GonderenVkn = "1234567890", GonderenUnvan = "Tedarikçi A.Ş.", Tarih = t,
             NetTutar = 1000m, KdvTutar = 200m, GenelToplam = 1200m, Currency = "TRY"
         });
         await svc.ApproveAsync(id);

@@ -406,9 +406,12 @@ public sealed class UiSecimMenuTests(WebFixture fx)
         Assert.False(adminBody.GetProperty("rozetler").TryGetProperty("yeni-talep", out _)); // modül kapalı → sorulmaz
 
         var (op, _) = await MenuAsync(await LoginAsync(o, Kim.OperatorA));
-        foreach (var r in new[] { "/app/panel", "/app/kiralar/yeni", "/app/rezervasyonlar", "/app/musaitlik", "/app/takvim", "/app/araclar", "/app/arac-durum", "/app/baf", "/app/segmentler", "/app/kiralar", "/app/cariler", "/app/sikayetler", "/app/vade", "/app/servisler", "/app/tarifeler", "/app/fiyat-hesapla", "/app/dokumanlar", "/app/markalar", "/app/lokasyonlar", "/app/bildirimler" })
+        foreach (var r in new[] { "/app/panel", "/app/kiralar/yeni", "/app/rezervasyonlar/yeni", "/app/rezervasyonlar", "/app/musaitlik", "/app/takvim", "/app/araclar", "/app/arac-durum", "/app/baf", "/app/segmentler", "/app/kiralar", "/app/cariler", "/app/sikayetler", "/app/vade", "/app/servisler", "/app/tarifeler", "/app/fiyat-hesapla", "/app/dokumanlar", "/app/markalar", "/app/lokasyonlar", "/app/bildirimler" })
             Assert.Contains(r, op);
-        foreach (var r in new[] { "/app/araclar/detayli", "/app/musteri-taksit", "/vehicles", "/app/crm", "/crm", "/maliyet-hesapla", "/app/maliyet-hesapla", "/app/maliyet-teklifleri", "/tarife-aktar", "/app/tarife-aktar", "/vade", "/servisler", "/kasa", "/kurlar", "/app/kasa", "/app/kurlar", "/app/cezalar", "/app/raporlar/gunluk", "/app/raporlar/personel-calisma", "/app/ayarlar", "/app/subeler", "/app/personel", "/app/belge-sablonlari", "/app/ice-aktar" })
+        // Kabul testi: rota kapısı "OperationsWrite VEYA …" olan sayfalar operatörün menüsünde (açabildiği sayfa görünür).
+        foreach (var r in new[] { "/app/kurlar", "/app/cezalar", "/app/satislar", "/app/raporlar/personel-calisma", "/app/raporlar/km-detay", "/app/raporlar/periyodik-servis" })
+            Assert.Contains(r, op);
+        foreach (var r in new[] { "/app/araclar/detayli", "/app/musteri-taksit", "/vehicles", "/app/crm", "/crm", "/maliyet-hesapla", "/app/maliyet-hesapla", "/app/maliyet-teklifleri", "/tarife-aktar", "/app/tarife-aktar", "/vade", "/servisler", "/kasa", "/kurlar", "/app/kasa", "/app/faturalar", "/app/raporlar/gunluk", "/app/raporlar/gelir-gider", "/app/ayarlar", "/app/subeler", "/app/personel", "/app/belge-sablonlari", "/app/ice-aktar" })
             Assert.DoesNotContain(r, op);
 
         var (acct, _) = await MenuAsync(await LoginAsync(o, Kim.Muhasebe));

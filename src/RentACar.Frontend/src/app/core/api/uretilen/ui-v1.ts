@@ -2053,6 +2053,8 @@ export interface paths {
           musteriId?: string;
           kampanyaKodu?: string;
           ikinciSurucuId?: string;
+          kaynak?: string;
+          kmSinirsiz?: boolean;
         };
         header?: never;
         path?: never;
@@ -27688,6 +27690,7 @@ export interface components {
       fazlaKmUcret: number | string;
       /** Format: double */
       yakitBirimUcret: number | string;
+      kmSinirsiz?: null | boolean;
       /** Format: double */
       provizyon: null | number | string;
       /** Format: double */
@@ -27792,6 +27795,12 @@ export interface components {
       /** Format: double */
       kalan: number | string;
       notlar?: null | string[];
+      /** Format: int32 */
+      kmLimit?: null | number | string;
+      /** Format: double */
+      fazlaKmUcret?: null | number | string;
+      /** @default false */
+      kmSinirsiz: boolean;
     };
     KiralaSorgusu: {
       vfrom: string;
@@ -27956,6 +27965,7 @@ export interface components {
       ikinciSurucuSerbestTel?: null | string;
       ikinciSurucuSerbestEhliyetSinifi?: null | string;
       ekHizmetler?: null | components['schemas']['KiraEkHizmetSecimi'][];
+      kmSinirsiz?: null | boolean;
     };
     KiraOlusturYaniti: {
       /** Format: uuid */
@@ -28013,6 +28023,9 @@ export interface components {
       fazlaKmUcret?: number | string;
       /** Format: double */
       yakitBirimUcret?: number | string;
+      kmSinirsiz?: boolean;
+      /** Format: int32 */
+      kmLimitGunluk?: null | number | string;
       /** Format: int32 */
       cikisKm?: null | number | string;
       /** Format: int32 */
@@ -30566,6 +30579,7 @@ export interface components {
       kiraId: null | string;
       /** Format: date-time */
       olusturmaUtc: string;
+      kmSinirsiz: boolean;
     };
     RezervasyonFormSecenekleri: {
       varsayilanFiyatTuru: null | string;
@@ -30596,6 +30610,7 @@ export interface components {
       fazlaKmUcret?: null | number | string;
       /** Format: double */
       yakitBirimUcret?: null | number | string;
+      kmSinirsiz?: null | boolean;
       /** Format: double */
       provizyon?: null | number | string;
       /** Format: double */
@@ -30652,6 +30667,7 @@ export interface components {
       fazlaKmUcret?: null | number | string;
       /** Format: double */
       yakitBirimUcret?: null | number | string;
+      kmSinirsiz?: null | boolean;
       /** Format: double */
       provizyon?: null | number | string;
       /** Format: double */
