@@ -54,6 +54,8 @@ public class Reservation : ITenantOwned, IAuditable, IOfficeScoped
     // Anlaşılan aşım koşulları (kiraya çevrilirken sözleşmeye taşınır).
     public int KmLimit { get; set; }
     public decimal FazlaKmUcret { get; set; }
+    /// <summary>Km sınırsız açık kararı (bkz. <see cref="RentalContract.KmSinirsiz"/>); kiraya dönüşümde taşınır.</summary>
+    public bool KmSinirsiz { get; set; }
     public decimal YakitBirimUcret { get; set; }
 
     // ---- Ödeme-derinlik alanları (roadmap A2; additive, NULLABLE; deftere YANSIMAZ — bilgi amaçlı) ----

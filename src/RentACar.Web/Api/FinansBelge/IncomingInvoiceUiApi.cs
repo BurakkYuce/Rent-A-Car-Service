@@ -151,7 +151,9 @@ public static class IncomingInvoiceUiApi
             Tarih = F5Shared.Utc(req.Tarih), NetTutar = req.NetTutar, KdvTutar = req.KdvTutar,
             GenelToplam = req.GenelToplam, Currency = Currency(req.Doviz), Aciklama = Trimmed(req.Aciklama),
         }, ct);
-        return TypedResults.Ok(new DocumentResult(id, req.Ettn.Trim()));
+        // Servis ETTN'i kanonik biçimde (UUID, büyük harf) saklar — yanıt kayıtlı değeri yansıtır, ham girdiyi değil.
+        var saved = await svc.GetAsync(id, ct);
+        return TypedResults.Ok(new DocumentResult(id, saved?.Ettn ?? req.Ettn.Trim()));
     }
 
     private static async Task<Ok<IncomingInvoiceSyncResult>> Sync(

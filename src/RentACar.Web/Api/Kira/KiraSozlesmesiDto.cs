@@ -25,6 +25,10 @@ public sealed class KiraSozlesmesiDto
     public int KmLimit { get; init; }
     public decimal FazlaKmUcret { get; init; }
     public decimal YakitBirimUcret { get; init; }
+    /// <summary>Km sınırsız açık kararı (#366 M2).</summary>
+    public bool KmSinirsiz { get; init; }
+    /// <summary>Tarife/grup kaynaklı günlük km hakkı (null = elle girilmiş toplam limit ya da limit yok).</summary>
+    public int? KmLimitGunluk { get; init; }
     public int? CikisKm { get; init; }
     public int? CikisYakit { get; init; }
     public int? DonusKm { get; init; }
@@ -141,6 +145,8 @@ public sealed class KiraSozlesmesiDto
         KmLimit = c.KmLimit,
         FazlaKmUcret = c.FazlaKmUcret,
         YakitBirimUcret = c.YakitBirimUcret,
+        KmSinirsiz = c.KmSinirsiz,
+        KmLimitGunluk = c.KmLimitGunluk,
         CikisKm = c.CikisKm,
         CikisYakit = c.CikisYakit,
         DonusKm = c.DonusKm,
@@ -238,7 +244,7 @@ public sealed class KiraSozlesmesiDto
 /// BİREBİR (whitelist TİP düzeyinde: para/tarih/durum alanları YOK — tarih = uzat, fiyat farkı = fark faturası).
 /// <para><b>Her alan <c>required</c>:</b> güncelleme TAM DEĞİŞTİRMEDİR (servis gelen değeri yazar). Gövdede
 /// unutulan bir alan sessizce null/0'a düşmesin diye JSON'da EKSİK alan 400'dür (null göndermek ise açık
-/// "temizle" kararıdır). Örnek risk: <c>kmLimit</c> eksik → 0 = sınırsız km → aşım bedeli hiç doğmaz;
+/// "temizle" kararıdır). Örnek risk: <c>kmLimit</c> eksik → 0 = boş → kayıtlı limit yerine kural limiti;
 /// <c>dropUcreti</c> eksik → drop ücret satırı silinir. Blazor formu tüm alanları her gönderimde taşır; SPA da
 /// detaydan ön-doldurup TAMAMINI gönderir.</para>
 /// </summary>
@@ -264,6 +270,9 @@ public sealed class KiraGuncelleIstegi
     public required int KmLimit { get; init; }
     public required decimal FazlaKmUcret { get; init; }
     public required decimal YakitBirimUcret { get; init; }
+    /// <summary>#366 M2 — km sınırsız açık kararı. <c>kmLimit</c> 0 = BOŞ (tarife/araç grubu limiti uygulanır);
+    /// sınırsız yalnız bu bayrakla. Eklemeli alan: gönderilmezse (null) kayıttaki değer korunur.</summary>
+    public bool? KmSinirsiz { get; init; }
     public required decimal? Provizyon { get; init; }
     public required decimal? Depozito { get; init; }
     public required decimal? KomisyonOran { get; init; }
@@ -326,6 +335,7 @@ public sealed class KiraGuncelleIstegi
         KmLimit = KmLimit,
         FazlaKmUcret = FazlaKmUcret,
         YakitBirimUcret = YakitBirimUcret,
+        KmSinirsiz = KmSinirsiz,
         Provizyon = Provizyon,
         Depozito = Depozito,
         KomisyonOran = KomisyonOran,

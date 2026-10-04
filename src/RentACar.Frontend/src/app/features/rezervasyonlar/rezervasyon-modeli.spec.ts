@@ -40,6 +40,7 @@ describe('rezervasyon modeli', () => {
       kaynak: 'Web',
       aciklama: 'Havalimanı teslim',
       kmLimit: 300,
+      kmSinirsiz: false,
       fazlaKmUcret: 2.5,
       yakitBirimUcret: 45,
       provizyon: 5000,
