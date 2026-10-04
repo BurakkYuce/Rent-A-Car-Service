@@ -19,15 +19,60 @@ export function collectErrors(page: Page, expected: RegExp[] = []): string[] {
  * 3,14:1 ara renk). Sonsuz animasyonlar (iskelet, döner simge) beklenmez.
  */
 async function settleTransitions(page: Page): Promise<void> {
-  await page.evaluate(() =>
-    Promise.all(
+  const settled = page
+    .evaluate(
+      (limitMs) =>
+        Promise.race([
+          Promise.all(
+            document
+              .getAnimations()
+              // Yalnız ŞU AN koşan ve bitebilecek olanlar; duraklatılmış/sonsuz/yeniden başlayan beklenmez.
+              .filter(
+                (a) =>
+                  a.playState === 'running' &&
+                  Number.isFinite(a.effect?.getComputedTiming().endTime ?? Infinity),
+              )
+              .map((a) => a.finished.catch(() => undefined)),
+          ).then(() => true),
+          new Promise<boolean>((r) => setTimeout(() => r(false), limitMs)),
+        ]),
+      SETTLE_LIMIT_MS,
+    )
+    .catch(() => true);
+  // SINIR iki yanlı: sayfa zamanlayıcısı/zaman çizelgesi ilerlemese de (CI #382: platform ve tarife-matris
+  // `page.evaluate` 30 sn asılı kaldı) test tarafı en çok sınır kadar bekler, sonra axe yine koşar.
+  const done = await Promise.race([
+    settled,
+    new Promise<boolean>((r) => setTimeout(() => r(false), SETTLE_LIMIT_MS + 500)),
+  ]);
+  if (!done) console.warn('[axe] geçişler sınırda bitmedi:', await runningAnimations(page));
+}
+
+/** Tanı: hâlâ koşan animasyonların kimliği (CI'da takılanı görmek için; sayfa yanıt vermezse boş). */
+async function runningAnimations(page: Page): Promise<string[]> {
+  const read = page
+    .evaluate(() =>
       document
         .getAnimations()
-        .filter((a) => a.effect?.getComputedTiming().iterations !== Infinity)
-        .map((a) => a.finished.catch(() => undefined)),
-    ).then(() => undefined),
-  );
+        .filter((a) => a.playState === 'running')
+        .slice(0, 10)
+        .map((a) => {
+          const target = (a.effect as KeyframeEffect | null)?.target;
+          const name =
+            a instanceof CSSTransition
+              ? `transition:${a.transitionProperty}`
+              : a instanceof CSSAnimation
+                ? `animation:${a.animationName}`
+                : a.constructor.name;
+          return `${name} t=${Math.round(Number(a.currentTime))} ${target?.tagName ?? ''}.${target?.className ?? ''}`;
+        }),
+    )
+    .catch(() => []);
+  return Promise.race([read, new Promise<string[]>((r) => setTimeout(() => r([]), 500))]);
 }
+
+/** Geçiş bekleme üst sınırı (uygulamadaki en uzun sonlu geçiş 150 ms). */
+const SETTLE_LIMIT_MS = 1000;
 
 export async function seriousViolations(page: Page, scope?: string): Promise<string[]> {
   await settleTransitions(page);
