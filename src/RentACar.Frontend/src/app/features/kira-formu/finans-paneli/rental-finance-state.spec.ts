@@ -653,13 +653,64 @@ describe('KiraFinansDurumu — başlık anahtarlı işlemler', () => {
   });
 });
 
+/** Onay penceresinin (Promise) çözülmesini bekler. */
+const settle = () => new Promise((r) => setTimeout(r, 0));
+
+const PERIOD = {
+  donemSira: 3,
+  donemBas: '2026-10-01T00:00:00Z',
+  donemBit: '2026-10-31T00:00:00Z',
+  durum: 'Planlandi',
+  tahakkuk: 3100,
+  invoiceId: null,
+  kesilenTutar: null,
+};
+
+describe('KiraFinansDurumu — geri alınamaz kesimler onay ister', () => {
+  it('kiradan "Fatura kes": onay sorulur; vazgeçilirse istek yok, onaylanırsa tek POST finans/fatura', async () => {
+    const { f, cagrilar, detayVer, onay } = await exchangeRate(() => of({ id: 'f1' }));
+    detayVer(detay(tahsilat(K1)));
+    onay.ask.mockResolvedValueOnce(false);
+    f.issueInvoice();
+    await settle();
+    expect(onay.ask).toHaveBeenCalledWith(
+      expect.objectContaining({ baslik: 'Fatura kesilsin mi?', tehlikeli: true }),
+    );
+    expect(cagrilar).toHaveLength(0);
+    f.issueInvoice();
+    f.issueInvoice(); // onay penceresi açıkken ikinci tık yok sayılır
+    await settle();
+    expect(cagrilar.map((c) => c.yol)).toEqual(['/api/ui/v1/finans/fatura']);
+  });
+
+  it('dönem satırı "Kes": onay (dönem sırasıyla); vazgeçilirse istek yok', async () => {
+    const { f, cagrilar, detayVer, onay } = await exchangeRate(() =>
+      of({ faturaId: 'f1', tahsilatYazildi: false, bilgi: null }),
+    );
+    detayVer(detay(tahsilat(K1)));
+    onay.ask.mockResolvedValueOnce(false);
+    await f.issuePeriod(PERIOD);
+    expect(onay.ask).toHaveBeenCalledWith(
+      expect.objectContaining({
+        baslik: 'Dönem faturası kesilsin mi?',
+        mesaj: expect.stringContaining('3. dönem'),
+        tehlikeli: true,
+      }),
+    );
+    expect(cagrilar).toHaveLength(0);
+    expect(f.submittedPeriod()).toBeNull();
+    await f.issuePeriod(PERIOD);
+    expect(cagrilar.map((c) => c.yol)).toEqual(['/api/ui/v1/finans/donem-fatura']);
+  });
+});
+
 describe('KiraFinansDurumu — yapısal işlemler', () => {
   it('L7: dönem kesiminde 400 → plan ve kira yeniden yüklenir (degisti)', async () => {
     const { f, detayVer, degisti, toast } = await exchangeRate(() =>
       throwError(() => serverError(400, 'dogrulama', 'Dönem zaten kesildi.')),
     );
     detayVer(detay(tahsilat(K1)));
-    f.issuePeriod({
+    await f.issuePeriod({
       donemSira: 1,
       donemBas: '2026-10-01T00:00:00Z',
       donemBit: '2026-10-31T00:00:00Z',
@@ -680,7 +731,7 @@ describe('KiraFinansDurumu — yapısal işlemler', () => {
     );
     detayVer(detay(tahsilat(K1)));
     f.periodForm(2).patchValue({ tahsilat: true, hesap: 'Banka' });
-    f.issuePeriod({
+    await f.issuePeriod({
       donemSira: 2,
       donemBas: '2026-10-01T00:00:00Z',
       donemBit: '2026-10-31T00:00:00Z',
@@ -739,6 +790,7 @@ describe('KiraFinansDurumu — yapısal işlemler', () => {
     });
     expect(toast.hata).not.toHaveBeenCalled();
     f.issueInvoice();
+    await settle();
     expect(f.invoiceSubmission.genelHatalar()).toEqual([]);
   });
 });

@@ -38,6 +38,7 @@ export const VIEW_CODES = [
   'bugun-donecek',
   'faturasiz',
   'kapali',
+  'iptal',
 ] as const;
 export type ViewCode = (typeof VIEW_CODES)[number];
 
@@ -64,6 +65,7 @@ const VIEWS: readonly {
   { kod: 'bugun-donecek', etiket: 'kabuk.gorunum.bugunDonecek', sayac: 'bugunDonecek' },
   { kod: 'faturasiz', etiket: 'kabuk.gorunum.faturasiz', sayac: null },
   { kod: 'kapali', etiket: 'kabuk.gorunum.kapali', sayac: null },
+  { kod: 'iptal', etiket: 'kabuk.gorunum.iptal', sayac: null },
 ];
 
 /** SPA kira listesi öğesi mi (kayıtlı görünümler yalnız SPA listesinde — Blazor listesi ön ayarı bilmez). */
