@@ -2,6 +2,7 @@ import {
   type UserDto,
   canManageAccount,
   creatableRoles,
+  editableRoles,
   exceptionRows,
   exceptionTargets,
   grantablePermissions,
@@ -17,6 +18,7 @@ const user = (id: string, rol: string, exceptions: UserDto['istisnalar'] = []): 
   atanmisSube: null,
   istisnalar: exceptions,
   etkinIzinler: [],
+  surum: '1',
 });
 const ex = (permission: string, give: boolean) => ({
   izin: permission,
@@ -42,6 +44,22 @@ describe('kullanıcı yönetimi kuralları (M2)', () => {
     expect(creatableRoles('Admin')).toContain('Admin');
     expect(grantablePermissions('Yonetici')).not.toContain('ManageUsers');
     expect(grantablePermissions('Admin')).toContain('ManageUsers');
+  });
+
+  it('rol düzenleme: kendi rolü sabit; Admin rolünü yalnız Admin verir (kabul d-sistem-kullanici-09)', () => {
+    expect(editableRoles('Admin', 'admin', ADMIN)).toEqual(['Admin']);
+    expect(editableRoles('Admin', 'admin', OPERATOR)).toEqual([
+      'Admin',
+      'Yonetici',
+      'Operator',
+      'Muhasebe',
+    ]);
+    expect(editableRoles('Yonetici', 'mudur', OPERATOR)).toEqual([
+      'Yonetici',
+      'Operator',
+      'Muhasebe',
+    ]);
+    expect(editableRoles('Yonetici', 'mudur', MANAGER)).toEqual(['Yonetici']);
   });
 
   it('istisna hedefleri: kendisi ve (Admin olmayan için) Admin hesapları hariç', () => {

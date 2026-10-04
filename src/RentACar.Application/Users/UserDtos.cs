@@ -16,3 +16,13 @@ public sealed class UserInput
     /// <summary>Atanmış şube (Sube metni). Operatör için kapsam; boş = tüm şubeler.</summary>
     public string? AtanmisSube { get; set; }
 }
+
+/// <summary>Kabul d-sistem-kullanici-09 — var olan kullanıcının rol + atanmış şube güncellemesi (tam değiştirme).</summary>
+public sealed class UserUpdateInput
+{
+    public UserRole Rol { get; set; } = UserRole.Operator;
+    /// <summary>Atanmış şube adı (firmanın aktif şubesi; çağıran doğrular). Boş = tüm şubeler.</summary>
+    public string? AtanmisSube { get; set; }
+    /// <summary>Atanmış şubenin kimliği — metinle BİRLİKTE yazılır (FK yolu; boş şubede FK de temizlenir).</summary>
+    public Guid? AtanmisSubeId { get; set; }
+}

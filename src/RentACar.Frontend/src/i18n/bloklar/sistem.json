@@ -47,6 +47,12 @@
       "yeniParola": "{{ad}} için yeni parola",
       "parolaKaydet": "Parolayı kaydet",
       "parolaSifirlandi": "{{ad}} kullanıcısının parolası değiştirildi.",
+      "duzenle": "Rol / şube",
+      "duzenleBaslik": "{{ad}} — rol ve şube",
+      "duzenleNotu": "Yeni rol ve şube kullanıcının bir sonraki girişinde geçerli olur; açık oturumu yeniden giriş yapana kadar eski yetkiyle devam eder.",
+      "kendiRolNotu": "Kendi rolünüzü değiştiremezsiniz; yalnız şubeniz değişebilir.",
+      "duzenleKaydet": "Kaydet",
+      "guncellendi": "{{ad}} güncellendi (sonraki girişte etkin).",
       "rol": {
         "Admin": "Admin",
         "Yonetici": "Yönetici",

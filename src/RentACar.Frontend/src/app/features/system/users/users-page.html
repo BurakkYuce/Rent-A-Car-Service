@@ -90,6 +90,16 @@
                   <td>{{ u.atanmisSube ?? ('sistem.kullanici.tumSubeler' | transloco) }}</td>
                   <td>{{ (u.aktif ? 'sistem.ortak.aktif' : 'sistem.ortak.pasif') | transloco }}</td>
                   <td class="satir-eylemleri">
+                    @if (canManage(u)) {
+                      <button
+                        type="button"
+                        class="rc-dugme rc-dugme--hayalet rc-dugme--kucuk"
+                        [disabled]="editSubmit.gonderiliyor()"
+                        (click)="openEdit(u)"
+                      >
+                        {{ 'sistem.kullanici.duzenle' | transloco }}
+                      </button>
+                    }
                     @if (canManage(u) && u.id !== actorId()) {
                       <button
                         type="button"
@@ -124,6 +134,58 @@
                     }
                   </td>
                 </tr>
+                @if (editing()?.id === u.id) {
+                  <tr>
+                    <td colspan="6">
+                      <div
+                        class="kutu"
+                        role="group"
+                        [attr.aria-label]="
+                          'sistem.kullanici.duzenleBaslik' | transloco: { ad: u.kullaniciAdi }
+                        "
+                      >
+                        <p class="not">{{ 'sistem.kullanici.duzenleNotu' | transloco }}</p>
+                        @if (u.id === actorId()) {
+                          <p class="not">{{ 'sistem.kullanici.kendiRolNotu' | transloco }}</p>
+                        }
+                        <rc-form-hatalari [hatalar]="editSubmit.genelHatalar()" />
+                        <div class="rc-form-izgara" [formGroup]="editForm">
+                          <rc-alan [etiket]="'sistem.kullanici.rolBaslik' | transloco">
+                            <rc-secim formControlName="rol" [secenekler]="editRoleOptions()" />
+                          </rc-alan>
+                          <rc-alan
+                            [etiket]="'sistem.kullanici.sube' | transloco"
+                            [ipucu]="'sistem.kullanici.subeIpucu' | transloco"
+                          >
+                            <rc-secim
+                              formControlName="atanmisSube"
+                              [secenekler]="branches()"
+                              [bosEtiket]="'sistem.kullanici.tumSubeler' | transloco"
+                            />
+                          </rc-alan>
+                          <div class="eylemler">
+                            <button
+                              type="button"
+                              class="rc-dugme rc-dugme--birincil rc-dugme--kucuk"
+                              [disabled]="editSubmit.gonderiliyor()"
+                              (click)="saveEdit()"
+                            >
+                              {{ 'sistem.kullanici.duzenleKaydet' | transloco }}
+                            </button>
+                            <button
+                              type="button"
+                              class="rc-dugme rc-dugme--kucuk"
+                              [disabled]="editSubmit.gonderiliyor()"
+                              (click)="closeEdit()"
+                            >
+                              {{ 'sistem.ortak.vazgec' | transloco }}
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    </td>
+                  </tr>
+                }
                 @if (resetting()?.id === u.id) {
                   <tr>
                     <td colspan="6">

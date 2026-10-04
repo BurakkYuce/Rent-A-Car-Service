@@ -10233,6 +10233,44 @@
             }
           }
         }
+      },
+      "put": {
+        "tags": [
+          "Sistem"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UserUpdateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserDto"
+                }
+              }
+            }
+          }
+        }
       }
     },
     "/api/ui/v1/kullanicilar/{id}/aktif": {
@@ -72604,7 +72642,8 @@
           "aktif",
           "atanmisSube",
           "istisnalar",
-          "etkinIzinler"
+          "etkinIzinler",
+          "surum"
         ],
         "type": "object",
         "properties": {
@@ -72641,6 +72680,40 @@
             "items": {
               "type": "string"
             }
+          },
+          "surum": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
+      "UserUpdateRequest": {
+        "required": [
+          "rol",
+          "atanmisSube",
+          "surum"
+        ],
+        "type": "object",
+        "properties": {
+          "rol": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "atanmisSube": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "surum": {
+            "type": [
+              "null",
+              "string"
+            ]
           }
         }
       },

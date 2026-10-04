@@ -22,6 +22,21 @@ export function creatableRoles(actorRole: string | null | undefined): readonly R
   return actorRole === 'Admin' ? ROLES : ROLES.filter((r) => r !== 'Admin');
 }
 
+/**
+ * Rol/şube düzenlemesinde seçilebilecek roller (sunucu kuralının yansıması — asıl kapı `UserService.UpdateAsync`):
+ * kendi rolü DEĞİŞMEZ (yalnız mevcut rol; kendini düşürüp son Admin'i yok etme yolu kapalı); Admin rolünü yalnız
+ * Admin verir; Admin hesabının kendisi zaten yalnız Admin'e düzenlenebilir (`canManageAccount`).
+ */
+export function editableRoles(
+  actorRole: string | null | undefined,
+  actorId: string | null | undefined,
+  target: UserDto,
+): readonly string[] {
+  if (target.id === actorId) return [target.rol];
+  const roles: readonly string[] = creatableRoles(actorRole);
+  return roles.includes(target.rol) ? roles : [target.rol, ...roles];
+}
+
 /** İstisnası verilebilecek izinler: ManageUsers'ı vermek/kaldırmak yalnız Admin'e (M2). */
 export function grantablePermissions(actorRole: string | null | undefined): readonly Permission[] {
   return actorRole === 'Admin' ? PERMISSIONS : PERMISSIONS.filter((p) => p !== 'ManageUsers');

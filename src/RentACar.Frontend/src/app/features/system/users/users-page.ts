@@ -33,6 +33,7 @@ import {
   type UserDto,
   canManageAccount,
   creatableRoles,
+  editableRoles,
   exceptionRows,
   exceptionTargets,
   grantablePermissions,
@@ -125,6 +126,26 @@ export class UsersPage {
   });
   protected readonly resetSubmit = formSubmission();
 
+  /**
+   * Rol/şube düzenlenen kullanıcı (kabul d-sistem-kullanici-09; satır altında açılan form). Tam değiştirme PUT'u satırın
+   * `surum`'uyla gider; bayat → 409 `cakisma`, liste tazelenir (otomatik yeniden gönderim yok).
+   */
+  protected readonly editing = signal<UserDto | null>(null);
+  protected readonly editForm = new FormGroup({
+    rol: new FormControl<string | null>(null, Validators.required),
+    atanmisSube: new FormControl<string | null>(null),
+  });
+  protected readonly editSubmit = formSubmission();
+  protected readonly editRoleOptions = computed<readonly SecenekOgesi<string>[]>(() => {
+    const u = this.editing();
+    return u
+      ? editableRoles(this.actorRole(), this.actorId(), u).map((r) => ({
+          deger: r,
+          etiket: this.roleLabel(r),
+        }))
+      : [];
+  });
+
   protected readonly exceptionForm = new FormGroup({
     kullaniciId: new FormControl<string | null>(null, Validators.required),
     izin: new FormControl<string | null>(null, Validators.required),
@@ -153,7 +174,12 @@ export class UsersPage {
   }
 
   hasUnsavedChanges(): boolean {
-    return this.createForm.dirty || this.resetForm.dirty || this.exceptionForm.dirty;
+    return (
+      this.createForm.dirty ||
+      this.resetForm.dirty ||
+      this.exceptionForm.dirty ||
+      this.editForm.dirty
+    );
   }
 
   protected roleLabel(role: string): string {
@@ -215,7 +241,47 @@ export class UsersPage {
   protected openReset(u: UserDto): void {
     this.resetForm.reset();
     this.resetSubmit.kilit.yenile();
+    this.editing.set(null);
     this.resetting.set(u);
+  }
+
+  protected openEdit(u: UserDto): void {
+    this.editForm.reset({ rol: u.rol, atanmisSube: u.atanmisSube ?? null });
+    this.editSubmit.kilit.yenile();
+    this.resetting.set(null);
+    this.editing.set(u);
+  }
+
+  protected closeEdit(): void {
+    this.editing.set(null);
+    this.editForm.reset();
+  }
+
+  protected saveEdit(): void {
+    const u = this.editing();
+    if (!u) return;
+    // Sürüm her gönderimde GÜNCEL listeden okunur: 409 sonrası tazelenen satır yeni sürümü taşır.
+    const surum = this.users().find((x) => x.id === u.id)?.surum ?? u.surum;
+    const v = this.editForm.getRawValue();
+    this.editSubmit.gonder(
+      this.editForm,
+      (key) =>
+        this.api.put<UserDto>(
+          `${ROOT}/${encodeURIComponent(u.id)}`,
+          { rol: v.rol, atanmisSube: v.atanmisSube, surum },
+          { islemAnahtari: key },
+        ),
+      {
+        basarili: () => {
+          this.closeEdit();
+          this.toast.basari(this.t('sistem.kullanici.guncellendi', { ad: u.kullaniciAdi }));
+          this.list.yenile();
+        },
+        hata: (h) => {
+          if (h.kod === 'cakisma') this.list.yenile();
+        },
+      },
+    );
   }
 
   protected resetPassword(): void {

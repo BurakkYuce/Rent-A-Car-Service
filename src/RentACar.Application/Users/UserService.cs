@@ -74,6 +74,45 @@ public sealed class UserService(IUserRepository repository, IPasswordHasher hash
             new UserAuditEntry(active ? "KullaniciAktif" : "KullaniciPasif"), ct);
     }
 
+    /// <summary>Satır sürümleri (liste/kart <c>surum</c>'u).</summary>
+    public Task<IReadOnlyDictionary<Guid, string>> GetVersionsAsync(CancellationToken ct = default)
+    {
+        RequireAdmin();
+        return _repository.GetVersionsAsync(ct);
+    }
+
+    /// <summary>
+    /// Kabul d-sistem-kullanici-09 — rol ve atanmış şubeyi değiştirir (tam değiştirme, zorunlu sürüm; bayat → 409).
+    /// Kemerler: kendi rolünü değiştiremez (kendini düşürüp son Admin'i yok etme / kilitlenme yolu kapalı; şubesi
+    /// değişebilir); Admin hesabına dokunmak ve Admin rolü vermek yalnız Admin ROLÜNE (M2); son aktif Admin'in rolü
+    /// repo'da kiracı kilidi altında da korunur. Şubenin varlığı/aktifliği çağıranda doğrulanır (ad + kimlik birlikte).
+    /// <para>Oturum notu: rol ve şube giriş anında claim'e yazılır; değişiklik hedef kullanıcının bir sonraki
+    /// girişinde geçerli olur (izin istisnalarıyla aynı model — oturum yenileme deseni yok).</para>
+    /// </summary>
+    public async Task<bool> UpdateAsync(Guid id, UserUpdateInput input, string expectedVersion, CancellationToken ct = default)
+    {
+        RequireAdmin();
+        if (string.IsNullOrWhiteSpace(expectedVersion))
+            throw new ValidationException("Kayıt sürümü (surum) zorunludur; kaydı yeniden açın.", "surum");
+        if (await _repository.FindAsync(id, ct) is not { } current) return false;
+        if (_currentUser.UserId is { } self && self == id && current.Rol != input.Rol)
+            throw new ValidationException("Kendi rolünüzü değiştiremezsiniz; başka bir Admin değiştirmelidir.", "rol");
+        if (current.Rol == Domain.Enums.UserRole.Admin)
+            RequireAdminRole("Admin hesabını yalnız Admin değiştirebilir.");
+        if (input.Rol == Domain.Enums.UserRole.Admin && current.Rol != Domain.Enums.UserRole.Admin)
+            RequireAdminRole("Admin rolünü yalnız Admin verebilir.");
+
+        var branch = string.IsNullOrWhiteSpace(input.AtanmisSube) ? null : input.AtanmisSube.Trim();
+        var branchId = branch is null ? null : input.AtanmisSubeId;
+        return await _repository.UpdateAuditedAsync(id, expectedVersion, u =>
+        {
+            u.Rol = input.Rol;
+            u.AtanmisSube = branch;
+            u.AtanmisSubeId = branchId;
+        }, new UserAuditEntry("KullaniciGuncelleme",
+            $"Rol={current.Rol}->{input.Rol}; Sube={current.AtanmisSube ?? "-"}->{branch ?? "-"}"), ct);
+    }
+
     public async Task<bool> ResetPasswordAsync(Guid id, string newPassword, CancellationToken ct = default)
     {
         RequireAdmin();
