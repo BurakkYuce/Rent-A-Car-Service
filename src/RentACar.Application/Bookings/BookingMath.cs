@@ -54,9 +54,23 @@ public static class BookingMath
     /// türetilmiş bir yaklaşımdı; o dal sonucu zaten hep 1 güne sabitlediği için 2.9 pratikte sadece
     /// [2.9, 3.0) aralığında (6 dakikalık pencere) <b>bize bir gün fazla faturalatıyordu</b>.</para>
     ///
-    /// Uzatma/geç-dönüş bu kuralı KULLANMAZ (ReturnMath ayrı: ceil).
+    /// Geç dönüş de AYNI kuralı kullanır (<see cref="LateReturnDays"/>; kabul bulguları a-kkayit-09 / C-GUN —
+    /// eskiden ReturnMath ayrı bir "ceil" kuralıyla 1 dakikalık gecikmeyi tam gün faturalatıyordu).
+    /// <c>TenantSettings.SaatFarkiToleransDk</c> hâlâ BEKLEMEDE: eşik firma ayarına bağlanırsa kira, fiyat
+    /// motoru ve dönüş birlikte değişmeli — bu sabit tek kaynak olduğu için bağlama tek noktadan yapılır.
     /// </summary>
     public const double PartialDayThresholdHours = 3.0;
+
+    /// <summary>
+    /// Geç dönüşte faturalanacak EK gün: gerçek dönüşe kadarki toplam süre <see cref="ComputeDays"/> ile
+    /// sayılır, planlanan sürenin gün sayısı düşülür. Tolerans böylece TOPLAM kira süresine BİR KEZ uygulanır
+    /// (kira gün hesabıyla birebir): 3 günlük kirada 2 sa 59 dk gecikme ücretsiz, 3 saat +1 gün. Planlanan
+    /// bitişte ya da öncesinde dönüş 0.
+    /// </summary>
+    public static int LateReturnDays(DateTimeOffset start, DateTimeOffset plannedEnd, DateTimeOffset actualReturn)
+        => actualReturn <= plannedEnd
+            ? 0
+            : Math.Max(0, ComputeDays(start, actualReturn) - ComputeDays(start, plannedEnd));
 
     /// <summary>Gün sayısı: 24-saat TAM blok (floor) + kısmi dönem <see cref="PartialDayThresholdHours"/>'ı aşarsa
     /// +1; en az 1. Fiyat motoru + kira/rezervasyon/teklif/uzatma-gün'ü kullanır (referans sistem parite).</summary>

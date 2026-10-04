@@ -13,7 +13,8 @@ public sealed class ReportExportService
     public byte[] Xlsx(string sheetName, IReadOnlyList<string> headers, IEnumerable<IReadOnlyList<object?>> rows)
     {
         using var wb = new XLWorkbook();
-        var ws = wb.Worksheets.Add(Trunc(string.IsNullOrWhiteSpace(sheetName) ? "Rapor" : sheetName, 31));
+        // Excel sayfa adı kuralları TEK yerde (yasak karakter, 31 karakter, boş/kesme işareti) — ExcelSheetName.
+        var ws = wb.Worksheets.Add(ExcelSheetName.Clean(sheetName));
 
         for (var i = 0; i < headers.Count; i++)
             ws.Cell(1, i + 1).Value = headers[i];
@@ -43,8 +44,6 @@ public sealed class ReportExportService
         var enc = new UTF8Encoding(encoderShouldEmitUTF8Identifier: true);
         return [.. enc.GetPreamble(), .. enc.GetBytes(sb.ToString())];
     }
-
-    private static string Trunc(string s, int n) => s.Length <= n ? s : s[..n];
 
     private static XLCellValue ToCell(object? v) => v switch
     {

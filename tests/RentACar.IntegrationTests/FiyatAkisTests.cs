@@ -89,19 +89,21 @@ public sealed class FiyatAkisTests(PostgresFixture fx)
     }
 
     [Fact]
-    public async Task Foreign_currency_matrix_not_auto_applied() // HIGH-1
+    public async Task Foreign_currency_matrix_without_rate_is_rejected() // HIGH-1 (kabul B-A1 ile güncellendi)
     {
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
         var vehicleId = await SeedVehicleWithMatrixAsync(scope.ServiceProvider, matrix: false);
         await scope.ServiceProvider.GetRequiredService<RateMatrixService>().CreateAsync(new RateMatrixInput
-        { Kod = "EUR-M", Ad = "Euro", AracGrupKod = "EKO", Gun5 = 100m, ParaBirimi = "EUR", OnayDurumu = TariffApprovalStatus.Onayli });
+        { Kod = "GBP-M", Ad = "Sterlin", AracGrupKod = "EKO", Gun5 = 100m, ParaBirimi = "GBP", OnayDurumu = TariffApprovalStatus.Onayli });
         var rentals = scope.ServiceProvider.GetRequiredService<RentalService>();
+        var account = await TestCustomer.NewAsync(scope.ServiceProvider);
 
-        var id = await rentals.CreateDirectAsync(Booking(vehicleId, account: await TestCustomer.NewAsync(scope.ServiceProvider), manualFee: 0m));
-        var c = await scope.ServiceProvider.GetRequiredService<IBookingRepository>().FindRentalAsync(id);
-        // EUR matris booking'e ham TRY olarak YAZILMAZ → 0 (manuel girilmeli).
-        Assert.Equal(0m, c!.GunlukUcret);
+        // Dövizli matris TL kiraya ham sayı olarak YAZILMAZ; kur yoksa (GBP: sabit kur/TCMB kaydı yok)
+        // eskiden sessizce 0 TL'lik kira açılıyordu → artık gürültülü red. Kur varken çevrim:
+        // PricingTariffCurrencyTests.
+        await Assert.ThrowsAsync<RentACar.Application.Common.ValidationException>(() =>
+            rentals.CreateDirectAsync(Booking(vehicleId, account: account, manualFee: 0m)));
     }
 
     [Fact]

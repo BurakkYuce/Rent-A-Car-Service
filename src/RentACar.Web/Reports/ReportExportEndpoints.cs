@@ -18,10 +18,15 @@ public static class ReportExportEndpoints
         grp.MapGet("/{rapor}", async (string rapor, HttpRequest req, ReportService rs, ReportExportService ex, PdfExportService pdf,
             RentACar.Application.FinancialAccounts.FinancialAccountService fas) =>
         {
-            var from = FormParse.Date(req.Query["from"].ToString());
-            var to = FormParse.Date(req.Query["to"].ToString());
-            var asOf = FormParse.Date(req.Query["asOf"].ToString()) ?? DateTimeOffset.UtcNow;
-            var day = FormParse.Date(req.Query["gun"].ToString()) ?? DateTimeOffset.UtcNow;
+            // Tarihler EKRANLA AYNI kuralla çözülür (Api/Rapor/ReportPeriod): bağlantılar yyyy-MM-dd İSTANBUL günü
+            // taşır. Eskiden FormParse.Date sunucunun yerel saatinde gece yarısına çeviriyordu → +03 sunucuda gün bir
+            // geri kayıyor (Günlük Faaliyet / Araç Günlük Durum dünü veriyordu) ve "to" bitiş gününün BAŞI olduğu için
+            // bitiş günü hiç dahil olmuyordu (Karşılaştırmalı CSV'de bugün başlayan kira eksikti).
+            var period = ExportPeriod.Parse(req.Query["from"].ToString(), req.Query["to"].ToString());
+            var from = period.From;
+            var to = period.To;
+            var asOf = ExportPeriod.DayEnd(req.Query["asOf"].ToString()) ?? DateTimeOffset.UtcNow;
+            var dayAnchor = ExportPeriod.DayAnchor(req.Query["gun"].ToString());
             var account = string.Equals(req.Query["hesap"].ToString(), "Banka", StringComparison.OrdinalIgnoreCase)
                 ? LedgerAccountType.Banka : LedgerAccountType.Kasa;
             string? branch = NullIfEmpty(req.Query["sube"].ToString());
@@ -37,7 +42,8 @@ public static class ReportExportEndpoints
 
             Table? t = rapor switch
             {
-                // FAZ-79: ekrandaki filtre + KDV modu export'a AYNEN taşınır (gördüğün = indirdiğin).
+                // FAZ-79: ekrandaki filtre export'a AYNEN taşınır (gördüğün = indirdiğin). "kdv" parametresi eski
+                // bağlantılar için okunur ama tabloyu değiştirmez: KDV referans kolonları her zaman yazılır.
                 "karlilik" => Profitability(await rs.GetProfitabilityAsync(from, to, branch, group, plate,
                     NullIfEmpty(req.Query["kaynak"].ToString()), NullIfEmpty(req.Query["sipp"].ToString()),
                     string.Equals(req.Query["kdv"].ToString(), "dahil", StringComparison.OrdinalIgnoreCase)
@@ -77,7 +83,9 @@ public static class ReportExportEndpoints
                         Bit = to
                     })),
                 "yaslandirma" => Aging(await rs.GetAgingAsync(asOf)),
-                "doluluk" => Occupancy(await rs.GetOccupancyAsync(from ?? day.AddMonths(-1), to ?? day)),
+                // Ekran (ReportApi.Fleet) günleri UTC çıpasıyla verir → aynı çıpa.
+                "doluluk" => Occupancy(await rs.GetOccupancyAsync(
+                    period.FromAnchor ?? dayAnchor.AddMonths(-1), period.ToAnchor ?? dayAnchor)),
                 "filo" => Fleet(await rs.GetFleetUtilizationAsync()),
                 "servis-ozet" => Service(await rs.GetServiceCostSummaryAsync(from, to)),
                 "periyodik-servis" => PeriodicService(await rs.GetPeriodicServiceAsync()),
@@ -96,20 +104,23 @@ public static class ReportExportEndpoints
                         },
                         SubeId = Guid.TryParse(req.Query["sube"].ToString(), out var fsid) ? fsid : null
                     })),
+                // Ekran (ReportApi.Operations) gün çıpası kullanır → aynı çıpa.
                 "arac-durum-takip" => VehicleStatusTracking(await rs.GetVehicleStatusTrackingAsync(
-                    VehicleTrackingFilter(req), from, to)),
+                    VehicleTrackingFilter(req), period.FromAnchor, period.ToAnchor)),
                 // FAZ-12 Bölüm A/B — ekrandaki görünüm ve filtre export'a AYNEN taşınır.
                 "arac-durum-takip-arac" => VehicleStatusTrackingVehicle(await rs.GetVehicleStatusTrackingByVehicleAsync(
-                    VehicleTrackingFilter(req), from, to)),
+                    VehicleTrackingFilter(req), period.FromAnchor, period.ToAnchor)),
+                // Kabul bulgusu d-rapor-arac-gunluk-04: ekranla aynı gün çıpası (bugün başlayan kira dosyada da var).
                 "arac-gunluk-durum" => VehicleDailyStatus(await rs.GetVehicleDailyStatusAsync(
-                    FormParse.Date(req.Query["gun"].ToString()),
+                    dayAnchor,
                     new AracGunlukDurumFilter
                     {
                         Plaka = plate, Grup = group, Sipp = NullIfEmpty(req.Query["sipp"].ToString()),
                         AracSahibi = NullIfEmpty(req.Query["aracSahibi"].ToString()),
                         Ofis = NullIfEmpty(req.Query["ofis"].ToString())
                     })),
-                "gunluk" => Daily(await rs.GetDailyActivityAsync(day)),
+                // Kabul bulgusu d-rapor-gunluk-04: ekranla aynı gün çıpası + ekrandaki şube süzgeci.
+                "gunluk" => Daily(await rs.GetDailyActivityAsync(dayAnchor, branch)),
                 "kdv-listesi" => Vat(await rs.GetVatListAsync(from, to)),
                 // FAZ-53 — KDV geniş format (satır=belge, sütun=oran); ?alis=1 → gelen e-Fatura dahil.
                 "kdv-genis" => VatWide(await rs.GetVatExtendedAsync(from, to,
@@ -150,14 +161,15 @@ public static class ReportExportEndpoints
         => new(sheet, new[] { "Metrik", "Değer" }, kv.Select(x => new object?[] { x.K, x.V }).ToList());
 
     /// <summary>FAZ-79: referans (defter-DIŞI) kolonlar EKLENDİ ama başlıkları "(ref.)" ile işaretli ve
-    /// TOPLAM satırında yalnız P&amp;L kolonları toplanır — Excel'de yanlışlıkla Gider'e eklenmesinler.</summary>
+    /// TOPLAM satırında yalnız P&amp;L kolonları toplanır — Excel'de yanlışlıkla Gider'e eklenmesinler.
+    /// <para>KDV referans kolonları HER ZAMAN dolu (kabul bulgusu d-rapor-karlilik-02): ekran bu bilgiyi bayraktan
+    /// bağımsız gösteriyor; eskiden yalnız <c>kdv=dahil</c> ile dolduğu için ekranda görülen değer dosyada boştu.</para></summary>
     private static Table Profitability(KarlilikDto d)
     {
-        var vat = d.KdvDurum == VatStatus.KdvDahil;
         var rows = d.Satirlar.Select(s => new object?[]
         {
             s.Plaka, s.Sube, s.Grup, s.Segment, s.Gelir, s.Gider, s.NetKar,
-            vat ? s.HesaplananKdv : null, vat ? s.GelirKdvDahil : null,
+            s.HesaplananKdv, s.GelirKdvDahil,
             s.Sipp, s.Otopark, s.RezKaynagi, s.CariAd, s.CariBakiye,
             s.DolulukYuzde, s.RevPacd, s.Adr,
             s.ReferansAylikMaliyet, s.ReferansFiloYonetimMaliyeti, s.ReferansToplamMaliyet, s.PotansiyelGelir
@@ -165,7 +177,7 @@ public static class ReportExportEndpoints
         rows.Add(new object?[]
         {
             "TOPLAM", null, null, null, d.ToplamGelir, d.ToplamGider, d.ToplamNetKar,
-            vat ? d.ToplamHesaplananKdv : null, null,
+            d.ToplamHesaplananKdv, null,
             null, null, null, null, null, null, null, null,
             null, null, d.ToplamReferansMaliyet, d.ToplamPotansiyelGelir
         });

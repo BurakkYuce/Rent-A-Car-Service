@@ -76,7 +76,9 @@ public static partial class ReportApi
             : string.Equals(f.Hesap.Trim(), "Kasa", StringComparison.OrdinalIgnoreCase) ? LedgerAccountType.Kasa
             : throw new ValidationException("Geçersiz hesap değeri. İzin verilenler: Kasa, Banka.", "hesap");
 
-        var total = await reports.GetCashBankSummaryAsync(p.FromUtc, p.ToUtc, ct);
+        // Kartlar listeyle AYNI süzgeçlerden geçer (hesap/döviz/tür/şube) — kabul bulgusu d-rapor-kasa-banka-03.
+        var total = await reports.GetCashBankSummaryAsync(p.FromUtc, p.ToUtc, f.HesapId, F(f.Doviz), F(f.Tur),
+            F(f.Sube), ct);
         var accountSummary = await reports.GetAccountBasedSummaryAsync(p.FromUtc, p.ToUtc, ct);
         var rows = await reports.GetAccountLedgerAsync(type, p.FromUtc, p.ToUtc, f.HesapId, ct,
             currency: F(f.Doviz), transactionType: F(f.Tur), branch: F(f.Sube), carryForward: f.Devir == true);

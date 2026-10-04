@@ -277,6 +277,7 @@ public sealed class BookingRepository(IDbContextFactory<AppDbContext> factory) :
             BitTar = r.BitTar,
             Gun = r.Gun,
             Tutar = r.Tutar,
+            GenelToplam = r.GenelToplam,
             Bakiye = r.Bakiye,
             Durum = r.Durum,
             Faturali = invoicedSet.Contains(r.Id),

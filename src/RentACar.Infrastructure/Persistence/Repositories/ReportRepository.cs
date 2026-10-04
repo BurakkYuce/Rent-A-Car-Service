@@ -481,12 +481,19 @@ public sealed class ReportRepository(IDbContextFactory<AppDbContext> factory) : 
 
         // Ay kolonları pencereden ÜRETİLİR (veriden değil): veri olmayan ay da kolon olarak görünür,
         // aksi hâlde "o ay hiç iş yok" bilgisi grid'den sessizce kaybolurdu.
+        // Ay anahtarı İSTANBUL gününden (TenantDay): dönem başı ekranda İstanbul gece yarısının UTC anı olarak
+        // gelir (1 Eylül 00:00 +03 = 31 Ağustos 21:00Z); UTC ayı alınca boş bir "Ağustos" sütunu açılıyordu
+        // (kabul bulgusu d-rapor-karsilastirmali-02). Kayıtlar da aynı kuralla aya düşer.
+        static string MonthKey(DateTimeOffset t)
+            => TenantDay.Day(t).ToString("yyyy-MM", System.Globalization.CultureInfo.InvariantCulture);
+        var startDay = TenantDay.Day(start);
+        var bitDay = TenantDay.Day(bit);
         var months = new List<string>();
-        var cursor = new DateTime(start.UtcDateTime.Year, start.UtcDateTime.Month, 1);
-        var lastMonth = new DateTime(bit.UtcDateTime.Year, bit.UtcDateTime.Month, 1);
+        var cursor = new DateOnly(startDay.Year, startDay.Month, 1);
+        var lastMonth = new DateOnly(bitDay.Year, bitDay.Month, 1);
         while (cursor <= lastMonth && months.Count < 120)   // üst sınır: absürt aralıkta kolon patlamasın
         {
-            months.Add(cursor.ToString("yyyy-MM"));
+            months.Add(cursor.ToString("yyyy-MM", System.Globalization.CultureInfo.InvariantCulture));
             cursor = cursor.AddMonths(1);
         }
 
@@ -494,7 +501,7 @@ public sealed class ReportRepository(IDbContextFactory<AppDbContext> factory) : 
             .GroupBy(x => string.IsNullOrWhiteSpace(x.Kirilim) ? "(belirtilmemiş)" : x.Kirilim.Trim())
             .Select(g => new KarsilastirmaliSatirDto(
                 g.Key,
-                g.GroupBy(x => x.Tarih.UtcDateTime.ToString("yyyy-MM"))
+                g.GroupBy(x => MonthKey(x.Tarih))
                  .ToDictionary(a => a.Key, a => a.Sum(x => x.Deger))))
             .OrderByDescending(s => s.Toplam).ThenBy(s => s.Kirilim)
             .ToList();
