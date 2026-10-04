@@ -60,13 +60,16 @@ public sealed class ListExportCatalogTests
             CepTel = "5551112233", Email = "a@b.c", Il = "İstanbul", Ilce = "Kadıköy", Kaynak = "Web", VadeGun = 30,
             Sinif = "VIP", IysIzinli = true, RiskLimiti = 25000m, HgsYansitmaTuru = "Faturalı", OzelCariTip = "Grup İçi"
         };
-        var t = ListExportCatalog.Customers([c]);
+        var t = ListExportCatalog.Customers([c], CustomerPrivacy.None);
 
         Assert.Equal(19, t.Headers.Count);          // TC Kimlik kaldırıldı → 20-1
         Assert.DoesNotContain("TC Kimlik", t.Headers);
         Assert.DoesNotContain("12345678901", t.Rows[0].Select(x => x?.ToString()));  // TC hiçbir hücrede yok
         Assert.Equal("Vergi No", t.Headers[2]);
-        Assert.Equal("V123", t.Rows[0][2]);         // kurumsal Vergi No dahil (PII değil)
+        // Bireysel carinin vergi no'su TC olabilir → ekrandaki kart kuralıyla yazılmaz; kurumsal yazılır.
+        Assert.Null(t.Rows[0][2]);
+        var corporate = new Customer { Tip = CustomerType.Kurumsal, Unvan = "ACME A.Ş.", VergiNo = "1234567890" };
+        Assert.Equal("1234567890", ListExportCatalog.Customers([corporate], CustomerPrivacy.None).Rows[0][2]);
         Assert.Equal("5551112233", t.Rows[0][3]);   // Telefon (kaydı bir sola)
         Assert.Equal("Kadıköy", t.Rows[0][6]);      // İlçe
         Assert.Equal("Sınıf", t.Headers[12]);
@@ -87,7 +90,7 @@ public sealed class ListExportCatalogTests
             CariId = customerId, Currency = "EUR", Kur = 35m, ManuelMi = true,
             VadeTarihi = new DateTimeOffset(2026, 2, 15, 0, 0, 0, TimeSpan.Zero), DamgaVergisi = 1.14m
         };
-        var t = ListExportCatalog.Invoices([f], id => id == customerId ? "ACME A.Ş." : null);
+        var t = ListExportCatalog.Invoices([f], id => id == customerId ? "ACME A.Ş." : null, CustomerPrivacy.None);
 
         Assert.Equal(13, t.Headers.Count);           // ilk 6 sabit + 7 derinlik
         Assert.Equal("FT-000001", t.Rows[0][0]);     // No (geriye-uyum)
@@ -157,7 +160,7 @@ public sealed class ListExportCatalogTests
         var n = new CashTransaction { No = "TH-1", Tarih = new(2026, 3, 1, 12, 0, 0, TimeSpan.Zero),
             Amount = new Money(250m, "TRY", 1m), KarsiHesap = LedgerAccountType.Kasa, TersKayitMi = false,
             Kanal = "Mobil", Aciklama = "Peşin" };
-        var t = ListExportCatalog.CashTransactions([new NakitIslemSatirDto(n, "Ahmet Yılmaz", "OZL-1")]);
+        var t = ListExportCatalog.CashTransactions([new NakitIslemSatirDto(n, "Ahmet Yılmaz", "OZL-1")], CustomerPrivacy.None);
         Assert.Equal(11, t.Headers.Count);
         Assert.Equal("TH-1", t.Rows[0][0]);
         Assert.Equal("Ahmet Yılmaz", t.Rows[0][3]);
@@ -194,7 +197,7 @@ public sealed class ListExportCatalogTests
             Currency = "TRY" };
         // FAZ-17: Dosya No / Cari / İmza / temsilci / spesifikasyon / 3 fiyat katmanı / TSB / Kredi
         // kolonları eklendi → 12 değil 28 kolon.
-        var t = ListExportCatalog.VehicleOrders([s],
+        var t = ListExportCatalog.VehicleOrders([s], CustomerPrivacy.None,
             id => id == account ? "Fiat Bayi A.Ş." : null,
             id => id == loan ? "KR-000007 — Ziraat" : null);
         Assert.Equal(28, t.Headers.Count);
@@ -218,7 +221,7 @@ public sealed class ListExportCatalogTests
             KrediTutari = 1000000m, FaizOran = 2.5m,
             TaksitSayisi = 36, OdenenTaksit = 12, BaslangicTarihi = new(2026, 6, 1, 0, 0, 0, TimeSpan.Zero), Currency = "TRY" };
         // FAZ-13: Dosya No / Cari / Araç kolonları eklendi → 10 değil 13 kolon.
-        var t = ListExportCatalog.VehicleLoans([k],
+        var t = ListExportCatalog.VehicleLoans([k], CustomerPrivacy.None,
             id => id == account ? "ACME A.Ş." : null, id => id == vehicle ? "34ABC01" : null);
         Assert.Equal(13, t.Headers.Count);
         Assert.Equal("DS-77", t.Rows[0][1]);
@@ -229,7 +232,7 @@ public sealed class ListExportCatalogTests
         Assert.Equal(12, t.Rows[0][8]);
 
         // Cari/araç bağlanmamış kredi: çözücü ÇAĞRILMAZ, kolon boş kalır (yanlış ad sızmasın).
-        var empty = ListExportCatalog.VehicleLoans([new AracKredi { No = "KR-2", BankaAdi = "Vakıf", TaksitSayisi = 6 }]);
+        var empty = ListExportCatalog.VehicleLoans([new AracKredi { No = "KR-2", BankaAdi = "Vakıf", TaksitSayisi = 6 }], CustomerPrivacy.None);
         Assert.Null(empty.Rows[0][3]);
         Assert.Null(empty.Rows[0][4]);
     }
@@ -252,7 +255,7 @@ public sealed class ListExportCatalogTests
         var r = new RentalRow { SozlesmeNo = "RZ-1", MusteriAd = "Ali Veli", Plaka = "34ABC01",
             BasTar = new(2026, 1, 1, 0, 0, 0, TimeSpan.Zero), BitTar = new(2026, 1, 4, 0, 0, 0, TimeSpan.Zero),
             Gun = 3, Tutar = 300m, Bakiye = 100m, Durum = RentalStatus.Kirada, Faturali = false };
-        var t = ListExportCatalog.Rentals([r]);
+        var t = ListExportCatalog.Rentals([r], CustomerPrivacy.None);
         Assert.Equal(10, t.Headers.Count);
         Assert.Equal("RZ-1", t.Rows[0][0]);
         Assert.Equal("Ali Veli", t.Rows[0][1]);
@@ -269,7 +272,7 @@ public sealed class ListExportCatalogTests
             BitTar = new(2026, 2, 3, 12, 0, 0, TimeSpan.Zero), CikisOfisi = "Merkez", DonusOfisi = "Ankara",
             Kaynak = "Web", TalepTuru = "Kurumsal", GeldigiBirim = "Çağrı Merkezi", ProjeAdi = "ACME",
             OnayKodu = "ON-7", Gun = 2, GunlukUcret = 150m, Tutar = 300m };
-        var t = ListExportCatalog.Reservations([new ReservationRow(r, "Ali Veli", "5551112233", "34ABC01")]);
+        var t = ListExportCatalog.Reservations([new ReservationRow(r, "Ali Veli", "5551112233", "34ABC01")], CustomerPrivacy.None);
         Assert.Equal(17, t.Headers.Count);
         Assert.Equal("RE-1", t.Rows[0][0]);
         Assert.Equal("Ali Veli", t.Rows[0][2]);
@@ -330,7 +333,7 @@ public sealed class ListExportCatalogTests
         // Bağımsız oracle: sahte resolver → FK Guid'leri doğru ada çözülür.
         var t = ListExportCatalog.FleetRentals([f],
             plate: id => id == vid ? "34FK001" : null,
-            customer: id => id == mid ? "ACME A.Ş." : null);
+            customer: id => id == mid ? "ACME A.Ş." : null, privacy: CustomerPrivacy.None);
 
         Assert.Equal(13, t.Headers.Count);
         Assert.Equal("Müşteri", t.Headers[1]);
@@ -394,7 +397,7 @@ public sealed class ListExportCatalogTests
             // Öğle UTC: yerel gün her makine saat diliminde 2026-03-01 kalır (test TZ'den bağımsız).
             Tarih = new DateTimeOffset(2026, 3, 1, 12, 0, 0, TimeSpan.Zero), Aciklama = "İcra takibi"
         };
-        var t = ListExportCatalog.LegalCases([new HukukDosyaSatirDto(h, "Ali Veli", "0555 000 11 22")]);
+        var t = ListExportCatalog.LegalCases([new HukukDosyaSatirDto(h, "Ali Veli", "0555 000 11 22")], CustomerPrivacy.None);
 
         Assert.Equal(18, t.Headers.Count);
         Assert.Equal("Dosya No", t.Headers[0]);

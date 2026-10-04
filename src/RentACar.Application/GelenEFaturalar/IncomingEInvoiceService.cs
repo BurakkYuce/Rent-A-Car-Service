@@ -46,7 +46,13 @@ public sealed class IncomingEInvoiceService(
         var ettn = (input.Ettn ?? string.Empty).Trim();
         var taxNo = (input.GonderenVkn ?? string.Empty).Trim();
         var title = (input.GonderenUnvan ?? string.Empty).Trim();
-        if (string.IsNullOrWhiteSpace(ettn)) throw new ValidationException("ETTN zorunludur.");
+        if (string.IsNullOrWhiteSpace(ettn)) throw new ValidationException("ETTN zorunludur.", "ettn");
+        // ETTN, GİB'in belgeye verdiği UUID'dir (8-4-4-4-12). Serbest metin kabul edilseydi elle girilen giderin evrak
+        // no'suyla eşleştirme (KDV raporunda çift sayım çiti) ve ETTN tekilliği yazım farkına takılırdı. Kanonik biçim
+        // (büyük harf, tireli) saklanır: aynı belge küçük/büyük harfle iki kez girilemez.
+        if (!Guid.TryParseExact(ettn, "D", out var ettnGuid))
+            throw new ValidationException("ETTN, GİB biçiminde olmalıdır (ör. 3F2504E0-4F89-11D3-9A0C-0305E82C3301).", "ettn");
+        ettn = ettnGuid.ToString("D").ToUpperInvariant();
         if (string.IsNullOrWhiteSpace(taxNo)) throw new ValidationException("Gönderen VKN zorunludur.");
         if (string.IsNullOrWhiteSpace(title)) throw new ValidationException("Gönderen ünvanı zorunludur.");
         // FAZ-55: belge kendi içinde tutarlı olmalı (net + KDV == genel toplam). Aksi halde hiçbir

@@ -528,6 +528,10 @@ public sealed class InvoiceService(
             throw new ValidationException("Bu fatura zaten iade edilmiş.");
 
         var date2 = date ?? DateTimeOffset.UtcNow;
+        // İade, geri aldığı faturadan ÖNCE tarihlenemez: defterde "henüz kesilmemiş faturanın iadesi" oluşur, dönem
+        // raporları (KDV, gelir-gider, yaşlandırma) iadeyi faturanın dönemine/yaşına göre yanlış yere koyar.
+        if (date2 < src.Tarih)
+            throw new ValidationException("İade tarihi kaynak faturanın tarihinden önce olamaz.", "tarih");
         await _lock.EnsureOpenAsync(date2, ct); // dönem kilidi: kapalı döneme iade YOK
 
         var refund = new Invoice

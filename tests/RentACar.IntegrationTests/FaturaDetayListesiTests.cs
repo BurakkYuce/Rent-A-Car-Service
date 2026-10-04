@@ -193,7 +193,7 @@ public sealed class FaturaDetayListesiTests(PostgresFixture fx)
         await ManualAsync(sp, account, "Kalem 1", 100m);
         await ManualAsync(sp, account, "Kalem 2", 150m);
 
-        var t = ListExportCatalog.InvoiceDetails(await sp.GetRequiredService<InvoiceService>().ListLinesAsync());
+        var t = ListExportCatalog.InvoiceDetails(await sp.GetRequiredService<InvoiceService>().ListLinesAsync(), CustomerPrivacy.None);
         Assert.Equal("Fatura Detay", t.Sheet);
         Assert.Equal(21, t.Headers.Count);
         Assert.Equal("Fatura No", t.Headers[0]);

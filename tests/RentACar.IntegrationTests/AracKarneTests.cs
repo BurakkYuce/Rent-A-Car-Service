@@ -230,14 +230,15 @@ public sealed class AracKarneTests(PostgresFixture fx)
         var rentals = sp.GetRequiredService<RentalService>();
         var invoices = sp.GetRequiredService<InvoiceService>();
 
-        // Fatura BUGÜN (pencere dışı), iadesi 10 gün önce tarihli (pencere içi) → pencere net −250.
+        // Fatura BUGÜN (pencere dışı), iadesi 10 gün SONRA tarihli (pencere içi) → pencere net −250.
+        // (İade kaynak faturadan önce tarihlenemez — InvoiceService kuralı; eskiden iade 10 gün ÖNCEYE yazılıyordu.)
         var rental = await rentals.CreateDirectAsync(new BookingInput
         { MusteriId = account, VehicleId = vehicle, BasTar = Start, BitTar = Start.AddDays(3), GunlukUcret = 100m });
         var inv = await invoices.CreateFromRentalAsync(rental);
-        await invoices.CreateRefundAsync(inv, date: DateTimeOffset.UtcNow.AddDays(-10));
+        await invoices.CreateRefundAsync(inv, date: DateTimeOffset.UtcNow.AddDays(10));
 
         var k = await sp.GetRequiredService<ReportService>().GetVehicleScorecardAsync(vehicle,
-            DateTimeOffset.UtcNow.AddDays(-15), DateTimeOffset.UtcNow.AddDays(-5));
+            DateTimeOffset.UtcNow.AddDays(5), DateTimeOffset.UtcNow.AddDays(15));
         Assert.Equal(-250m, k!.ToplamGelir);                       // elle: yalnız iade pencerede
         Assert.All(k.GelirKaynak, r => Assert.Null(r.YuzdeGelir)); // yüzde YOK (yanıltıcı olurdu)
     }
