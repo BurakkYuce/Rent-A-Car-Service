@@ -101,10 +101,13 @@ public sealed partial class UiTanimTests
         await ExpectProblem(await Send(other, HttpMethod.Delete, $"{root}/{id}"), HttpStatusCode.NotFound, null);
         Assert.Equal("Yeni", (await Json(await Send(op, HttpMethod.Get, $"{root}/{id}"))).GetProperty("ad").GetString());
 
-        // Delete: 204, then 404; the other row stays.
-        Assert.Equal(HttpStatusCode.NoContent, (await Send(op, HttpMethod.Delete, $"{root}/{id}")).StatusCode);
+        // Delete (kabul D-4): the operator has no OperationsDelete → 403, row stays; Admin: 204, then 404; the other row stays.
+        await ExpectProblem(await Send(op, HttpMethod.Delete, $"{root}/{id}"), HttpStatusCode.Forbidden, "yetki_yok");
+        Assert.Equal("Yeni", (await Json(await Send(op, HttpMethod.Get, $"{root}/{id}"))).GetProperty("ad").GetString());
+        var admin = await LoginAsync(env, Who.Admin);
+        Assert.Equal(HttpStatusCode.NoContent, (await Send(admin, HttpMethod.Delete, $"{root}/{id}")).StatusCode);
         await ExpectProblem(await Send(op, HttpMethod.Get, $"{root}/{id}"), HttpStatusCode.NotFound, null);
-        await ExpectProblem(await Send(op, HttpMethod.Delete, $"{root}/{id}"), HttpStatusCode.NotFound, null);
+        await ExpectProblem(await Send(admin, HttpMethod.Delete, $"{root}/{id}"), HttpStatusCode.NotFound, null);
         Assert.Equal([id2], (await Json(await Send(op, HttpMethod.Get, root))).EnumerateArray().Select(x => x.GetProperty("id").GetGuid()).ToList());
     }
 
@@ -117,7 +120,8 @@ public sealed partial class UiTanimTests
         var id = brand.GetProperty("id").GetGuid();
         await WriteAsync(env.TenantId, db => db.Vehicles.Add(new Vehicle { Plaka = "34TNM" + Guid.NewGuid().ToString("N")[..3], Marka = "Fiat", Sube = "SubeA" }));
 
-        var refused = await ExpectProblem(await Send(op, HttpMethod.Delete, $"{V1}/markalar/{id}"), HttpStatusCode.BadRequest, "dogrulama");
+        var admin = await LoginAsync(env, Who.Admin); // silme OperationsDelete ister (kabul D-4)
+        var refused = await ExpectProblem(await Send(admin, HttpMethod.Delete, $"{V1}/markalar/{id}"), HttpStatusCode.BadRequest, "dogrulama");
         Assert.Contains("pasife", refused.GetProperty("detail").GetString());
         var passive = await Json(await Send(op, HttpMethod.Put, $"{V1}/markalar/{id}",
             new { kod = "FIAT", ad = "Fiat", aktif = false, surum = brand.GetProperty("surum").GetString() }));
@@ -125,7 +129,7 @@ public sealed partial class UiTanimTests
 
         // An unused brand deletes normally.
         var free = await Json(await Send(op, HttpMethod.Post, V1 + "/markalar", new { kod = "OPEL", ad = "Opel" }), HttpStatusCode.Created);
-        Assert.Equal(HttpStatusCode.NoContent, (await Send(op, HttpMethod.Delete, $"{V1}/markalar/{free.GetProperty("id").GetGuid()}")).StatusCode);
+        Assert.Equal(HttpStatusCode.NoContent, (await Send(admin, HttpMethod.Delete, $"{V1}/markalar/{free.GetProperty("id").GetGuid()}")).StatusCode);
     }
 
     [Fact]
@@ -142,10 +146,11 @@ public sealed partial class UiTanimTests
             db.FinancialAccounts.Add(new FinancialAccount { Kod = "BNK1", Ad = "Ziraat TL", Banka = "Ziraat" });
             db.Customers.Add(new Customer { Tip = RentACar.Domain.Enums.CustomerType.Bireysel, Ad = "Ece", Soyad = "Kaya", OzelKod = "VIP" });
         });
-        await ExpectProblem(await Send(op, HttpMethod.Delete, $"{V1}/bankalar/{bank}"), HttpStatusCode.BadRequest, "dogrulama");
-        await ExpectProblem(await Send(op, HttpMethod.Delete, $"{V1}/ozel-kodlar/{code}"), HttpStatusCode.BadRequest, "dogrulama");
+        var admin = await LoginAsync(env, Who.Admin); // silme OperationsDelete ister (kabul D-4)
+        await ExpectProblem(await Send(admin, HttpMethod.Delete, $"{V1}/bankalar/{bank}"), HttpStatusCode.BadRequest, "dogrulama");
+        await ExpectProblem(await Send(admin, HttpMethod.Delete, $"{V1}/ozel-kodlar/{code}"), HttpStatusCode.BadRequest, "dogrulama");
         // Unused category deletes; the rows above are still there.
-        Assert.Equal(HttpStatusCode.NoContent, (await Send(op, HttpMethod.Delete, $"{V1}/gider-turleri/{cat}")).StatusCode);
+        Assert.Equal(HttpStatusCode.NoContent, (await Send(admin, HttpMethod.Delete, $"{V1}/gider-turleri/{cat}")).StatusCode);
         Assert.Single((await Json(await Send(op, HttpMethod.Get, V1 + "/bankalar"))).EnumerateArray());
         Assert.Single((await Json(await Send(op, HttpMethod.Get, V1 + "/ozel-kodlar"))).EnumerateArray());
     }

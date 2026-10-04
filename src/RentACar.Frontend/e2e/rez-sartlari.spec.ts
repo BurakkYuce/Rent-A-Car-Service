@@ -95,7 +95,8 @@ async function isFormPreserved(page: Page): Promise<void> {
 }
 
 test.beforeEach(async ({ page }) => {
-  await logIn(page);
+  // Rez şartı silme OperationsDelete ister (güvenlik F3).
+  await logIn(page, { ...BEN, izinler: [...BEN.izinler, 'OperationsDelete'] });
   await sharedEndpoints(page);
 });
 

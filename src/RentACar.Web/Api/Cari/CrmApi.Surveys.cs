@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using RentACar.Application.Authorization;
 using RentACar.Application.Bookings;
 using RentACar.Application.Common;
 using RentACar.Application.Crm;
@@ -11,6 +12,7 @@ using RentACar.Domain.Enums;
 using RentACar.Infrastructure.Persistence;
 using RentACar.Web.Api.Kira;
 using RentACar.Web.Api.Rezervasyon;
+using RentACar.Web.Identity;
 
 namespace RentACar.Web.Api.Cari;
 
@@ -35,7 +37,8 @@ public static partial class CrmApi
         s.MapGet("/{id:guid}", GetSurvey);
         s.MapPost("", CreateSurvey).MapFields(SurveyFieldRules);
         s.MapPut("/{id:guid}", UpdateSurvey).MapFields(SurveyFieldRules);
-        s.MapDelete("/{id:guid}", DeleteSurvey);
+        // Kabul C-CRMSIL: silme cari silmeyle aynı dar izni ister (operatör siler DEĞİL).
+        s.MapDelete("/{id:guid}", DeleteSurvey).RequirePermission(Permission.OperationsDelete);
     }
 
     private static ProblemHttpResult SurveyNotFound() => F5Shared.NotFound("Anket bulunamadı.");

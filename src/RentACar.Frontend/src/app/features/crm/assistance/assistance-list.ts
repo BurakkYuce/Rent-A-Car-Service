@@ -14,6 +14,8 @@ import type { DayText } from '@core/form/tarih-girdisi';
 import { type UnsavedChangesOwner, pageLeaveGuard } from '@core/form/kaydedilmemis-degisiklik';
 import { ToastService } from '@core/geri-bildirim/toast-service';
 import { translationFunction } from '@core/i18n/ceviri';
+import { DUGME_IZINLERI } from '@core/oturum/dugme-izinleri';
+import { SessionService } from '@core/oturum/session-service';
 import { FetchPolicy } from '@core/veri/fetch-policy';
 import { listQueryUrlSync } from '@core/veri/liste-sorgusu-url';
 import { FilterPanelComponent } from '@shared/filtre-paneli/filtre-paneli';
@@ -118,6 +120,11 @@ export class AssistanceList implements UnsavedChangesOwner {
   protected readonly store = inject(AssistanceStore);
   private readonly api = inject(ApiIstemcisi);
   private readonly toast = inject(ToastService);
+  private readonly session = inject(SessionService);
+  /** Sil düğmesi yalnız silebilene (OperationsDelete; kabul C-CRMSIL). */
+  protected readonly canDelete = computed(() =>
+    this.session.hasPermissions(DUGME_IZINLERI.assistansSil.izinler),
+  );
   private readonly t = translationFunction();
 
   protected readonly query = listQueryUrlSync(ASSISTANCE_LIST);

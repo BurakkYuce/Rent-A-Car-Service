@@ -78,7 +78,7 @@ public sealed class CompanyFileService(ICompanyFileRepository repository, ICurre
 
     public Task<bool> DeleteAsync(Guid id, CancellationToken ct = default)
     {
-        PermissionGuard.Require(currentUser, Permission.OperationsWrite);
+        PermissionGuard.Require(currentUser, Permission.OperationsDelete); // güvenlik F3: operatör siler DEĞİL
         return repository.DeleteAsync(id, ct);
     }
 }

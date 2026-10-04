@@ -175,16 +175,18 @@
           {{ 'rezSartlari.duzenle' | transloco }}
           <span class="rc-gorunmez">{{ satir.sart }}</span>
         </button>
-        <button
-          type="button"
-          class="rc-dugme rc-dugme--kucuk rc-dugme--hayalet"
-          [disabled]="busy() !== null"
-          (click)="remove(satir)"
-        >
-          <rc-ikon ad="trash" [boyut]="14" />
-          {{ 'rezSartlari.sil' | transloco }}
-          <span class="rc-gorunmez">{{ satir.sart }}</span>
-        </button>
+        @if (canDelete()) {
+          <button
+            type="button"
+            class="rc-dugme rc-dugme--kucuk rc-dugme--hayalet"
+            [disabled]="busy() !== null"
+            (click)="remove(satir)"
+          >
+            <rc-ikon ad="trash" [boyut]="14" />
+            {{ 'rezSartlari.sil' | transloco }}
+            <span class="rc-gorunmez">{{ satir.sart }}</span>
+          </button>
+        }
       </span>
     </ng-template>
   </rc-tablo>

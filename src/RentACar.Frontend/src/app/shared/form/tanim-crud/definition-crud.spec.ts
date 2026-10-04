@@ -3,6 +3,7 @@ import { TestBed } from '@angular/core/testing';
 import { Observable, of, throwError } from 'rxjs';
 import { ApiHatasi } from '@core/api/api-hatasi';
 import { provideTranslation } from '@core/i18n/ceviri';
+import { SessionService } from '@core/oturum/session-service';
 import { DefinitionCrud } from './definition-crud';
 import type {
   TanimAlani,
@@ -62,13 +63,23 @@ class DefinitionTestHost {
   ];
 }
 
-async function exchangeRate() {
+async function exchangeRate(
+  permissions: readonly string[] = ['OperationsWrite', 'OperationsDelete'],
+) {
   satirlar = [
     { id: '1', kod: 'BYZ', ad: 'Beyaz' },
     { id: '2', kod: 'SYH', ad: 'Siyah' },
   ];
   islemler = [];
-  TestBed.configureTestingModule({ providers: [...provideTranslation()] });
+  TestBed.configureTestingModule({
+    providers: [
+      ...provideTranslation(),
+      {
+        provide: SessionService,
+        useValue: { izinVar: (permission: string) => permissions.includes(permission) },
+      },
+    ],
+  });
   const fixture = TestBed.createComponent(DefinitionTestHost);
   await fixture.whenStable();
   const root = fixture.nativeElement as HTMLElement;
@@ -155,6 +166,12 @@ describe('rc-tanim-crud', () => {
     await stable();
     expect(islemler).toEqual(['sil:1']);
     expect(satirMetinleri()).toEqual([['SYH', 'Siyah']]);
+  });
+
+  it('sil düğmesi yalnız OperationsDelete izniyle görünür (kabul D-4); düzenle kalır', async () => {
+    const { dugme } = await exchangeRate(['OperationsWrite']);
+    expect(dugme('Sil')).toBeUndefined();
+    expect(dugme('Düzenle')).toBeDefined();
   });
 
   it('liste hatası boş liste gibi görünmez', async () => {

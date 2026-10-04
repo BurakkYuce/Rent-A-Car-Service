@@ -60,7 +60,7 @@ public static partial class SystemDefinitionsApi
             if (await s.GetAsync(id, ct) is not { } current) return SystemApiCommon.NotFound();
             BranchScope.RequireInScope(user, current.SubeId, current.Sube);
             return await s.DeleteAsync(id, ct) ? TypedResults.NoContent() : SystemApiCommon.NotFound();
-        });
+        }).RequirePermission(Permission.OperationsDelete); // güvenlik F3
     }
 
     private static void LocationLimits(LocationRequest i)

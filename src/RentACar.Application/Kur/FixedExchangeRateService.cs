@@ -57,6 +57,7 @@ public sealed class FixedExchangeRateService(IPinnedRateRepository repository, I
     public async Task<bool> DeleteAsync(Guid id, CancellationToken ct = default)
     {
         PermissionGuard.Require(_user, Permission.FinanceWrite);
+        PermissionGuard.Require(_user, Permission.FinanceReverse); // güvenlik F3: finans silmesinin dar izni
         return await _repo.DeleteAsync(id, ct);
     }
 

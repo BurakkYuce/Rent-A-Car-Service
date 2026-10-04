@@ -105,15 +105,17 @@
                         <rc-ikon ad="edit" [boyut]="14" />
                         {{ 'form.tanim.duzenle' | transloco }}
                       </button>
-                      <button
-                        type="button"
-                        class="rc-dugme rc-dugme--hayalet rc-dugme--kucuk"
-                        [disabled]="editing() !== null"
-                        (click)="confirmDelete(satir.id)"
-                      >
-                        <rc-ikon ad="trash" [boyut]="14" />
-                        {{ 'form.tanim.sil' | transloco }}
-                      </button>
+                      @if (canDelete()) {
+                        <button
+                          type="button"
+                          class="rc-dugme rc-dugme--hayalet rc-dugme--kucuk"
+                          [disabled]="editing() !== null"
+                          (click)="confirmDelete(satir.id)"
+                        >
+                          <rc-ikon ad="trash" [boyut]="14" />
+                          {{ 'form.tanim.sil' | transloco }}
+                        </button>
+                      }
                     }
                   </td>
                 </tr>

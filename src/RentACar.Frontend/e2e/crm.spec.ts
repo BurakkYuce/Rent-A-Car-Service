@@ -56,7 +56,8 @@ const [SURVEYS, COMPLAINTS, ASSISTANCE, LEGAL, ANALYSIS] = PAGES as [
 ];
 
 test.beforeEach(async ({ page }) => {
-  await logIn(page, BEN);
+  // Sil düğmeleri OperationsDelete ister (kabul C-CRMSIL/C-HUKUK) — silme senaryoları silebilen kullanıcıyla.
+  await logIn(page, { ...BEN, izinler: [...BEN.izinler, 'OperationsDelete'] });
 });
 
 // Sayfa başına ayrı test (#305 deseni): tek testte 5 sayfa × 2 tema axe taraması yük altında 30 sn sınırına dayanıyordu.

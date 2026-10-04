@@ -49,7 +49,8 @@ public static partial class SystemDefinitionsApi
             return await TemplateAsync(id, s, ct) is { } d ? TypedResults.Ok(d) : SystemApiCommon.NotFound();
         }).MapFields(TemplateRules);
         g.MapDelete("/{id:guid}", async Task<Results<NoContent, ProblemHttpResult>> (Guid id, DocumentTemplateService s, CancellationToken ct)
-            => await s.DeleteAsync(id, ct) ? TypedResults.NoContent() : SystemApiCommon.NotFound());
+            => await s.DeleteAsync(id, ct) ? TypedResults.NoContent() : SystemApiCommon.NotFound())
+            .RequirePermission(Permission.OperationsDelete); // güvenlik F3
     }
 
     /// <summary>Belge türü ZORUNLU ve adla (Blazor'daki "tanınmazsa KiraSozlesmesi" sessiz varsayılanı yeni yüzeyde yok).

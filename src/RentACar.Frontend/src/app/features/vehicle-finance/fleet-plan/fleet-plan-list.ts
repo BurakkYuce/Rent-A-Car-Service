@@ -23,6 +23,7 @@ import { ConfirmService } from '@core/geri-bildirim/confirm-service';
 import { ToastService } from '@core/geri-bildirim/toast-service';
 import { WarningBannerService } from '@core/geri-bildirim/warning-banner-service';
 import { translationFunction } from '@core/i18n/ceviri';
+import { DUGME_IZINLERI } from '@core/oturum/dugme-izinleri';
 import { SessionService } from '@core/oturum/session-service';
 import { requestContext } from '@core/oturum/request-context';
 import { genelGosterilir } from '@core/oturum/session-interceptor';
@@ -97,6 +98,10 @@ export class FleetPlanList implements UnsavedChangesOwner {
   protected readonly rowId = (r: FleetPlan) => r.id;
   protected readonly signed = signed;
   protected readonly canWrite = computed(() => this.session.izinVar('OperationsWrite'));
+  /** Sil yalnız silebilene (güvenlik F3). */
+  protected readonly canDelete = computed(() =>
+    this.session.hasPermissions(DUGME_IZINLERI.filoPlanSil.izinler),
+  );
   protected readonly busy = signal<string | null>(null);
   protected readonly editing = signal<Editing>({ kind: 'new' });
   protected readonly base = signal<FleetPlan | null>(null);

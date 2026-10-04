@@ -65,7 +65,8 @@ public static partial class SystemDefinitionsApi
             return await GroupAsync(id, s, ct) is { } d ? TypedResults.Ok(d) : SystemApiCommon.NotFound();
         }).MapFields(GroupRules);
         g.MapDelete("/{id:guid}", async Task<Results<NoContent, ProblemHttpResult>> (Guid id, VehicleGroupService s, CancellationToken ct)
-            => await s.DeleteAsync(id, ct) ? TypedResults.NoContent() : SystemApiCommon.NotFound());
+            => await s.DeleteAsync(id, ct) ? TypedResults.NoContent() : SystemApiCommon.NotFound())
+            .RequirePermission(Permission.OperationsDelete); // güvenlik F3
         // Eşleme aracı: eşleşmeyen serbest-metin Grup değerini (ya da grubu boş araçları) tanımlı gruba taşır.
         g.MapPost("/ata", async Task<Results<Ok<GroupAssignResult>, ProblemHttpResult>> (GroupAssignRequest i, VehicleGroupService s, CancellationToken ct) =>
         {

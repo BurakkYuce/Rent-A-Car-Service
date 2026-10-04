@@ -244,7 +244,7 @@
           <rc-ikon ad="edit" [boyut]="14" />
           {{ 'fiyatTarife.duzenle' | transloco }}
         </button>
-        @if (!config.lockFlag || satir[config.lockFlag] !== true) {
+        @if (canDelete() && (!config.lockFlag || satir[config.lockFlag] !== true)) {
           <button
             type="button"
             class="rc-dugme rc-dugme--hayalet rc-dugme--kucuk"

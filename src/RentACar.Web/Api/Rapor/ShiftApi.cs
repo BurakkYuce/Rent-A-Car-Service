@@ -74,7 +74,8 @@ public static class ShiftApi
 
         w.MapDelete("/{id:guid}", async Task<Results<NoContent, ProblemHttpResult>> (
                 Guid id, StaffShiftService s, CancellationToken ct)
-            => await s.DeleteAsync(id, ct) ? TypedResults.NoContent() : NotFound());
+            => await s.DeleteAsync(id, ct) ? TypedResults.NoContent() : NotFound())
+            .RequirePermission(Permission.OperationsDelete); // güvenlik F3: silme operatöre kapalı
 
         return g;
     }

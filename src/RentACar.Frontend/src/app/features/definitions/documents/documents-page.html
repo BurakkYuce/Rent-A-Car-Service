@@ -97,7 +97,7 @@
                     <a class="rc-dugme rc-dugme--hayalet rc-dugme--kucuk" [href]="d.indirmeYolu">
                       {{ 'tanimlar.document.indir' | transloco }}
                     </a>
-                    @if (canWrite()) {
+                    @if (canDelete()) {
                       <button
                         type="button"
                         class="rc-dugme rc-dugme--hayalet rc-dugme--kucuk"

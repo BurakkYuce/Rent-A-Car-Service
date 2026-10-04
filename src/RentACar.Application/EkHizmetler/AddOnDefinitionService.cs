@@ -101,7 +101,7 @@ public sealed class AddOnDefinitionService(IAddOnDefinitionRepository repository
 
     public async Task<bool> DeleteAsync(Guid id, CancellationToken ct = default)
     {
-        PermissionGuard.Require(_currentUser, Permission.OperationsWrite);
+        PermissionGuard.Require(_currentUser, Permission.OperationsDelete); // güvenlik F3: operatör siler DEĞİL
         // F4.1 adversarial L1: sistem ücret tanımı silinemez — FeeLineService genç/ek sürücü ve drop ücretini
         // bu tanımdan yazar; silinmesi ücret satırlarını sahipsiz bırakır.
         if (await _repository.FindAsync(id, ct) is { } t && SystemCode(t.Kod))

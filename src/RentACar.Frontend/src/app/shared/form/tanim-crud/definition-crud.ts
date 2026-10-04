@@ -38,6 +38,7 @@ import { toApiError } from '@core/api/api-hatasi';
 import { SubmitLock } from '@core/form/submit-lock';
 import { SERVER_ERROR } from '@core/form/sunucu-hatalari';
 import { translationFunction } from '@core/i18n/ceviri';
+import { SessionService } from '@core/oturum/session-service';
 import { TemelStore } from '@core/veri/temel-store';
 import { Icon } from '../../ikon/icon';
 import { Alan } from '../alan/alan';
@@ -118,6 +119,10 @@ export class DefinitionCrud implements OnInit {
   private readonly injector = inject(Injector);
   private readonly destroyRef = inject(DestroyRef);
   private readonly t = translationFunction();
+  private readonly session = inject(SessionService);
+
+  /** Kabul D-4: tanım silme ucu grup izninin üstüne OperationsDelete ister — düğme yalnız silebilene görünür. */
+  protected readonly canDelete = computed(() => this.session.izinVar('OperationsDelete'));
 
   protected readonly liste = new TemelStore<readonly DefinitionRow[]>(
     () => this.kaynak().listele(),

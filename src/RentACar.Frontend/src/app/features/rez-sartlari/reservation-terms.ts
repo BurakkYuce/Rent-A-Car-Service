@@ -26,7 +26,9 @@ import { ConfirmService } from '@core/geri-bildirim/confirm-service';
 import { ToastService } from '@core/geri-bildirim/toast-service';
 import { WarningBannerService } from '@core/geri-bildirim/warning-banner-service';
 import { translationFunction } from '@core/i18n/ceviri';
+import { DUGME_IZINLERI } from '@core/oturum/dugme-izinleri';
 import { genelGosterilir } from '@core/oturum/session-interceptor';
+import { SessionService } from '@core/oturum/session-service';
 import { FetchPolicy } from '@core/veri/fetch-policy';
 import { listQueryUrlSync } from '@core/veri/liste-sorgusu-url';
 import { Alan } from '@shared/form/alan/alan';
@@ -103,6 +105,11 @@ export class ReservationTerms implements UnsavedChangesOwner {
   private readonly approval = inject(ConfirmService);
   private readonly toast = inject(ToastService);
   private readonly bant = inject(WarningBannerService);
+  private readonly session = inject(SessionService);
+  /** Sil yalnız silebilene (güvenlik F3). */
+  protected readonly canDelete = computed(() =>
+    this.session.hasPermissions(DUGME_IZINLERI.rezSartiSil.izinler),
+  );
   private readonly teardown = inject(DestroyRef);
   private readonly injector = inject(Injector);
   private readonly element = inject<ElementRef<HTMLElement>>(ElementRef);

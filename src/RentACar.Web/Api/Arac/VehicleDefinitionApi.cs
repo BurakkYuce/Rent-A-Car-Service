@@ -42,7 +42,8 @@ public static class VehicleDefinitionApi
             return await OwnerAsync(id, s, ct) is { } d ? TypedResults.Ok(d) : None();
         }).MapFields(Rules);
         o.MapDelete("/{id:guid}", async Task<Results<NoContent, ProblemHttpResult>> (Guid id, VehicleOwnerService s, CancellationToken ct)
-            => await s.DeleteAsync(id, ct) ? TypedResults.NoContent() : None());
+            => await s.DeleteAsync(id, ct) ? TypedResults.NoContent() : None())
+            .RequirePermission(Permission.OperationsDelete); // güvenlik F3
 
         // ---- segmentler
         var sg = v1.MapGroup("/segmentler").WithTags("Araç Tanımları").RequirePermission(Permission.OperationsWrite);
@@ -66,7 +67,8 @@ public static class VehicleDefinitionApi
             return await SegmentAsync(id, s, ct) is { } d ? TypedResults.Ok(d) : None();
         }).MapFields(Rules);
         sg.MapDelete("/{id:guid}", async Task<Results<NoContent, ProblemHttpResult>> (Guid id, VehicleSegmentService s, CancellationToken ct)
-            => await s.DeleteAsync(id, ct) ? TypedResults.NoContent() : None());
+            => await s.DeleteAsync(id, ct) ? TypedResults.NoContent() : None())
+            .RequirePermission(Permission.OperationsDelete); // güvenlik F3
 
         // ---- araç tipleri
         var t = v1.MapGroup("/arac-tipleri").WithTags("Araç Tanımları").RequirePermission(Permission.OperationsWrite);
@@ -90,7 +92,8 @@ public static class VehicleDefinitionApi
             return await TipAsync(id, s, ct) is { } d ? TypedResults.Ok(d) : None();
         }).MapFields(Rules);
         t.MapDelete("/{id:guid}", async Task<Results<NoContent, ProblemHttpResult>> (Guid id, VehicleTypeService s, CancellationToken ct)
-            => await s.DeleteAsync(id, ct) ? TypedResults.NoContent() : None());
+            => await s.DeleteAsync(id, ct) ? TypedResults.NoContent() : None())
+            .RequirePermission(Permission.OperationsDelete); // güvenlik F3
     }
 
     private static ProblemHttpResult None() => F5Shared.NotFound("Kayıt bulunamadı.");

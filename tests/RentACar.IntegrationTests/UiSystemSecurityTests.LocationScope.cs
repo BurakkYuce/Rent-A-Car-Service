@@ -28,7 +28,7 @@ public sealed partial class UiSystemSecurityTests
         var move = new LocationInput { Kod = "OTB", Ad = "Otogar B", Sube = "SubeA", Aktif = true };
         await Assert.ThrowsAsync<NoPermissionException>(() => svc.UpdateAsync(office.Id, move));
         await Assert.ThrowsAsync<NoPermissionException>(() => svc.UpdateAsync(office.Id, move, "1"));
-        await Assert.ThrowsAsync<NoPermissionException>(() => svc.DeleteAsync(office.Id));
+        await Assert.ThrowsAsync<NoPermissionException>(() => svc.DeleteAsync(office.Id)); // silme izni de yok (F3)
         await Assert.ThrowsAsync<NoPermissionException>(() => svc.CreateAsync(new LocationInput { Kod = "NEW", Ad = "Yeni B", Sube = "SubeB", Aktif = true }));
 
         var row = await _kit.ReadAsync(e.TenantId, db => db.Locations.AsNoTracking().SingleAsync(x => x.Id == office.Id));
@@ -38,6 +38,9 @@ public sealed partial class UiSystemSecurityTests
 
         // Kendi şubesinde çalışır.
         var mine = await svc.CreateAsync(new LocationInput { Kod = "OTA", Ad = "Otogar A", Sube = "SubeA", Aktif = true });
-        Assert.True(await svc.DeleteAsync(mine));
+        // Güvenlik F3: silme OperationsDelete ister — operatör kendi şubesinde de silemez; Yönetici siler.
+        await Assert.ThrowsAsync<NoPermissionException>(() => svc.DeleteAsync(mine));
+        using var manager = host.ScopeFor(e.TenantId, e.UserIds[Who.Manager], "yo", UserRole.Yonetici);
+        Assert.True(await manager.ServiceProvider.GetRequiredService<LocationService>().DeleteAsync(mine));
     }
 }

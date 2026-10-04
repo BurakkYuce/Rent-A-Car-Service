@@ -104,7 +104,8 @@ async function pickStaff(page: Page) {
 }
 
 test.beforeEach(async ({ page }) => {
-  await logIn(page);
+  // Vardiya silme OperationsDelete ister (güvenlik F3).
+  await logIn(page, { ...BEN, izinler: [...BEN.izinler, 'OperationsDelete'] });
 });
 
 test('vardiya ekle: doğrulama hatasında form korunur; hatalı saat istek göndermez; gövde birebir', async ({
@@ -267,6 +268,16 @@ test('vardiya sil: onaylı; vazgeçince istek yok, onayda DELETE + rapor tazelen
   await expect(page.getByText('Vardiya silindi.')).toBeVisible();
   expect(written[0]).toMatchObject({ method: 'DELETE', path: `/api/ui/v1/vardiyalar/${SHIFT_ID}` });
   await expect.poll(() => reportCalls.length).toBeGreaterThan(before);
+});
+
+test('OperationsDelete olmayan operatör: Düzenle var, Sil düğmesi YOK (güvenlik F3)', async ({
+  page,
+}) => {
+  await logIn(page, BEN); // OperationsWrite var, OperationsDelete yok
+  await shiftEndpoints(page);
+  await openPage(page);
+  await expect(page.getByRole('button', { name: /^Düzenle — Ali Veli/ })).toBeVisible();
+  await expect(page.getByRole('button', { name: /^Sil — Ali Veli/ })).toHaveCount(0);
 });
 
 test('OperationsWrite olmayan kullanıcı: yazma bölümü yok, vardiya listesi salt okunur çizilir', async ({

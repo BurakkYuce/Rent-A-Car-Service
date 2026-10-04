@@ -82,14 +82,16 @@
         >
           {{ 'crm.duzenle' | transloco }}
         </button>
-        <button
-          type="button"
-          class="rc-dugme rc-dugme--hayalet rc-dugme--kucuk"
-          [disabled]="editor.busy() !== null"
-          (click)="remove(satir)"
-        >
-          {{ 'crm.sil' | transloco }}
-        </button>
+        @if (canDelete()) {
+          <button
+            type="button"
+            class="rc-dugme rc-dugme--hayalet rc-dugme--kucuk"
+            [disabled]="editor.busy() !== null"
+            (click)="remove(satir)"
+          >
+            {{ 'crm.sil' | transloco }}
+          </button>
+        }
       </span>
     </ng-template>
   </rc-tablo>

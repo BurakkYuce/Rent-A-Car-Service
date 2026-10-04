@@ -151,7 +151,7 @@ public sealed class BranchService(
 
     public Task<bool> RemoveServiceAsync(Guid id, CancellationToken ct = default)
     {
-        PermissionGuard.Require(_currentUser, Permission.OperationsWrite);
+        PermissionGuard.Require(_currentUser, Permission.OperationsDelete); // güvenlik F3: operatör siler DEĞİL
         return _repository.RemoveServiceAsync(id, ct);
     }
 

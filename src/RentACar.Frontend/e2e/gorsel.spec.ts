@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 
-import { logIn } from './ortak';
+import { BEN, logIn } from './ortak';
 import { ORTAM } from './ortam';
 import { waitReady, SHOWCASE_PAGES } from './vitrin-sayfalari';
 
@@ -26,9 +26,17 @@ const WIDTHS = [
 
 test.beforeEach(async ({ page }) => logIn(page));
 
+/**
+ * Tanım CRUD vitrini taban görüntüsü "Sil" düğmeleriyle çekildi; düğme artık OperationsDelete ile gate'li (kabul D-4).
+ * Taban değişmesin diye yalnız bu sayfa silebilen kullanıcıyla çizilir (diğer sayfaların tabanı ortak BEN'le).
+ */
+const DELETE_ENABLED_PAGES = new Set(['tanim']);
+
 for (const pageRef of SHOWCASE_PAGES) {
   for (const theme of ['light', 'dark'] as const) {
     test(`${pageRef.ad} (${theme === 'light' ? 'açık' : 'koyu'})`, async ({ page }) => {
+      if (DELETE_ENABLED_PAGES.has(pageRef.ad))
+        await logIn(page, { ...BEN, izinler: [...BEN.izinler, 'OperationsDelete'] });
       await pageRef.hazirla?.(page);
       await page.emulateMedia({ colorScheme: theme, reducedMotion: 'reduce' });
       for (const { genislik: width, yukseklik: height } of WIDTHS) {

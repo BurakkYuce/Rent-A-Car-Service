@@ -205,7 +205,7 @@ public sealed class StaffShiftService(
 
     public async Task<bool> DeleteAsync(Guid id, CancellationToken ct = default)
     {
-        PermissionGuard.Require(_currentUser, Permission.OperationsWrite);
+        PermissionGuard.Require(_currentUser, Permission.OperationsDelete); // güvenlik F3: operatör siler DEĞİL
         var existing = await _repository.FindAsync(id, ct);
         if (existing is null) return false;
         BranchScope.RequireInScope(_currentUser, existing.SubeId, existing.Sube);

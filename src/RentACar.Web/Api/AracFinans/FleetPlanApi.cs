@@ -26,7 +26,8 @@ public static class FleetPlanApi
         g.MapPost("", Create).MapFields(Rules).RequirePermission(Permission.OperationsWrite);
         g.MapPut("/{id:guid}", Update).MapFields(Rules).RequirePermission(Permission.OperationsWrite);
         g.MapPost("/{id:guid}/delta", Delta).RequirePermission(Permission.OperationsWrite);
-        g.MapDelete("/{id:guid}", Delete).RequirePermission(Permission.OperationsWrite);
+        g.MapDelete("/{id:guid}", Delete).RequirePermission(Permission.OperationsWrite)
+            .RequirePermission(Permission.OperationsDelete); // güvenlik F3
         return g;
     }
 

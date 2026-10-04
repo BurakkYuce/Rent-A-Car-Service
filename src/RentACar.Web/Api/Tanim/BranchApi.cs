@@ -6,6 +6,7 @@ using RentACar.Application.FinancialAccounts;
 using RentACar.Domain.Entities;
 using RentACar.Web.Api.Kira;
 using RentACar.Web.Api.Rezervasyon;
+using RentACar.Web.Identity;
 
 namespace RentACar.Web.Api.Tanim;
 
@@ -61,7 +62,8 @@ public static class BranchApi
         g.MapDelete("/{id:guid}/hizmetler/{hizmetId:guid}", async Task<Results<NoContent, ProblemHttpResult>> (Guid id, Guid hizmetId, BranchService s, CancellationToken ct)
             => (await s.ListServicesAsync(id, ct)).Any(h => h.Id == hizmetId) && await s.RemoveServiceAsync(hizmetId, ct)
                 ? TypedResults.NoContent()
-                : F5Shared.NotFound("Hizmet bulunamadı."));
+                : F5Shared.NotFound("Hizmet bulunamadı."))
+            .RequirePermission(Permission.OperationsDelete); // güvenlik F3
 
         g.MapGet("/birlestir/onizleme", async Task<Results<Ok<BranchMergePreviewDto>, ProblemHttpResult>> (Guid kaynakId, Guid hedefId, BranchService s, CancellationToken ct)
             => await s.PreviewMergeAsync(kaynakId, hedefId, ct) is { } p
