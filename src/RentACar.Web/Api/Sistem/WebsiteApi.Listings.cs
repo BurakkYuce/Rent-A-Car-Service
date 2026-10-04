@@ -89,7 +89,7 @@ public static partial class WebsiteApi
             if (await s.GetAsync(id, ct) is null) return SystemApiCommon.NotFound("İlan bulunamadı.");
             await s.DeleteAsync(id, ct);
             return TypedResults.NoContent();
-        });
+        }).RequirePermission(Permission.OperationsDelete); // güvenlik takip (b): ilan kaydını siler (yayından kaldırma = durum PUT'u)
 
         // ---- fotoğraflar (üye araçlarda saklanır; tür/boyut/adet sınırı VehiclePhotoService'te)
         g.MapPost("/ilanlar/{id:guid}/fotograflar", UploadListingPhoto).DisableAntiforgery()

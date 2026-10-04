@@ -1,6 +1,9 @@
 using System.Net;
 using System.Net.Http.Headers;
 using System.Text;
+using Microsoft.EntityFrameworkCore;
+using RentACar.Domain.Entities;
+using RentACar.Infrastructure.Persistence;
 using RentACar.IntegrationTests.Infrastructure;
 
 namespace RentACar.IntegrationTests;
@@ -96,6 +99,26 @@ public sealed partial class UiServiceInsuranceTests
         var after = await Json(await s.C.GetAsync(V1 + "/tarife-aktar?kanal=WEB&durum=Bekliyor"));
         Assert.Equal(1, after.GetProperty("silinecek").GetInt32());
         Assert.Equal(1, (await Json(await Send(s, HttpMethod.Post, V1 + "/tarife-aktar/kanal-sil", new { kanal = "WEB" }))).GetProperty("silinen").GetInt32());
+    }
+
+    /// <summary>
+    /// Güvenlik takip (a): kanal toplu silme ManageUsers grubunda olsa da ayrıca OperationsDelete ister. Rol matrisinde
+    /// ManageUsers'ı olan her rol OperationsDelete'i de taşıdığından ayrım kullanıcı-bazlı YASAK istisnasıyla sınanır.
+    /// </summary>
+    [Fact]
+    public async Task Channel_delete_requires_operations_delete()
+    {
+        var e = await SetupAsync();
+        var opts = new DbContextOptionsBuilder<AppDbContext>().UseNpgsql(fx.Pg.OwnerConnectionString).Options;
+        await using (var db = new AppDbContext(opts, NullTenantContext.Instance, NullCurrentUser.Instance))
+        {
+            var admin = await db.Users.SingleAsync(u => u.TenantId == e.TenantId && u.UserName == e.Users[Who.Admin]);
+            db.KullaniciIzinIstisnalari.Add(new KullaniciIzinIstisna { TenantId = e.TenantId, UserId = admin.Id, Izin = "OperationsDelete", Ver = false });
+            await db.SaveChangesAsync();
+        }
+        var s = await LoginAsync(e, Who.Admin);
+        Assert.Equal(HttpStatusCode.OK, (await s.C.GetAsync(V1 + "/tarife-aktar?kanal=WEB")).StatusCode); // ManageUsers duruyor
+        await Problem(await Send(s, HttpMethod.Post, V1 + "/tarife-aktar/kanal-sil", new { kanal = "WEB" }), HttpStatusCode.Forbidden, "yetki_yok");
     }
 
     private static System.Text.Json.JsonValueKind JsonValueKindOf(System.Text.Json.JsonElement e, string p) => e.GetProperty(p).ValueKind;

@@ -128,6 +128,18 @@ test('ilan sihirbazı: havuzdan seç → oluştur → fiyat (surum) → özellik
   expect(errors).toEqual([]);
 });
 
+test('ilan Sil düğmesi yalnız OperationsDelete ile (güvenlik takip b)', async ({ page }) => {
+  await logIn(page, ADMIN_BEN);
+  await websiteEndpoints(page);
+  await page.goto('/app/web-sitesi');
+  await expect(page.getByRole('link', { name: 'Foto yok → ekle' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Sil', exact: true })).toHaveCount(0);
+
+  await logIn(page, { ...ADMIN_BEN, izinler: [...ADMIN_BEN.izinler, 'OperationsDelete'] });
+  await page.goto('/app/web-sitesi');
+  await expect(page.getByRole('button', { name: 'Sil', exact: true }).first()).toBeVisible();
+});
+
 test('web sitesi modülü yoksa ilan ekranı yalnız bilgi verir, uç çağrılmaz', async ({ page }) => {
   await logIn(page, { ...ADMIN_BEN, moduller: { webSitesi: false } });
   const writes = await websiteEndpoints(page);

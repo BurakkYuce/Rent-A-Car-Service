@@ -33,9 +33,12 @@ public sealed partial class UiAracFinansTests
         await ExpectProblem(await Gonder(s, HttpMethod.Put, $"{Order}/{id}", new { tedarikci = "X", birimFiyat = 1m, surum = version }),
             HttpStatusCode.Conflict, "cakisma");
 
+        // Güvenlik takip (a): operatör iptal edemez (403, durum değişmez); iptal OperationsDelete'li rolle.
+        await ExpectProblem(await Gonder(s, HttpMethod.Post, $"{Order}/{id}/iptal"), HttpStatusCode.Forbidden, "yetki_yok");
+        var admin = await LoginAsync(o, Kim.Admin);
         // Eşzamanlı iptal + onayla: iptal terminal — son durum iptal ise onay geri getiremez.
-        await Task.WhenAll(Gonder(s, HttpMethod.Post, $"{Order}/{id}/iptal"), Gonder(s, HttpMethod.Post, $"{Order}/{id}/onayla"));
-        Assert.Equal("Iptal", (await Json(await Gonder(s, HttpMethod.Post, $"{Order}/{id}/iptal"))).GetProperty("durum").GetString());
+        await Task.WhenAll(Gonder(admin, HttpMethod.Post, $"{Order}/{id}/iptal"), Gonder(s, HttpMethod.Post, $"{Order}/{id}/onayla"));
+        Assert.Equal("Iptal", (await Json(await Gonder(admin, HttpMethod.Post, $"{Order}/{id}/iptal"))).GetProperty("durum").GetString());
         await ExpectProblem(await Gonder(s, HttpMethod.Post, $"{Order}/{id}/onayla"), HttpStatusCode.Conflict, "cakisma"); // M1: izinsiz geçiş
         await ExpectProblem(await Gonder(s, HttpMethod.Put, $"{Order}/{id}", new { tedarikci = "Y", birimFiyat = 1m,
             surum = (await Json(await s.C.GetAsync($"{Order}/{id}"))).GetProperty("surum").GetString() }), HttpStatusCode.BadRequest, "dogrulama");
@@ -68,15 +71,20 @@ public sealed partial class UiAracFinansTests
         Assert.Equal(95.5m, r.GetProperty("filoFiyat").GetDecimal());
         Assert.Equal(signature, r.GetProperty("imzaTarih").GetDateTimeOffset());
         Assert.Equal("TSB-9", r.GetProperty("tsbKayitNo").GetString());
-        // Satır düğmeleri detayla aynı geçiş tablosundan: Bekliyor → onay/teslim/iptal açık, düzenleme açık.
+        // Satır düğmeleri detayla aynı geçiş tablosundan: Bekliyor → onay/teslim açık, düzenleme açık; iptal bayrağı
+        // operatöre KAPALI (güvenlik takip a: iptal OperationsDelete ister), silebilen rolde açık.
         var y = r.GetProperty("yetkiler");
         Assert.True(y.GetProperty("duzenle").GetBoolean());
         Assert.True(y.GetProperty("onayla").GetBoolean());
         Assert.True(y.GetProperty("teslimAl").GetBoolean());
-        Assert.True(y.GetProperty("iptal").GetBoolean());
+        Assert.False(y.GetProperty("iptal").GetBoolean());
+        var admin = await LoginAsync(o, Kim.Admin);
+        var adminRow = Assert.Single((await Json(await admin.C.GetAsync($"{Order}?ara={Uri.EscapeDataString(body.tedarikci)}")))
+            .GetProperty("kayitlar").EnumerateArray());
+        Assert.True(adminRow.GetProperty("yetkiler").GetProperty("iptal").GetBoolean());
 
         var id = r.GetProperty("id").GetGuid();
-        await Json(await Gonder(s, HttpMethod.Post, $"{Order}/{id}/iptal"));
+        await Json(await Gonder(admin, HttpMethod.Post, $"{Order}/{id}/iptal"));
         var after = Assert.Single((await Json(await s.C.GetAsync($"{Order}?ara={Uri.EscapeDataString(body.tedarikci)}")))
             .GetProperty("kayitlar").EnumerateArray()).GetProperty("yetkiler");
         Assert.False(after.GetProperty("duzenle").GetBoolean()); // iptal terminal: hiçbir düğme

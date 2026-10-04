@@ -172,6 +172,10 @@ public sealed partial class UiWebsiteApiTests(WebFixture fx)
         var acc = await _kit.LoginAsync(e, Who.Accounting);
         await Problem(await Send(acc, HttpMethod.Get, V1 + "/web-sitesi/ilanlar"), HttpStatusCode.Forbidden, "yetki_yok");
         await Problem(await Send(acc, HttpMethod.Delete, $"{V1}/web-sitesi/ilanlar/{id}"), HttpStatusCode.Forbidden, "yetki_yok");
+        // Güvenlik takip (b): operatör ilan SİLEMEZ (OperationsDelete); yayından kaldırma ayrı durum geçişidir.
+        var opDel = await _kit.LoginAsync(e, Who.OperatorA);
+        await Problem(await Send(opDel, HttpMethod.Delete, $"{V1}/web-sitesi/ilanlar/{id}"), HttpStatusCode.Forbidden, "yetki_yok");
+        Assert.Equal(HttpStatusCode.OK, (await Send(admin, HttpMethod.Get, $"{V1}/web-sitesi/ilanlar/{id}")).StatusCode);
 
         // başka kiracı → 404 (okuma, yazma, foto)
         var other = await SetupAsync();

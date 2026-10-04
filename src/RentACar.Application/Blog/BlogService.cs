@@ -152,7 +152,7 @@ public sealed class BlogService(IBlogRepository repository, ICurrentUser current
 
     public Task<bool> DeleteAsync(Guid id, CancellationToken ct = default)
     {
-        PermissionGuard.Require(currentUser, Permission.OperationsWrite);
+        PermissionGuard.Require(currentUser, Permission.OperationsDelete); // güvenlik takip (b): operatör siler DEĞİL
         return repository.DeleteAsync(id, ct);
     }
 

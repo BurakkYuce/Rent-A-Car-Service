@@ -50,6 +50,8 @@ export class WebsiteHub {
 
   private readonly session = inject(SessionService);
   protected readonly module = computed(() => this.session.ben()?.moduller.webSitesi === true);
+  /** Güvenlik takip (b): ilan silme OperationsDelete ister (yayından kaldırma durum düğmesiyle, izin gerekmez). */
+  protected readonly canDelete = computed(() => this.session.izinVar('OperationsDelete'));
   protected readonly missingPhoto = MISSING_PHOTO;
   protected readonly summary = new TemelStore<Summary>(() =>
     this.api.get<Summary>(`${LISTINGS_ROOT}/ozet`),
