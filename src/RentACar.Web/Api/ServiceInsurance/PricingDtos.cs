@@ -75,7 +75,8 @@ public sealed record CostOfferRequest(string? Baslik, string? Plaka, DateTimeOff
 /// <summary>Tarife aktar ekranı: satırlar + seçili kanalın silinebilir (BEKLİYOR) satır sayısı.</summary>
 public sealed record RateImportView(Application.Common.Sayfa<RateMatrixDto> Satirlar, int Bekleyen, int Onayli, int? Silinecek);
 
-public sealed record RateImportResult(int Eklenen, int Atlanan, int Hatali, IReadOnlyList<string> Hatalar);
+/// <summary>Aktarım özeti. <c>Uyarilar</c>: dosyada olup tanınmayan (okunmayan) sütunlar — sessizce düşmesin diye.</summary>
+public sealed record RateImportResult(int Eklenen, int Atlanan, int Hatali, IReadOnlyList<string> Hatalar, IReadOnlyList<string> Uyarilar);
 
 public sealed record RateChannelDeleteRequest(string? Kanal);
 

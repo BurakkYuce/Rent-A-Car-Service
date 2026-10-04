@@ -29721,6 +29721,7 @@ export interface components {
       /** Format: int32 */
       hatali: number | string;
       hatalar: string[];
+      uyarilar: string[];
     };
     RateImportView: {
       satirlar: components['schemas']['SayfaOfRateMatrixDto'];

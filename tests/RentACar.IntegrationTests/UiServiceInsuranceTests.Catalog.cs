@@ -81,8 +81,8 @@ public sealed partial class UiServiceInsuranceTests
         Assert.Equal(0, (await Json(await Send(s, HttpMethod.Post, V1 + "/tarife-aktar/kanal-sil", new { kanal = "WEB" }))).GetProperty("silinen").GetInt32());
         Assert.Equal(HttpStatusCode.Forbidden, (await Send(op, HttpMethod.Post, V1 + "/tarife-aktar/kanal-sil", new { kanal = "WEB" })).StatusCode);
 
-        // Upload: rows enter as Bekliyor even when the file says approved.
-        var csv = "Kod;Ad;Kanal;Grup;Gun1;OnayDurumu\nIMP1;Imp;WEB;Q9;80;Onayli\n";
+        // Upload: rows enter as Bekliyor even when the file says approved; an unknown column comes back as a warning.
+        var csv = "Kod;Ad;Kanal;Grup;Gun1;OnayDurumu;Bilinmeyen\nIMP1;Imp;WEB;Q9;80;Onayli;x\n";
         var form = new MultipartFormDataContent();
         var file = new ByteArrayContent(Encoding.UTF8.GetBytes(csv));
         file.Headers.ContentType = new MediaTypeHeaderValue("text/csv");
@@ -91,6 +91,8 @@ public sealed partial class UiServiceInsuranceTests
         up.Headers.Add("X-XSRF-TOKEN", s.Xsrf);
         var result = await Json(await s.C.SendAsync(up));
         Assert.Equal(1, result.GetProperty("eklenen").GetInt32());
+        var warning = Assert.Single(result.GetProperty("uyarilar").EnumerateArray());
+        Assert.Contains("'Bilinmeyen'", warning.GetString());
         var after = await Json(await s.C.GetAsync(V1 + "/tarife-aktar?kanal=WEB&durum=Bekliyor"));
         Assert.Equal(1, after.GetProperty("silinecek").GetInt32());
         Assert.Equal(1, (await Json(await Send(s, HttpMethod.Post, V1 + "/tarife-aktar/kanal-sil", new { kanal = "WEB" }))).GetProperty("silinen").GetInt32());
