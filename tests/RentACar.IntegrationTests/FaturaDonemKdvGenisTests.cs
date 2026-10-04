@@ -448,11 +448,13 @@ public sealed class FaturaDonemKdvGenisTests(PostgresFixture fx)
     }
 
     /// <summary>
-    /// Alış tarafı elemesi: REDDEDİLEN belge (KDV'si indirilemez) ve KIRILIMI GİRİLMEMİŞ belge
-    /// (kademesi bilinmiyor — "hepsi %20" varsaymak uydurma beyandır) rapora GİRMEZ.
+    /// Alış tarafı: REDDEDİLEN belge (KDV'si indirilemez) rapora GİRMEZ. KIRILIMI GİRİLMEMİŞ belge
+    /// artık GİRER (kabul bulgusu d-rapor-kdv-02): toplamlarından tek standart oran çözülebiliyorsa o
+    /// kademeye (giderleştirmenin kullandığı aynı kural), çözülemiyorsa "Diğer" kovasına — oran
+    /// uydurulmaz, ama indirilecek KDV de sessizce düşmez.
     /// </summary>
     [Fact]
-    public async Task Reddedilen_ve_kirilimsiz_alis_rapora_GIRMEZ()
+    public async Task Reddedilen_alis_GIRMEZ_kirilimsiz_alis_cozulen_orana_GIRER()
     {
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
@@ -466,16 +468,83 @@ public sealed class FaturaDonemKdvGenisTests(PostgresFixture fx)
         var b = await incoming.CreateManualAsync(Incoming("ETTN-R2", 500m, 100m, date));
         await incoming.LinkAsync(new GelenEFaturaBaglamaInput { Id = b, Kdv20Matrah = 500m, Kdv20 = 100m });
         await incoming.RejectAsync(b, "Yanlış firma");
-        // C: kırılım GİRİLMEMİŞ → GİRMEZ
+        // C: kırılım GİRİLMEMİŞ, 900 × %20 = 180 → %20 kademesine GİRER
         await incoming.CreateManualAsync(Incoming("ETTN-R3", 900m, 180m, date));
+        // D: kırılım GİRİLMEMİŞ, 1.000 / 150 hiçbir standart orana uymaz → "Diğer" kovasına GİRER
+        await incoming.CreateManualAsync(Incoming("ETTN-R4", 1000m, 150m, date));
 
         var g = await scope.ServiceProvider.GetRequiredService<ReportService>()
             .GetVatExtendedAsync(D(2026, 6, 1), D(2026, 6, 30).AddDays(1).AddTicks(-1), includePurchases: true);
 
-        var purchase = g.Satirlar.Where(r => r.AlisMi).ToList();
-        Assert.Single(purchase);                 // elle: 3 belgeden yalnız A
-        Assert.Equal("ETTN-R1", purchase[0].No);
-        Assert.Equal(20m, g.AlisKdv);
+        var purchase = g.Satirlar.Where(r => r.AlisMi).OrderBy(r => r.No, StringComparer.Ordinal).ToList();
+        Assert.Equal(["ETTN-R1", "ETTN-R3", "ETTN-R4"], purchase.Select(r => r.No)); // elle: B (red) dışarıda
+        Assert.Equal(180m, purchase[1].Kdv20);
+        Assert.Equal(900m, purchase[1].Net20);
+        Assert.Equal(150m, purchase[2].DigerKdv);
+        Assert.Equal(1000m, purchase[2].DigerNet);
+        Assert.Equal(350m, g.AlisKdv);           // elle: 20 + 180 + 150
+    }
+
+    /// <summary>
+    /// Kabul bulgusu d-rapor-kdv-02: "Alış belgeleri dahil" iken giderlerin KDV'si gelmiyordu, Net KDV =
+    /// Satış KDV çıkıyordu. Elle kurulan dönem (beklenenler kâğıt üstünde):
+    /// <list type="bullet">
+    /// <item>Satış faturası %20: 1.000 / 200.</item>
+    /// <item>Gider 1: 400 @%20 → KDV 80. Gider 2: 500 @%20 → KDV 100. Gider 3: 300 @%0 → KDV yok → listede YOK.</item>
+    /// <item>Gelen e-Fatura E1: kırılımsız 1.000 / 100, onaylanıp "İşlendi" (giderleştirilmedi) → %10'a girer.</item>
+    /// <item>Gelen e-Fatura E2: kırılımlı 250 / 50, GİDERLEŞTİRİLDİ → e-fatura satırı DEĞİL, oluşan gider satırı
+    /// girer (iki kez sayılmaz).</item>
+    /// </list>
+    /// Alış KDV = 80 + 100 + 100 + 50 = 330; Alış net = 400 + 500 + 1.000 + 250 = 2.150; Net KDV = 200 − 330 = −130.
+    /// </summary>
+    [Fact]
+    public async Task Alis_tarafi_gider_KDVsini_ve_gelen_efaturayi_cift_saymadan_toplar()
+    {
+        using var host = new TestHost(fx.AppConnectionString);
+        using var scope = host.ScopeFor(Guid.NewGuid());
+        var date = TestZaman.DaysLater(-2);
+
+        var factory = scope.ServiceProvider.GetRequiredService<IDbContextFactory<AppDbContext>>();
+        await using (var db = await factory.CreateDbContextAsync())
+        {
+            var c = new Customer { Tip = CustomerType.Kurumsal, Unvan = "Satış A.Ş." };
+            db.Customers.Add(c);
+            db.Invoices.Add(Inv(c.Id, "FT-G01", date, InvoiceStatus.Kesildi, 1m, false, (0.20m, 1000m, 200m)));
+            await db.SaveChangesAsync();
+        }
+
+        var expenses = scope.ServiceProvider.GetRequiredService<RentACar.Application.Expenses.ExpenseService>();
+        await expenses.CreateAsync(new RentACar.Application.Expenses.ExpenseInput { Tarih = date, NetTutar = 400m, KdvOrani = 0.20m, Aciklama = "Kırtasiye" });
+        await expenses.CreateAsync(new RentACar.Application.Expenses.ExpenseInput { Tarih = date, NetTutar = 500m, KdvOrani = 0.20m, Aciklama = "Yıkama" });
+        await expenses.CreateAsync(new RentACar.Application.Expenses.ExpenseInput { Tarih = date, NetTutar = 300m, KdvOrani = 0m, Aciklama = "Harç" });
+
+        var incoming = scope.ServiceProvider.GetRequiredService<IncomingEInvoiceService>();
+        var e1 = await incoming.CreateManualAsync(Incoming("ETTN-G1", 1000m, 100m, date));
+        Assert.True(await incoming.ApproveAsync(e1));
+        Assert.True(await incoming.IsleAsync(e1));
+        var e2 = await incoming.CreateManualAsync(Incoming("ETTN-G2", 250m, 50m, date));
+        Assert.True(await incoming.LinkAsync(new GelenEFaturaBaglamaInput { Id = e2, Kdv20Matrah = 250m, Kdv20 = 50m }));
+        Assert.True(await incoming.ApproveAsync(e2));
+        await incoming.ConvertToExpenseAsync(new GelenEFaturaGiderInput { Id = e2, OdemeYontemi = PaymentMethod.Nakit });
+
+        var g = await scope.ServiceProvider.GetRequiredService<ReportService>()
+            .GetVatExtendedAsync(TestZaman.DaysLater(-5, 0), TestZaman.DaysLater(1, 0), includePurchases: true);
+
+        Assert.Equal(200m, g.SatisKdv);
+        Assert.Equal(4, g.AlisBelgeAdet);
+        Assert.Equal(330m, g.AlisKdv);
+        Assert.Equal(2150m, g.AlisNet);
+        Assert.Equal(-130m, g.NetKdv);
+        Assert.DoesNotContain(g.Satirlar, r => r.No == "ETTN-G2");         // giderleştirilmiş belge kendi satırıyla gelmez
+        var e1Row = Assert.Single(g.Satirlar, r => r.No == "ETTN-G1");
+        Assert.Equal(1000m, e1Row.Net10);
+        Assert.Equal(100m, e1Row.Kdv10);
+
+        // Alış dahil DEĞİLKEN alış tarafı boş kalır (bayrak hâlâ çalışıyor).
+        var salesOnly = await scope.ServiceProvider.GetRequiredService<ReportService>()
+            .GetVatExtendedAsync(TestZaman.DaysLater(-5, 0), TestZaman.DaysLater(1, 0), includePurchases: false);
+        Assert.Equal(0m, salesOnly.AlisKdv);
+        Assert.Equal(200m, salesOnly.NetKdv);
     }
 
     /// <summary>
