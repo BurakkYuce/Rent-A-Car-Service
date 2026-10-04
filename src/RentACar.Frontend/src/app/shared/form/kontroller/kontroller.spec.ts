@@ -104,6 +104,17 @@ class SelectOnFocusTest {
   readonly amount = new FormControl<string | number | null>(1250.5);
 }
 
+@Component({
+  selector: 'rc-ek-deneme',
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  imports: [ReactiveFormsModule, MoneyInput],
+  template: `<rc-para-girdisi [formControl]="rate" ek="%" /><rc-para-girdisi [formControl]="tl" />`,
+})
+class SuffixTest {
+  readonly rate = new FormControl<string | number | null>('18');
+  readonly tl = new FormControl<string | number | null>('18');
+}
+
 async function exchangeRate() {
   TestBed.configureTestingModule({ providers: [...provideTranslation()] });
   const fixture = TestBed.createComponent(FormTestHost);
@@ -221,6 +232,16 @@ describe('CVA kontroller', () => {
     expect(form.controls.tutar.valid).toBe(true);
   });
 
+  it('para: `ek` verilirse para simgesi yerine o gösterilir (oran alanında ₺ yok)', async () => {
+    TestBed.configureTestingModule({ providers: [...provideTranslation()] });
+    const fixture = TestBed.createComponent(SuffixTest);
+    await fixture.whenStable();
+    const suffixes = [
+      ...(fixture.nativeElement as HTMLElement).querySelectorAll('.rc-girdi-eki'),
+    ].map((e) => e.textContent?.trim());
+    expect(suffixes).toEqual(['%', '₺']);
+  });
+
   it('para (varsayılan): programatik odakta tüm metin seçili; yazılan önerinin yerine geçer', async () => {
     TestBed.configureTestingModule({ providers: [...provideTranslation()] });
     const fixture = TestBed.createComponent(SelectOnFocusTest);
@@ -296,6 +317,20 @@ describe('CVA kontroller', () => {
     expect(form.controls.adet.hasError('sayiGecersiz')).toBe(true);
   });
 
+  it('sayı: negatife izin yokken "-1" → "En az 0 olmalı." (değer yazılmaz); geçersiz yazım ayrı mesaj', async () => {
+    const { form, alan, yaz, birak } = await exchangeRate();
+    await yaz('adet', '-1');
+    await birak('adet');
+    expect(form.value.adet).toBeNull();
+    expect(form.controls.adet.hasError('sayiNegatif')).toBe(true);
+    expect(alan('adet').textContent).toContain('En az 0 olmalı.');
+    await yaz('adet', '-1a');
+    expect(form.controls.adet.hasError('sayiGecersiz')).toBe(true);
+    await yaz('adet', '5');
+    expect(form.value.adet).toBe(5);
+    expect(form.controls.adet.valid).toBe(true);
+  });
+
   it('seçim: nesne değer sıra numarasıyla taşınır', async () => {
     const { form, fixture, girdi } = await exchangeRate();
     const selection = girdi('durum') as unknown as HTMLSelectElement;
@@ -369,6 +404,24 @@ describe('CVA kontroller', () => {
     await yaz('donus', girdi('donus', 1).value, 1);
     expect(form.value.donus).toBe('2026-09-21T22:00:00.000Z');
     expect(girdi('donus', 0).value).toBe('22.09.2026');
+  });
+
+  it('tarih-saat: tarih SİLİNİNCE (saat ön-dolu kalsa da) alan boştur → "Bu alan zorunlu." (biçim hatası değil)', async () => {
+    const { fixture, form, alan, yaz, birak } = await exchangeRate();
+    // addValidators: kontrolün kendi ayrıştırma doğrulayıcısı (CVA) korunur.
+    form.controls.donus.addValidators(Validators.required);
+    await yaz('donus', '', 0);
+    await birak('donus', 0);
+    await fixture.whenStable();
+    expect(form.value.donus).toBeNull();
+    expect(form.controls.donus.hasError('tarihGecersiz')).toBe(false);
+    expect(form.controls.donus.hasError('required')).toBe(true);
+    expect(alan('donus').textContent).toContain('Bu alan zorunlu.');
+    // Bozuk tarih yine biçim hatası.
+    await yaz('donus', '01.10.2026', 0);
+    expect(form.controls.donus.valid).toBe(true);
+    await yaz('donus', '31.02.2026', 0);
+    expect(form.controls.donus.hasError('tarihGecersiz')).toBe(true);
   });
 
   it('pasif kontrol', async () => {

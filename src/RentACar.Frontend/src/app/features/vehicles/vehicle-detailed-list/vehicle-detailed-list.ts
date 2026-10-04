@@ -22,6 +22,7 @@ import { Selection } from '@shared/form/kontroller/selection';
 import { Icon } from '@shared/ikon/icon';
 import { Table } from '@shared/tablo/table';
 import { TableCell } from '@shared/tablo/table-cell';
+import type { DisaAktarma } from '@shared/tablo/disa-aktarma';
 
 import { suggestionList } from '../suggestions';
 import {
@@ -74,6 +75,14 @@ export class VehicleDetailedList {
   protected readonly query = listQueryUrlSync(DETAILED_LIST);
   protected readonly columns = detailedColumns(this.t);
   protected readonly rowId = (r: DetailedRow) => r.id;
+  /**
+   * Kabul testi: detaylı listede dışa aktarma yoktu. Sunucunun araç export'u zaten geniş sütunlu (kimlik, alım, belge,
+   * bakım, özel kodlar — 58 sütun; `ListExportCatalog.Vehicles`); sayfa ViewReports ister, uç da (ayrı izin yok).
+   */
+  protected readonly export: DisaAktarma = {
+    yol: '/listeler/export/araclar',
+    bicimler: ['excel', 'csv', 'pdf'],
+  };
 
   protected readonly filterForm = new FormGroup({
     ara: new FormControl<string | null>(null),

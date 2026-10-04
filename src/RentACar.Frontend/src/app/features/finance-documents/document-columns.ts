@@ -1,3 +1,4 @@
+import { enumLabel } from '@core/bicim/enum-label';
 import type { CeviriAnahtari } from '@core/i18n/ceviri-anahtarlari';
 import { toNumber } from '@features/vehicles/vehicle-model';
 import type { TabloSutunu } from '@shared/tablo/tablo-modeli';
@@ -69,7 +70,13 @@ export function invoiceColumns(t: Translate): readonly TabloSutunu<InvoiceRow>[]
     money('genelToplam', h('toplam'), (r) => r.genelToplam, c, true),
     { kod: 'doviz', baslik: h('doviz'), deger: (r) => r.doviz, sirala: true, genislik: 70 },
     { kod: 'tur', baslik: h('tur'), deger: (r) => r.iadeMi, genislik: 90 },
-    { kod: 'durum', baslik: h('durum'), deger: (r) => r.durum, sirala: true, genislik: 90 },
+    {
+      kod: 'durum',
+      baslik: h('durum'),
+      deger: (r) => enumLabel(r.durum),
+      sirala: true,
+      genislik: 90,
+    },
     actions(t, 200),
   ];
 }
@@ -127,7 +134,7 @@ export function invoiceLineColumns(t: Translate): readonly TabloSutunu<InvoiceLi
     { kod: 'sozlesmeNo', baslik: h('sozlesme'), deger: (r) => r.sozlesmeNo ?? '—', genislik: 130 },
     { kod: 'plaka', baslik: h('plaka'), deger: (r) => r.plaka ?? '—', genislik: 100 },
     { kod: 'cikisOfisi', baslik: h('ofis'), deger: (r) => r.cikisOfisi ?? '—', genislik: 120 },
-    { kod: 'durum', baslik: h('durum'), deger: (r) => r.durum, genislik: 90 },
+    { kod: 'durum', baslik: h('durum'), deger: (r) => enumLabel(r.durum), genislik: 90 },
   ];
 }
 
@@ -185,7 +192,13 @@ export function penaltyColumns(t: Translate): readonly TabloSutunu<PenaltyRow>[]
       tur: 'tarih',
       genislik: 100,
     },
-    { kod: 'durum', baslik: h('durum'), deger: (r) => r.durum, sirala: true, genislik: 100 },
+    {
+      kod: 'durum',
+      baslik: h('durum'),
+      deger: (r) => enumLabel(r.durum),
+      sirala: true,
+      genislik: 100,
+    },
     actions(t, 220),
   ];
 }
@@ -235,7 +248,12 @@ export function expenseColumns(t: Translate): readonly TabloSutunu<ExpenseRow>[]
     money('netTutar', h('net'), (r) => r.netTutar, c),
     money('kdvTutar', h('kdv'), (r) => r.kdvTutar, c),
     money('genelToplam', h('toplam'), (r) => r.genelToplam, c, true),
-    { kod: 'odemeYontemi', baslik: h('odeme'), deger: (r) => r.odemeYontemi, genislik: 100 },
+    {
+      kod: 'odemeYontemi',
+      baslik: h('odeme'),
+      deger: (r) => enumLabel(r.odemeYontemi), // "AcikHesap" → "Açık hesap" (kabul testi)
+      genislik: 100,
+    },
     money('odenen', h('odenen'), (r) => (r.takipEdilir ? r.odenen : null), c),
     money('kalan', h('kalan'), (r) => (r.takipEdilir ? r.kalan : null), c, true),
     actions(t, 120),
@@ -284,7 +302,13 @@ export function incomingColumns(t: Translate): readonly TabloSutunu<IncomingInvo
     money('kdv0Matrah', h('kdv0Matrah'), (r) => r.kdv0Matrah, c),
     { kod: 'plaka', baslik: h('arac'), deger: (r) => r.plaka ?? '—', genislik: 100 },
     { kod: 'cariAd', baslik: h('tedarikci'), deger: (r) => r.cariAd ?? '—', genislik: 160 },
-    { kod: 'durum', baslik: h('durum'), deger: (r) => r.durum, sirala: true, genislik: 110 },
+    {
+      kod: 'durum',
+      baslik: h('durum'),
+      deger: (r) => enumLabel(r.durum),
+      sirala: true,
+      genislik: 110,
+    },
     {
       kod: 'giderlestirilmeTarihi',
       baslik: h('defter'),
@@ -327,6 +351,6 @@ export function saleColumns(t: Translate): readonly TabloSutunu<VehicleSaleRow>[
     { kod: 'ihaleFirmasi', baslik: h('ihale'), deger: (r) => r.ihaleFirmasi ?? '—', genislik: 120 },
     { kod: 'satisKanali', baslik: h('kanal'), deger: (r) => r.satisKanali ?? '—', genislik: 110 },
     { kod: 'satisiVerildi', baslik: h('devir'), deger: (r) => r.satisiVerildi, genislik: 90 },
-    { kod: 'durum', baslik: h('durum'), deger: (r) => r.durum, genislik: 100 },
+    { kod: 'durum', baslik: h('durum'), deger: (r) => enumLabel(r.durum), genislik: 100 },
   ];
 }

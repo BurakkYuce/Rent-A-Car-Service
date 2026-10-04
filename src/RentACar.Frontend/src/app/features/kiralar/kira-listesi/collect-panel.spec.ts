@@ -165,6 +165,10 @@ describe('TahsilPaneli (PARA)', () => {
     expect(tutarGirdisi().value).toBe('1234,50');
     // Öneri SEÇİLİ: doğrudan yazılan tutar önerinin yerine geçer, sonuna eklenmez (adversarial F3).
     expect([tutarGirdisi().selectionStart, tutarGirdisi().selectionEnd]).toEqual([0, 7]);
+    // Kabul testi (a-panel-06): öneri ipucunda binlik ayırıcılı para biçiminde.
+    expect(
+      (fixture.nativeElement as HTMLElement).querySelector('.rc-alan__ipucu')?.textContent,
+    ).toContain('Önerilen: 1.234,50 ₺');
     tutarGirdisi().dispatchEvent(new Event('blur'));
     await fixture.whenStable();
     expect(tutarGirdisi().value).toBe('1.234,50');
