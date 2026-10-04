@@ -5,6 +5,9 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Logging;
 using RentACar.Domain.Entities;
 using RentACar.Domain.Enums;
 using RentACar.Infrastructure.Persistence;
@@ -29,6 +32,16 @@ public sealed class ApiFactory(string appConnectionString, IDictionary<string, s
         if (extraSettings is not null)
             foreach (var (key, value) in extraSettings)
                 builder.UseSetting(key, value);
+
+        // Api'nin AddSerilog'u statik Log.Logger'ı devralır ve host kapanırken onu KAPATIR (CloseAndFlush). Aynı süreçte
+        // koşan Web test host'unun logları da statik logger'dan geçtiği için bir Api testi bittikten sonra Web log
+        // dosyası susuyordu (UiIstemciHataTests "Log olayı bulunamadı"). Test host'unda Serilog fabrikası yerine
+        // standart LoggerFactory: Serilog logger'ı hiç kurulmaz, statik logger'a dokunulmaz.
+        builder.ConfigureServices(services =>
+        {
+            services.RemoveAll<ILoggerFactory>();
+            services.AddSingleton<ILoggerFactory, LoggerFactory>();
+        });
     }
 }
 

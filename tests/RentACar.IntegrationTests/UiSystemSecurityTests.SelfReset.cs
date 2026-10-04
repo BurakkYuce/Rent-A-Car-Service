@@ -20,21 +20,24 @@ public sealed partial class UiSystemSecurityTests
 
         await Problem(await Send(admin, HttpMethod.Post, $"{Users}/{e.UserIds[Who.Admin]}/sifre", new { sifre = pw }),
             HttpStatusCode.BadRequest, "dogrulama", "sifre");
+        // Güvenlik tur 2 M1: istisnalı Yönetici hiçbir parolayı sıfırlayamaz (yalnız Admin rolü) — kendi de dahil 403.
         await Problem(await Send(manager, HttpMethod.Post, $"{Users}/{e.UserIds[Who.Manager]}/sifre", new { sifre = pw }),
-            HttpStatusCode.BadRequest, "dogrulama", "sifre");
+            HttpStatusCode.Forbidden, "yetki_yok");
 
         // Eski parolalar değişmedi.
         await _kit.LoginAsync(e, Who.Admin);
         await _kit.LoginAsync(e, Who.Manager);
 
-        // Başkasını sıfırlama çalışır (Admin → Yönetici, istisnalı Yönetici → Operatör).
+        // Başkasını sıfırlama Admin'le çalışır (Admin → Yönetici, Admin → Operatör); istisnalı Yönetici yapamaz (M1).
         var managerPw = WebFixture.RandomPassword();
         Assert.Equal(HttpStatusCode.NoContent,
             (await Send(admin, HttpMethod.Post, $"{Users}/{e.UserIds[Who.Manager]}/sifre", new { sifre = managerPw })).StatusCode);
         var opPw = WebFixture.RandomPassword();
         var manager2 = await _kit.LoginAsync(e, Who.Manager, managerPw);
+        await Problem(await Send(manager2, HttpMethod.Post, $"{Users}/{e.UserIds[Who.OperatorA]}/sifre", new { sifre = opPw }),
+            HttpStatusCode.Forbidden, "yetki_yok");
         Assert.Equal(HttpStatusCode.NoContent,
-            (await Send(manager2, HttpMethod.Post, $"{Users}/{e.UserIds[Who.OperatorA]}/sifre", new { sifre = opPw })).StatusCode);
+            (await Send(admin, HttpMethod.Post, $"{Users}/{e.UserIds[Who.OperatorA]}/sifre", new { sifre = opPw })).StatusCode);
         await _kit.LoginAsync(e, Who.OperatorA, opPw);
     }
 }

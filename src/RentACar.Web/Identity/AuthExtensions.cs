@@ -1,5 +1,6 @@
 using System.Security.Claims;
 using RentACar.Application.Authorization;
+using RentACar.Application.Common;
 using RentACar.Domain.Common;
 using RentACar.Domain.Enums;
 using RentACar.Infrastructure.Persistence;
@@ -38,6 +39,26 @@ public static class AuthExtensions
     public static RouteGroupBuilder RequirePermission(this RouteGroupBuilder group, Permission permission)
         => group.RequireAuthorization(p => p.RequireAssertion(ctx => HasPermission(ctx.User, permission)))
                 .WithMetadata(new IzinMetadata(permission));
+
+    /// <summary>
+    /// Güvenlik tur 2 M1 — grubun YAZMA uçları (GET/HEAD dışı) yalnız Admin ROLÜNE (kullanıcı ve yetki yönetimi).
+    /// ManageUsers kullanıcı bazlı istisnayla devredilebildiği için izin kapısı tek başına yetmez; okuma uçları grup
+    /// izniyle (ManageUsers) kalır. Servis katmanı aynı kuralı ikinci kez uygular (<c>AdminRoleGuard</c>).
+    /// Ret <see cref="NoPermissionException"/> → 403 <c>yetki_yok</c> (UI hata filtresi).
+    /// </summary>
+    public static RouteGroupBuilder RequireAdminRoleForWrites(this RouteGroupBuilder group)
+    {
+        group.WithMetadata(new AdminRoleWritesMetadata());
+        group.AddEndpointFilter(async (ctx, next) =>
+        {
+            var method = ctx.HttpContext.Request.Method;
+            if (!HttpMethods.IsGet(method) && !HttpMethods.IsHead(method)
+                && !ctx.HttpContext.User.IsInRole(nameof(UserRole.Admin)))
+                throw new NoPermissionException(AdminRoleGuard.Message);
+            return await next(ctx);
+        });
+        return group;
+    }
 
     /// <summary>Tekil uç için etkin-izin kapısı (grup kapısından daha dar bir izin gerektiğinde —
     /// ör. OperationsWrite grubundaki /sil ucu OperationsDelete ister).</summary>
@@ -107,6 +128,9 @@ public static class AuthExtensions
 /// etkin (en dar) izindir, İLKİ grup iznidir.</para>
 /// </summary>
 public sealed record IzinMetadata(Permission Izin);
+
+/// <summary>Güvenlik tur 2 M1: grubun yazma uçları yalnız Admin rolüne (<see cref="AuthExtensions.RequireAdminRoleForWrites"/>).</summary>
+public sealed record AdminRoleWritesMetadata;
 
 /// <summary>F1.2: ucun izin kapısı taşımadığı BİLİNÇLİ karar (bkz. <see cref="AuthExtensions.PermissionExempt{TBuilder}"/>).</summary>
 public sealed record IzinMuafMetadata(string Gerekce);

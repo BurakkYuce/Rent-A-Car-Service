@@ -9290,7 +9290,32 @@ export interface paths {
         };
       };
     };
-    put?: never;
+    put: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody: {
+        content: {
+          'application/json': components['schemas']['UserUpdateRequest'];
+        };
+      };
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['UserDto'];
+          };
+        };
+      };
+    };
     post?: never;
     delete?: never;
     options?: never;
@@ -32827,6 +32852,12 @@ export interface components {
       atanmisSube: null | string;
       istisnalar: components['schemas']['PermissionExceptionDto'][];
       etkinIzinler: string[];
+      surum: null | string;
+    };
+    UserUpdateRequest: {
+      rol: null | string;
+      atanmisSube: null | string;
+      surum: null | string;
     };
     UzatIstegi: {
       /** Format: date-time */

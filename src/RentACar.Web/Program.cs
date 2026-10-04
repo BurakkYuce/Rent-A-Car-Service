@@ -131,6 +131,9 @@ builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationSc
             ctx.Response.Redirect(PermissionRedirect.UnauthorizedTarget(ctx.Request.Path));
             return Task.CompletedTask;
         };
+        // Güvenlik F1: her istekte oturum damgası (rol/şube/aktiflik/parola/istisna değişince yenilenir) — uyuşmazsa
+        // oturum düşer. Kayan çerezle düşürülen yetki süresiz yaşıyordu.
+        options.Events.OnValidatePrincipal = SessionStampValidator.ValidateAsync;
     });
 // PlatformAdmin policy: platform operatörü claim'i (tenant login'i ASLA yazmaz).
 builder.Services.AddAuthorization(o =>

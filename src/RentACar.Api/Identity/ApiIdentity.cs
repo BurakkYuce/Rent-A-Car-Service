@@ -14,6 +14,7 @@ public static class ApiClaims
     public const string AssignedBranchId = "assigned_sube_id"; // FAZ 5-C1
     public const string PermissionExtra = "izin_ek";       // kullanıcı-bazlı EK izin (web ile aynı ad)
     public const string PermissionDenied = "izin_yasak"; // kullanıcı-bazlı YASAK izin
+    public const string SecurityStamp = "security_stamp"; // güvenlik L2 — oturum damgası (web ile aynı ad)
     // Rol standart ClaimTypes.Role; ad standart ClaimTypes.Name.
 }
 

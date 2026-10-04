@@ -64,6 +64,7 @@ internal sealed class UserConfig : IEntityTypeConfiguration<User>
         e.HasIndex(x => new { x.TenantId, x.UserName }).IsUnique();
         e.Property(x => x.CalendarToken).HasMaxLength(64);
         e.HasIndex(x => x.CalendarToken).IsUnique(); // token→user çözümü (null'lar Postgres'te çakışmaz)
+        e.Property(x => x.GuvenlikDamgasi).HasMaxLength(64); // güvenlik F1 — oturum damgası (eklemeli, nullable)
     }
 }
 

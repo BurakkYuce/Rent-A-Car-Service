@@ -43,6 +43,13 @@ public class User : IBranchScoped
     /// <summary>iCal takvim abonelik token'ı (kimliksiz feed erişimi; CSPRNG, tenant içi benzersiz değil global unique).</summary>
     public string? CalendarToken { get; set; }
 
+    /// <summary>
+    /// Güvenlik F1 — oturum damgası (opak, rastgele). Rol, şube, aktiflik, parola ya da izin istisnası değişince
+    /// yenilenir; girişte çereze yazılır ve her istekte (kısa önbellekle) karşılaştırılır — uyuşmazsa oturum düşer.
+    /// Null = hiç değişmemiş eski satır (çerezdeki boş değerle eşleşir).
+    /// </summary>
+    public string? GuvenlikDamgasi { get; set; }
+
     // Şube-FK marker (roadmap F1 tamamlama): AtanmisSube metnini AtanmisSubeId'ye çözer (interceptor).
     string? IBranchScoped.SubeAdi => AtanmisSube;
     Guid? IBranchScoped.SubeFk { get => AtanmisSubeId; set => AtanmisSubeId = value; }

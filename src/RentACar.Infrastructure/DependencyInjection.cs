@@ -236,6 +236,8 @@ public static class DependencyInjection
         services.AddSingleton<IPasswordHasher<User>, PasswordHasher<User>>();
         services.AddSingleton<RentACar.Application.Common.IPasswordHasher, AspNetPasswordHasher>();
         services.AddScoped<LoginService>();
+        // Güvenlik F1 — oturum damgası önbelleği (çerez doğrulaması okur, UserRepository yazımda geçersiz kılar).
+        services.AddSingleton<UserSessionStateCache>();
 
         // Entegrasyon adapter'ları (v1 stub; gerçek impl Faz 2/3'te).
         services.AddIntegrationStubs();

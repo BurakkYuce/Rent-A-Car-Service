@@ -19,6 +19,7 @@ import { ConfirmService } from '@core/geri-bildirim/confirm-service';
 import { ToastService } from '@core/geri-bildirim/toast-service';
 import { translationFunction } from '@core/i18n/ceviri';
 import { PERMISSIONS } from '@core/oturum/oturum-tipleri';
+import { SessionService } from '@core/oturum/session-service';
 import { TemelStore } from '@core/veri/temel-store';
 import { DateTimePipe } from '@shared/bicim/bicim-pipe';
 import { Alan } from '@shared/form/alan/alan';
@@ -66,7 +67,11 @@ export class PermissionsPage {
   private readonly confirm = inject(ConfirmService);
   private readonly toast = inject(ToastService);
   private readonly destroyRef = inject(DestroyRef);
+  private readonly session = inject(SessionService);
   private readonly t = translationFunction();
+
+  /** Güvenlik tur 2 M1: ekran yetkisi/kopyala/şablon YAZMALARI yalnız Admin rolü (ManageUsers istisnası açmaz). */
+  protected readonly isAdmin = computed(() => this.session.ben()?.rol === 'Admin');
 
   protected readonly roles = ROLES;
   protected readonly permissions = PERMISSIONS;

@@ -31,6 +31,23 @@ public interface IUserRepository
     /// iki pasifleştirme sayımı ayrı ayrı geçemez). Tenant dışıysa false.
     /// </summary>
     Task<bool> UpdateAuditedAsync(Guid id, Action<User> apply, UserAuditEntry audit, CancellationToken ct = default);
+
+    /// <summary>
+    /// Kabul d-sistem-kullanici-09 — tam değiştirme (rol/şube) için yukarıdaki güncelleme + iyimser eşzamanlılık: satır
+    /// sürümü (xmin) kiracı kilidi ve satır kilidi ALTINDA karşılaştırılır; farklıysa
+    /// <see cref="Common.ConcurrentModificationException"/> (409 <c>cakisma</c>), hiçbir şey yazılmaz.
+    /// </summary>
+    Task<bool> UpdateAuditedAsync(Guid id, string expectedVersion, Action<User> apply, UserAuditEntry audit, CancellationToken ct = default);
+
+    /// <summary>Geçerli kiracının kullanıcılarının satır sürümleri (PUT'un <c>surum</c>'u).</summary>
+    Task<IReadOnlyDictionary<Guid, string>> GetVersionsAsync(CancellationToken ct = default);
+
+    /// <summary>
+    /// Güvenlik F1 — kullanıcının oturum damgasını yeniler (açık oturumları bir sonraki istekte düşer). Rol/şube/aktiflik/
+    /// parola değişiklikleri <see cref="UpdateAuditedAsync(Guid, Action{User}, UserAuditEntry, CancellationToken)"/> içinde
+    /// zaten yeniler; bu yöntem Users dışı yetki değişiklikleri (izin istisnası) içindir. Tenant dışıysa false.
+    /// </summary>
+    Task<bool> RenewSecurityStampAsync(Guid id, CancellationToken ct = default);
 }
 
 /// <summary>F11.1b — kullanıcı yönetimi denetim satırının içeriği (işlem adı + parola içermeyen ayrıntı).</summary>
