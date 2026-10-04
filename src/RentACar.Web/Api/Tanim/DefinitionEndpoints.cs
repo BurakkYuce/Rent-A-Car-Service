@@ -132,7 +132,10 @@ public static class DefinitionEndpoints
             if (d.InUse is not null && await d.InUse(sp, entity, ct) is { } reason)
                 throw new ValidationException(reason);
             return await d.Delete(sp, id, ct) ? TypedResults.NoContent() : NotFound(d);
-        });
+        })
+        // Kabul D-4: tanım silme grup izninin (yazma) ÜSTÜNE OperationsDelete ister — rol matrisi "operatör siler DEĞİL"
+        // (cari silmeyle aynı). Aktif/pasif tam PUT'un `aktif` alanıyla yazma izniyle yapılmaya devam eder.
+        .RequirePermission(Permission.OperationsDelete);
 
         return g;
     }

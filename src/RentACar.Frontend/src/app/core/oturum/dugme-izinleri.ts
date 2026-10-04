@@ -39,6 +39,23 @@ export const DUGME_IZINLERI = {
   kiraSecimLokasyon: { izinler: ['OperationsWrite'], uc: 'GET /api/ui/v1/secim/lokasyon' },
   kiraSecimKaynak: { izinler: ['OperationsWrite'], uc: 'GET /api/ui/v1/secim/rezervasyon-kaynagi' },
   kiraSecimPersonel: { izinler: ['OperationsWrite'], uc: 'GET /api/ui/v1/secim/personel' },
+  /** CRM satırı "Sil" — grup (OperationsWrite) + dar izin (OperationsDelete; kabul C-CRMSIL/C-HUKUK). */
+  anketSil: {
+    izinler: ['OperationsWrite', 'OperationsDelete'],
+    uc: 'DELETE /api/ui/v1/anketler/{id:guid}',
+  },
+  sikayetSil: {
+    izinler: ['OperationsWrite', 'OperationsDelete'],
+    uc: 'DELETE /api/ui/v1/sikayetler/{id:guid}',
+  },
+  assistansSil: {
+    izinler: ['OperationsWrite', 'OperationsDelete'],
+    uc: 'DELETE /api/ui/v1/assistans-talepleri/{id:guid}',
+  },
+  hukukSil: {
+    izinler: ['OperationsWrite', 'OperationsDelete'],
+    uc: 'DELETE /api/ui/v1/hukuk-dosyalari/{id:guid}',
+  },
 } as const satisfies Readonly<Record<string, DugmeIzni>>;
 
 export type ButtonName = keyof typeof DUGME_IZINLERI;

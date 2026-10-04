@@ -44,7 +44,10 @@ public sealed partial class UiTanimTests
         await ExpectProblem(await Send(acc, HttpMethod.Get, Root), HttpStatusCode.Forbidden, "yetki_yok");
         var other = await LoginAsync(await SetUpAsync(), Who.Admin);
         await ExpectProblem(await Send(other, HttpMethod.Delete, $"{Root}/{id}"), HttpStatusCode.NotFound, null);
-        Assert.Equal(HttpStatusCode.NoContent, (await Send(op, HttpMethod.Delete, $"{Root}/{id}")).StatusCode);
+        // Kabul D-4: silme OperationsDelete ister — operatör 403, Admin 204.
+        await ExpectProblem(await Send(op, HttpMethod.Delete, $"{Root}/{id}"), HttpStatusCode.Forbidden, "yetki_yok");
+        var admin = await LoginAsync(env, Who.Admin);
+        Assert.Equal(HttpStatusCode.NoContent, (await Send(admin, HttpMethod.Delete, $"{Root}/{id}")).StatusCode);
     }
 
     [Fact]

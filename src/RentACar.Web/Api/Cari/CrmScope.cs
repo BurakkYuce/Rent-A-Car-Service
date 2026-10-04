@@ -65,6 +65,43 @@ internal static class CrmScope
         if (!inScope(rentalId, office)) throw new NoPermissionException(CrmScopeGuard.OutOfScopeMessage);
     }
 
+    /// <summary>
+    /// Kabul C-HUKUK — hukuk dosyasının ŞUBE KAPSAMI. Dosyanın kendi şube kolonu yok; üst kaydı CARİDİR ve carinin
+    /// <c>IslemSubeId</c>'si kapsamı belirler (kira/ofis kuralının cari karşılığı). Carisiz dosya ya da işlem şubesi
+    /// boş cari → şubesiz → herkes görür. Cari kimliği var ama cari yoksa → kapsamlıya KAPALI (hangi şubeye ait
+    /// bilinmiyor; <see cref="CrmScopeGuard.Visible"/> ile aynı ilke). Karar <see cref="BranchScope.InScope"/> ile —
+    /// metin yolu ŞUBE ADINI şube adıyla karşılaştırır (ofis adı değil).
+    /// </summary>
+    public static async Task<Func<Guid?, bool>> BuildLegalAsync(
+        ICurrentUser user, IDbContextFactory<AppDbContext> dbf, IEnumerable<Guid?> customerIds, CancellationToken ct)
+    {
+        var filter = BranchScope.EffectiveFilter(user);
+        if (filter.Unrestricted) return static _ => true;
+
+        var ids = customerIds.Where(x => x is not null).Select(x => x!.Value).Distinct().ToList();
+        Dictionary<Guid, bool> inScope = [];
+        if (ids.Count > 0)
+        {
+            await using var db = await dbf.CreateDbContextAsync(ct);
+            var rows = await db.Customers.AsNoTracking().Where(c => ids.Contains(c.Id))
+                .Select(c => new { c.Id, c.IslemSubeId }).ToListAsync(ct);
+            var branchIds = rows.Where(r => r.IslemSubeId is not null).Select(r => r.IslemSubeId!.Value).Distinct().ToList();
+            var names = await db.Branches.AsNoTracking().Where(b => branchIds.Contains(b.Id))
+                .ToDictionaryAsync(b => b.Id, b => b.Ad, ct);
+            inScope = rows.ToDictionary(r => r.Id,
+                r => r.IslemSubeId is not { } sid || BranchScope.InScope(filter, sid, names.GetValueOrDefault(sid)));
+        }
+        return customerId => customerId is not { } id || (inScope.TryGetValue(id, out var ok) && ok);
+    }
+
+    /// <summary>Hukuk dosyasının YAZMA HEDEFİ: bağlanan cari kapsam dışındaysa 403 (başka şubeye dosya açılamaz).</summary>
+    public static async Task RequireLegalTargetAsync(
+        ICurrentUser user, IDbContextFactory<AppDbContext> dbf, Guid? customerId, CancellationToken ct)
+    {
+        var visible = await BuildLegalAsync(user, dbf, [customerId], ct);
+        if (!visible(customerId)) throw new NoPermissionException("Seçilen cari şube kapsamınız dışında.");
+    }
+
     /// <summary>Bağlanan cari bu kiracıda olmalı (RLS kapsamlı okuma; başka kiracının kimliği "yok"tur).</summary>
     public static async Task RequireCustomerAsync(IDbContextFactory<AppDbContext> dbf, Guid? customerId, string field, CancellationToken ct)
     {

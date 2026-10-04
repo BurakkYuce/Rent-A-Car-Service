@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using RentACar.Application.Authorization;
 using RentACar.Application.Bookings;
 using RentACar.Application.Common;
 using RentACar.Application.Crm;
@@ -10,6 +11,7 @@ using RentACar.Domain.Entities;
 using RentACar.Infrastructure.Persistence;
 using RentACar.Web.Api.Kira;
 using RentACar.Web.Api.Rezervasyon;
+using RentACar.Web.Identity;
 
 namespace RentACar.Web.Api.Cari;
 
@@ -30,7 +32,8 @@ public static partial class CrmApi
         s.MapGet("/{id:guid}", GetAssistance);
         s.MapPost("", CreateAssistance).MapFields(AssistanceFieldRules);
         s.MapPut("/{id:guid}", UpdateAssistance).MapFields(AssistanceFieldRules);
-        s.MapDelete("/{id:guid}", DeleteAssistance);
+        // Kabul C-CRMSIL: silme cari silmeyle aynı dar izni ister (operatör siler DEĞİL).
+        s.MapDelete("/{id:guid}", DeleteAssistance).RequirePermission(Permission.OperationsDelete);
     }
 
     private static ProblemHttpResult AssistanceNotFound() => F5Shared.NotFound("Assistans talebi bulunamadı.");

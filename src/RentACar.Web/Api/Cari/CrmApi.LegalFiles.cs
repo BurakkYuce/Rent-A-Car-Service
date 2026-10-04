@@ -1,19 +1,24 @@
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using RentACar.Application.Authorization;
 using RentACar.Application.Common;
 using RentACar.Application.Legal;
+using RentACar.Domain.Common;
 using RentACar.Domain.Entities;
 using RentACar.Domain.Enums;
 using RentACar.Infrastructure.Persistence;
 using RentACar.Web.Api.Kira;
 using RentACar.Web.Api.Rezervasyon;
+using RentACar.Web.Identity;
 
 namespace RentACar.Web.Api.Cari;
 
 /// <summary>
-/// <c>/api/ui/v1/hukuk-dosyalari/*</c> — hukuk dosyası (Blazor <c>HukukList</c>). İzin OperationsWrite. Şube kolonu yok
-/// (cariye bağlı, firma geneli). Tutar/tahsilat BİLGİ alanıdır (deftere yazmaz — servis çiti). Müşteri adı/telefonu
+/// <c>/api/ui/v1/hukuk-dosyalari/*</c> — hukuk dosyası (Blazor <c>HukukList</c>). İzin OperationsWrite; silme
+/// OperationsDelete. Şube kolonu yok; kapsam üst kayıttan — carinin işlem şubesi (<see cref="CrmScope.BuildLegalAsync"/>,
+/// kabul C-HUKUK): kapsam dışı dosya listede yok, tekil okuma/güncelleme/silmede 404 (varlığı da sızmaz), başka şubenin
+/// carisine dosya bağlamak 403. Tutar/tahsilat BİLGİ alanıdır (deftere yazmaz — servis çiti). Müşteri adı/telefonu
 /// <see cref="F5Shared.CustomersAsync"/> ile KVKK kuralından geçer.
 /// </summary>
 public static partial class CrmApi
@@ -31,7 +36,8 @@ public static partial class CrmApi
         s.MapGet("/{id:guid}", GetLegalFile);
         s.MapPost("", CreateLegalFile).MapFields(LegalFieldRules);
         s.MapPut("/{id:guid}", UpdateLegalFile).MapFields(LegalFieldRules);
-        s.MapDelete("/{id:guid}", DeleteLegalFile);
+        // Kabul C-HUKUK: silme cari silmeyle aynı dar izni ister (operatör siler DEĞİL).
+        s.MapDelete("/{id:guid}", DeleteLegalFile).RequirePermission(Permission.OperationsDelete);
     }
 
     private static ProblemHttpResult LegalNotFound() => F5Shared.NotFound("Hukuk dosyası bulunamadı.");
@@ -55,7 +61,7 @@ public static partial class CrmApi
     }
 
     private static async Task<Ok<Sayfa<LegalFileRow>>> ListLegalFiles(
-        [AsParameters] LegalFileListFilter f, LegalCaseService files, IDbContextFactory<AppDbContext> dbf,
+        [AsParameters] LegalFileListFilter f, LegalCaseService files, ICurrentUser user, IDbContextFactory<AppDbContext> dbf,
         int? sayfa, int? boyut, string? sirala, CancellationToken ct)
     {
         RentalLimits.Text(f.Ara, 100, "ara", "Arama metni");
@@ -68,7 +74,8 @@ public static partial class CrmApi
             Ara = F5Shared.Nz(f.Ara), Tur = F5Shared.EnumAdi<LegalType>(f.Tur, "tur"),
             Durum = F5Shared.EnumAdi<LegalStatus>(f.Durum, "durum"), EnFazla = 10_000,
         }, ct);
-        var rows = await LegalRowsAsync(dbf, items.Select(x => x.Dosya).ToList(), ct);
+        var visible = await CrmScope.BuildLegalAsync(user, dbf, items.Select(x => x.Dosya.CariId), ct);
+        var rows = await LegalRowsAsync(dbf, items.Select(x => x.Dosya).Where(d => visible(d.CariId)).ToList(), ct);
         return TypedResults.Ok(F5Shared.Paginate(rows, LegalSort, sayfa, boyut, sirala));
     }
 
@@ -86,8 +93,17 @@ public static partial class CrmApi
     }
 
     private static async Task<Results<Ok<LegalFileCardDto>, ProblemHttpResult>> GetLegalFile(
-        Guid id, LegalCaseService files, IDbContextFactory<AppDbContext> dbf, CancellationToken ct)
-        => await LegalCardAsync(id, files, dbf, ct) is { } c ? TypedResults.Ok(c) : LegalNotFound();
+        Guid id, LegalCaseService files, ICurrentUser user, IDbContextFactory<AppDbContext> dbf, CancellationToken ct)
+        => await VisibleLegalAsync(id, files, user, dbf, ct) is not null && await LegalCardAsync(id, files, dbf, ct) is { } c
+            ? TypedResults.Ok(c) : LegalNotFound();
+
+    /// <summary>Kayıt var VE kullanıcının şube kapsamında → kayıt; aksi null (404 — başka şubenin dosyasının varlığı sızmaz).</summary>
+    private static async Task<HukukDosya?> VisibleLegalAsync(
+        Guid id, LegalCaseService files, ICurrentUser user, IDbContextFactory<AppDbContext> dbf, CancellationToken ct)
+    {
+        if (await files.GetAsync(id, ct) is not { } h) return null;
+        return (await CrmScope.BuildLegalAsync(user, dbf, [h.CariId], ct))(h.CariId) ? h : null;
+    }
 
     private static async Task<LegalFileCardDto?> LegalCardAsync(Guid id, LegalCaseService files, IDbContextFactory<AppDbContext> dbf, CancellationToken ct)
     {
@@ -121,23 +137,31 @@ public static partial class CrmApi
     }
 
     private static async Task<Results<Created<LegalFileCardDto>, ProblemHttpResult>> CreateLegalFile(
-        LegalFileRequest request, LegalCaseService files, IDbContextFactory<AppDbContext> dbf, CancellationToken ct)
+        LegalFileRequest request, LegalCaseService files, ICurrentUser user, IDbContextFactory<AppDbContext> dbf, CancellationToken ct)
     {
-        var id = await files.CreateAsync(await LegalInputAsync(request, dbf, ct), ct);
+        var input = await LegalInputAsync(request, dbf, ct);
+        await CrmScope.RequireLegalTargetAsync(user, dbf, input.CariId, ct);
+        var id = await files.CreateAsync(input, ct);
         return await LegalCardAsync(id, files, dbf, ct) is { } c
             ? TypedResults.Created($"{UiApiExtensions.V1}/hukuk-dosyalari/{id}", c) : LegalNotFound();
     }
 
     private static async Task<Results<Ok<LegalFileCardDto>, ProblemHttpResult>> UpdateLegalFile(
-        Guid id, LegalFileUpdateRequest request, LegalCaseService files, IDbContextFactory<AppDbContext> dbf, CancellationToken ct)
+        Guid id, LegalFileUpdateRequest request, LegalCaseService files, ICurrentUser user, IDbContextFactory<AppDbContext> dbf,
+        CancellationToken ct)
     {
-        if (await files.GetAsync(id, ct) is null) return LegalNotFound();
+        // Kapsam kontrolü durum/sürüm kontrolünden ÖNCE (başka şubenin kaydının durumu sızmasın).
+        if (await VisibleLegalAsync(id, files, user, dbf, ct) is null) return LegalNotFound();
         if (string.IsNullOrWhiteSpace(request.Surum))
             throw new ValidationException("Kayıt sürümü (surum) zorunludur; kaydı yeniden açın.", "surum");
-        if (!await files.UpdateAsync(id, await LegalInputAsync(request, dbf, ct), request.Surum, ct)) return LegalNotFound();
+        var input = await LegalInputAsync(request, dbf, ct);
+        await CrmScope.RequireLegalTargetAsync(user, dbf, input.CariId, ct);
+        if (!await files.UpdateAsync(id, input, request.Surum, ct)) return LegalNotFound();
         return await LegalCardAsync(id, files, dbf, ct) is { } c ? TypedResults.Ok(c) : LegalNotFound();
     }
 
-    private static async Task<Results<NoContent, ProblemHttpResult>> DeleteLegalFile(Guid id, LegalCaseService files, CancellationToken ct)
-        => await files.DeleteAsync(id, ct) ? TypedResults.NoContent() : LegalNotFound();
+    private static async Task<Results<NoContent, ProblemHttpResult>> DeleteLegalFile(
+        Guid id, LegalCaseService files, ICurrentUser user, IDbContextFactory<AppDbContext> dbf, CancellationToken ct)
+        => await VisibleLegalAsync(id, files, user, dbf, ct) is not null && await files.DeleteAsync(id, ct)
+            ? TypedResults.NoContent() : LegalNotFound();
 }

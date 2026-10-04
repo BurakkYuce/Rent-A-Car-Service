@@ -139,7 +139,7 @@ public sealed class AssistanceRequestService(
 
     public async Task<bool> DeleteAsync(Guid id, CancellationToken ct = default)
     {
-        PermissionGuard.Require(_currentUser, Permission.OperationsWrite);
+        PermissionGuard.Require(_currentUser, Permission.OperationsDelete); // kabul C-CRMSIL: operatör siler DEĞİL
         if (await _repository.FindAsync(id, ct) is not { } current) return false;
         await scope.RequireRecordAsync(current.RentalId, null, ct); // r317 M1
         return await _repository.DeleteAsync(id, ct);
