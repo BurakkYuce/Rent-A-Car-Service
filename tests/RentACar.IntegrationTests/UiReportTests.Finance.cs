@@ -148,7 +148,8 @@ public sealed partial class UiReportTests
         await ExpectProblem(s, Report + "/cari-bakiye?sirala=gizli", HttpStatusCode.BadRequest, null, "sirala");
 
         var aging = await GetJson(s, Report + "/cari-bakiye/yaslandirma");
-        Assert.Equal(7200m, Dec(aging.GetProperty("ozet").GetProperty("kovalar"), "b0_30")); // brüt borç 6000 + 1200
+        // FIFO mahsup: A 6000 borç − 3000 tahsilat = 3000; B 1200 → 4200 (= borçlu bakiyeler toplamı).
+        Assert.Equal(4200m, Dec(aging.GetProperty("ozet").GetProperty("kovalar"), "b0_30"));
         Assert.Equal(0m, Dec(aging.GetProperty("ozet").GetProperty("kovalar"), "b90Plus"));
         Assert.DoesNotContain(AnonymousRealName, aging.ToString());
     }
