@@ -857,8 +857,9 @@ public sealed class ReportService(IReportRepository repository, TutSatEsikleri h
 
     /// <summary>
     /// FAZ-53 — KDV GENİŞ format (canlı <c>kdv_raporu.aspx</c> grain'i): SATIR = belge,
-    /// SÜTUN = KDV oranı. <paramref name="includePurchases"/> true ise gelen e-Faturaların indirilecek
-    /// KDV'si de listelenir.
+    /// SÜTUN = KDV oranı. <paramref name="includePurchases"/> true ise alış belgelerinin indirilecek
+    /// KDV'si de listelenir: KDV'li giderler + henüz giderleştirilmemiş gelen e-Faturalar (çift sayım yok;
+    /// kurallar <c>ReportRepository.GetVatExtendedRowsAsync</c>'te).
     ///
     /// <para><b>Neden pivot (<see cref="GetVatListAsync"/>) genişletilmedi de yeni bir görünüm
     /// açıldı:</b> alış KDV'si mevcut pivotun "Net/KDV/Brüt" kolonlarına eklenseydi, hesaplanan
@@ -986,31 +987,86 @@ public sealed class ReportService(IReportRepository repository, TutSatEsikleri h
         => _repository.GetStatementSummaryRowsAsync(filter, asOf ?? DateTimeOffset.UtcNow, ct);
 
     /// <summary>
-    /// Cari borç yaşlandırma (v1: BRÜT borç, tahsilat mahsubu yok). Borç satırları yaşa (asOf−Tarih,
-    /// gün) göre 0-30 / 31-60 / 61-90 / 90+ kovalarına. Yalnız borç bakiyesi olan cariler.
+    /// Cari borç yaşlandırma — FIFO mahsuplu. Cari defterindeki alacak hareketleri (tahsilat, iade,
+    /// ters kayıt) tarihlerinden bağımsız olarak EN ESKİ borçtan başlayarak düşülür; kalan borç
+    /// parçaları yaşa (asOf−Tarih, gün) göre 0-30 / 31-60 / 61-90 / 90+ kovalarına girer.
+    ///
+    /// <para><b>Değişmez:</b> kovaların toplamı carinin asOf itibarıyla bakiyesine (Σ SignedBase) EŞİTTİR.
+    /// Yalnız borç bakiyesi (&gt; 0) olan cariler listelenir; alacaklı (bakiye ≤ 0) cari için
+    /// yaşlanacak alacak yoktur. Eski sürüm (v1) yalnız borç satırlarını topluyordu ve bakiyesi 700
+    /// olan cariyi 1.400 gösteriyordu (kabul testi d-rapor-cari-bakiye-03).</para>
+    ///
+    /// <para>İşaret satır başına belirlenir (Borç +, Alacak −); negatif tutarlı bir borç satırı
+    /// mahsup havuzuna, negatif tutarlı bir alacak satırı borç listesine girer — toplam yine bakiyedir.</para>
     /// </summary>
     public async Task<IReadOnlyList<AgingRowDto>> GetAgingAsync(DateTimeOffset asOf, CancellationToken ct = default)
     {
         var rows = await _repository.GetAccountLedgerRowsAsync(asOf, ct);
         return rows
-            .Where(r => r.Direction == LedgerDirection.Debit) // yalnız borç (brüt)
             .GroupBy(r => (r.CariId, r.Ad))
-            .Select(g =>
-            {
-                decimal b0 = 0, b30 = 0, b60 = 0, b90 = 0;
-                foreach (var r in g)
-                {
-                    var day = (asOf.UtcDateTime.Date - r.Tarih.UtcDateTime.Date).Days;
-                    if (day <= 30) b0 += r.Base;
-                    else if (day <= 60) b30 += r.Base;
-                    else if (day <= 90) b60 += r.Base;
-                    else b90 += r.Base;
-                }
-                return new AgingRowDto(g.Key.CariId, g.Key.Ad, b0, b30, b60, b90, b0 + b30 + b60 + b90);
-            })
-            .Where(a => a.Toplam != 0m)
+            .Select(g => AgeFifo(g.Key.CariId, g.Key.Ad, g, asOf))
+            .Where(a => a.Toplam > 0m)
             .OrderByDescending(a => a.Toplam)
             .ToList();
+    }
+
+    /// <summary>Bir carinin hareketlerinden FIFO mahsuplu yaşlandırma satırı (bkz. <see cref="GetAgingAsync"/>).</summary>
+    private static AgingRowDto AgeFifo(Guid cariId, string name, IEnumerable<CariLedgerRowDto> rows, DateTimeOffset asOf)
+    {
+        // (1) Belge bazında net: aynı belgenin satırları (ör. aynı SourceId ile yazılmış iptal/ters bacağı) önce
+        //     kendi içinde netleşir. Kimliksiz satır kendi başına bir belgedir.
+        var documents = rows
+            .GroupBy(r => r.SourceId == Guid.Empty ? Guid.NewGuid() : r.SourceId)
+            .Select(g => new AgingDocument(g.Key, g.Min(r => r.Tarih),
+                g.Sum(r => r.Direction == LedgerDirection.Debit ? r.Base : -r.Base),
+                g.Select(r => r.TargetSourceId).FirstOrDefault(t => t != null)))
+            .ToList();
+
+        // (2) Geri alma eşleşmesi: ters kayıt / iade, FIFO'dan ÖNCE kendi asıl belgesinden düşülür (#367 adversarial M1).
+        //     Aksi halde dönen çekin ters kaydı "bugünkü yeni borç", iade "en eski borcun tahsilatı" sayılırdı.
+        var byId = documents.ToDictionary(d => d.Id);
+        foreach (var d in documents)
+        {
+            if (d.Target is not { } t || !byId.TryGetValue(t, out var target)) continue;
+            if (Math.Sign(d.Amount) * Math.Sign(target.Amount) >= 0) continue;   // yalnız zıt yönlüler birbirini kapatır
+            var offset = Math.Min(Math.Abs(d.Amount), Math.Abs(target.Amount));
+            d.Amount -= Math.Sign(d.Amount) * offset;
+            target.Amount -= Math.Sign(target.Amount) * offset;
+        }
+
+        // (3) FIFO: kalan alacaklar en eski borçtan düşülür.
+        var debts = new List<(DateTimeOffset Date, decimal Amount)>();
+        decimal credit = 0m;
+        foreach (var d in documents)
+        {
+            if (d.Amount > 0m) debts.Add((d.Date, d.Amount));
+            else credit -= d.Amount;
+        }
+
+        decimal b0 = 0, b30 = 0, b60 = 0, b90 = 0;
+        foreach (var (date, amount) in debts.OrderBy(d => d.Date))
+        {
+            var applied = Math.Min(credit, amount);
+            credit -= applied;
+            var remaining = amount - applied;
+            if (remaining == 0m) continue;
+
+            var day = (asOf.UtcDateTime.Date - date.UtcDateTime.Date).Days;
+            if (day <= 30) b0 += remaining;
+            else if (day <= 60) b30 += remaining;
+            else if (day <= 90) b60 += remaining;
+            else b90 += remaining;
+        }
+        return new AgingRowDto(cariId, name, b0, b30, b60, b90, b0 + b30 + b60 + b90);
+    }
+
+    /// <summary>Yaşlandırmada bir belgenin cari üzerindeki net etkisi (Borç +, Alacak −).</summary>
+    private sealed class AgingDocument(Guid id, DateTimeOffset date, decimal amount, Guid? target)
+    {
+        public Guid Id { get; } = id;
+        public DateTimeOffset Date { get; } = date;
+        public decimal Amount { get; set; } = amount;
+        public Guid? Target { get; } = target;
     }
 
     /// <summary>
