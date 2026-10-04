@@ -13,7 +13,15 @@ public sealed record ImportResult(int Eklenen, int Atlanan, int Hatali, IReadOnl
     /// <summary>F11.2d — TÜM hatalı satırlar, etiket (plaka / müşteri adı / tarife kodu) ve mesaj AYRI. Kişisel veri
     /// taşımaması gereken yüzeyler (SPA içe aktarım özeti) yalnız <see cref="ImportError.Message"/>'ı kullanır.</summary>
     public IReadOnlyList<ImportError> Errors { get; init; } = [];
+
+    /// <summary>Kabul bulgusu (tarife aktar): dosyada olup TANINMAYAN sütunlar — sessizce düşmesin diye kullanıcıya
+    /// uyarı olarak döner (satır hatası değildir; tanınan sütunlar yine aktarılır).</summary>
+    public IReadOnlyList<string> Uyarilar { get; init; } = [];
 }
+
+/// <summary>Ayrıştırılmış dosya: satırlar (normalize başlık → değer) + dosyadaki özgün başlık metinleri (uyarıda
+/// kullanıcının yazdığı haliyle gösterilir).</summary>
+public sealed record ParsedImport(IReadOnlyList<Dictionary<string, string>> Rows, IReadOnlyList<string> Headers);
 
 /// <summary>Hatalı satır: <paramref name="Label"/> satırı tanıtan değer (kişisel veri olabilir), <paramref name="Message"/>
 /// servis doğrulama mesajı.</summary>
@@ -61,6 +69,10 @@ public sealed class ImportService(VehicleService vehicles, CustomerService custo
     /// sayılır (sıkıştırma bombası). İhlal → <see cref="ValidationException"/> (<c>dosya</c>). Blazor ve SPA aynı yol.
     /// </summary>
     public static IReadOnlyList<Dictionary<string, string>> Parse(Stream stream, string fileName)
+        => ParseWithHeaders(stream, fileName).Rows;
+
+    /// <summary><see cref="Parse"/> + dosyadaki özgün başlıklar (tanınmayan sütun uyarısı için).</summary>
+    public static ParsedImport ParseWithHeaders(Stream stream, string fileName)
     {
         var isExcel = fileName.EndsWith(".xlsx", StringComparison.OrdinalIgnoreCase)
                    || fileName.EndsWith(".xls", StringComparison.OrdinalIgnoreCase);
@@ -228,14 +240,14 @@ public sealed class ImportService(VehicleService vehicles, CustomerService custo
         return cells;
     }
 
-    private static IReadOnlyList<Dictionary<string, string>> ParseExcel(MemoryStream s)
+    private static ParsedImport ParseExcel(MemoryStream s)
     {
         CheckZip(s);
         var rows = new List<Dictionary<string, string>>();
         using var wb = new XLWorkbook(s);
         var ws = wb.Worksheets.FirstOrDefault();
         var used = ws?.RangeUsed();
-        if (used is null) return rows;
+        if (used is null) return new ParsedImport(rows, []);
         if (used.ColumnCount() > ImportLimits.MaxColumns)
             throw Refuse($"Dosya en çok {ImportLimits.MaxColumns} sütun içerebilir.");
         if (used.RowCount() - 1 > ImportLimits.MaxRows) throw TooManyRows();
@@ -254,16 +266,16 @@ public sealed class ImportService(VehicleService vehicles, CustomerService custo
             }
             if (dict.Count > 0) rows.Add(dict);
         }
-        return rows;
+        return new ParsedImport(rows, headers);
     }
 
-    private static IReadOnlyList<Dictionary<string, string>> ParseCsv(Stream s)
+    private static ParsedImport ParseCsv(Stream s)
     {
         var rows = new List<Dictionary<string, string>>();
         using var reader = new StreamReader(s);
         var lineBuffer = new System.Text.StringBuilder();
         var headerLine = ReadLineBounded(reader, lineBuffer, ImportLimits.MaxHeaderChars, "Başlık satırı çok uzun.");
-        if (headerLine is null) return rows;
+        if (headerLine is null) return new ParsedImport(rows, []);
         var sep = headerLine.Contains(';') && !headerLine.Contains(',') ? ';' : (headerLine.Contains(';') ? ';' : ',');
         var headerCells = SplitCsv(headerLine, sep);
         if (headerCells.Count > ImportLimits.MaxColumns)
@@ -284,7 +296,7 @@ public sealed class ImportService(VehicleService vehicles, CustomerService custo
             }
             rows.Add(dict);
         }
-        return rows;
+        return new ParsedImport(rows, headerCells.Select(h => h.Trim().TrimStart('﻿')).ToList());
     }
 
     /// <summary><see cref="TextReader.ReadLine"/> gibi ama en çok <paramref name="max"/> karakter; aşılınca red. Tampon
@@ -454,7 +466,91 @@ public sealed class ImportService(VehicleService vehicles, CustomerService custo
     /// onaysız fiyatı CANLIYA çıkaramaz (motor yalnız Onaylı seçer). Kod tekrarı (mevcut/dosya-içi)
     /// atlanır; bozuk satır (kodsuz, negatif/sayı-olmayan fiyat, bozuk tarih) satır-hata raporuna düşer,
     /// diğerleri girer (atomik değil — /ice-aktar deseniyle tutarlı).</summary>
-    public async Task<ImportResult> ImportTariffsAsync(IReadOnlyList<Dictionary<string, string>> rows, CancellationToken ct = default)
+    public Task<ImportResult> ImportTariffsAsync(IReadOnlyList<Dictionary<string, string>> rows, CancellationToken ct = default)
+        => ImportTariffsAsync(rows, headers: null, ct);
+
+    // Tarife sütun takma adları — TEK kaynak: hem okuma hem "tanınmayan sütun" uyarısı bu tablodan beslenir (ikisi
+    // ayrı listeler olsaydı yine biri unutulurdu — kabul bulgusu: ekrandaki "Haftalık (8-29 gün)" başlığı takma ad
+    // listesinde yoktu, sütun SESSİZCE düşüyordu). Ekran metni (i18n fiyatTarife.aktar.sutunlar) ve tarife matrisi
+    // ekranındaki etiketler (gunHaftalik/gunAylik) birebir takma addır.
+    private static readonly string[] TariffCode = ["Kod", "Tarife Kodu", "Kodu"];
+    private static readonly string[] TariffName = ["Ad", "Adı", "Tarife Adı"];
+    private static readonly string[] TariffDescription = ["Açıklama"];
+    private static readonly string[] TariffChannel = ["Kanal"];
+    private static readonly string[] TariffBranch = ["Şube"];
+    private static readonly string[] TariffLocation = ["Lokasyon", "Ofis"];
+    private static readonly string[] TariffGroup = ["Grup", "Araç Grubu", "Grubu", "Araç Grup Kod", "Araç Grubu Kodu"];
+    private static readonly string[] TariffCurrency = ["Para Birimi", "Döviz", "ParaBirimi"];
+    private static readonly string[] TariffStart = ["Başlangıç", "Başlangıç Tarihi", "BasTar", "Geçerlilik Başlangıç"];
+    private static readonly string[] TariffEnd = ["Bitiş", "Bitiş Tarihi", "BitTar", "Geçerlilik Bitiş"];
+    private static readonly string[][] TariffDays =
+    [
+        ["Gün 1", "Gun1"], ["Gün 2", "Gun2"], ["Gün 3", "Gun3"], ["Gün 4", "Gun4"],
+        ["Gün 5", "Gun5"], ["Gün 6", "Gun6"], ["Gün 7", "Gun7"],
+    ];
+    private static readonly string[] TariffWeekly =
+        ["Haftalık", "Gün Haftalık", "Haftalık (8-29)", "Haftalık (8-29 gün)", "GunHaftalik"];
+    private static readonly string[] TariffMonthly =
+        ["Aylık", "Gün Aylık", "Aylık (30+)", "Aylık (30+ gün)", "GunAylik"];
+    /// <summary>Onay kolonları BİLİNÇLİ okunmaz (çit) ama ekran bunu zaten söylüyor → uyarı üretmez.</summary>
+    private static readonly string[] TariffApprovalIgnored =
+        ["Onay Durumu", "OnayDurumu", "Onay", "Onaylayan", "Onay Zamanı", "Onay Tarihi", "OnayZaman"];
+
+    /// <summary>Okunan alanlar (ilk takma ad = uyarıdaki alan adı). Onay kolonları burada YOK (okunmaz).</summary>
+    private static readonly string[][] TariffFields =
+        new[] { TariffCode, TariffName, TariffDescription, TariffChannel, TariffBranch, TariffLocation, TariffGroup,
+                TariffCurrency, TariffStart, TariffEnd, TariffWeekly, TariffMonthly }
+            .Concat(TariffDays).ToArray();
+
+    private static readonly HashSet<string> TariffKnownKeys =
+        TariffFields.Append(TariffApprovalIgnored).SelectMany(a => a).Select(Norm).ToHashSet(StringComparer.Ordinal);
+
+    /// <summary>Uyarı listesinin üst sınırı (adversarial L2) — sütun sınırı 100 olsa da ekranı boğmasın.</summary>
+    private const int MaxWarnings = 20;
+
+    /// <summary>Sütun uyarıları: (1) tanınmayan sütunlar, (2) AYNI alana eşleşen birden çok sütun (adversarial L1 —
+    /// ör. "Haftalık" + "Haftalık (8-29 gün)"; değerleri farklı olan satır ayrıca satır hatasıdır, bkz.
+    /// <see cref="GetSingle"/>). <paramref name="headers"/> dosyadaki özgün başlıklar; yoksa (eski çağıran) satır
+    /// anahtarlarından (normalize) türetilir. Boş başlık atlanır. En çok <see cref="MaxWarnings"/> satır.</summary>
+    private static List<string> TariffColumnWarnings(
+        IReadOnlyList<Dictionary<string, string>> rows, IReadOnlyList<string>? headers)
+    {
+        var names = (headers ?? rows.SelectMany(r => r.Keys).Distinct(StringComparer.Ordinal).ToList())
+            .Where(h => Norm(h).Length > 0).Distinct(StringComparer.Ordinal).ToList();
+        var warnings = names
+            .Where(h => !TariffKnownKeys.Contains(Norm(h)))
+            .Select(h => $"'{h}' sütunu tanınmadı ve okunmadı.")
+            .ToList();
+        foreach (var field in TariffFields)
+        {
+            var keys = field.Select(Norm).ToHashSet(StringComparer.Ordinal);
+            var same = names.Where(h => keys.Contains(Norm(h))).ToList();
+            if (same.Select(Norm).Distinct(StringComparer.Ordinal).Count() > 1)
+                warnings.Add($"{string.Join(", ", same.Select(h => $"'{h}'"))} sütunları aynı alana ({field[0]}) eşleşiyor; "
+                    + "değerleri farklı olan satırlar hatalı sayılır.");
+        }
+        return warnings.Count <= MaxWarnings
+            ? warnings
+            : warnings.Take(MaxWarnings).Append($"... (+{warnings.Count - MaxWarnings} uyarı daha)").ToList();
+    }
+
+    /// <summary>Alanın değeri; aynı alana eşleşen birden çok sütun DOLU ve FARKLIysa gürültülü red (adversarial L1:
+    /// hangisinin geçerli olduğu tahmin edilmez). Aynı değer tekrarı sorun değildir.</summary>
+    private static string? GetSingle(Dictionary<string, string> row, string[] aliases)
+    {
+        var values = aliases.Select(Norm).Distinct(StringComparer.Ordinal)
+            .Select(k => row.TryGetValue(k, out var v) && !string.IsNullOrWhiteSpace(v) ? v.Trim() : null)
+            .OfType<string>().Distinct(StringComparer.Ordinal).ToList();
+        if (values.Count > 1)
+            throw new ValidationException(
+                $"'{aliases[0]}' alanına eşleşen sütunlar farklı değer içeriyor ({string.Join(" / ", values)}).");
+        return values.Count == 1 ? values[0] : null;
+    }
+
+    /// <summary>Toplu tarife içe-aktarımı (bkz. üstteki çit). <paramref name="headers"/> verilirse dosyadaki tanınmayan
+    /// sütunlar <see cref="ImportResult.Uyarilar"/>'a yazılır (sessiz düşme yok).</summary>
+    public async Task<ImportResult> ImportTariffsAsync(
+        IReadOnlyList<Dictionary<string, string>> rows, IReadOnlyList<string>? headers, CancellationToken ct = default)
     {
         int added = 0, skipped = 0;
         var errors = new List<ImportError>();
@@ -465,33 +561,36 @@ public sealed class ImportService(VehicleService vehicles, CustomerService custo
         foreach (var r in rows)
         {
             order++; // başlık 1. satır → veri 2'den başlar (hata mesajında dosya satırı)
-            var rawCode = Get(r, "Kod", "Tarife Kodu", "Kodu");
+            var rawCode = Get(r, TariffCode);
             var label = rawCode ?? $"(satır {order})";
+            string? addedCode = null; // yalnız BU satırın eklediği kod hata hâlinde geri alınır
             try
             {
+                rawCode = GetSingle(r, TariffCode);
                 if (string.IsNullOrWhiteSpace(rawCode))
                     throw new ValidationException("Tarife kodu zorunludur.");
                 var code = rawCode.Trim().ToUpperInvariant();
                 if (!existingCodes.Add(code)) { skipped++; continue; } // mevcut VEYA dosya-içi tekrar
+                addedCode = code;
 
                 await _rateMatrices.CreateAsync(new RateMatrixInput
                 {
                     Kod = code,
-                    Ad = Get(r, "Ad", "Adı", "Tarife Adı") ?? code,
-                    Aciklama = Get(r, "Açıklama"),
-                    Kanal = Get(r, "Kanal"),
-                    Sube = Get(r, "Şube"),
-                    Lokasyon = Get(r, "Lokasyon", "Ofis"),
-                    AracGrupKod = Get(r, "Grup", "Araç Grubu", "Grubu", "Araç Grup Kod"),
-                    ParaBirimi = Get(r, "Para Birimi", "Döviz", "ParaBirimi"),
-                    BasTar = ParseDate(Get(r, "Başlangıç", "Başlangıç Tarihi", "BasTar", "Geçerlilik Başlangıç")),
-                    BitTar = ParseDate(Get(r, "Bitiş", "Bitiş Tarihi", "BitTar", "Geçerlilik Bitiş")),
-                    Gun1 = ParseDec(Get(r, "Gün 1", "Gun1")), Gun2 = ParseDec(Get(r, "Gün 2", "Gun2")),
-                    Gun3 = ParseDec(Get(r, "Gün 3", "Gun3")), Gun4 = ParseDec(Get(r, "Gün 4", "Gun4")),
-                    Gun5 = ParseDec(Get(r, "Gün 5", "Gun5")), Gun6 = ParseDec(Get(r, "Gün 6", "Gun6")),
-                    Gun7 = ParseDec(Get(r, "Gün 7", "Gun7")),
-                    GunHaftalik = ParseDec(Get(r, "Haftalık", "Gün Haftalık", "Haftalık (8-29)")),
-                    GunAylik = ParseDec(Get(r, "Aylık", "Gün Aylık", "Aylık (30+)")),
+                    Ad = GetSingle(r, TariffName) ?? code,
+                    Aciklama = GetSingle(r, TariffDescription),
+                    Kanal = GetSingle(r, TariffChannel),
+                    Sube = GetSingle(r, TariffBranch),
+                    Lokasyon = GetSingle(r, TariffLocation),
+                    AracGrupKod = GetSingle(r, TariffGroup),
+                    ParaBirimi = GetSingle(r, TariffCurrency),
+                    BasTar = ParseDate(GetSingle(r, TariffStart)),
+                    BitTar = ParseDate(GetSingle(r, TariffEnd)),
+                    Gun1 = ParseDec(GetSingle(r, TariffDays[0])), Gun2 = ParseDec(GetSingle(r, TariffDays[1])),
+                    Gun3 = ParseDec(GetSingle(r, TariffDays[2])), Gun4 = ParseDec(GetSingle(r, TariffDays[3])),
+                    Gun5 = ParseDec(GetSingle(r, TariffDays[4])), Gun6 = ParseDec(GetSingle(r, TariffDays[5])),
+                    Gun7 = ParseDec(GetSingle(r, TariffDays[6])),
+                    GunHaftalik = ParseDec(GetSingle(r, TariffWeekly)),
+                    GunAylik = ParseDec(GetSingle(r, TariffMonthly)),
                     // Onay alanları BİLİNÇLİ sabit (dosyadan okunmaz) — çit yukarıdaki özet.
                     OnayDurumu = TariffApprovalStatus.Bekliyor,
                     Onaylayan = null, OnayZaman = null, Aktif = true
@@ -500,20 +599,27 @@ public sealed class ImportService(VehicleService vehicles, CustomerService custo
             }
             catch (ValidationException ex)
             {
-                existingCodes.Remove(rawCode?.Trim().ToUpperInvariant() ?? "");
+                if (addedCode is not null) existingCodes.Remove(addedCode);
                 errors.Add(new ImportError(label, ex.Message));
             }
         }
-        return Result(added, skipped, errors);
+        return Result(added, skipped, errors) with { Uyarilar = TariffColumnWarnings(rows, headers) };
     }
 
     /// <summary>TR/EN sayı: "1.250,50" ve "1250.50" ikisi de çalışır (son ayraç ondalık; TCMB
-    /// InvariantCulture dersi). Boş → null; sayı-olmayan dolu değer → ValidationException (sessiz yutma yok).</summary>
+    /// InvariantCulture dersi). Boş → null; sayı-olmayan dolu değer → ValidationException (sessiz yutma yok).
+    /// BELİRSİZ biçim reddedilir (adversarial #365 Medium): TEK ayraç TEK kez ve ardından TAM 3 hane ("1.250",
+    /// "1,250") binlik de ondalık da olabilir — eskiden "1.250" sessizce 1,25 okunuyordu (fiyat 1000 kat düşük).
+    /// "1.250,00", "1250,5", "1250.5", "1250" belirsiz değildir.</summary>
     private static decimal? ParseDec(string? s)
     {
         if (string.IsNullOrWhiteSpace(s)) return null;
         var t = s.Trim().Replace(" ", "");
         int dot = t.LastIndexOf('.'), comma = t.LastIndexOf(',');
+        var separators = t.Count(ch => ch is '.' or ',');
+        if (separators == 1 && t.Length - Math.Max(dot, comma) - 1 == 3)
+            throw new ValidationException(
+                $"'{s}' belirsiz: binlik ayraç mı ondalık mı anlaşılamıyor. Binlik ayraçsız yazın (1250) ya da kuruşu ekleyin (1.250,00).");
         if (dot >= 0 && comma >= 0)
         {
             var thousandsSeparator = dot > comma ? "," : ".";

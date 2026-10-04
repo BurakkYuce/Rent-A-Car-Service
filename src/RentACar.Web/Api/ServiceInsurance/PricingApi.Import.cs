@@ -44,19 +44,19 @@ internal static partial class PricingApi
         if (!(name.EndsWith(".xlsx", StringComparison.OrdinalIgnoreCase) || name.EndsWith(".csv", StringComparison.OrdinalIgnoreCase)
               || name.EndsWith(".xls", StringComparison.OrdinalIgnoreCase)))
             throw new ValidationException("Yalnız .xlsx, .xls ya da .csv dosyası yüklenebilir.", "dosya");
-        IReadOnlyList<Dictionary<string, string>> rows;
+        ParsedImport parsed;
         try
         {
             await using var s = dosya.OpenReadStream();
-            rows = ImportService.Parse(s, name);
+            parsed = ImportService.ParseWithHeaders(s, name);
         }
         catch (Exception ex) when (ex is not OperationCanceledException and not ValidationException)
         {
             throw new ValidationException("Dosya okunamadı (biçim bozuk ya da desteklenmiyor).", "dosya");
         }
-        if (rows.Count > 20_000) throw new ValidationException("Tek seferde en çok 20.000 satır aktarılabilir.", "dosya");
-        var r = await imp.ImportTariffsAsync(rows, ct);
-        return TypedResults.Ok(new RateImportResult(r.Eklenen, r.Atlanan, r.Hatali, r.Hatalar.Take(20).ToList()));
+        if (parsed.Rows.Count > 20_000) throw new ValidationException("Tek seferde en çok 20.000 satır aktarılabilir.", "dosya");
+        var r = await imp.ImportTariffsAsync(parsed.Rows, parsed.Headers, ct);
+        return TypedResults.Ok(new RateImportResult(r.Eklenen, r.Atlanan, r.Hatali, r.Hatalar.Take(20).ToList(), r.Uyarilar));
     }
 
     /// <summary>Bir kanalın BEKLEYEN satırlarını toplu siler; durum sabit (onaylılar bu yolla silinemez).</summary>
