@@ -99,8 +99,9 @@ public static partial class ReportApi
         decimal SatisNet, decimal SatisKdv, decimal AlisNet, decimal AlisKdv, decimal NetKdv,
         int SatisBelgeAdet, int AlisBelgeAdet, int AtlananDovizliAlis);
 
-    /// <summary>Belge bazlı KDV (satır = belge). <c>alis=true</c> → gelen e-Fatura (indirilecek KDV) dahil.
-    /// Satış satırının cari adı KVKK kuralıyla; alış satırı tedarikçidir (müşteri değil).</summary>
+    /// <summary>Belge bazlı KDV (satır = belge). <c>alis=true</c> → alış belgeleri (KDV'li gider + gelen e-Fatura,
+    /// indirilecek KDV) dahil. Cari adı KVKK kuralıyla; gider satırının tedarikçisi de bir cari kartı olduğundan
+    /// alış satırları da aynı maskeden geçer (anonim olmayan adı değiştirmez).</summary>
     private static async Task<Ok<ReportResult<VatWideSummary, KdvGenisSatirDto>>> VatWide(
         [AsParameters] ReportPeriodQuery q, bool? alis, [AsParameters] ReportPageQuery page, ReportService reports,
         ICurrentUser user, IDbContextFactory<AppDbContext> dbf, HttpContext http, CancellationToken ct)
@@ -109,7 +110,7 @@ public static partial class ReportApi
         var p = q.Validate();
         var d = await reports.GetVatExtendedAsync(p.FromUtc, p.ToUtc, alis == true, ct);
         var mask = await CustomerMask.LoadAsync(dbf, null, ct);
-        var rows = d.Satirlar.Select(r => r.AlisMi ? r : r with { Cari = mask.Name(r.Cari) }).ToList();
+        var rows = d.Satirlar.Select(r => r with { Cari = mask.Name(r.Cari) }).ToList();
         var summary = new VatWideSummary(d.SatisNet, d.SatisKdv, d.AlisNet, d.AlisKdv, d.NetKdv,
             d.SatisBelgeAdet, d.AlisBelgeAdet, d.AtlananDovizliAlis);
         return TypedResults.Ok(new ReportResult<VatWideSummary, KdvGenisSatirDto>(p.ToDto(), summary,

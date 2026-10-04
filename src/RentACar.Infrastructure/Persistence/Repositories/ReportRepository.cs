@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using RentACar.Application.Finance;
 using RentACar.Application.GelenEFaturalar;
 using RentACar.Application.Reporting;
 using RentACar.Domain.Entities;
@@ -1406,14 +1407,21 @@ public sealed class ReportRepository(IDbContextFactory<AppDbContext> factory) : 
 
     /// <summary>
     /// FAZ-53 — KDV GENİŞ format satırları: SATIR = belge, SÜTUN = KDV oranı. Satış tarafı kesilen
-    /// <c>Invoice</c>/<c>InvoiceLine</c>'dan, alış tarafı (<paramref name="includePurchases"/>) gelen
-    /// e-Faturanın FAZ-55 oran-kırılımı kolonlarından gelir.
+    /// <c>Invoice</c>/<c>InvoiceLine</c>'dan gelir. Alış tarafı (<paramref name="includePurchases"/>)
+    /// iki kaynaktan gelir: (1) KDV'li <c>Expense</c> kayıtları (defterde Borç KDV yazan belge — Gelir-Gider
+    /// raporunun "indirilecek KDV"si ile aynı kaynak), (2) henüz gidere dönüşmemiş gelen e-Faturalar.
     ///
     /// <para><b>Alış tarafı kuralları:</b>
     /// <list type="bullet">
+    /// <item><b>KDV'siz gider HARİÇ</b> (KDV belgesi değil: harç, MTV, kredi taksiti…).</item>
+    /// <item><b>Çift sayım yok:</b> giderleştirilmiş (ya da giderleştirmesi talep edilmiş) gelen e-Fatura
+    /// ve ETTN'i bir giderin evrak no'sunda geçen e-Fatura kendi satırıyla GELMEZ — KDV'si gider
+    /// satırından sayılır.</item>
     /// <item><b>Reddedilen fatura HARİÇ</b> — reddedilmiş belgenin KDV'si indirilemez.</item>
-    /// <item><b>Kırılımı GİRİLMEMİŞ fatura HARİÇ</b> — belge toplamını "%20 kademesi" varsayarak
-    /// dağıtmak uydurma beyan üretir; kırılım FAZ-55'te girilmeden satır rapora giremez.</item>
+    /// <item><b>Kırılımı GİRİLMEMİŞ fatura</b> (kabul bulgusu d-rapor-kdv-02 öncesi HARİÇTİ): belge
+    /// toplamından tek standart oran çözülebiliyorsa (<c>round(net×oran,2) == KDV</c> — giderleştirmenin
+    /// kullandığı aynı kural) o kademeye, çözülemiyorsa "Diğer" kovasına girer. Oran uydurulmaz, ama
+    /// indirilecek KDV de sessizce düşmez.</item>
     /// <item><b>TRY olmayan fatura HARİÇ</b> ve sayılır: <c>GelenEFatura</c>'da KUR kolonu YOKTUR
     /// (belge kendi para biriminde saklanır), uydurma kurla base'e çevrilemez. Atlanan sayısı
     /// çağırana <c>AtlananDovizliAlis</c> olarak bildirilir — sessiz eksik toplam yasak.</item>
@@ -1457,58 +1465,86 @@ public sealed class ReportRepository(IDbContextFactory<AppDbContext> factory) : 
             {
                 // GetKdvLineRowsAsync ile birebir işaret/kur sözleşmesi.
                 var s = (i.IadeMi ? -1m : 1m) * i.Kur;
-                decimal n20 = 0, k20 = 0, n10 = 0, k10 = 0, n1 = 0, k1 = 0, n0 = 0, nd = 0, kd = 0;
+                var columns = new VatColumns();
                 foreach (var l in byInvoice.GetValueOrDefault(i.Id) ?? [])
-                {
-                    var net = l.SatirNet * s; var vat = l.SatirKdv * s;
-                    switch (l.KdvOrani)
-                    {
-                        case 0.20m: n20 += net; k20 += vat; break;
-                        case 0.10m: n10 += net; k10 += vat; break;
-                        case 0.01m: n1 += net; k1 += vat; break;
-                        case 0m: n0 += net; kd += vat; break;   // %0'da KDV çıkmamalı; çıkarsa Diğer'e düşer
-                        default: nd += net; kd += vat; break;   // %18/%8 gibi kademe-dışı oranlar kaybolmaz
-                    }
-                }
-                rows.Add(new KdvGenisSatirDto(
+                    columns.Add(l.KdvOrani, l.SatirNet * s, l.SatirKdv * s);
+                rows.Add(columns.ToRow(
                     i.Id, KdvGenisDto.TypeSale,
                     i.IadeMi ? $"{i.No} (iade)" : i.No, i.Tarih,
-                    custName.GetValueOrDefault(i.CariId) ?? "(bilinmeyen cari)", i.Durum.ToString(),
-                    n20, k20, n10, k10, n1, k1, n0, nd, kd,
-                    n20 + n10 + n1 + n0 + nd, k20 + k10 + k1 + kd));
+                    custName.GetValueOrDefault(i.CariId) ?? "(bilinmeyen cari)", i.Durum.ToString()));
             }
         }
 
         var skipped = 0;
         if (includePurchases)
         {
+            // (1) KDV'li giderler — base para (× Kur), oranına göre sütuna.
+            var eq = db.Expenses.AsNoTracking().Where(e => e.KdvTutar != 0m);
+            if (from is { } f1) eq = eq.Where(e => e.Tarih >= f1);
+            if (to is { } t1) eq = eq.Where(e => e.Tarih <= t1);
+            var expenses = await eq
+                .Select(e => new { e.Id, e.No, e.Tarih, e.CariId, e.Tip, e.Aciklama, e.NetTutar, e.KdvOrani, e.KdvTutar, e.Kur })
+                .ToListAsync(ct);
+
+            var supplierIds = expenses.Where(e => e.CariId != null).Select(e => e.CariId!.Value).Distinct().ToList();
+            var supplierName = supplierIds.Count == 0
+                ? new Dictionary<Guid, string>()
+                : (await db.Customers.AsNoTracking().Where(c => supplierIds.Contains(c.Id)).ToListAsync(ct))
+                    .ToDictionary(c => c.Id, c => c.DisplayName);
+
+            foreach (var e in expenses)
+            {
+                var columns = new VatColumns();
+                columns.Add(e.KdvOrani, e.NetTutar * e.Kur, e.KdvTutar * e.Kur);
+                var party = e.CariId is { } cid && supplierName.TryGetValue(cid, out var n) && !string.IsNullOrWhiteSpace(n)
+                    ? n
+                    : string.IsNullOrWhiteSpace(e.Aciklama) ? $"Gider ({e.Tip})" : e.Aciklama!;
+                rows.Add(columns.ToRow(e.Id, KdvGenisDto.TypePurchase, e.No, e.Tarih, party, "Gider"));
+            }
+
+            // (2) Henüz gidere dönüşmemiş gelen e-Faturalar.
             var gq = db.GelenEFaturalar.AsNoTracking()
-                .Where(g => g.Durum != IncomingEInvoiceStatus.Reddedildi);
+                .Where(g => g.Durum != IncomingEInvoiceStatus.Reddedildi
+                            && g.GiderlestirilmeUtc == null && g.GiderIslemAnahtari == null);
             if (from is { } f2) gq = gq.Where(g => g.Tarih >= f2);
             if (to is { } t2) gq = gq.Where(g => g.Tarih <= t2);
 
             var received = await gq.ToListAsync(ct);
+            // Elle giderleştirilmiş ("İşlendi" + ETTN'i evrak no olan gider): KDV'si gider satırında — tarihi
+            // dönem dışında olsa bile e-Fatura ikinci kez sayılmaz.
+            var ettns = received.Select(g => g.Ettn).Distinct().ToList();
+            var booked = ettns.Count == 0
+                ? new HashSet<string>()
+                : (await db.Expenses.AsNoTracking().Where(e => e.EvrakNo != null && ettns.Contains(e.EvrakNo))
+                    .Select(e => e.EvrakNo!).Distinct().ToListAsync(ct)).ToHashSet(StringComparer.Ordinal);
+
             foreach (var g in received)
             {
-                // Kırılım girilmemişse belge dağıtılamaz (uydurma kademe yasak) — rapora girmez.
-                if (!IncomingEInvoiceVatBreakdown.HasBreakdown(g)) continue;
+                if (booked.Contains(g.Ettn)) continue;
                 if (!string.Equals(g.Currency?.Trim(), "TRY", StringComparison.OrdinalIgnoreCase))
                 {
                     skipped++;   // kur kolonu yok → base'e çevrilemez
                     continue;
                 }
 
-                var n0g = g.Kdv0Matrah ?? 0m;
-                rows.Add(new KdvGenisSatirDto(
+                var columns = new VatColumns();
+                if (IncomingEInvoiceVatBreakdown.HasBreakdown(g))
+                {
+                    foreach (var line in IncomingEInvoiceVatBreakdown.OpenLines(g))
+                        columns.Add(line.Oran, line.Matrah, line.Kdv);
+                }
+                else
+                {
+                    // Kırılımsız: tek standart oran çözülürse o kademe, yoksa "Diğer" (oran uydurulmaz).
+                    var rate = IncomingEInvoiceVatBreakdown.Rates
+                        .FirstOrDefault(o => VatMath.FromNet(g.NetTutar, o).Kdv == g.KdvTutar, -1m);
+                    if (rate >= 0m) columns.Add(rate, g.NetTutar, g.KdvTutar);
+                    else columns.AddOther(g.NetTutar, g.KdvTutar);
+                }
+                rows.Add(columns.ToRow(
                     g.Id, KdvGenisDto.TypePurchase, g.Ettn, g.Tarih,
                     string.IsNullOrWhiteSpace(g.GonderenUnvan) ? g.GonderenVkn : g.GonderenUnvan,
-                    g.Durum.ToString(),
-                    g.Kdv20Matrah ?? 0m, g.Kdv20 ?? 0m,
-                    g.Kdv10Matrah ?? 0m, g.Kdv10 ?? 0m,
-                    g.Kdv1Matrah ?? 0m, g.Kdv1 ?? 0m,
-                    n0g, 0m, 0m,
-                    (g.Kdv20Matrah ?? 0m) + (g.Kdv10Matrah ?? 0m) + (g.Kdv1Matrah ?? 0m) + n0g,
-                    (g.Kdv20 ?? 0m) + (g.Kdv10 ?? 0m) + (g.Kdv1 ?? 0m)));
+                    g.Durum.ToString()));
             }
         }
 
@@ -1517,6 +1553,33 @@ public sealed class ReportRepository(IDbContextFactory<AppDbContext> factory) : 
             .ThenBy(r => r.Tarih)
             .ThenBy(r => r.No, StringComparer.Ordinal)
             .ToList(), skipped);
+    }
+
+    /// <summary>KDV geniş görünümün oran sütunları: %20/%10/%1/%0 kademeleri + kademe-dışı "Diğer".
+    /// <c>Σ(sütunlar) == ToplamNet/ToplamKdv</c> her satırda kurulum gereği sağlanır.</summary>
+    private sealed class VatColumns
+    {
+        private decimal _n20, _k20, _n10, _k10, _n1, _k1, _n0, _nd, _kd;
+
+        public void Add(decimal rate, decimal net, decimal vat)
+        {
+            switch (rate)
+            {
+                case 0.20m: _n20 += net; _k20 += vat; break;
+                case 0.10m: _n10 += net; _k10 += vat; break;
+                case 0.01m: _n1 += net; _k1 += vat; break;
+                case 0m: _n0 += net; _kd += vat; break;   // %0'da KDV çıkmamalı; çıkarsa Diğer'e düşer
+                default: AddOther(net, vat); break;      // %18/%8 gibi kademe-dışı oranlar kaybolmaz
+            }
+        }
+
+        /// <summary>Oranı bilinmeyen ya da kademe-dışı tutar.</summary>
+        public void AddOther(decimal net, decimal vat) { _nd += net; _kd += vat; }
+
+        public KdvGenisSatirDto ToRow(Guid id, string type, string no, DateTimeOffset date, string party, string status)
+            => new(id, type, no, date, party, status,
+                _n20, _k20, _n10, _k10, _n1, _k1, _n0, _nd, _kd,
+                _n20 + _n10 + _n1 + _n0 + _nd, _k20 + _k10 + _k1 + _kd);
     }
 
     public async Task<IReadOnlyList<EkHizmetSalesRowDto>> GetAddOnSalesRowsAsync(
