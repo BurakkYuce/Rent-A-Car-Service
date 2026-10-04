@@ -94,7 +94,7 @@ public static partial class ReportApi
 
     public sealed record AgingReportSummary(DateOnly Tarih, ReportAgingBuckets Kovalar, decimal Toplam);
 
-    /// <summary>Cari borç yaşlandırma (brüt borç). <c>tarih</c> = yaşın ölçüldüğü gün (varsayılan bugün).</summary>
+    /// <summary>Cari borç yaşlandırma (FIFO mahsuplu; kovalar toplamı = bakiye). <c>tarih</c> = yaşın ölçüldüğü gün (varsayılan bugün).</summary>
     private static async Task<Ok<ReportResult<AgingReportSummary, AgingRowDto>>> Aging(
         DateOnly? tarih, [AsParameters] ReportPageQuery page, ReportService reports, ICurrentUser user,
         IDbContextFactory<AppDbContext> dbf, HttpContext http, CancellationToken ct)

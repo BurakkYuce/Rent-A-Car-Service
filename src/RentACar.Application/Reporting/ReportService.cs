@@ -987,13 +987,34 @@ public sealed class ReportService(IReportRepository repository, TutSatEsikleri h
     /// <summary>Bir carinin hareketlerinden FIFO mahsuplu yaşlandırma satırı (bkz. <see cref="GetAgingAsync"/>).</summary>
     private static AgingRowDto AgeFifo(Guid cariId, string name, IEnumerable<CariLedgerRowDto> rows, DateTimeOffset asOf)
     {
+        // (1) Belge bazında net: aynı belgenin satırları (ör. aynı SourceId ile yazılmış iptal/ters bacağı) önce
+        //     kendi içinde netleşir. Kimliksiz satır kendi başına bir belgedir.
+        var documents = rows
+            .GroupBy(r => r.SourceId == Guid.Empty ? Guid.NewGuid() : r.SourceId)
+            .Select(g => new AgingDocument(g.Key, g.Min(r => r.Tarih),
+                g.Sum(r => r.Direction == LedgerDirection.Debit ? r.Base : -r.Base),
+                g.Select(r => r.TargetSourceId).FirstOrDefault(t => t != null)))
+            .ToList();
+
+        // (2) Geri alma eşleşmesi: ters kayıt / iade, FIFO'dan ÖNCE kendi asıl belgesinden düşülür (#367 adversarial M1).
+        //     Aksi halde dönen çekin ters kaydı "bugünkü yeni borç", iade "en eski borcun tahsilatı" sayılırdı.
+        var byId = documents.ToDictionary(d => d.Id);
+        foreach (var d in documents)
+        {
+            if (d.Target is not { } t || !byId.TryGetValue(t, out var target)) continue;
+            if (Math.Sign(d.Amount) * Math.Sign(target.Amount) >= 0) continue;   // yalnız zıt yönlüler birbirini kapatır
+            var offset = Math.Min(Math.Abs(d.Amount), Math.Abs(target.Amount));
+            d.Amount -= Math.Sign(d.Amount) * offset;
+            target.Amount -= Math.Sign(target.Amount) * offset;
+        }
+
+        // (3) FIFO: kalan alacaklar en eski borçtan düşülür.
         var debts = new List<(DateTimeOffset Date, decimal Amount)>();
         decimal credit = 0m;
-        foreach (var r in rows)
+        foreach (var d in documents)
         {
-            var signed = r.Direction == LedgerDirection.Debit ? r.Base : -r.Base;
-            if (signed > 0m) debts.Add((r.Tarih, signed));
-            else credit -= signed;
+            if (d.Amount > 0m) debts.Add((d.Date, d.Amount));
+            else credit -= d.Amount;
         }
 
         decimal b0 = 0, b30 = 0, b60 = 0, b90 = 0;
@@ -1011,6 +1032,15 @@ public sealed class ReportService(IReportRepository repository, TutSatEsikleri h
             else b90 += remaining;
         }
         return new AgingRowDto(cariId, name, b0, b30, b60, b90, b0 + b30 + b60 + b90);
+    }
+
+    /// <summary>Yaşlandırmada bir belgenin cari üzerindeki net etkisi (Borç +, Alacak −).</summary>
+    private sealed class AgingDocument(Guid id, DateTimeOffset date, decimal amount, Guid? target)
+    {
+        public Guid Id { get; } = id;
+        public DateTimeOffset Date { get; } = date;
+        public decimal Amount { get; set; } = amount;
+        public Guid? Target { get; } = target;
     }
 
     /// <summary>

@@ -37,7 +37,10 @@ public static partial class ReportApi
         var p = q.Validate();
         var trend = await reports.GetMonthlyRevenueExpenseTrendAsync(12, ct: ct);
         var gg = await reports.GetRevenueExpenseAsync(p.FromUtc, p.ToUtc, ct);
-        var aging = await reports.GetAgingAsync(p.Bit is { } b ? ReportPeriod.Anchor(b) : DateTimeOffset.UtcNow, ct);
+        // Yaşlandırma ekranıyla (ReportApi.Customer) AYNI ölçüm anı: günün çıpasının SONU — eskiden günün başıydı ve
+        // bitiş günündeki hareketler panoda yoktu; bit boşsa bugün.
+        var agingDay = p.Bit ?? ReportPeriod.Today;
+        var aging = await reports.GetAgingAsync(ReportPeriod.Anchor(agingDay).AddDays(1).AddMicroseconds(-1), ct);
         var tf = await reports.GetCollectionInvoiceAsync(p.FromUtc, p.ToUtc, ct);
         var today = ReportPeriod.Anchor(ReportPeriod.Today);
         var tracking = await reports.GetVehicleStatusTrackingAsync(new AracDurumTakipFilter(), today.AddDays(-29), today, ct);
