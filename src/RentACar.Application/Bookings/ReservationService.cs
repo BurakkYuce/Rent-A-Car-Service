@@ -52,7 +52,9 @@ public sealed class ReservationService(
         var source = await _sourceRule.ResolveAsync(input.Kaynak, ct);
         ReservationSourceRule.MaxDaysGuard(source, BookingMath.ComputeDays(input.BasTar, input.BitTar));
         ReservationSourceRule.DropGuard(source, input.CikisOfisi, input.DonusOfisi);
-        var kmLimit = ReservationSourceRule.ApplyKmLimit(source, input.KmLimit);
+        // #366 M2: sınırsızlık AÇIK bayrak (form ya da KmSinirsiz kaynak); limit 0 = BOŞ → dönüşümde tarife/grup.
+        var kmUnlimited = (input.KmSinirsiz ?? false) || source is { KmSinirsiz: true };
+        var kmLimit = kmUnlimited ? 0 : input.KmLimit;
         // Varlık kontrolü (DEVIR §6 Low): müşteri/araç bu kiracıda var olmalı — kiraya çevrilince aynı kimlikler
         // kiraya taşınır. Harici API, /api/ui ve Blazor aynı kuraldan geçer (uç kopyaları kaldırıldı).
         await BookingPartyCheck.RequireAsync(customers, vehicles, input.MusteriId, input.VehicleId, ct);
@@ -76,6 +78,7 @@ public sealed class ReservationService(
             Tutar = pr.Tutar,
             HediyeGun = pr.HediyeGun, FaturalananGun = pr.FaturalananGun, IskontoTutar = pr.IskontoTutar, HaftaSonuFark = pr.HaftaSonuFark,
             KmLimit = kmLimit,                 // FAZ-49: KmSinirsiz kaynakta 0'a sabitlenir
+            KmSinirsiz = kmUnlimited,
             FazlaKmUcret = input.FazlaKmUcret,
             YakitBirimUcret = input.YakitBirimUcret,
             Provizyon = input.Provizyon,
@@ -161,7 +164,14 @@ public sealed class ReservationService(
         if (officeChanged || sourceChanged)
             ReservationSourceRule.DropGuard(newSource, input.CikisOfisi, input.DonusOfisi);
         // Km sabitlemesi bir RED değil, sonucu yazma biçimidir → koşulsuz (kilitleme riski yok).
-        var kmLimit = ReservationSourceRule.ApplyKmLimit(newSource, input.KmLimit);
+        // #366 M2: bayrak belirtilmediyse (null) mevcut değer korunur — eski istemci tam-durum PUT'unda
+        // sınırsız kaydı sessizce "boş (grup limiti)"ne çevirmesin.
+        var requestedUnlimited = input.KmSinirsiz ?? existing.KmSinirsiz;
+        // Kaynak kuralından MİRAS bayrak yapışkan değildir: eski kaynak sınırsızdı, kullanıcı bayrağa dokunmadıysa düşer.
+        if (requestedUnlimited && requestedUnlimited == existing.KmSinirsiz && existingSource is { KmSinirsiz: true })
+            requestedUnlimited = false;
+        var kmUnlimited = requestedUnlimited || newSource is { KmSinirsiz: true };
+        var kmLimit = kmUnlimited ? 0 : input.KmLimit;
         // Varlık kontrolü KOŞULSUZ (yalnız değişende değil): tam değiştirme yazımı kimlikleri yeniden yazar ve
         // kiraya çevrilince taşınır — önceden (kontrol yokken) yazılmış yabancı kimlik düzenlemeyle "aklanmasın".
         // Maliyet iki birincil anahtar okuması. Önceki /api/ui davranışıyla aynı (orada da her PUT'ta denetleniyordu).
@@ -223,6 +233,7 @@ public sealed class ReservationService(
                 r.KdvOranSnapshot = feeOrModeChanged ? pr.KdvOranSnapshot : r.KdvOranSnapshot;
             }
             r.KmLimit = kmLimit;               // FAZ-49: KmSinirsiz kaynakta 0'a sabitlenir
+            r.KmSinirsiz = kmUnlimited;
             r.FazlaKmUcret = input.FazlaKmUcret;
             r.YakitBirimUcret = input.YakitBirimUcret;
             r.Provizyon = input.Provizyon;
@@ -280,10 +291,14 @@ public sealed class ReservationService(
         // Kabul bulgusu d-rapor-km-detay-03: doğrudan kirayla AYNI kural (GroupKmPolicy) — rezervasyonda km
         // limiti boşsa grubun limiti × gün ve aşım ücreti kiraya snapshot'lanır; KmSinirsiz kaynak 0'da tutar.
         var km = GroupKmPolicy.Resolve(
-            await _feeLines.ResolveGroupAsync(reservation.VehicleId, ct), reservation.Gun,
-            reservation.KmLimit, reservation.FazlaKmUcret,
+            reservation.KmSinirsiz || reservation.KmLimit > 0
+                ? (null, null)
+                : await _pricing.ResolveKmRuleAsync(reservation.VehicleId, reservation.Kaynak, reservation.CikisOfisi,
+                    reservation.BasTar, reservation.BitTar, ct),
+            reservation.Gun, reservation.KmLimit, reservation.FazlaKmUcret,
             currency: null, // rezervasyon dövizsizdir (TL); dönüşen kira da varsayılan dövizde açılır
-            source: await _sourceRule.ResolveAsync(reservation.Kaynak, ct));
+            source: await _sourceRule.ResolveAsync(reservation.Kaynak, ct),
+            kmUnlimited: reservation.KmSinirsiz);
 
         var rentalId = await _repository.ConvertToRentalAsync(id, res => new RentalContract
         {
@@ -299,6 +314,8 @@ public sealed class ReservationService(
             GunlukUcret = res.GunlukUcret,
             KmLimit = km.KmLimit,
             FazlaKmUcret = km.FazlaKmUcret,
+            KmLimitGunluk = km.KmLimitGunluk,
+            KmSinirsiz = km.KmSinirsiz,
             YakitBirimUcret = res.YakitBirimUcret,
             Tutar = res.Tutar,
             HediyeGun = res.HediyeGun, FaturalananGun = res.FaturalananGun, IskontoTutar = res.IskontoTutar, HaftaSonuFark = res.HaftaSonuFark,

@@ -31,6 +31,7 @@ export function reservationDto(extra: Partial<ReservationDto> = {}): Reservation
     kampanyaKodu: null,
     kdvOranSnapshot: 0.2,
     kmLimit: 300,
+    kmSinirsiz: false,
     fazlaKmUcret: 2.5,
     yakitBirimUcret: 45,
     provizyon: 5000,

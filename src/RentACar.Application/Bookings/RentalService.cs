@@ -137,11 +137,11 @@ public sealed class RentalService(
         ReservationSourceRule.DropGuard(resolvedSourceRule, input.CikisOfisi, input.DonusOfisi);
 
         var pr = await _pricing.PriceAsync(input, ct: ct); // fiyat motoru: manuel >0 kazanır, yoksa tarife (tam teklif)
-        // Kabul bulgusu d-rapor-km-detay-03: boş km limiti/aşım ücreti grubun değerinden SNAPSHOT alınır
-        // (elle girilen öncelikli; KmSinirsiz kaynak yine 0'a sabitler) — kural GroupKmPolicy'de TEK yerde.
+        // Kabul bulgusu d-rapor-km-detay-03 (+#366): boş km limiti tarife kademesi/araç grubu günlük limitinden
+        // SNAPSHOT alınır; elle girilen öncelikli; sınırsız yalnız açık bayrakla — kural GroupKmPolicy'de TEK yerde.
         var km = GroupKmPolicy.Resolve(
-            await feeLines.ResolveGroupAsync(input.VehicleId, ct), pr.Gun, input.KmLimit, input.FazlaKmUcret,
-            input.Doviz, resolvedSourceRule);
+            await _pricing.ResolveKmRuleAsync(input.VehicleId, input.Kaynak, input.CikisOfisi, input.BasTar, input.BitTar, ct),
+            pr.Gun, input.KmLimit, input.FazlaKmUcret, input.Doviz, resolvedSourceRule, input.KmSinirsiz ?? false);
         var defaultVat = await vatDefault.RateAsync(ct); // FAZ 3.A6 (net-mod çiti gross-up oranıyla karşılaştırır)
 
         // Yumuşak ön-kontrol (kullanıcı dostu hata); kesin garanti exclusion constraint.
@@ -170,6 +170,8 @@ public sealed class RentalService(
             GunlukUcret = input.GunlukUcret,
             KmLimit = km.KmLimit,             // FAZ-49 + grup snapshot (GroupKmPolicy)
             FazlaKmUcret = km.FazlaKmUcret,
+            KmLimitGunluk = km.KmLimitGunluk,
+            KmSinirsiz = km.KmSinirsiz,
             YakitBirimUcret = input.YakitBirimUcret,
             Tutar = pr.Tutar,
             GenelToplam = pr.Tutar,
@@ -295,12 +297,32 @@ public sealed class RentalService(
         // Km sabitlemesi yalnız AÇIK (Kirada) sözleşmenin yazma yolunda uygulanır. Tamamlanmış
         // kirada aşım parametreleri zaten DONMUŞ; sabitlemeyi oradaki "değişti mi" karşılaştırmasına
         // sokmak, kural sonradan konduğunda kaydı tümüyle düzenlenemez yapardı.
-        var kmLimit = ReservationSourceRule.ApplyKmLimit(resolvedSourceRule, input.KmLimit);
+        // #366 M2: "0" = BOŞ (tarife/grup günlük limiti × gün), sınırsız yalnız açık bayrakla. Bayrak null → mevcut.
+        // Form kayıtlı limiti AYNEN geri gönderiyorsa (tam-durum PUT) km alanı değişmemiş sayılır: günlük snapshot
+        // korunur (uzatmada büyüyen hak kaybolmaz) ve kural yeniden çözülmez.
+        var kmUnlimited = input.KmSinirsiz ?? existing.KmSinirsiz;
+        // Kaynak kuralından MİRAS bayrak yapışkan değildir (FAZ-49 "guard yapışkan değil"): eski kaynak km sınırsızdı,
+        // yeni kaynak değil ve kullanıcı bayrağa dokunmadıysa (aynı değer) bayrak düşer — limit yeniden yazılabilir.
+        if (kmUnlimited && kmUnlimited == existing.KmSinirsiz && resolvedSourceRule is not { KmSinirsiz: true }
+            && await _sourceRule.ResolveAsync(existing.Kaynak, ct) is { KmSinirsiz: true })
+            kmUnlimited = false;
+        var kmUntouched = !kmUnlimited && resolvedSourceRule is not { KmSinirsiz: true }
+            && !existing.KmSinirsiz && input.KmLimit == existing.KmLimit && input.KmLimit > 0;
+        var km = kmUntouched
+            ? new GroupKmPolicy.Result(existing.KmLimit, input.FazlaKmUcret, existing.KmLimitGunluk, false)
+            : GroupKmPolicy.Resolve(
+                input.KmLimit > 0 || kmUnlimited
+                    ? (null, null)
+                    : await _pricing.ResolveKmRuleAsync(existing.VehicleId, sourceText, pickupOffice, existing.BasTar, existing.BitTar, ct),
+                existing.Gun, input.KmLimit, input.FazlaKmUcret, existing.Doviz, resolvedSourceRule, kmUnlimited);
+        if (kmUntouched && input.FazlaKmUcret <= 0m && existing.KmLimitGunluk is not null)
+            km = km with { FazlaKmUcret = existing.FazlaKmUcret }; // boş ücret kural ücretini SİLMEZ
 
         if (existing.Durum == RentalStatus.Tamamlandi)
         {
             if (input.KmLimit != existing.KmLimit || input.FazlaKmUcret != existing.FazlaKmUcret
-                || input.YakitBirimUcret != existing.YakitBirimUcret)
+                || input.YakitBirimUcret != existing.YakitBirimUcret
+                || (input.KmSinirsiz is { } unlimitedFlag && unlimitedFlag != existing.KmSinirsiz))
                 throw new ValidationException("Tamamlanmış kirada aşım parametreleri değiştirilemez (dönüş hesabı yapıldı).");
             if (input.IkinciSurucuId != existing.IkinciSurucuId)
                 throw new ValidationException("Tamamlanmış kirada 2. sürücü değiştirilemez.");
@@ -343,8 +365,10 @@ public sealed class RentalService(
                 c.CikisOfisi = pickupOffice;
                 c.DonusOfisi = returnOffice;
                 c.IkinciSurucuId = input.IkinciSurucuId;
-                c.KmLimit = kmLimit;          // FAZ-49: KmSinirsiz kaynakta 0'a (sınırsız) sabitlenir
-                c.FazlaKmUcret = input.FazlaKmUcret;
+                c.KmLimit = km.KmLimit;       // FAZ-49 + #366: GroupKmPolicy (sınırsız bayrak / elle / kural)
+                c.FazlaKmUcret = km.FazlaKmUcret;
+                c.KmLimitGunluk = km.KmLimitGunluk;
+                c.KmSinirsiz = km.KmSinirsiz;
                 c.YakitBirimUcret = input.YakitBirimUcret;
             }
             // Bilgi alanları — her iki durumda da (Kirada/Tamamlandi) serbest.
@@ -685,6 +709,9 @@ public sealed class RentalService(
 
             x.BitTar = newEndDate;
             x.Gun = newDays;
+            // #366 H1: tarife/grup kaynaklı km hakkı GÜNLÜKTÜR — uzatılan günle birlikte büyür. Elle girilmiş
+            // TOPLAM limit (KmLimitGunluk null) olduğu gibi kalır.
+            x.KmLimit = GroupKmPolicy.Entitlement(x);
             x.Tutar += extraCharge;              // baz kira büyür (Tutar = Gun × GunlukUcret tutarlı; K1 fix)
             x.GenelToplam += extraCharge;
             x.Bakiye = x.GenelToplam - x.Tahsilat;

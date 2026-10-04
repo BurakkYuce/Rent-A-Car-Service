@@ -126,11 +126,7 @@ public sealed class RentalQuoteEngine(
         // davranış hiç bozulmaz (geriye uyum).
         // Blok BİLİNÇLİ olarak grup dalının DIŞINDA: tarifede km tanımlıyken araç grubu bulunamazsa
         // limit yine de uygulanmalı; grubun içinde kalsaydı tarifedeki değer sessizce yok sayılırdı.
-        var (tierKmLimit, tierKmFee) = matrix is null
-            ? ((int?)null, (decimal?)null)
-            : ResolveTierKm(matrix, day, notes);
-        var effectiveKmLimit = tierKmLimit ?? group?.GunlukKmLimiti;
-        var effectiveKmFee = tierKmFee ?? group?.AsimKmUcreti;
+        var (effectiveKmLimit, effectiveKmFee) = EffectiveKm(matrix, group, day, notes);
         if (req.TahminiKm is { } km && effectiveKmLimit is { } limit && limit > 0 && effectiveKmFee is { } excessFee)
         {
             // Limit GÜNLÜKTÜR (kullanıcı kararı): 200 km/gün × 5 gün = 1000 km dahil.
@@ -215,6 +211,37 @@ public sealed class RentalQuoteEngine(
             SigortaKalemleri = items,
             Notlar = notes
         };
+    }
+
+    /// <summary>
+    /// FAZ-71 km önceliği — TEK yer: tarifenin gün-kademesi km limiti/ücreti, yoksa araç grubunun global değeri
+    /// (limit ve ücret AYRI düşer). Teklif (<see cref="QuoteAsync"/>) ve kiraya yazılan km hakkı
+    /// (<see cref="ResolveKmRuleAsync"/> → <c>GroupKmPolicy</c>) bu fonksiyonu paylaşır (#366 M1).
+    /// </summary>
+    private static (int? DailyLimit, decimal? Fee) EffectiveKm(RateMatrix? matrix, VehicleGroup? group, int day, List<string> notes)
+    {
+        var (tierKmLimit, tierKmFee) = matrix is null
+            ? ((int?)null, (decimal?)null)
+            : ResolveTierKm(matrix, day, notes);
+        return (tierKmLimit ?? group?.GunlukKmLimiti, tierKmFee ?? group?.AsimKmUcreti);
+    }
+
+    /// <summary>
+    /// Kiraya yazılacak GÜNLÜK km limiti + aşım ücreti (kabul düzeltmesi #366 M1): teklifle AYNI matris seçimi
+    /// (grup/kanal/şube/tarih/max kira kapsamı) ve AYNI öncelik (<see cref="EffectiveKm"/>). Fiyat kademesinin
+    /// onaylı olması yeterli — fiyatın manuel girilmiş olması km kuralını değiştirmez. Grup kodu boşsa (null, null).
+    /// </summary>
+    public async Task<(int? DailyLimit, decimal? Fee)> ResolveKmRuleAsync(
+        string? groupCode, string? channel, string? branch, DateTimeOffset start, DateTimeOffset end,
+        CancellationToken ct = default)
+    {
+        if (string.IsNullOrWhiteSpace(groupCode) || end <= start) return (null, null);
+        var code = groupCode.Trim().ToUpperInvariant();
+        var day = BookingMath.ComputeDays(start, end);
+        var notes = new List<string>();
+        var matrix = SelectMatrix(await _rateMatrices.ListActiveAsync(ct), code, channel?.Trim(), branch?.Trim(), start, day, notes);
+        var group = (await _vehicleGroups.ListActiveAsync(ct)).FirstOrDefault(g => g.Kod == code);
+        return EffectiveKm(matrix, group, day, notes);
     }
 
     /// <summary>Kanal/şube/grup/tarih eşleşen ONAYLI tarife matrisi. Onaylanmamış (Bekliyor) kullanılmaz.

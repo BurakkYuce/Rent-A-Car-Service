@@ -2087,6 +2087,20 @@
               "type": "string",
               "format": "uuid"
             }
+          },
+          {
+            "name": "kaynak",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "kmSinirsiz",
+            "in": "query",
+            "schema": {
+              "type": "boolean"
+            }
           }
         ],
         "responses": {
@@ -49103,6 +49117,12 @@
             ],
             "format": "double"
           },
+          "kmSinirsiz": {
+            "type": [
+              "null",
+              "boolean"
+            ]
+          },
           "provizyon": {
             "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
             "type": [
@@ -49633,6 +49653,10 @@
               "string"
             ],
             "format": "double"
+          },
+          "kmSinirsiz": {
+            "type": "boolean",
+            "default": false
           }
         }
       },
@@ -50430,6 +50454,12 @@
             "items": {
               "$ref": "#/components/schemas/KiraEkHizmetSecimi"
             }
+          },
+          "kmSinirsiz": {
+            "type": [
+              "null",
+              "boolean"
+            ]
           }
         }
       },
@@ -50645,6 +50675,18 @@
               "string"
             ],
             "format": "double"
+          },
+          "kmSinirsiz": {
+            "type": "boolean"
+          },
+          "kmLimitGunluk": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
           },
           "cikisKm": {
             "pattern": "^-?(?:0|[1-9]\\d*)$",
@@ -62208,7 +62250,8 @@
           "onayKodu",
           "projeAdi",
           "kiraId",
-          "olusturmaUtc"
+          "olusturmaUtc",
+          "kmSinirsiz"
         ],
         "type": "object",
         "properties": {
@@ -62533,6 +62576,9 @@
           "olusturmaUtc": {
             "type": "string",
             "format": "date-time"
+          },
+          "kmSinirsiz": {
+            "type": "boolean"
           }
         }
       },
@@ -62666,6 +62712,12 @@
               "string"
             ],
             "format": "double"
+          },
+          "kmSinirsiz": {
+            "type": [
+              "null",
+              "boolean"
+            ]
           },
           "provizyon": {
             "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
@@ -62915,6 +62967,12 @@
               "string"
             ],
             "format": "double"
+          },
+          "kmSinirsiz": {
+            "type": [
+              "null",
+              "boolean"
+            ]
           },
           "provizyon": {
             "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",

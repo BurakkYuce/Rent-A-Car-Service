@@ -212,7 +212,7 @@ test('kayıtlı kira: PUT 58 alanın hepsini + sürümü taşır; ek hizmet çif
   await page.getByRole('button', { name: 'Kaydet', exact: true }).click();
   await expect(page.getByRole('status').filter({ hasText: 'Kira kaydedildi.' })).toBeVisible();
   expect(puts).toHaveLength(1);
-  expect(Object.keys(puts[0] ?? {})).toHaveLength(59);
+  expect(Object.keys(puts[0] ?? {})).toHaveLength(60); // +kmSinirsiz (#366 M2)
   expect(puts[0]?.['surum']).toBe('v1');
   expect(puts[0]).toMatchObject({
     aciklama: 'Müşteri erken gelecek',

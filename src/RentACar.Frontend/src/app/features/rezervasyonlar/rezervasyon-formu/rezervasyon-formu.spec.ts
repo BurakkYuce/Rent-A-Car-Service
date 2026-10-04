@@ -117,7 +117,7 @@ describe('Rezervasyon formu sürüm akışı', () => {
       otaCdw: 99.9,
       provizyon: 5000,
     });
-    expect(Object.keys(putlar[0]?.govde ?? {})).toHaveLength(33); // 32 whitelist alanı + surum
+    expect(Object.keys(putlar[0]?.govde ?? {})).toHaveLength(34); // 33 whitelist alanı (+kmSinirsiz) + surum
   });
 
   it('409 cakisma formu SİLMEZ: güncel kayıt birleşir, çakışan alan işaretlenir, yeniden kayıt YENİ sürümle', async () => {

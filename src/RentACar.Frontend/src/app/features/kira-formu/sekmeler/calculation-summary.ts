@@ -169,6 +169,7 @@ export class CalculationSummary {
    */
   protected readonly kmNote = computed(() => {
     const h = this.d.hesap.veri();
+    if (h?.ok && h.kmSinirsiz) return this.t('kiraFormu.hesap.kmSinirsiz');
     if (!h?.ok || h.kmLimit === null || h.kmLimit === undefined) return null;
     const parts = [this.t('kiraFormu.hesap.grupKmLimiti', { km: toNumber(h.kmLimit) })];
     if (h.fazlaKmUcret !== null && h.fazlaKmUcret !== undefined) {

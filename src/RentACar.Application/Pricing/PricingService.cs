@@ -177,6 +177,21 @@ public sealed class PricingService(
             KdvOranSnapshot: !auto && applyVatMode && netMod ? defaultRate : null);
     }
 
+    /// <summary>
+    /// Kiranın km kuralı (günlük limit + aşım ücreti): aracın grubu + doğrulanmış kanal (Kaynak) + çıkış şubesi ile
+    /// <see cref="RentalQuoteEngine.ResolveKmRuleAsync"/> — tarife kademesi önce, araç grubu sonra (#366 M1).
+    /// Doğrudan kira, rezervasyon dönüşümü, açık kira düzenlemesi ve önizleme bu tek çağrıyı kullanır.
+    /// </summary>
+    public async Task<(int? DailyLimit, decimal? Fee)> ResolveKmRuleAsync(
+        Guid vehicleId, string? source, string? pickupOffice, DateTimeOffset start, DateTimeOffset end,
+        CancellationToken ct = default)
+    {
+        var group = (await _vehicles.FindAsync(vehicleId, ct))?.Grup?.Trim();
+        if (string.IsNullOrWhiteSpace(group)) return (null, null);
+        return await _quoteEngine.ResolveKmRuleAsync(
+            group, await ResolveChannelAsync(source, ct), pickupOffice, start, end, ct);
+    }
+
     /// <summary>Kaynak metnini doğrulanmış kanala çevirir (FAZ 3.A4): boş → null; aktif
     /// ReservationSource'larda Kod VEYA Ad ile (Trim + case-insensitive) eşleşirse Trim'li metin
     /// döner (matris Kanal alanı aynı metinle eşleşir), eşleşmezse null — tanımsız kaynak kanal-özel

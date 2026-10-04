@@ -24,12 +24,15 @@ public static class ReturnMath
         // (KM Hediye — referans sistem parite). KM-aşım PARASININ TEK OTORİTESİ dönüş-zamanıdır (KURAL A);
         // fiyat motorunun create-zamanı KmAsimTutar TAHMİNİ asla para olarak persist edilmez.
         var used = c.CikisKm is int ck ? Math.Max(0, returnKm - ck) : 0;
+        // #366 H1: tarife/grup kaynaklı (günlük) km hakkı GEÇ DÖNÜŞ günleriyle de büyür — müşteri faturalanan her
+        // gün için o günün km hakkını alır. Elle girilmiş toplam limitte (KmLimitGunluk null) KmLimit aynen.
+        var kmEntitlement = GroupKmPolicy.Entitlement(c, LateDays(c, actualReturn));
         var excessKm = 0;
-        if (c.KmLimit > 0 && c.CikisKm is not null)
+        if (kmEntitlement > 0 && c.CikisKm is not null)
         {
             // LONG aritmetik: int.MaxValue hediye ile (kullanilan − limit − hediye) int'te wrap edip
             // milyarlık hayalet FazlaKm üretiyordu (adversarial BULGU 1 — deftere kadar gidiyordu).
-            var excessLiters = Math.Max(0L, (long)used - c.KmLimit - Math.Max(0, freeKm));
+            var excessLiters = Math.Max(0L, (long)used - kmEntitlement - Math.Max(0, freeKm));
             excessKm = (int)Math.Min(excessLiters, int.MaxValue);
         }
         // Para satırları 2 haneye yuvarlanır (satır-bazlı yuvarlama; kesirli FazlaKmUcret'te sözleşme ↔
@@ -42,10 +45,7 @@ public static class ReturnMath
             missingFuel = Math.Max(0, pickupFuel - returnFuel);
         var fuelCharge = Math.Round(missingFuel * c.YakitBirimUcret, 2, MidpointRounding.AwayFromZero);
 
-        // Uzatma: planlanan bitişten sonra döndüyse (24-saat bloğu, yukarı yuvarla).
-        var extensionDays = 0;
-        if (actualReturn > c.BitTar)
-            extensionDays = Math.Max(1, (int)Math.Ceiling((actualReturn - c.BitTar).TotalHours / 24.0));
+        var extensionDays = LateDays(c, actualReturn);
         var extensionCharge = Math.Round(extensionDays * c.GunlukUcret, 2, MidpointRounding.AwayFromZero);
 
         var grandTotal = c.Tutar + excessKmCharge + fuelCharge + extensionCharge;
@@ -53,4 +53,11 @@ public static class ReturnMath
         return new ReturnCharges(
             excessKm, excessKmCharge, missingFuel, fuelCharge, extensionDays, extensionCharge, grandTotal, used);
     }
+
+    /// <summary>Uzatma (geç dönüş) günü: planlanan bitişten sonra döndüyse (24-saat bloğu, yukarı yuvarla).
+    /// Uzatma bedeli ve km hakkı AYNI gün sayısını kullanır.</summary>
+    private static int LateDays(RentalContract c, DateTimeOffset actualReturn)
+        => actualReturn > c.BitTar
+            ? Math.Max(1, (int)Math.Ceiling((actualReturn - c.BitTar).TotalHours / 24.0))
+            : 0;
 }

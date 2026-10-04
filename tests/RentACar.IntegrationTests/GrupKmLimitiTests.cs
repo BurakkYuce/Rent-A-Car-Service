@@ -124,6 +124,8 @@ public sealed class GrupKmLimitiTests(PostgresFixture fx)
         request.Kaynak = "SINIRSIZ";
         var c = (await rentals.GetAsync(await rentals.CreateDirectAsync(request)))!;
         Assert.Equal(0, c.KmLimit);
+        Assert.True(c.KmSinirsiz);
+        Assert.Null(c.KmLimitGunluk);
     }
 
     [Fact]
