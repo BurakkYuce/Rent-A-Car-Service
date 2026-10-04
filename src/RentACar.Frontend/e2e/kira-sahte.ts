@@ -67,6 +67,8 @@ export const RENTAL = {
   kmLimit: 300,
   fazlaKmUcret: 2.5,
   yakitBirimUcret: 45,
+  kmSinirsiz: false,
+  kmLimitGunluk: null,
   cikisKm: 12000,
   cikisYakit: 8,
   donusKm: null,

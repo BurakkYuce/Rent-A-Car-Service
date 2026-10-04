@@ -38,6 +38,13 @@ public class RentalContract : ITenantOwned, IAuditable, IOfficeScoped
     // Aşım ücret parametreleri (oluştururken/teslimde girilir; 0 = ücretsiz/sınırsız).
     public int KmLimit { get; set; }            // toplam serbest km (0 = sınırsız)
     public decimal FazlaKmUcret { get; set; }   // aşım km başına
+    /// <summary>Km sınırsız AÇIK kararı (kabul düzeltmesi #366 M2). Girdi tarafında "0" artık "sınırsız" DEMEK
+    /// DEĞİLDİR (boş = araç grubu/tarife limiti); sınırsızlık yalnız bu bayrakla seçilir. true → KmLimit = 0.
+    /// Göç öncesi KmLimit=0 kayıtlar backfill'le true'ya çekildi (o kiralar sınırsız faturalanıyordu).</summary>
+    public bool KmSinirsiz { get; set; }
+    /// <summary>Km hakkı tarife/grup kaynaklıysa GÜNLÜK değer snapshot'ı; hak = günlük × (Gun + UzatmaGun)
+    /// (uzatma ve geç dönüşte hak büyür — #366 H1). Elle girilmiş TOPLAM limitte null (KmLimit olduğu gibi).</summary>
+    public int? KmLimitGunluk { get; set; }
     public decimal YakitBirimUcret { get; set; } // eksik yakıt birimi başına
 
     // Teslim (PR #4)

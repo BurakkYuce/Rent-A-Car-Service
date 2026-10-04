@@ -231,6 +231,11 @@
       <section class="rc-bolum">
         <h2>{{ 'rezervasyon.bolum.km' | transloco }}</h2>
         <div class="rc-form-izgara">
+          <rc-alan [etiket]="'rezervasyon.alan.kmSinirsiz' | transloco" etiketGizli>
+            <rc-onay-kutusu formControlName="kmSinirsiz">{{
+              'rezervasyon.alan.kmSinirsiz' | transloco
+            }}</rc-onay-kutusu>
+          </rc-alan>
           <rc-alan [etiket]="'rezervasyon.alan.kmLimit' | transloco">
             <rc-sayi-girdisi formControlName="kmLimit" />
           </rc-alan>

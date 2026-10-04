@@ -73,6 +73,11 @@ import { KF_SHARED } from './ortak';
       <section class="rc-bolum kf-kart">
         <h3 class="kf-kart__baslik">{{ 'kiraFormu.bolum.km' | transloco }}</h3>
         <div class="rc-form-izgara">
+          <rc-alan [etiket]="'kiraFormu.alan.kmSinirsiz' | transloco" etiketGizli>
+            <rc-onay-kutusu formControlName="kmSinirsiz">{{
+              'kiraFormu.alan.kmSinirsiz' | transloco
+            }}</rc-onay-kutusu>
+          </rc-alan>
           <rc-alan [etiket]="'kiraFormu.alan.kmLimit' | transloco">
             <rc-sayi-girdisi formControlName="kmLimit" />
           </rc-alan>

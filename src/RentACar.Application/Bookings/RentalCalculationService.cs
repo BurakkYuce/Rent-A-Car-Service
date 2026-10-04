@@ -23,7 +23,9 @@ public sealed record KiraHesapIstek(
     string? KampanyaKodu = null,
     Guid? IkinciSurucuId = null,
     string? DonusOfisi = null,
-    decimal? DropUcreti = null);
+    decimal? DropUcreti = null,
+    string? Kaynak = null,
+    bool KmSinirsiz = false);
 
 public sealed record KiraHesapEkHizmet(Guid TanimId, decimal Miktar);
 
@@ -53,7 +55,10 @@ public sealed record KiraHesapSonuc(
     decimal? GenelToplamTl,
     decimal? Tahsilat,
     decimal Kalan,
-    IReadOnlyList<string>? Notlar = null);
+    IReadOnlyList<string>? Notlar = null,
+    int? KmLimit = null,
+    decimal? FazlaKmUcret = null,
+    bool KmSinirsiz = false);
 
 /// <summary>
 /// Kira formu CANLI hesap servisi (JS fetch → GET /kiralar/hesapla → JSON). UI HİÇBİR formül taşımaz:
@@ -71,7 +76,8 @@ public sealed class RentalCalculationService(
     ICurrentUser currentUser,
     FeeLineService feeLines,
     RentACar.Application.Customers.ICustomerRepository customers,
-    VatDefault vatDefaultService)
+    VatDefault vatDefaultService,
+    RentACar.Application.ReservationSources.ReservationSourceRuleService sourceRule)
 {
     private const int MaxExtraItems = 50; // abuse guard: tek istekte gerçekçi üst sınır
     // Taşma guard'ları (adversarial PR-B Medium): decimal.MaxValue mertebesinde miktar/ücret,
@@ -136,9 +142,20 @@ public sealed class RentalCalculationService(
         // FAZ 3.A3a: SİSTEM ücret satırları önizlemesi — kayıtla AYNI saf hesap (FeeLineService.HesaplaSaf)
         // + AYNI kalem matematiği (net = round(birim×gün,2); KdvMath.FromNet) → önizleme == kayıt.
         var feeNotes = new List<string>();
+        GroupKmPolicy.Result? km = null;
         if (request.VehicleId is Guid feeVid)
         {
             var group = await feeLines.ResolveGroupAsync(feeVid, ct);
+            // Kabul bulgusu d-rapor-km-detay-03 (+#366 L1): kayıtla AYNI kural, AYNI gün (pr.Gun), AYNI kaynak
+            // (KmSinirsiz kaynak) ve AYNI tarife/grup önceliği. Yeni kira formu km limiti göndermez → girilen 0.
+            // Kayıtlı kira (RentalId) önizlemesinde aşağıda kayıtlı km hakkı bildirilir.
+            if (request.RentalId is null)
+                km = GroupKmPolicy.Resolve(
+                    request.KmSinirsiz
+                        ? (null, null)
+                        : await pricing.ResolveKmRuleAsync(feeVid, request.Kaynak, request.CikisOfisi, request.BasTar, request.BitTar, ct),
+                    pr.Gun, 0, 0m, currency, await sourceRule.ResolveAsync(request.Kaynak, ct), request.KmSinirsiz);
+            if (km is { FxFeeSkipped: true }) feeNotes.Add(GroupKmPolicy.FxFeeNote); // L2
             var birth = request.MusteriId is Guid mid ? (await customers.FindAsync(mid, ct))?.DogumTarihi : null;
             // FAZ-22: gün, MinGun koşulu için geçiyor. Önizleme ve kayıt AYNI gün sayısını
             // (pr.Gun / c.Gun) kullanır — aksi hâlde önizleme==kayıt sözleşmesi bozulurdu.
@@ -180,6 +197,8 @@ public sealed class RentalCalculationService(
             {
                 BranchScope.RequireInScope(_currentUser, c.CikisSubeId, c.CikisOfisi);
                 collection = c.Tahsilat;
+                // #366 L1: kayıtlı kirada önizleme SÖZLEŞMEDEKİ km hakkını bildirir (kural yeniden çözülmez).
+                km = new GroupKmPolicy.Result(GroupKmPolicy.Entitlement(c), c.FazlaKmUcret, c.KmLimitGunluk, c.KmSinirsiz);
             }
         }
         var remaining = grandTotal - (collection ?? 0m);
@@ -192,7 +211,10 @@ public sealed class RentalCalculationService(
             EkKalemler: items, EkHizmetToplam: extraTotal,
             GenelToplam: grandTotal, Doviz: currency, Kur: exchangeRateValue, GenelToplamTl: grandTotalTry,
             Tahsilat: collection, Kalan: remaining,
-            Notlar: feeNotes.Count > 0 ? feeNotes : null);
+            Notlar: feeNotes.Count > 0 ? feeNotes : null,
+            KmLimit: km is { KmLimit: > 0 } k ? k.KmLimit : null,
+            FazlaKmUcret: km is { KmLimit: > 0, FazlaKmUcret: > 0m } f ? f.FazlaKmUcret : null,
+            KmSinirsiz: km is { KmSinirsiz: true });
     }
 
     private static KiraHesapSonuc Invalid(string message, string currency) => new(

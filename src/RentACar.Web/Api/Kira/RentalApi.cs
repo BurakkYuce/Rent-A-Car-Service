@@ -472,7 +472,8 @@ public static class RentalApi
     private static async Task<Ok<KiraHesapSonuc>> Calculate(
         RentalCalculationService hesap, RentalService kiralar, DateTimeOffset basTar, DateTimeOffset bitTar, Guid? vehicleId,
         decimal? gunlukUcret, string? fiyatTuru, string? doviz, string? cikisOfisi, string? donusOfisi, decimal? dropUcreti,
-        string? ek, Guid? rentalId, Guid? musteriId, string? kampanyaKodu, Guid? ikinciSurucuId, CancellationToken ct)
+        string? ek, Guid? rentalId, Guid? musteriId, string? kampanyaKodu, Guid? ikinciSurucuId,
+        string? kaynak, bool? kmSinirsiz, CancellationToken ct)
     {
         // Üst kayıt kapısı: servis rentalId kapsamını yalnız fiyatlama BAŞARILIYSA denetler; uç her durumda önce
         // denetler (kapsam dışı → 403). Bulunamayan kira servis sözleşmesiyle aynı: tahsilatsız hesap.
@@ -485,7 +486,9 @@ public static class RentalApi
                 FiyatTuru: fiyatTuru, Doviz: doviz, CikisOfisi: cikisOfisi,
                 MusteriId: musteriId, KampanyaKodu: kampanyaKodu, IkinciSurucuId: ikinciSurucuId,
                 DonusOfisi: donusOfisi, DropUcreti: dropUcreti,
-                EkHizmetler: ResolveExtraSelection(ek), RentalId: rentalId), ct));
+                EkHizmetler: ResolveExtraSelection(ek), RentalId: rentalId,
+                // #366 L1: km hakkı önizlemesi kayıtla aynı kaynak kuralını ve sınırsız kararını bilir.
+                Kaynak: KiraOlusturIstegi.Nz(kaynak), KmSinirsiz: kmSinirsiz ?? false), ct));
         }
         catch (OverflowException)
         {
