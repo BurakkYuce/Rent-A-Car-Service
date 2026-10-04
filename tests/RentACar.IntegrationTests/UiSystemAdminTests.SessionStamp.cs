@@ -201,25 +201,6 @@ public sealed partial class UiSystemAdminTests
         Assert.True(UserSessionStateCache.Ttl <= TimeSpan.FromSeconds(10));
     }
 
-    [Fact]
-    public async Task L2_JWT_damga_ya_da_aktiflik_degisince_belirtec_reddedilir()
-    {
-        var e = await _kit.SetupAsync();
-        using var api = new ApiFactory(_kit.Fx.Pg.AppConnectionString);
-        var op = await api.LoginClientAsync(e.Code, e.Users[Who.OperatorA], e.Password);
-        var acc = await api.LoginClientAsync(e.Code, e.Users[Who.Accounting], e.Password);
-        var opts = new DbContextOptionsBuilder<AppDbContext>().UseNpgsql(_kit.Fx.Pg.OwnerConnectionString).Options;
-        await using (var db = new AppDbContext(opts, NullTenantContext.Instance, NullCurrentUser.Instance))
-        {
-            (await db.Users.SingleAsync(x => x.Id == e.UserIds[Who.OperatorA])).GuvenlikDamgasi = Guid.NewGuid().ToString("N");
-            (await db.Users.SingleAsync(x => x.Id == e.UserIds[Who.Accounting])).IsActive = false;
-            await db.SaveChangesAsync();
-        }
-        Assert.Equal(HttpStatusCode.Unauthorized, (await op.GetAsync("/api/v1/legal")).StatusCode);
-        Assert.Equal(HttpStatusCode.Unauthorized, (await acc.GetAsync("/api/v1/donem-kapanis")).StatusCode);
-
-        // Yeni giriş (yeni damga) çalışır.
-        var op2 = await api.LoginClientAsync(e.Code, e.Users[Who.OperatorA], e.Password);
-        Assert.Equal(HttpStatusCode.OK, (await op2.GetAsync("/api/v1/legal")).StatusCode);
-    }
+    // L2 (JWT damgası) ApiSessionStampTests'te — "postgres" koleksiyonunda: Api host'u bu koleksiyondaki Web host'unun
+    // Serilog'unu susturuyordu (UiIstemciHataTests log olayını bulamıyordu).
 }
