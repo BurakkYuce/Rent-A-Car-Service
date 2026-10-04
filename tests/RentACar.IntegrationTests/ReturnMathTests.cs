@@ -66,12 +66,39 @@ public sealed class ReturnMathTests
         Assert.Equal(600m, r.GenelToplam);
     }
 
-    [Fact]
-    public void Partial_day_late_rounds_up()
+    /// <summary>
+    /// Kabul bulguları a-kkayit-09 / C-GUN: geç dönüş kira gün hesabıyla AYNI 3 saat toleransını kullanır.
+    /// Eskiden 1 dakika (hatta 0,48 sn) gecikme tam gün faturalanıyordu. ELLE ORACLE (kira 4 gün × 100):
+    /// kısmi gecikme 3 saatten AZSA ücretsiz, 3 saati BULURSA +1 gün; tam 24 saat blokları ayrıca sayılır.
+    /// </summary>
+    [Theory]
+    [InlineData(0, 0, 0, 480, 0)]     // 0,48 sn geç → tolerans içinde
+    [InlineData(0, 0, 1, 0, 0)]       // 1 dk geç → tolerans içinde
+    [InlineData(0, 2, 59, 0, 0)]      // 2 sa 59 dk geç → tolerans içinde
+    [InlineData(0, 3, 0, 0, 1)]       // tam 3 sa geç → +1 gün
+    [InlineData(1, 2, 0, 0, 1)]       // 1 gün 2 sa geç → yalnız tam gün
+    [InlineData(1, 3, 0, 0, 2)]       // 1 gün 3 sa geç → tam gün + kısmi
+    public void Late_return_uses_rental_day_tolerance(int days, int hours, int minutes, int millis, int expectedDays)
     {
         var c = Base();
-        // 1 saat geç → 1 güne yuvarlanır
-        var r = ReturnMath.Compute(c, returnKm: 1100, returnFuel: 8, actualReturn: Bit.AddHours(1));
+        var late = Bit.AddDays(days).AddHours(hours).AddMinutes(minutes).AddMilliseconds(millis);
+        var r = ReturnMath.Compute(c, returnKm: 1100, returnFuel: 8, actualReturn: late);
+        Assert.Equal(expectedDays, r.UzatmaGun);
+        Assert.Equal(expectedDays * 100m, r.UzatmaBedeli);
+        Assert.Equal(400m + expectedDays * 100m, r.GenelToplam);
+    }
+
+    /// <summary>
+    /// Tolerans TOPLAM kira süresine bir kez uygulanır (kira gün hesabıyla aynı): planlanan 4 gün 2 saat
+    /// (kısmi 2 sa → 4 gün faturalanmış) iken 1 saat geç dönüş toplam 4 gün 3 saat = 5 gün → +1 gün.
+    /// Gecikmeye ayrı 3 saat daha tanımak toleransı iki kez kullandırırdı.
+    /// </summary>
+    [Fact]
+    public void Tolerance_is_shared_with_the_planned_period()
+    {
+        var c = Base();
+        c.BitTar = Bit.AddHours(2);
+        var r = ReturnMath.Compute(c, returnKm: 1100, returnFuel: 8, actualReturn: Bit.AddHours(3));
         Assert.Equal(1, r.UzatmaGun);
         Assert.Equal(100m, r.UzatmaBedeli);
     }
