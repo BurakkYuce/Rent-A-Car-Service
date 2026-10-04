@@ -432,6 +432,7 @@ public sealed class WebListingService(
     public async Task DeleteAsync(Guid listingId, CancellationToken ct = default)
     {
         await GuardAsync(ct);
+        PermissionGuard.Require(currentUser, Permission.OperationsDelete); // güvenlik takip (b): ilan kaydını siler
         if (!await repository.DeleteAsync(listingId, ct)) throw new ValidationException("İlan bulunamadı.");
         cache.Invalidate(VehicleService.CacheKey); // araçlar yeniden "ilansız" oldu
     }

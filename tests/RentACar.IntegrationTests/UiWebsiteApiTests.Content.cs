@@ -65,6 +65,12 @@ public sealed partial class UiWebsiteApiTests
         var acc = await _kit.LoginAsync(e, Who.Accounting);
         await Problem(await Send(acc, HttpMethod.Get, V1 + "/site-icerik/sss"), HttpStatusCode.Forbidden, "yetki_yok");
 
+        // Güvenlik takip (b): operatör içerik yazar ama SİLEMEZ (OperationsDelete) — kayıtlar yerinde kalır.
+        var op = await _kit.LoginAsync(e, Who.OperatorA);
+        await Problem(await Send(op, HttpMethod.Delete, $"{V1}/site-icerik/sss/{faqId}"), HttpStatusCode.Forbidden, "yetki_yok");
+        await Problem(await Send(op, HttpMethod.Delete, $"{V1}/site-icerik/sayfalar/{id}"), HttpStatusCode.Forbidden, "yetki_yok");
+        Assert.Equal(HttpStatusCode.OK, (await Send(op, HttpMethod.Get, $"{V1}/site-icerik/sayfalar/{id}")).StatusCode);
+
         Assert.Equal(HttpStatusCode.NoContent, (await Send(admin, HttpMethod.Delete, $"{V1}/site-icerik/sss/{faqId}")).StatusCode);
         Assert.Equal(HttpStatusCode.NoContent, (await Send(admin, HttpMethod.Delete, $"{V1}/site-icerik/sayfalar/{id}")).StatusCode);
         Assert.Empty((await Json(await Send(admin, HttpMethod.Get, V1 + "/site-icerik/sss"))).EnumerateArray());
@@ -126,6 +132,11 @@ public sealed partial class UiWebsiteApiTests
         await Problem(await Send(oa, HttpMethod.Get, $"{V1}/blog-yonetim/{id}"), HttpStatusCode.NotFound, null);
         await Problem(await Send(oa, HttpMethod.Get, $"{V1}/blog-yonetim/{id}/onizleme"), HttpStatusCode.NotFound, null);
         await Problem(await Send(oa, HttpMethod.Delete, $"{V1}/blog-yonetim/{id}"), HttpStatusCode.NotFound, null);
+
+        // Güvenlik takip (b): operatör yazı silemez (OperationsDelete); yazı yerinde kalır.
+        var op = await _kit.LoginAsync(e, Who.OperatorA);
+        await Problem(await Send(op, HttpMethod.Delete, $"{V1}/blog-yonetim/{id}"), HttpStatusCode.Forbidden, "yetki_yok");
+        Assert.Equal(HttpStatusCode.OK, (await Send(op, HttpMethod.Get, $"{V1}/blog-yonetim/{id}")).StatusCode);
 
         Assert.Equal(HttpStatusCode.NoContent, (await Send(admin, HttpMethod.Delete, $"{V1}/blog-yonetim/{id}")).StatusCode);
         Assert.Equal(0, (await Json(await Send(admin, HttpMethod.Get, V1 + "/blog-yonetim"))).GetProperty("toplam").GetInt32());

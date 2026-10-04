@@ -42,7 +42,8 @@ public static class VehicleOrderApi
         g.MapPost("/{id:guid}/teslim-al", (Guid id, HttpContext h, VehicleOrderService s, IDbContextFactory<AppDbContext> d, CancellationToken ct)
             => Status(id, OrderStatus.TeslimAlindi, h, s, d, ct)).RequirePermission(Permission.OperationsWrite);
         g.MapPost("/{id:guid}/iptal", (Guid id, HttpContext h, VehicleOrderService s, IDbContextFactory<AppDbContext> d, CancellationToken ct)
-            => Status(id, OrderStatus.Iptal, h, s, d, ct)).RequirePermission(Permission.OperationsWrite);
+            => Status(id, OrderStatus.Iptal, h, s, d, ct)).RequirePermission(Permission.OperationsWrite)
+            .RequirePermission(Permission.OperationsDelete); // güvenlik takip (a): yıkıcı iptal dar izin ister
         return g;
     }
 
@@ -81,17 +82,20 @@ public static class VehicleOrderApi
             s.TedarikciCariId is { } c ? F5Shared.CustomerName(customers, c) : null, s.SiparisTarihi, s.BeklenenTeslim, s.DosyaNo,
             s.Marka, s.Tip, s.Grup, s.Adet, s.BirimFiyat, s.Adet * s.BirimFiyat, s.Currency, s.KrediId, s.Versiyon,
             s.Renk, s.IcRenk, s.KaynakTip, s.SatisTipi, s.PiyasaFiyat, s.OpsFiyat, s.FiloFiyat, s.ImzaTarih,
-            s.TsbKayitNo, Permissions(s.Durum, write))).ToList();
+            s.TsbKayitNo, Permissions(s.Durum, write, CanCancel(http)))).ToList();
         return TypedResults.Ok(F5Shared.Paginate(rows, Map, sayfa, boyut, sirala));
     }
 
     /// <summary>Durum bayrakları servisin TEK geçiş tablosundan (adversarial M1: ayrı kopya teslim sonrası "onayla"yı
     /// açık bırakmıştı). Liste satırı (F6.2b) ve detay AYNI kuralı kullanır.</summary>
-    private static AracSiparisYetkileri Permissions(OrderStatus status, bool write) => new(
+    private static AracSiparisYetkileri Permissions(OrderStatus status, bool write, bool cancel) => new(
         write && status != OrderStatus.Iptal,
         write && VehicleOrderService.IsTransitionAllowed(status, OrderStatus.Onaylandi),
         write && VehicleOrderService.IsTransitionAllowed(status, OrderStatus.TeslimAlindi),
-        write && VehicleOrderService.IsTransitionAllowed(status, OrderStatus.Iptal));
+        write && cancel && VehicleOrderService.IsTransitionAllowed(status, OrderStatus.Iptal));
+
+    /// <summary>Güvenlik takip (a): iptal uç ile aynı dar izni ister — iptal bayrağı/düğmesi yalnız silebilene.</summary>
+    private static bool CanCancel(HttpContext http) => AuthExtensions.HasPermission(http.User, Permission.OperationsDelete);
 
     private static async Task<AracSiparisDto?> DtoAsync(Guid id, HttpContext http, VehicleOrderService svc,
         IDbContextFactory<AppDbContext> dbf, CancellationToken ct)
@@ -101,7 +105,7 @@ public static class VehicleOrderApi
         if (s is null) return null;
         var account = s.TedarikciCariId is { } c ? F5Shared.CustomerName(await F5Shared.CustomersAsync(dbf, [c], ct), c) : null;
         var write = AuthExtensions.HasPermission(http.User, Permission.OperationsWrite);
-        return AracSiparisDto.From(s, version, account, Permissions(s.Durum, write));
+        return AracSiparisDto.From(s, version, account, Permissions(s.Durum, write, CanCancel(http)));
     }
 
     private static async Task<Results<Ok<AracSiparisDto>, ProblemHttpResult>> Detail(

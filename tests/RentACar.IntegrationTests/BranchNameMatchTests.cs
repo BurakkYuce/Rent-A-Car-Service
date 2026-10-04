@@ -68,5 +68,18 @@ public sealed class BranchNameMatchTests(PostgresFixture fx)
             Assert.Equal(exactMerkez.Id, (await db.Users.AsNoTracking().SingleAsync(u => u.Id == merkezUser.Id)).AtanmisSubeId);
             Assert.Equal(activeSahil.Id, (await db.Users.AsNoTracking().SingleAsync(u => u.Id == sahilUser.Id)).AtanmisSubeId);
         }
+
+        // #379 L1: yazım anındaki interceptor (BranchFkInterceptor) da aynı sonuca varır — ofis kaydı metinden çözülür.
+        var merkezOffice = new Location { Kod = "OFM", Ad = "Merkez Ofis", Sube = "Merkez" };
+        var sahilOffice = new Location { Kod = "OFS", Ad = "Sahil Ofis", Sube = "SAHIL" };
+        using (var host = new TestHost(fx.AppConnectionString))
+        using (var scope = host.ScopeFor(tenant))
+        {
+            await using var db = await scope.ServiceProvider.GetRequiredService<IDbContextFactory<AppDbContext>>().CreateDbContextAsync();
+            db.Locations.AddRange(merkezOffice, sahilOffice);
+            await db.SaveChangesAsync();
+        }
+        Assert.Equal(exactMerkez.Id, merkezOffice.SubeId);
+        Assert.Equal(activeSahil.Id, sahilOffice.SubeId);
     }
 }

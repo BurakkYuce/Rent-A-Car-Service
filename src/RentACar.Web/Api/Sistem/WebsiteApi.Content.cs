@@ -64,7 +64,7 @@ public static partial class WebsiteApi
             if (await s.FetchAsync(id, ct) is null) return SystemApiCommon.NotFound("Sayfa bulunamadı.");
             await s.DeleteAsync(id, ct);
             return TypedResults.NoContent();
-        });
+        }).RequirePermission(Permission.OperationsDelete); // güvenlik takip (b)
 
         // ---- SSS
         g.MapGet("/sss", async (SiteContentService s, CancellationToken ct) =>
@@ -98,7 +98,7 @@ public static partial class WebsiteApi
             if (await FaqAsync(id, s, ct) is null) return SystemApiCommon.NotFound("Soru bulunamadı.");
             await s.DeleteFaqAsync(id, ct);
             return TypedResults.NoContent();
-        });
+        }).RequirePermission(Permission.OperationsDelete); // güvenlik takip (b)
     }
 
     private static SayfaIcerikInput ToInput(Guid? id, PageRequest i)
