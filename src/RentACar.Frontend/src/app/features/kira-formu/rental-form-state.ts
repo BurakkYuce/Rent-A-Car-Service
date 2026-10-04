@@ -992,6 +992,14 @@ export class RentalFormState {
         }),
       {
         esleme: { teslimAlanPersonelId: 'teslimAlanPersonel' },
+        // Kabul testi: dönüş GERİ ALINAMAZ (kira kapanır, araç boşa çıkar, dönüş bedelleri kesinleşir) → önce onay.
+        onay: () =>
+          this.approval.ask({
+            baslik: this.t('kiraFormu.donus.onayBaslik'),
+            mesaj: this.t('kiraFormu.donus.onayMesaj'),
+            onayEtiketi: this.t('kiraFormu.donus.onayla'),
+            tehlikeli: true,
+          }),
         basarili: () => this.actionDone(this.returnForm, 'kiraFormu.bildirim.donusYapildi'),
       },
     );

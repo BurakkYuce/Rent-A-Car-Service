@@ -16,6 +16,11 @@ export interface GonderimSecenekleri<T> {
   readonly gecersiz?: () => void;
   readonly basarili?: (result: T) => void;
   readonly hata?: (error: ApiHatasi) => void;
+  /**
+   * Geri alınamaz işlem: istemci doğrulaması GEÇTİKTEN sonra, istekten ÖNCE sorulur (`ConfirmService.ask`).
+   * `false` → istek gitmez. Pencere açıkken ikinci gönderim yok sayılır (onaydan sonra çift istek olmasın).
+   */
+  readonly onay?: () => Promise<boolean>;
 }
 
 export interface FormSubmission {
@@ -55,6 +60,9 @@ export interface FormSubmission {
 export function formSubmission(lockEntry: SubmitLock = new SubmitLock()): FormSubmission {
   const destroyRef = inject(DestroyRef);
   const generalErrors = signal<readonly string[]>([]);
+  let confirming = false;
+  let destroyed = false;
+  destroyRef.onDestroy(() => (destroyed = true));
 
   return {
     kilit: lockEntry,
@@ -65,7 +73,7 @@ export function formSubmission(lockEntry: SubmitLock = new SubmitLock()): FormSu
       request: (key: string) => Observable<T>,
       option: GonderimSecenekleri<T> = {},
     ): void {
-      if (lockEntry.gonderiliyor()) return;
+      if (lockEntry.gonderiliyor() || confirming) return;
       clearServerErrors(form);
       generalErrors.set([]);
       form.markAllAsTouched();
@@ -73,26 +81,46 @@ export function formSubmission(lockEntry: SubmitLock = new SubmitLock()): FormSu
         option.gecersiz?.();
         return;
       }
-      const sent = JSON.stringify(form.getRawValue());
-      lockEntry
-        .gonder(request, { deterministikAnahtar: option.deterministikAnahtar ?? null })
-        .pipe(takeUntilDestroyed(destroyRef))
-        .subscribe({
-          next: (result) => {
-            if (JSON.stringify(form.getRawValue()) === sent) form.markAsPristine();
-            option.basarili?.(result);
-          },
-          error: (raw: unknown) => {
-            const error = toApiError(raw);
-            const unmatched = applyServerErrors(form, error.alanlar, option.esleme);
-            // Bant/toast'ta gösterilen (yetki_yok, alansız cakisma, 5xx…) forma ikinci kez yazılmaz (F3.3).
-            if (error.alanlar === undefined && !genelGosterilir(error))
-              generalErrors.set([error.detay]);
-            else if (unmatched.length > 0) generalErrors.set(unmatched);
-            if (error.alanlar !== undefined) option.gecersiz?.();
-            option.hata?.(error);
-          },
-        });
+      if (option.onay) {
+        confirming = true;
+        void option
+          .onay()
+          .catch(() => false)
+          .then((yes) => {
+            confirming = false;
+            // Pencere açıkken sayfa kapandıysa istek gitmez.
+            if (yes && !destroyed && !lockEntry.gonderiliyor()) send(form, request, option);
+          });
+        return;
+      }
+      send(form, request, option);
     },
   };
+
+  function send<T>(
+    form: AbstractControl,
+    request: (key: string) => Observable<T>,
+    option: GonderimSecenekleri<T>,
+  ): void {
+    const sent = JSON.stringify(form.getRawValue());
+    lockEntry
+      .gonder(request, { deterministikAnahtar: option.deterministikAnahtar ?? null })
+      .pipe(takeUntilDestroyed(destroyRef))
+      .subscribe({
+        next: (result) => {
+          if (JSON.stringify(form.getRawValue()) === sent) form.markAsPristine();
+          option.basarili?.(result);
+        },
+        error: (raw: unknown) => {
+          const error = toApiError(raw);
+          const unmatched = applyServerErrors(form, error.alanlar, option.esleme);
+          // Bant/toast'ta gösterilen (yetki_yok, alansız cakisma, 5xx…) forma ikinci kez yazılmaz (F3.3).
+          if (error.alanlar === undefined && !genelGosterilir(error))
+            generalErrors.set([error.detay]);
+          else if (unmatched.length > 0) generalErrors.set(unmatched);
+          if (error.alanlar !== undefined) option.gecersiz?.();
+          option.hata?.(error);
+        },
+      });
+  }
 }

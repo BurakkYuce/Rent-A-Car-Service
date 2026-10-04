@@ -15,6 +15,7 @@ import { provideTranslation } from '@core/i18n/ceviri';
 import { SESSION_CONTEXT } from '@core/oturum/oturum-baglami';
 import { SessionService } from '@core/oturum/session-service';
 import type { Ben } from '@core/oturum/oturum-tipleri';
+import { MenuRefresh } from '@core/sayac/menu-refresh';
 import { ShellCounters } from '@core/sayac/shell-counters';
 import { TabRouteStrategy } from '@core/sekme/sekme-stratejisi';
 
@@ -152,6 +153,14 @@ describe('Kabuk', () => {
     expect(link(kok, 'Kiralar')?.getAttribute('href')).toBe('/kiralar');
     expect(link(kok, 'Kiralar')?.getAttribute('aria-describedby')).toBe('rc-menu-eski-ekran');
     expect(link(kok, 'Form vitrini')?.getAttribute('href')).toBe('/vitrin/form');
+  });
+
+  it('sayfa "menüyü tazele" isteyince menü (ve rozetleri) hemen yeniden okunur — 5 dk beklenmez', async () => {
+    const { h } = await open();
+    const before = getMenu.mock.calls.length;
+    TestBed.inject(MenuRefresh).request();
+    await h.fixture.whenStable();
+    expect(getMenu.mock.calls.length).toBe(before + 1);
   });
 
   it('etkin sayfa aria-current="page" ile işaretlenir, grubu kendiliğinden açılır', async () => {
@@ -349,6 +358,7 @@ describe('Kabuk', () => {
       'Bugün dönecekler',
       'Faturası kesilmeyenler',
       'Kapalı sözleşmeler',
+      'İptal edilenler',
     ]);
     expect(view('Tüm sözleşmeler')?.getAttribute('href')).toBe('/kiralar');
     expect(view('Kiradaki araçlar')?.getAttribute('href')).toBe('/kiralar?gorunum=kirada');

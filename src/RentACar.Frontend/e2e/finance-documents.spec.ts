@@ -88,6 +88,39 @@ for (const s of PAGES) {
   });
 }
 
+/**
+ * Kabul testi: manuel fatura GERİ ALINAMAZ → istemci doğrulaması geçince onay penceresi açılır; onaylanır. Pencere
+ * cari adını söyler.
+ */
+async function confirmManualInvoice(page: import('@playwright/test').Page): Promise<void> {
+  const dialog = page.getByRole('alertdialog', { name: 'Manuel fatura kesilsin mi?' });
+  await expect(dialog).toContainText('Ayşe Yılmaz');
+  await dialog.getByRole('button', { name: 'Manuel Fatura Kes' }).click();
+}
+
+test('manuel fatura: onay penceresi — vazgeçilirse istek GİTMEZ', async ({ page }) => {
+  const written = await documentEndpoints(page, {
+    write: async (r, path) => {
+      if (path !== '/api/ui/v1/faturalar/manuel') return false;
+      await r.fulfill({ json: { id: 'm1', no: 'RNT2026000000002' } });
+      return true;
+    },
+  });
+  await page.goto(INVOICES.yol);
+  await waitReady(page, INVOICES);
+  const form = page.getByRole('region', { name: 'Manuel Fatura' });
+  await form.getByRole('combobox', { name: 'Cari' }).fill('Ay');
+  await page.getByRole('option', { name: 'Ayşe Yılmaz' }).click();
+  await form.getByRole('textbox', { name: 'Net Tutar' }).fill('100');
+  await form.getByRole('button', { name: 'Manuel Fatura Kes' }).click();
+  const dialog = page.getByRole('alertdialog', { name: 'Manuel fatura kesilsin mi?' });
+  await expect(dialog).toContainText('düzeltme yalnız iade faturasıyla');
+  await dialog.getByRole('button', { name: 'Vazgeç' }).click();
+  await expect(dialog).toHaveCount(0);
+  expect(written).toHaveLength(0);
+  await expect(form.getByRole('textbox', { name: 'Net Tutar' })).toHaveValue('100,00');
+});
+
 test('/app/faturalar/{id} doğrudan açılır: liste + o faturanın detayı (kalemler, tutarlar)', async ({
   page,
 }) => {
@@ -130,6 +163,7 @@ test('manuel fatura: doğrulama hatasında form korunur; "1.500,50" → 1500.50;
   await amount.fill('1.500,50');
   await form.getByRole('textbox', { name: 'Fatura Tarihi' }).fill('01.09.2026');
   await form.getByRole('button', { name: 'Manuel Fatura Kes' }).click();
+  await confirmManualInvoice(page);
   await expect(form.getByText('Fatura tarihi kilitli döneme düşüyor.')).toBeVisible();
   await expect(amount).toHaveValue('1.500,50');
   expect(JSON.parse(written[0]?.govde ?? '{}')).toMatchObject({
@@ -143,6 +177,7 @@ test('manuel fatura: doğrulama hatasında form korunur; "1.500,50" → 1500.50;
 
   await form.getByRole('textbox', { name: 'Fatura Tarihi' }).fill('');
   await form.getByRole('button', { name: 'Manuel Fatura Kes' }).click();
+  await confirmManualInvoice(page);
   await expect(page.getByText('Fatura kesildi (RNT2026000000002).')).toBeVisible();
   expect(written[1]?.anahtar).toBe(written[0]?.anahtar); // ilk istek yazılmadı: aynı işlem
   expect(written[1]?.anahtar).toMatch(/^[0-9a-f-]{36}$/);
@@ -176,6 +211,7 @@ test('manuel fatura: oturum düşünce form kaybolmaz — yerinde giriş, AYNI i
   await page.getByRole('option', { name: 'Ayşe Yılmaz' }).click();
   await form.getByRole('textbox', { name: 'Net Tutar' }).fill('2.400,10');
   await form.getByRole('button', { name: 'Manuel Fatura Kes' }).click();
+  await confirmManualInvoice(page);
 
   const dialog = page.getByRole('dialog', { name: 'Oturumunuz sona erdi' });
   await expect(dialog).toBeVisible();
@@ -441,6 +477,7 @@ test('r300 P2 manuel fatura: istek uçarken form KİLİTLİ; başarı mesajı su
   const net = form.getByRole('textbox', { name: 'Net Tutar' });
   await net.fill('1000');
   await form.getByRole('button', { name: 'Manuel Fatura Kes' }).click();
+  await confirmManualInvoice(page);
   await expect(form.getByRole('button', { name: /Gönderiliyor/ })).toBeVisible();
   await expect(net).toBeDisabled();
   release();

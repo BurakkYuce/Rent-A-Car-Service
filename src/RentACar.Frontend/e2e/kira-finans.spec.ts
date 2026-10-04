@@ -537,10 +537,15 @@ test('dönem kes + tahsil: çift gönderim SESSİZ (aynı fatura), tahsilat yaz�
   await p.getByRole('checkbox', { name: 'Tahsilat 2' }).check();
   await p.getByRole('combobox', { name: 'Hesap türü 2' }).selectOption({ label: 'Banka' });
   await p.getByTestId('donem-kes-2').click();
+  // Kabul testi: dönem "Kes" geri alınamaz → onay (dönem sırasıyla).
+  const approval = page.getByRole('alertdialog', { name: 'Dönem faturası kesilsin mi?' });
+  await expect(approval).toContainText('2. dönemin faturası');
+  await approval.getByRole('button', { name: 'Kes' }).click();
   await expect(toasts(page)).toContainText('Dönem faturası kesildi, tahsilat yazıldı.');
 
   // İkinci sekme/tekrar gönderim: sunucu aynı faturayı döner, tahsilat yazılmaz — bilgi görünür.
   await p.getByTestId('donem-kes-2').click();
+  await approval.getByRole('button', { name: 'Kes' }).click();
   await expect(p.getByTestId('donem-bilgi')).toHaveText(info);
   await expect(toasts(page)).toContainText(info);
   expect(finansIstekleri).toHaveLength(2);
@@ -1542,7 +1547,29 @@ test('L4: kapalı vergi kutusunda geçersiz alan → Fatura kes kutuyu açıp al
   await expect(rate).toBeVisible();
   await expect(rate).toBeFocused();
   await expect(fat).toContainText('En çok 100');
+  // Geçersiz formda onay penceresi açılmaz (önce alan hatası).
+  await expect(page.getByRole('alertdialog')).toHaveCount(0);
   expect(finansIstekleri).toHaveLength(0);
+});
+
+test('kiradan "Fatura kes" onay ister: vazgeçilirse istek yok, onaylanınca tek istek', async ({
+  page,
+}) => {
+  await logIn(page);
+  const { finansIstekleri } = await fakeApi(page, {
+    finans: (r) => r.fulfill({ json: { id: 'f' } }),
+  });
+  await page.goto(PAGE);
+  await sekme(page, 'Faturalar');
+  const fat = panel(page).locator('rc-kf-finans-faturalar');
+  const approval = page.getByRole('alertdialog', { name: 'Fatura kesilsin mi?' });
+  await fat.getByTestId('fatura-kes').click();
+  await expect(approval).toContainText('düzeltme yalnız iade faturasıyla');
+  await approval.getByRole('button', { name: 'Vazgeç' }).click();
+  expect(finansIstekleri).toHaveLength(0);
+  await fat.getByTestId('fatura-kes').click();
+  await approval.getByRole('button', { name: 'Fatura kes' }).click();
+  await expect.poll(() => finansIstekleri.length).toBe(1);
 });
 
 test('L7: dönem kesiminde 400 → plan yeniden okunur', async ({ page }) => {
@@ -1559,6 +1586,10 @@ test('L7: dönem kesiminde 400 → plan yeniden okunur', async ({ page }) => {
   await expect(panel(page).getByTestId('donem-kes-2')).toBeVisible();
   const once = planRead;
   await panel(page).getByTestId('donem-kes-2').click();
+  await page
+    .getByRole('alertdialog', { name: 'Dönem faturası kesilsin mi?' })
+    .getByRole('button', { name: 'Kes' })
+    .click();
   await expect(toasts(page)).toContainText('Kira faturaları bu sırada değişti.');
   await expect.poll(() => planRead).toBeGreaterThan(once);
 });

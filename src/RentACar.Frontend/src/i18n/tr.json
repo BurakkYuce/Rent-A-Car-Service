@@ -279,7 +279,8 @@
       "bugunCikan": "Bugün çıkanlar",
       "bugunDonecek": "Bugün dönecekler",
       "faturasiz": "Faturası kesilmeyenler",
-      "kapali": "Kapalı sözleşmeler"
+      "kapali": "Kapalı sözleşmeler",
+      "iptal": "İptal edilenler"
     },
     "sube": {
       "etiket": "Şube",
