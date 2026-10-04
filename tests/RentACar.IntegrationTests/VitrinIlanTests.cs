@@ -460,27 +460,60 @@ public sealed class VitrinIlanTests(PostgresFixture fx)
 
         Assert.Equal(1800m, res.GunlukUcret);
         Assert.Equal(5400m, res.Tutar);
-        Assert.Equal("Günlük", res.FiyatTuru);
+        Assert.Equal("Toplam", res.FiyatTuru); // NET TOPLAM modu: sitedeki net toplam kuruşu kuruşuna korunur
         Assert.Equal(0.20m, res.KdvOranSnapshot);
         Assert.Equal(5400m, invoice.GenelToplam);
         Assert.Equal(4500m, invoice.NetTutar);
         Assert.Equal(900m, invoice.KdvTutar);
     }
 
-    /// <summary>Talep → rezervasyon → kira → fatura zincirini uçtan uca yürütür (3 günlük talep).</summary>
+    /// <summary>
+    /// Adversarial H1 (#361): 8+ günlük talepte site HAFTALIK kademeyi gösterir (FleetShowcaseService.DailyEquivalent)
+    /// ama talep 1–7 gün fiyatını saklıyordu. ELLE ORACLE: 10 gün, günlük 1.500, haftalık 9.000 (KDV dahil) →
+    /// günlük eşdeğer 9.000 / 7 = 1.285,71; sitedeki toplam 10 × 1.285,71 = 12.857,10 (15.000 DEĞİL).
+    /// </summary>
+    [Fact]
+    public async Task Haftalik_kademe_sitede_gosterilen_toplamla_rezervasyon_ve_faturaya_gecer()
+    {
+        var (res, invoice) = await ConvertAndInvoiceAsync(
+            daily: 1500m, vatIncluded: true, phone: "0555 000 88 99", days: 10, weekly: 9000m);
+
+        Assert.Equal(1285.71m, res.GunlukUcret);
+        Assert.Equal(12857.10m, res.Tutar);
+        Assert.Equal(12857.10m, invoice.GenelToplam);
+    }
+
+    /// <summary>
+    /// Adversarial L1 (#361): KDV hariç ilanda günlük net önce brüte yuvarlanıp gün ile çarpılınca kuruş birikiyordu.
+    /// ELLE ORACLE — faturadaki NET, sitedeki net toplamın ta kendisi olmalı:
+    /// 999,99 × 3 = 2.999,97 (eski yol 2.999,98); 33,33 × 30 = 999,90 (eski yol 1.000,00).
+    /// </summary>
+    [Theory]
+    [InlineData(999.99, 3, 2999.97)]
+    [InlineData(33.33, 30, 999.90)]
+    public async Task KDV_haric_ilanda_fatura_neti_sitedeki_net_toplama_esittir(double daily, int days, double expectedNet)
+    {
+        var (_, invoice) = await ConvertAndInvoiceAsync(
+            daily: (decimal)daily, vatIncluded: false, phone: "0555 000 12 " + days.ToString("00"), days: days);
+
+        Assert.Equal((decimal)expectedNet, invoice.NetTutar);
+    }
+
+    /// <summary>Talep → rezervasyon → kira → fatura zincirini uçtan uca yürütür.</summary>
     private async Task<(Reservation Res, Invoice Invoice)> ConvertAndInvoiceAsync(
-        decimal daily, bool vatIncluded, string phone)
+        decimal daily, bool vatIncluded, string phone, int days = 3, decimal? weekly = null)
     {
         using var host = new TestHost(fx.AppConnectionString);
         var t = Guid.NewGuid();
-        var (listingId, _, vehicleIds) = await SetupListingAsync(host, t, daily: daily, vatIncluded: vatIncluded);
+        var (listingId, _, vehicleIds) = await SetupListingAsync(
+            host, t, daily: daily, weekly: weekly, vatIncluded: vatIncluded);
 
         using (var s = host.ScopeFor(t, role: null))
             await s.ServiceProvider.GetRequiredService<PublicBookingRequestService>().CreateAsync(
                 new PublicBookingRequestInput
                 {
                     AdSoyad = "Ali Veli", Telefon = phone, IlanId = listingId,
-                    BasTar = TestZaman.DaysLater(5), BitTar = TestZaman.DaysLater(8),
+                    BasTar = TestZaman.DaysLater(5), BitTar = TestZaman.DaysLater(5 + days),
                 });
 
         using var staff = host.ScopeFor(t);
