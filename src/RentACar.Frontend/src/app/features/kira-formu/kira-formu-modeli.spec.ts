@@ -20,6 +20,7 @@ import {
   isTab,
   isSystemItem,
   mergeServerValues,
+  systemFeeLines,
 } from './kira-formu-modeli';
 import type { RentalDetailResponse, RentalContract } from './kira-tipleri';
 import { contractPdfUrl } from './kira-yazdir';
@@ -553,6 +554,23 @@ describe('yardımcılar', () => {
     expect(isSystemItem('SYS-GENC')).toBe(true);
     expect(isSystemItem('sys-drop')).toBe(true);
     expect(isSystemItem('BEBEK')).toBe(false);
+  });
+
+  it('canlı hesabın sistem ücret satırları (drop, genç/ek sürücü): kullanıcının seçmediği her ek kalem', () => {
+    const EMPTY = '00000000-0000-0000-0000-000000000000';
+    const BEBEK = '0b0e7c1a-6666-4aaa-8bbb-000000000006';
+    const drop = {
+      tanimId: EMPTY,
+      ad: 'Drop ücreti (sistem)',
+      miktar: 1,
+      net: 500,
+      kdv: 100,
+      toplam: 600,
+    };
+    const seat = { tanimId: BEBEK, ad: 'Bebek koltuğu', miktar: 1, net: 75, kdv: 15, toplam: 90 };
+    expect(systemFeeLines([seat, drop], [BEBEK])).toEqual([drop]);
+    expect(systemFeeLines([seat], [BEBEK])).toEqual([]);
+    expect(systemFeeLines([], [])).toEqual([]);
   });
 
   it('yazdırma: sunucu PDF ucu; kimlik değilse adres yok', () => {

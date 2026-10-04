@@ -9,6 +9,7 @@ import {
   YENI,
   RENTAL,
   DETAIL,
+  CALCULATION,
   fakeRentalApi,
   quick,
   formReady,
@@ -70,6 +71,39 @@ test('?varac&vfrom&vto&musteriId dolu form açar; canlı hesap sunucudan (UI for
   await expect(page.getByTestId('musait-notu')).toContainText('1 araç müsait');
   expect(await seriousViolations(page)).toEqual([]);
   expect(errors).toEqual([]);
+});
+
+test('canlı hesap: sistem ücreti (drop) "Ek hizmet tutarı" altında AYRI satır (tutar sunucudan)', async ({
+  page,
+}) => {
+  await fakeRentalApi(page);
+  // Son kaydedilen route önce eşleşir: yalnız hesap yanıtı drop satırıyla.
+  await page.route(/\/api\/ui\/v1\/kiralar\/hesapla/, (route) =>
+    route.fulfill({
+      json: {
+        ...CALCULATION,
+        ekKalemler: [
+          {
+            tanimId: '00000000-0000-0000-0000-000000000000',
+            ad: 'Drop (farklı ofise bırakma) ücreti (sistem)',
+            miktar: 1,
+            net: 500,
+            kdv: 100,
+            toplam: 600,
+          },
+        ],
+        ekHizmetToplam: 600,
+        genelToplam: 4200,
+        kalan: 4200,
+      },
+    }),
+  );
+  await page.goto(YENI);
+  await formReady(page);
+  const line = quick(page).getByTestId('sistem-ucreti');
+  await expect(line).toContainText('Drop (farklı ofise bırakma) ücreti (sistem)');
+  await expect(line).toContainText('600,00');
+  await expect(quick(page).getByTestId('canli-hesap')).toContainText('4.200,00');
 });
 
 test('#sekme= doğru sekmeyi açar (yeni ve kayıtlı kira; Ayrıntılar alt sekmesi dahil)', async ({

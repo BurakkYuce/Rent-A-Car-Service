@@ -19,6 +19,7 @@ export const RENTAL_VIEW_CODES = [
   'bugun-donecek',
   'faturasiz',
   'kapali',
+  'iptal',
 ] as const;
 export type RentalViewCode = (typeof RENTAL_VIEW_CODES)[number];
 
@@ -46,6 +47,10 @@ export function viewFilters(code: RentalViewCode, day: DayText): RentalFilters {
       return { fatura: false };
     case 'kapali':
       return { durum: 'Tamamlandi' };
+    // Kabul testi: iptal edilen sözleşmeler hiçbir görünümde yoktu. "Kapalı" olağan kapanıştır (dönüşü yapılmış);
+    // iptal ayrı görünüm — sunucu durum süzgeci tek değer alır, yeni parametre gerekmez.
+    case 'iptal':
+      return { durum: 'Iptal' };
   }
 }
 

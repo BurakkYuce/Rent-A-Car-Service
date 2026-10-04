@@ -68,6 +68,8 @@ describe('kayıtlı görünüm ön ayarları', () => {
     });
     expect(viewFilters('faturasiz', TODAY)).toEqual({ fatura: false });
     expect(viewFilters('kapali', TODAY)).toEqual({ durum: 'Tamamlandi' });
+    // Kabul testi: iptal edilen kiralar ayrı görünümde (sunucu süzgeci tek durum alır; "kapalı" = olağan kapanış).
+    expect(viewFilters('iptal', TODAY)).toEqual({ durum: 'Iptal' });
     // Ay başı: dün önceki ayın son günü.
     expect(viewFilters('geciken', '2026-10-01').basMax).toBe('2026-09-30');
   });

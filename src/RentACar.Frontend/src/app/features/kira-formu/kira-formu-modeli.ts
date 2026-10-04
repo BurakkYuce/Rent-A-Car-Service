@@ -18,6 +18,7 @@ import type {
   UpdateRentalRequest,
   CreateRentalRequest,
   AvailableVehicle,
+  RentalCalculationResult,
   ServerNumber,
 } from './kira-tipleri';
 
@@ -862,4 +863,20 @@ export function optionList(
 /** Sistem ücret kalemi (SYS-*) manuel seçilemez — sunucu da reddeder. */
 export function isSystemItem(code: string | null | undefined): boolean {
   return /^sys-/i.test(code?.trim() ?? '');
+}
+
+/** Canlı hesabın ek kalem satırı (sunucu `KiraHesapEkKalem`). */
+export type CalculationAddOnLine = RentalCalculationResult['ekKalemler'][number];
+
+/**
+ * Canlı hesabın SİSTEM ücret satırları (drop, genç/ek sürücü — `FeeLineService`): kullanıcının seçtiği tanımlardan
+ * olmayan her ek kalem. Kabul testi (a-kyeni-11): drop ücreti "Ek hizmet tutarı" toplamında kayboluyordu; hesap
+ * kutusunda ayrı satır olarak gösterilir. Tutar SUNUCUDAN; istemci toplamaz.
+ */
+export function systemFeeLines(
+  lines: readonly CalculationAddOnLine[],
+  selectedDefinitionIds: Iterable<string>,
+): CalculationAddOnLine[] {
+  const selected = new Set(selectedDefinitionIds);
+  return lines.filter((l) => !selected.has(l.tanimId));
 }

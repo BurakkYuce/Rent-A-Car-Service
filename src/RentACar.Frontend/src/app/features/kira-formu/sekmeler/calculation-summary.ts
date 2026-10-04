@@ -10,7 +10,7 @@ import { TranslocoPipe } from '@jsverse/transloco';
 import { formatMoney } from '@core/bicim/bicim';
 import { translationFunction } from '@core/i18n/ceviri';
 import { RentalFormState } from '../rental-form-state';
-import { isoCurrency, toNumber } from '../kira-formu-modeli';
+import { isoCurrency, systemFeeLines, toNumber } from '../kira-formu-modeli';
 import type { ServerNumber } from '../kira-tipleri';
 
 /**
@@ -53,6 +53,12 @@ import type { ServerNumber } from '../kira-tipleri';
                 <dt>{{ 'kiraFormu.hesap.ekHizmet' | transloco }}</dt>
                 <dd>{{ money(h.ekHizmetToplam, h.doviz) }}</dd>
               </div>
+              @for (s of systemLines(); track $index) {
+                <div data-testid="sistem-ucreti">
+                  <dt>· {{ s.ad }}</dt>
+                  <dd>{{ money(s.toplam, h.doviz) }}</dd>
+                </div>
+              }
               <div class="kf-satirlar__vurgu">
                 <dt>{{ 'kiraFormu.hesap.genelToplam' | transloco }}</dt>
                 <dd>{{ money(h.genelToplam, h.doviz) }}</dd>
@@ -139,6 +145,20 @@ export class CalculationSummary {
   private readonly t = translationFunction();
   /** Hızlı Giriş'teki kısa görünüm (bazı satırlar gizli). */
   readonly kisa = input(false, { transform: booleanAttribute });
+
+  /**
+   * "Ek hizmet tutarı"nın içindeki SİSTEM ücretleri (drop, genç/ek sürücü) ayrı satır — kullanıcının seçtiği tanımlar
+   * dışındaki kalemler; tutar sunucudan (kabul testi a-kyeni-11).
+   */
+  protected readonly systemLines = computed(() => {
+    this.d.extraRowVersion();
+    const h = this.d.hesap.veri();
+    if (!h?.ok) return [];
+    const selected = this.d.form.controls.ekHizmetler.controls
+      .map((s) => s.controls.tanim.value?.id)
+      .filter((id): id is string => id !== undefined);
+    return systemFeeLines(h.ekKalemler, selected);
+  });
 
   /** Motor dökümü (Otomatik tarife bileşenleri — yalnız bilgi). */
   protected readonly breakdown = computed(() => {

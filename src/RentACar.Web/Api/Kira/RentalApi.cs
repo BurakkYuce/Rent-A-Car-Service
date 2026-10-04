@@ -288,8 +288,12 @@ public static class RentalApi
         var c = await ComprehensiveAsync(kiralar, id, ct);
         if (c is null) return NotFoundProblem();
 
+        // Kabul testi (a-kkayit-19): "operasyon" = bu KAYITTA operasyon yapılabilir mi. İptal edilen kirada hiçbir
+        // operasyon (kaydet, teslim, dönüş, uzatma, ek hizmet, provizyon) sunucuda geçmez → izin olsa da kapalı; form
+        // "Bu sözleşmede değişiklik yapamazsınız" uyarısını gösterir. Silme/finans izin bayrağı olarak kalır.
         var permission = new KiraYetkileri(
-            HasPermission(http, Permission.OperationsWrite), HasPermission(http, Permission.OperationsDelete), HasPermission(http, Permission.FinanceWrite));
+            HasPermission(http, Permission.OperationsWrite) && c.Durum != RentalStatus.Iptal,
+            HasPermission(http, Permission.OperationsDelete), HasPermission(http, Permission.FinanceWrite));
 
         // Müşteri: yalnız görünen ad (TC/ehliyet gibi şifreli alanlar YANITA GİRMEZ).
         var customer = await musteriler.GetAsync(c.MusteriId, ct);
