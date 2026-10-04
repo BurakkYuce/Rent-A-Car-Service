@@ -50,9 +50,8 @@ public sealed class IncomingEInvoiceService(
         // ETTN, GİB'in belgeye verdiği UUID'dir (8-4-4-4-12). Serbest metin kabul edilseydi elle girilen giderin evrak
         // no'suyla eşleştirme (KDV raporunda çift sayım çiti) ve ETTN tekilliği yazım farkına takılırdı. Kanonik biçim
         // (büyük harf, tireli) saklanır: aynı belge küçük/büyük harfle iki kez girilemez.
-        if (!Guid.TryParseExact(ettn, "D", out var ettnGuid))
-            throw new ValidationException("ETTN, GİB biçiminde olmalıdır (ör. 3F2504E0-4F89-11D3-9A0C-0305E82C3301).", "ettn");
-        ettn = ettnGuid.ToString("D").ToUpperInvariant();
+        ettn = CanonicalEttn(ettn)
+            ?? throw new ValidationException("ETTN, GİB biçiminde olmalıdır (ör. 3F2504E0-4F89-11D3-9A0C-0305E82C3301).", "ettn");
         if (string.IsNullOrWhiteSpace(taxNo)) throw new ValidationException("Gönderen VKN zorunludur.");
         if (string.IsNullOrWhiteSpace(title)) throw new ValidationException("Gönderen ünvanı zorunludur.");
         // FAZ-55: belge kendi içinde tutarlı olmalı (net + KDV == genel toplam). Aksi halde hiçbir
@@ -78,6 +77,11 @@ public sealed class IncomingEInvoiceService(
         return row.Id;
     }
 
+    /// <summary>ETTN'in kanonik biçimi (tireli UUID, büyük harf); UUID değilse <c>null</c>. Tekillik DB'de
+    /// <c>(TenantId, upper(Ettn))</c> unique index'iyle de korunur (eski küçük harfli kayıtlar dahil).</summary>
+    public static string? CanonicalEttn(string? value)
+        => Guid.TryParseExact((value ?? string.Empty).Trim(), "D", out var g) ? g.ToString("D").ToUpperInvariant() : null;
+
     /// <summary>GİB gelen kutusunu çekip ETTN'e göre upsert eder (mevcut ETTN atlanır → idempotent).
     /// Stub boş döndüğünden kimlik yapılandırılana dek 0 ekler. Eklenen adet döner.</summary>
     public async Task<int> SyncFromGibAsync(DateTimeOffset from, DateTimeOffset to, CancellationToken ct = default)
@@ -87,14 +91,19 @@ public sealed class IncomingEInvoiceService(
         int added = 0;
         foreach (var it in items)
         {
-            if (string.IsNullOrWhiteSpace(it.Ettn) || await _repository.EttnExistsAsync(it.Ettn.Trim(), ct)) continue;
+            if (string.IsNullOrWhiteSpace(it.Ettn)) continue;
+            // Elle girişle AYNI kanonik biçim (UUID, büyük harf): aynı belge elle ve GİB'den farklı yazımla iki kez
+            // girmesin. GİB ETTN'i her zaman UUID'dir; değilse entegratör yanıtı bozuktur → gürültülü red.
+            var ettn = CanonicalEttn(it.Ettn)
+                ?? throw new ValidationException($"GİB'den gelen ETTN biçimsiz: '{it.Ettn.Trim()}'.");
+            if (await _repository.EttnExistsAsync(ettn, ct)) continue;
             // FAZ-55: entegratörden gelen belge de kendi içinde tutarlı olmalı. SESSİZ ATLAMA YOK —
             // tutarsız belgeyi görmezden gelmek "eksik gider" üretir; ETTN'li gürültülü red daha dürüst.
             try { IncomingEInvoiceVatBreakdown.ValidateTotals(it.NetTutar, it.KdvTutar, it.GenelToplam); }
-            catch (ValidationException ex) { throw new ValidationException($"ETTN {it.Ettn.Trim()}: {ex.Message}"); }
+            catch (ValidationException ex) { throw new ValidationException($"ETTN {ettn}: {ex.Message}"); }
             await _repository.CreateAsync(new GelenEFatura
             {
-                Ettn = it.Ettn.Trim(),
+                Ettn = ettn,
                 GonderenVkn = it.GonderenVkn,
                 GonderenUnvan = it.GonderenUnvan,
                 Tarih = it.Tarih,

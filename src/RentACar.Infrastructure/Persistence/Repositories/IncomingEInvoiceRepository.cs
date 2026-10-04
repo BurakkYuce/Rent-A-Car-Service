@@ -67,8 +67,10 @@ public sealed class IncomingEInvoiceRepository(IDbContextFactory<AppDbContext> f
     public async Task<bool> EttnExistsAsync(string ettn, CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
-        var e = ettn.Trim();
-        return await db.GelenEFaturalar.AsNoTracking().Where(r => r.Ettn == e).AnyAsync(ct);
+        // Büyük/küçük harf DUYARSIZ (#378 adversarial M2): kanonik biçimden önce küçük harfle saklanmış eski kayıtlar da
+        // aynı belgeyi tutar. upper(...) karşılaştırması (TenantId, upper(Ettn)) unique index'ini kullanır.
+        var e = ettn.Trim().ToUpperInvariant();
+        return await db.GelenEFaturalar.AsNoTracking().Where(r => r.Ettn.ToUpper() == e).AnyAsync(ct);
     }
 
     public async Task CreateAsync(GelenEFatura row, CancellationToken ct = default)

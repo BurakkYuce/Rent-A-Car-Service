@@ -94,15 +94,16 @@ public static class ListExportCatalog
     /// — ekranda görünen ile indirilen aynı küme olmalı.</summary>
     public static ExportTable InvoiceDetails(IReadOnlyList<RentACar.Application.Finance.FaturaSatirDto> rows, CustomerPrivacy privacy) => new(
         "Fatura Detay",
-        ["Fatura No", "Tarih", "Vade", "Durum", "Cari", "Şehir", "Mail", "Vergi No",
+        // Şehir / Mail / Vergi No YOK (#378 adversarial M1): ekran (InvoiceLineListRow) bunları göstermiyor ve bireysel
+        // carinin vergi no'su TC olabilir — "gördüğün = indirdiğin".
+        ["Fatura No", "Tarih", "Vade", "Durum", "Cari",
          "Açıklama", "Miktar", "Birim Net", "KDV Oranı", "Satır Net", "Satır KDV", "Satır Toplam",
          "Döviz", "Kur", "Plaka", "Sözleşme No", "Çıkış Ofisi", "Rez. Kaynağı"],
         rows.Select(r => new object?[]
         {
             r.FaturaNo, ExportDate.Day(r.Tarih), ExportDate.Day(r.VadeTarihi),
             r.Iptal ? "İptal" : r.IadeMi ? "İade" : "Geçerli",
-            privacy.Name(r.CariId, r.CariAd), privacy.Address(r.CariId, r.CariSehir), privacy.Email(r.CariId, r.CariEmail),
-            r.CariVergiNo,
+            privacy.Name(r.CariId, r.CariAd),
             r.Aciklama, r.Miktar, r.BirimNetFiyat, r.KdvOrani, r.SatirNet, r.SatirKdv, r.SatirToplam,
             r.Doviz, r.Kur, r.Plaka, r.SozlesmeNo, r.CikisOfisi, r.RezervasyonKaynagi
         }).ToList());

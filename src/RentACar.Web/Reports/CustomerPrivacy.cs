@@ -50,11 +50,14 @@ public sealed class CustomerPrivacy
 
     private Flags? Of(Guid? id) => id is { } i && _flags.TryGetValue(i, out var f) ? f : null;
 
-    /// <summary>Görünen ad. Kimlik verilmişse carinin bayrağı, yoksa anonim ad kümesi.</summary>
+    /// <summary>
+    /// Görünen ad. Kimlik verilmişse YALNIZ carinin kendi bayrağı karar verir (ekran da kimlikle karar verir — aynı adlı
+    /// anonim OLMAYAN cari maskelenmez; #378 adversarial L1). Kimlik yoksa anonim ad kümesi (güvenli yön).
+    /// </summary>
     public string? Name(Guid? id, string? name)
     {
         if (name is null) return null;
-        if (Of(id) is { } f) return f.Name ? CustomerAnonymity.NameLabel : name;
+        if (id is not null) return Of(id) is { Name: true } ? CustomerAnonymity.NameLabel : name;
         return _anonymousNames.Contains(name) ? CustomerAnonymity.NameLabel : name;
     }
 
@@ -67,6 +70,4 @@ public sealed class CustomerPrivacy
     /// <summary>Cari kartındaki vergi no kuralı (bireysel/TC biçimli → yazılmaz).</summary>
     public static string? TaxNumber(Customer c) => CustomerInputMapper.TaxNumberHidden(c) ? null : c.VergiNo;
 
-    /// <summary>Kimlik → ad çözücüsünü maskeli hâle getirir (FK'den ad çözen export'lar).</summary>
-    public Func<Guid, string?> Names(Func<Guid, string?> resolve) => id => Name(id, resolve(id));
 }

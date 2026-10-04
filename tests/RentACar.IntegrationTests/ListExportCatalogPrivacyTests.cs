@@ -11,19 +11,27 @@ namespace RentACar.IntegrationTests;
 
 /// <summary>
 /// KVKK çiti — liste export kataloğu (<see cref="ListExportCatalog"/>) anonim cariyi ekrandaki kuralla maskeler. DB yok.
-/// (1) Yapısal: cari adı/iletişimi sütunu taşıyan her projeksiyon <see cref="CustomerPrivacy"/> alır ve kullanır
-/// (yeni bir export eklenince maskesiz yazılamaz). (2) Davranış: anonim carinin adı/telefonu hiçbir hücreye geçmez.
+/// (1) Yapısal, SÜTUN bazında: kişisel veri başlığı taşıyan her sütunun hücre ifadesi <see cref="CustomerPrivacy"/>'den
+/// geçer ya da (projeksiyon, başlık) gerekçeli muafiyet listesindedir — yeni bir sütun maskesiz eklenemez.
+/// (2) Davranış: anonim carinin adı/telefonu/e-postası ve bireysel carinin vergi no'su (TC) hiçbir hücreye geçmez.
 /// </summary>
 public sealed class ListExportCatalogPrivacyTests
 {
-    /// <summary>Cari kişisel verisi taşıyan başlıklar (birebir, tırnaklı).</summary>
-    private static readonly string[] CustomerHeaders =
-        ["\"Müşteri\"", "\"Cari\"", "\"Ünvan/Ad\"", "\"Cep Tel\"", "\"Müşteri Tel\"", "\"Telefon\"", "\"E-posta\"", "\"Mail\"", "\"GSM2\""];
+    /// <summary>Kişisel veri başlıkları (birebir).</summary>
+    private static readonly HashSet<string> PersonalHeaders =
+    [
+        "Müşteri", "Müşteri Adı", "Cari", "Ünvan/Ad", "Alıcı", "Vergi No", "TC", "TC Kimlik",
+        "Telefon", "Cep Tel", "GSM2", "Müşteri Tel", "E-posta", "Mail", "Mail Adresi",
+        "Adres", "İl", "İlçe", "Şehir",
+    ];
 
-    /// <summary>Başlığı benzeyen ama cari verisi taşımayan projeksiyonlar — gerekçeli.</summary>
-    private static readonly Dictionary<string, string> Exempt = new()
+    /// <summary>Kişisel başlıklı ama cari verisi olmayan / ayrı kapıyla korunan sütunlar — gerekçeli.</summary>
+    private static readonly Dictionary<(string Projection, string Header), string> Exempt = new()
     {
-        ["Locations"] = "Telefon/E-posta ofis (lokasyon) iletişimidir, cari değil.",
+        [("Locations", "Telefon")] = "Ofis (lokasyon) iletişimi, cari değil.",
+        [("Locations", "E-posta")] = "Ofis (lokasyon) iletişimi, cari değil.",
+        [("Locations", "Adres")] = "Ofis adresi, cari değil.",
+        [("Personnel", "TC Kimlik")] = "Personel (cari değil); uç ManageUsers kapılı + KVKK notu (docs/ops/kvkk-export-notu.md).",
     };
 
     private static string RepoRoot()
@@ -35,30 +43,84 @@ public sealed class ListExportCatalogPrivacyTests
     }
 
     [Fact]
-    public void Every_projection_with_customer_columns_takes_and_uses_the_privacy_rule()
+    public void Every_personal_data_column_passes_through_the_privacy_rule()
     {
-        var text = File.ReadAllText(Path.Combine(RepoRoot(), "src/RentACar.Web/Reports/ListExportCatalog.cs"));
+        // Satır yorumları atılır (içlerindeki virgül/tırnak hücre ayrıştırmasını bozmasın).
+        var text = Regex.Replace(
+            File.ReadAllText(Path.Combine(RepoRoot(), "src/RentACar.Web/Reports/ListExportCatalog.cs")), @"(?m)^\s*//.*$", "");
         var starts = Regex.Matches(text, @"public static ExportTable (\w+)\(").ToList();
         Assert.NotEmpty(starts);
         var violations = new List<string>();
-        var guarded = 0;
+        var guardedColumns = 0;
         for (var i = 0; i < starts.Count; i++)
         {
             // Pencere: bir projeksiyonun başından bir SONRAKİNİN başına (tek regex aralığı uçları yutar — UcIzinKapsama dersi).
             var end = i + 1 < starts.Count ? starts[i + 1].Index : text.Length;
             var window = text[starts[i].Index..end];
             var name = starts[i].Groups[1].Value;
-            if (!CustomerHeaders.Any(window.Contains) || Exempt.ContainsKey(name)) continue;
-            guarded++;
-            var arrow = window.IndexOf("=>", StringComparison.Ordinal);
-            var signature = arrow > 0 ? window[..arrow] : window;
-            if (!signature.Contains("CustomerPrivacy privacy", StringComparison.Ordinal))
-                violations.Add($"{name}: imzada CustomerPrivacy yok");
-            else if (!window.Contains("privacy.", StringComparison.Ordinal))
-                violations.Add($"{name}: CustomerPrivacy alınıyor ama kullanılmıyor");
+
+            var headerStart = Regex.Match(window, @"\[\s*""");
+            if (!headerStart.Success) continue;
+            var headers = Regex.Matches(Block(window, headerStart.Index, '[', ']'), "\"((?:[^\"\\\\]|\\\\.)*)\"")
+                .Select(m => m.Groups[1].Value).ToList();
+            var personal = headers.Select((h, idx) => (h, idx)).Where(x => PersonalHeaders.Contains(x.h)).ToList();
+            if (personal.Count == 0) continue;
+
+            var rowStart = window.IndexOf("new object?[]", StringComparison.Ordinal);
+            if (rowStart < 0) { violations.Add($"{name}: hücre dizisi bulunamadı"); continue; }
+            var cells = SplitTopLevel(Block(window, window.IndexOf('{', rowStart), '{', '}'));
+            if (cells.Count != headers.Count)
+            {
+                violations.Add($"{name}: {headers.Count} başlık ↔ {cells.Count} hücre (ayrıştırılamadı ya da kaymış)");
+                continue;
+            }
+            foreach (var (header, idx) in personal)
+            {
+                if (Exempt.ContainsKey((name, header))) continue;
+                guardedColumns++;
+                if (!cells[idx].Contains("privacy.", StringComparison.Ordinal)
+                    && !cells[idx].Contains("CustomerPrivacy.", StringComparison.Ordinal))
+                    violations.Add($"{name}.\"{header}\": '{cells[idx].Trim()}' maskeden geçmiyor");
+            }
         }
         Assert.Empty(violations);
-        Assert.True(guarded >= 10, $"Beklenen en az 10 korumalı projeksiyon, bulunan {guarded} (tarama bozuldu mu?).");
+        Assert.True(guardedColumns >= 15, $"Beklenen en az 15 korumalı sütun, bulunan {guardedColumns} (tarama bozuldu mu?).");
+    }
+
+    /// <summary><paramref name="start"/>'taki açılış parantezinden eşleşen kapanışa kadarki iç metin (dize içleri sayılmaz).</summary>
+    private static string Block(string s, int start, char open, char close)
+    {
+        var depth = 0;
+        var inString = false;
+        for (var i = start; i < s.Length; i++)
+        {
+            var c = s[i];
+            if (c == '"' && s[i - 1] != '\\') inString = !inString;
+            if (inString) continue;
+            if (c == open) depth++;
+            else if (c == close && --depth == 0) return s[(start + 1)..i];
+        }
+        throw new InvalidOperationException("Kapanmayan parantez.");
+    }
+
+    /// <summary>Üst düzey virgüllerden böler (parantez/köşeli/süslü ve dize içi virgüller bölmez).</summary>
+    private static List<string> SplitTopLevel(string s)
+    {
+        var parts = new List<string>();
+        var depth = 0;
+        var inString = false;
+        var last = 0;
+        for (var i = 0; i < s.Length; i++)
+        {
+            var c = s[i];
+            if (c == '"' && (i == 0 || s[i - 1] != '\\')) inString = !inString;
+            if (inString) continue;
+            if (c is '(' or '[' or '{') depth++;
+            else if (c is ')' or ']' or '}') depth--;
+            else if (c == ',' && depth == 0) { parts.Add(s[last..i]); last = i + 1; }
+        }
+        if (s[last..].Trim().Length > 0) parts.Add(s[last..]);
+        return parts;
     }
 
     [Fact]
@@ -100,8 +162,15 @@ public sealed class ListExportCatalogPrivacyTests
             Assert.Contains(CustomerAnonymity.NameLabel, cells);
         }
 
-        // Kimliksiz ada da (bilinmeyen cari) anonim ad kümesiyle maske uygulanır; diğer adlar aynen kalır.
+        // Kimliksiz ada (bilinmeyen cari) anonim ad kümesiyle maske uygulanır; kimliği bilinen bayraksız cari, ADI anonim
+        // bir cariyle aynı olsa bile maskelenmez (ekran kimlikle karar verir — #378 adversarial L1).
         Assert.Equal(CustomerAnonymity.NameLabel, privacy.Name(null, real));
+        Assert.Equal(real, privacy.Name(Guid.NewGuid(), real));
         Assert.Equal("Başka Cari", privacy.Name(Guid.NewGuid(), "Başka Cari"));
+
+        // Bireysel carinin vergi no'su TC olabilir → anonim bayrağı olmasa da hiçbir hücreye geçmez (cari kartı kuralı).
+        const string tc = "98765432109";
+        var individual = new Customer { Tip = CustomerType.Bireysel, Ad = "Açık", Soyad = "Cari", VergiNo = tc };
+        Assert.DoesNotContain(tc, ListExportCatalog.Customers([individual], privacy).Rows.SelectMany(r => r).Select(c => c?.ToString()));
     }
 }

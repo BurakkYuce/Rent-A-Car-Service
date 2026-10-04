@@ -195,7 +195,12 @@ public sealed class FaturaDetayListesiTests(PostgresFixture fx)
 
         var t = ListExportCatalog.InvoiceDetails(await sp.GetRequiredService<InvoiceService>().ListLinesAsync(), CustomerPrivacy.None);
         Assert.Equal("Fatura Detay", t.Sheet);
-        Assert.Equal(21, t.Headers.Count);
+        // 21 → 18: Şehir / Mail / Vergi No çıkarıldı — ekran (InvoiceLineListRow) bunları göstermiyor ve bireysel
+        // carinin vergi no'su TC olabilir ("gördüğün = indirdiğin", #378 adversarial M1).
+        Assert.Equal(18, t.Headers.Count);
+        Assert.DoesNotContain("Vergi No", t.Headers);
+        Assert.DoesNotContain("Şehir", t.Headers);
+        Assert.DoesNotContain("Mail", t.Headers);
         Assert.Equal("Fatura No", t.Headers[0]);
         Assert.Equal("Rez. Kaynağı", t.Headers[^1]);
         Assert.Equal(2, t.Rows.Count);
