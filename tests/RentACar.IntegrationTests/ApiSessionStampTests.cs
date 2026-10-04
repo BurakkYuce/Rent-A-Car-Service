@@ -9,9 +9,9 @@ namespace RentACar.IntegrationTests;
 /// <summary>
 /// Güvenlik tur 2 L2 — JWT (<c>/api/v1</c>) belirteci oturum damgasını taşır; <c>OnTokenValidated</c> damga değişince
 /// ya da kullanıcı pasifleşince ZATEN VERİLMİŞ belirteci reddeder (401). Yeni giriş yeni damgayla çalışır.
-/// <para><b>Neden "postgres" koleksiyonunda:</b> Api host'u Serilog'un statik logger'ını devralır ve kapanırken onu
-/// kapatır; "web" koleksiyonunda koşunca aynı koleksiyondaki Web host'unun log dosyası susuyordu
-/// (<c>UiIstemciHataTests</c> log olayını bulamıyordu). Diğer <see cref="ApiFactory"/> testleriyle aynı yerde.</para>
+/// <para>Diğer <see cref="ApiFactory"/> testleriyle aynı ("postgres") koleksiyonda. İlk sürümü "web" koleksiyonundaydı
+/// ve Api host'u Web'in Serilog statik logger'ını kapatıyordu; kök neden <see cref="ApiFactory"/>'de giderildi
+/// (<c>ApiFactoryLogIsolationTests</c> kilitler).</para>
 /// </summary>
 [Collection("postgres")]
 public sealed class ApiSessionStampTests(PostgresFixture fx)
