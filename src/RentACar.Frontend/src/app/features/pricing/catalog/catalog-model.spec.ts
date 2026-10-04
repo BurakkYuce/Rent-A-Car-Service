@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { channelDeleteVisible } from '../import/rate-import';
+import { channelDeleteVisible, exceedsImportLimit } from '../import/rate-import';
 import { parseCodes } from '../quote/quote-calculator';
 import { CATALOGS } from './catalog-configs';
 import {
@@ -103,6 +103,41 @@ describe('tanım formu ↔ DTO', () => {
       x: false,
       m: null,
     });
+  });
+});
+
+describe('tarife içe aktarım dosya sınırı (kabul testi: 6 MB → ham "Content Too Large")', () => {
+  it('5 MB (5.242.880 bayt) dahil kabul, üstü yüklenmeden reddedilir', () => {
+    expect(exceedsImportLimit({ size: 5_242_880 })).toBe(false);
+    expect(exceedsImportLimit({ size: 5_242_881 })).toBe(true);
+    expect(exceedsImportLimit({ size: 6 * 1024 * 1024 })).toBe(true);
+  });
+});
+
+describe('KDV oranı girişi tutarlı (kabul testi): ekranda %, API sözleşmesi aynı', () => {
+  const extra = CATALOGS['ek-hizmetler']!;
+  const coverage = CATALOGS['sigorta-urunleri']!;
+  const vat = (c: typeof extra) => c.fields.find((f) => f.name === 'kdvOrani')!;
+
+  it('ek hizmet: API kesir (0,20) ↔ ekran yüzde (20); kayma yok', () => {
+    const f = vat(extra);
+    expect(f.label).toBe('fiyatTarife.alan.kdvYuzde');
+    const row = { id: 'e1', kdvOrani: 0.2, surum: 's' } as CatalogRow;
+    expect(rowToForm([f], row)).toEqual({ kdvOrani: 20 });
+    expect(formToBody([f], { kdvOrani: 20 }, row)).toEqual({ kdvOrani: 0.2, surum: 's' });
+    expect(formToBody([f], { kdvOrani: 8.25 }, null)).toEqual({ kdvOrani: 0.0825 });
+    expect(formToBody([f], { kdvOrani: 18 }, null)).toEqual({ kdvOrani: 0.18 });
+    expect(rowToForm([f], { id: 'e2', kdvOrani: 0.1 } as CatalogRow)).toEqual({ kdvOrani: 10 });
+    expect(formToBody([f], { kdvOrani: null }, null)).toEqual({ kdvOrani: null });
+    // Yeni kayıt varsayılanı da yüzde: %20.
+    expect(emptyFormValue([f])).toEqual({ kdvOrani: 20 });
+  });
+
+  it('sigorta ürünü zaten yüzde (0–100): dönüşüm yok, etiket aynı', () => {
+    const f = vat(coverage);
+    expect(f.label).toBe('fiyatTarife.alan.kdvYuzde');
+    expect(rowToForm([f], { id: 's1', kdvOrani: 20 } as CatalogRow)).toEqual({ kdvOrani: 20 });
+    expect(formToBody([f], { kdvOrani: 20 }, null)).toEqual({ kdvOrani: 20 });
   });
 });
 

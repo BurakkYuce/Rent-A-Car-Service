@@ -166,6 +166,8 @@ export class FleetList {
   }
 
   protected clear(): void {
+    // URL'de süzgeç yoksa sorgu değişmez ve form senkronu koşmaz: yazılmış ama uygulanmamış alan da boşalsın.
+    this.filterForm.reset();
     void this.liste.sifirla();
   }
 

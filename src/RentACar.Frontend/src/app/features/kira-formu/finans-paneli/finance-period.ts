@@ -46,7 +46,7 @@ import { RentalFinanceState } from './rental-finance-state';
                 <td>{{ d.donemSira }}</td>
                 <td>{{ d.donemBas | tarih }} – {{ d.donemBit | tarih }}</td>
                 <td class="rc-num">{{ money(d.tahakkuk, k?.doviz) }}</td>
-                <td>{{ d.durum }}</td>
+                <td>{{ d.durum | etiket }}</td>
                 <td class="rc-num">
                   {{ d.kesilenTutar === null ? '—' : money(d.kesilenTutar, k?.doviz) }}
                 </td>

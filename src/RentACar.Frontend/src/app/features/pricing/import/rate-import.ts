@@ -84,6 +84,17 @@ export function channelDeleteVisible(f: {
   return !!f.kanal && !f.sube && (!f.durum || f.durum === 'Bekliyor');
 }
 
+/** Sunucu ucunun istek sınırı (`PricingApi.ImportRequestLimit`, 5 MB): üstü yüklenmeden reddedilir. */
+export const IMPORT_MAX_BYTES = 5 * 1024 * 1024;
+
+/**
+ * Seçilen dosya sınırı aşıyor mu (kabul testi: 6 MB dosya sunucudan ham "Content Too Large" ile dönüyordu).
+ * İstemci önce reddeder; sunucu yine son sözü söyler (413 → aynı Türkçe mesaj).
+ */
+export function exceedsImportLimit(file: { readonly size: number }): boolean {
+  return file.size > IMPORT_MAX_BYTES;
+}
+
 /**
  * Tarife içe aktar (`/app/tarife-aktar`, Blazor `TarifeAktar.razor`, yalnız ManageUsers): CSV/Excel → tarife matrisi
  * satırları HEP `Bekliyor` girer (dosyadaki onay kolonları sunucuda yok sayılır; motor onaysızı kullanmaz). Canlı
@@ -186,8 +197,16 @@ export class RateImport {
 
   protected picked(): void {
     const f = this.fileInput()?.nativeElement.files?.[0] ?? null;
-    this.file.set(f);
     this.uploadKey = null;
+    if (f && exceedsImportLimit(f)) {
+      // Yüklenmez; seçim temizlenir (sonra "Aktar"a basınca mesaj "Dosya seçilmedi"ye dönüşmez — düğme pasif).
+      this.file.set(null);
+      const el = this.fileInput()?.nativeElement;
+      if (el) el.value = '';
+      this.uploadError.set(this.t('fiyatTarife.aktar.cokBuyuk'));
+      return;
+    }
+    this.file.set(f);
     this.uploadError.set(null);
   }
 
@@ -218,7 +237,8 @@ export class RateImport {
         error: (raw: unknown) => {
           const e = toApiError(raw);
           const messages = e.alanlar ? Object.values(e.alanlar).flat() : [];
-          if (messages.length > 0) this.uploadError.set(messages.join(' '));
+          if (e.status === 413) this.uploadError.set(this.t('fiyatTarife.aktar.cokBuyuk'));
+          else if (messages.length > 0) this.uploadError.set(messages.join(' '));
           else if (!genelGosterilir(e)) this.uploadError.set(e.detay);
         },
       });

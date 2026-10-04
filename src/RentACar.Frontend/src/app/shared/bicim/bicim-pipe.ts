@@ -6,6 +6,7 @@ import {
   formatDateTime,
   type DateInput,
 } from '@core/bicim/bicim';
+import { enumLabel } from '@core/bicim/enum-label';
 
 /** `{{ tutar | para }}` → `1.234,56 ₺`; `{{ tutar | para: 'USD' }}` → `1.234,56 $`. */
 @Pipe({ name: 'para' })
@@ -39,4 +40,12 @@ export class DateTimePipe implements PipeTransform {
   }
 }
 
-export const FORMAT_PIPES = [MoneyPipe, NumberPipe, DatePipe, DateTimePipe] as const;
+/** `{{ kod | etiket }}` → sunucu kodunun Türkçe etiketi (`Planlandi` → `Planlandı`); bilinmeyen kod olduğu gibi. */
+@Pipe({ name: 'etiket' })
+export class EnumLabelPipe implements PipeTransform {
+  transform(code: string | null | undefined): string {
+    return enumLabel(code);
+  }
+}
+
+export const FORMAT_PIPES = [MoneyPipe, NumberPipe, DatePipe, DateTimePipe, EnumLabelPipe] as const;

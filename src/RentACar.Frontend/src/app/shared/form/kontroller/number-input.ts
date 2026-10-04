@@ -50,11 +50,18 @@ export class NumberInput extends ParsingControl<number> {
   protected written(evt: Event): void {
     const written = (evt.target as HTMLInputElement).value;
     this.metin.set(written);
-    const resolution = parseDecimal(written, {
-      kesir: this.kesir(),
-      negatif: this.negatif(),
-      fazlaHane: 'reddet',
-    });
+    const option = { kesir: this.kesir(), fazlaHane: 'reddet' } as const;
+    const resolution = parseDecimal(written, { ...option, negatif: this.negatif() });
+    if (!resolution.gecerli && !this.negatif()) {
+      // Kabul testi: "-1" anlaşılır bir sayıdır, yalnız negatif olamaz → "En az 0 olmalı." ("Geçerli bir sayı girin"
+      // yanıltıcıydı). Değer yine YAZILMAZ (negatif izinsiz alana negatif gitmez).
+      const asNegative = parseDecimal(written, { ...option, negatif: true });
+      if (asNegative.gecerli && asNegative.deger !== null && Number(asNegative.deger) < 0) {
+        this.setError({ sayiNegatif: true });
+        this.notify(null);
+        return;
+      }
+    }
     this.setError(resolution.gecerli ? null : { sayiGecersiz: true });
     this.notify(resolution.gecerli && resolution.deger !== null ? Number(resolution.deger) : null);
   }

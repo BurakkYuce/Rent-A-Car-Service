@@ -300,6 +300,22 @@ export function mergeServerValues(
   return conflicting;
 }
 
+/** Kayıtlı `GunlukUcret`'i günlük BRÜT olan ama anlamı net/toplam olan modlar (sunucu `NonDailyGrossModes`). */
+const NON_DAILY_GROSS_MODES = ['Günlük', 'Toplam', 'KDV Dahil Toplam'];
+
+/**
+ * #361 L1: net/toplam modlu kayıtta "Günlük ücret" alanı KDV dahil günlük ücreti gösterir; mod değiştirilmeden ücret
+ * düzenlenirse sunucu fiyat türünü "KDV Dahil Günlük"e çevirir (`ReservationService.NormalizeEditedFee`). Not yalnız
+ * bu kuralın uygulanacağı durumda (kayıtlı mod bu sınıfta VE formda aynı mod) görünür.
+ */
+export function grossDailyFeeNoteVisible(
+  savedMode: string | null | undefined,
+  currentMode: string | null | undefined,
+): boolean {
+  const saved = savedMode?.trim() ?? '';
+  return NON_DAILY_GROSS_MODES.includes(saved) && saved === (currentMode?.trim() ?? '');
+}
+
 /** Sunucu seçenek listesi + kayıttaki değer (listede yoksa eklenir — eski değer kaybolmaz). */
 export function optionList(
   list: readonly string[] | undefined,

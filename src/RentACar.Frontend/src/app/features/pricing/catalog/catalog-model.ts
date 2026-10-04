@@ -59,6 +59,11 @@ export interface CatalogField {
   /** `money` / `ratio` kesir hanesi (katalog fiyatı sütun ölçeği 4; oran 4). */
   readonly decimals?: number;
   readonly negative?: boolean;
+  /**
+   * `ratio`: API değeri KESİR (0–1) ama ekranda YÜZDE (0–100) girilir/gösterilir; dönüşüm yalnız istemcide (API
+   * sözleşmesi değişmez). Kabul testi: sigorta ürününde KDV % iken ek hizmette kesir giriliyordu.
+   */
+  readonly percentOfFraction?: boolean;
   /** Yeni kayıtta varsayılan (form değeri biçiminde). */
   readonly defaultValue?: unknown;
   /** Bu satır bayrağı `true` ise düzenlemede alan salt okunur (ör. `SYS-*` ek hizmet kodu). */
@@ -113,6 +118,18 @@ const toNum = (v: unknown): number | null => {
   return Number.isFinite(n) ? n : null;
 };
 
+/**
+ * Kesir → yüzde (0,2 → 20) ve tersi (20 → 0,2). Ölçek tam sayı üzerinden: kesir 4 hane (`numeric(19,4)`) = yüzde 2
+ * hane; ikili kayan nokta kayması (0,2 × 100 = 20,000000000000004) yazılmaz.
+ */
+export function fractionToPercent(v: number | null): number | null {
+  return v === null ? null : Math.round(v * 10_000) / 100;
+}
+
+export function percentToFraction(v: number | null): number | null {
+  return v === null ? null : Math.round(v * 100) / 10_000;
+}
+
 /** Varsayılan kesir: katalog fiyatı 4 (sütun ölçeği `numeric(19,4)`), oran 4. */
 export function decimalsOf(f: CatalogField): number {
   return f.decimals ?? 4;
@@ -128,8 +145,9 @@ export function toFormValue(f: CatalogField, v: unknown): unknown {
         : invariantDecimal(v as string | number, { kesir: decimalsOf(f) });
     case 'date':
       return dayValue(typeof v === 'string' ? v : null);
-    case 'int':
     case 'ratio':
+      return f.percentOfFraction ? fractionToPercent(toNum(v)) : toNum(v);
+    case 'int':
       return toNum(v);
     case 'bool':
       return v === true;
@@ -150,8 +168,9 @@ export function toRequestValue(f: CatalogField, v: unknown, original: unknown): 
       );
     case 'bool':
       return v === true;
-    case 'int':
     case 'ratio':
+      return f.percentOfFraction ? percentToFraction(toNum(v)) : toNum(v);
+    case 'int':
       return toNum(v);
     case 'money':
       return v === '' ? null : (v ?? null);

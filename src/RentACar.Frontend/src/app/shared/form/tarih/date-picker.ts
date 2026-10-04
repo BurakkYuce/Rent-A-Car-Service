@@ -229,9 +229,10 @@ export class DatePicker extends ParsingControl<DayText | GunAraligi> {
     if (compareDays(bit, start) < 0) return { tarihSirasi: true };
     const enAz = this.enAz();
     const enCok = this.enCok();
-    if ((enAz && compareDays(start, enAz) < 0) || (enCok && compareDays(bit, enCok) > 0)) {
-      return { tarihAralikDisi: true };
-    }
+    // Sınır hatası hangi sınırın aşıldığını taşır: mesaj "En erken 05.10.2026 seçilebilir." (kabul testi: genel
+    // "izin verilen aralığın dışında" metni kullanıcıya neyi düzelteceğini söylemiyordu; sunucu metniyle aynı söz).
+    if (enAz && compareDays(start, enAz) < 0) return { tarihAralikDisi: { enAz } };
+    if (enCok && compareDays(bit, enCok) > 0) return { tarihAralikDisi: { enCok } };
     return null;
   }
 
