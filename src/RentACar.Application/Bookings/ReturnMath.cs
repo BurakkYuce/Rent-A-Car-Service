@@ -54,10 +54,9 @@ public static class ReturnMath
             excessKm, excessKmCharge, missingFuel, fuelCharge, extensionDays, extensionCharge, grandTotal, used);
     }
 
-    /// <summary>Uzatma (geç dönüş) günü: planlanan bitişten sonra döndüyse (24-saat bloğu, yukarı yuvarla).
-    /// Uzatma bedeli ve km hakkı AYNI gün sayısını kullanır.</summary>
+    /// <summary>Uzatma (geç dönüş) günü: kira gün hesabıyla AYNI kural ve AYNI 3 saat toleransı — tek kaynak
+    /// BookingMath.LateReturnDays (kabul bulguları a-kkayit-09 / C-GUN). Uzatma bedeli ve km hakkı (#366 H1)
+    /// AYNI gün sayısını kullanır.</summary>
     private static int LateDays(RentalContract c, DateTimeOffset actualReturn)
-        => actualReturn > c.BitTar
-            ? Math.Max(1, (int)Math.Ceiling((actualReturn - c.BitTar).TotalHours / 24.0))
-            : 0;
+        => BookingMath.LateReturnDays(c.BasTar, c.BitTar, actualReturn);
 }

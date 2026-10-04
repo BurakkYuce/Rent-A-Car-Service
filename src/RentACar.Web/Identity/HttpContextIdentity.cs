@@ -48,8 +48,11 @@ public sealed class HttpContextIdentity(IHttpContextAccessor accessor) : ITenant
         }
     }
 
+    /// <summary>Claim'deki FK; claim boşsa (FK'dan önce açılmış/FK'sız hesap) şube adından çözülen FK
+    /// (<see cref="AssignedBranchResolutionMiddleware"/>, kabul B-0).</summary>
     public Guid? AssignedBranchId
-        => Guid.TryParse(User.FindFirst(IdentityClaims.AssignedBranchId)?.Value, out var g) ? g : null;
+        => Guid.TryParse(User.FindFirst(IdentityClaims.AssignedBranchId)?.Value, out var g) ? g
+         : accessor.HttpContext?.Items.TryGetValue(AssignedBranchResolutionMiddleware.ItemKey, out var v) == true ? v as Guid? : null;
 
     public IReadOnlyCollection<string> EkIzinler
         => User.FindAll(IdentityClaims.PermissionExtra).Select(c => c.Value).ToArray();

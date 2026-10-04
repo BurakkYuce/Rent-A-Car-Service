@@ -78,7 +78,15 @@ public static class MasterDataSeeder
         n += await SeedCat<VehicleType>(db, tid, VehicleTypes, (k, a) => new VehicleType { TenantId = tid, Kod = k, Ad = a }, ct);
         n += await SeedCat<VehicleGroup>(db, tid, VehicleGroups, (k, a) => new VehicleGroup { TenantId = tid, Kod = k, Ad = a }, ct);
         n += await SeedCat<Branch>(db, tid, Branches, (k, a) => new Branch { TenantId = tid, Kod = k, Ad = a }, ct);
-        n += await SeedCat<Location>(db, tid, Locations, (k, a) => new Location { TenantId = tid, Kod = k, Ad = a }, ct);
+        // Kabul B-0: varsayılan ofis varsayılan şubeye BAĞLI doğar (metin + FK). Bağsız "Merkez Ofis" şube kapsamlı
+        // kullanıcıya hiçbir zaman ait olmadığı için Merkez operatörü ilk kurulumda hiçbir ofisten kira açamıyordu.
+        // Bu bağlam interceptor'sız (owner) — FK açıkça yazılır; şube yoksa ofis bağsız kalır (uydurma metin yazılmaz).
+        var defaultBranchId = await DefaultBranchIdAsync(db, tid, ct);
+        n += await SeedCat<Location>(db, tid, Locations, (k, a) => new Location
+        {
+            TenantId = tid, Kod = k, Ad = a,
+            Sube = defaultBranchId is null ? null : Branches[0], SubeId = defaultBranchId,
+        }, ct);
         n += await SeedCat<PenaltyType>(db, tid, PenaltyTypes, (k, a) => new PenaltyType { TenantId = tid, Kod = k, Ad = a }, ct);
         n += await SeedCat<PaymentType>(db, tid, PaymentTypes, (k, a) => new PaymentType { TenantId = tid, Kod = k, Ad = a }, ct);
         n += await SeedCat<ExpenseCategory>(db, tid, ExpenseTypes, (k, a) => new ExpenseCategory { TenantId = tid, Kod = k, Ad = a }, ct);
@@ -94,6 +102,19 @@ public static class MasterDataSeeder
             db.ChangeTracker.Clear(); // tenant-loop'ta tracker şişmesin
         }
         return n;
+    }
+
+    /// <summary>Varsayılan şubenin ("Merkez") kimliği: bu turda eklendiyse izleyiciden, yoksa DB'den (aynı adda Kod sırası).</summary>
+    private static async Task<Guid?> DefaultBranchIdAsync(AppDbContext db, Guid tid, CancellationToken ct)
+    {
+        var name = Branches[0];
+        var added = db.ChangeTracker.Entries<Branch>()
+            .Where(e => e.State == EntityState.Added && e.Entity.TenantId == tid && e.Entity.Ad == name)
+            .Select(e => (Guid?)e.Entity.Id).FirstOrDefault();
+        if (added is not null) return added;
+        return await db.Set<Branch>().IgnoreQueryFilters()
+            .Where(b => b.TenantId == tid && b.Ad == name)
+            .OrderBy(b => b.Kod).Select(b => (Guid?)b.Id).FirstOrDefaultAsync(ct);
     }
 
     /// <summary>O tenant'ta T kategorisi BOŞSA varsayılanları ekler; doluysa (kullanıcı tanımı var) dokunmaz.</summary>

@@ -168,7 +168,10 @@ public sealed record KiraListeSatiri(
     string? Kaynak, string? CikisOfisi, string? DonusOfisi,
     decimal? Provizyon, decimal? Depozito, decimal? KomisyonOran, decimal? KomisyonTutar,
     string? OnayKodu, string? ProjeAdi, string? AssistFirma, string? OzelSoforBilgisi,
-    string Durum, bool Faturali, TahsilatBilgisi? Tahsilat);
+    string Durum, bool Faturali, TahsilatBilgisi? Tahsilat,
+    // Kabul bulgusu C-GUN: fatura GenelToplam'ı keser (dönüş bedelleri + ek hizmet dahil) — "Faturasız kiralar"
+    // listesi bu tutarı gösterir; Tutar yalnız baz kiradır.
+    decimal GenelToplam);
 
 /// <summary>Liste alt satırı (Blazor "N sözleşme • N kirada • N faturasız"), aynı filtrelerle.</summary>
 public sealed record KiraListeOzeti(int Toplam, int Kirada, int Faturasiz);

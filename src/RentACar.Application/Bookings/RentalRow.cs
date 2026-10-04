@@ -18,6 +18,10 @@ public sealed class RentalRow
     public DateTimeOffset BitTar { get; init; }
     public int Gun { get; init; }
     public decimal Tutar { get; init; }
+    /// <summary>Sözleşmenin güncel genel toplamı (baz + dönüş bedelleri + ek hizmet; kira dövizinde). Fatura
+    /// BU tutarı keser — "Faturasız kiralar" listesi bunu gösterir (kabul bulgusu C-GUN: baz Tutar'ı göstermek
+    /// geç dönüş/fazla km bedelini saklıyor, listede 3.600 görünüp 4.800 faturalanıyordu).</summary>
+    public decimal GenelToplam { get; init; }
     public decimal Bakiye { get; init; }
     public RentalStatus Durum { get; init; }
     public bool Faturali { get; init; }

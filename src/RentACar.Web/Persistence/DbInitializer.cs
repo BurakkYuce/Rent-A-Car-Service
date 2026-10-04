@@ -52,10 +52,6 @@ public static class DbInitializer
         if (backfilled > 0)
             log.LogInformation("PII backfill: {Count} cari şifrelendi (KVKK/F2).", backfilled);
 
-        // Şube-FK (roadmap F1 tamamlama): mevcut satırların serbest-metin şubesini Branch FK'sine
-        // doldur (idempotent; interceptor yeni yazımları zaten çözer).
-        await BranchBackfill.RunAsync(db, log);
-
         if (!await db.Tenants.AnyAsync()) // ilk kurulum: iki tenant + kullanıcıları
         {
             var decision = ResolveSeedPassword(
@@ -95,8 +91,16 @@ public static class DbInitializer
         }
 
         // Tanım (master) varsayılanları — HER açılış, TÜM tenant'lar, idempotent (yalnız boş kategori dolar).
+        // BranchBackfill bunun ARDINDAN koşar (aşağıda): seed "Merkez" şubesini burada oluşturur.
         // Guard'dan SONRA + koşulsuz: ilk-init'te YENİ oluşturulan tenant'lar da, mevcut/platform tenant'ları da kapsanır.
         await MasterDataSeeder.RunAsync(db, log);
+
+        // Şube-FK (roadmap F1 tamamlama): serbest-metin şubeyi Branch FK'sine doldur (idempotent; interceptor yeni
+        // yazımları zaten çözer). SIRA ZORUNLU — seed kullanıcılarından VE varsayılan şubeden SONRA (kabul B-0): önceden
+        // seed'den önce koşuyordu; bu bağlam interceptor'sız olduğundan seed operatörü "Merkez" adıyla ama FK'sız
+        // doğuyor, şube kapsamı metin yoluna düşüp kendi şubesinin ofisinde bile kira açtırmıyordu. Mevcut FK'sız
+        // kullanıcılar (ve sonradan adı tanımlanan şubeye yazılmış her satır) her açılışta aynı yoldan dolar.
+        await BranchBackfill.RunAsync(db, log);
     }
 
     private static User NewUser(

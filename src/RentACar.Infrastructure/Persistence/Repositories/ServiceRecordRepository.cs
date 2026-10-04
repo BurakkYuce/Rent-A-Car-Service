@@ -49,7 +49,8 @@ public sealed class ServiceRecordRepository(IDbContextFactory<AppDbContext> fact
     public async Task<bool> TransitionAsync(
         Guid id, Action<ServiceRecord> apply,
         VehicleStatus? setVehicleTo, VehicleStatus? onlyWhenVehicleIs,
-        Func<ServiceRecord, VehicleKmLog>? kmLog = null, CancellationToken ct = default)
+        Func<ServiceRecord, VehicleKmLog>? kmLog = null, CancellationToken ct = default,
+        bool rejectWhenVehicleRented = false)
     {
         return await PgRetry.RunAsync(async () => // P0-5: deadlock/serialization çakışmasında baştan dene
         {
@@ -65,13 +66,32 @@ public sealed class ServiceRecordRepository(IDbContextFactory<AppDbContext> fact
             apply(rec);
             rec.UpdatedAtUtc = DateTimeOffset.UtcNow;
 
-            // FAZ 2.5: km zaman-serisi — servis geçişiyle AYNI transaction (tamamlamada çıkış km).
-            if (kmLog is not null) db.KmLoglari.Add(kmLog(rec));
+            // Kabul bulgusu: kiradaki araç servise başlatılamaz. Araç satırı kilitlenir — kira teslimi de aynı satırı
+            // güncellediği için eşzamanlı teslim + servise başla serileşir.
+            if (rejectWhenVehicleRented)
+            {
+                await VehicleCommitmentQueries.LockVehicleAsync(db, rec.VehicleId, ct);
+                if (await VehicleCommitmentQueries.OpenRentalNoAsync(db, rec.VehicleId, ct) is { } contractNo)
+                    throw new ValidationException(
+                        $"Aracın açık kira sözleşmesi var ({contractNo}); kiradaki araç servise başlatılamaz.", "vehicleId");
+            }
 
-            if (setVehicleTo is VehicleStatus vs)
+            // FAZ 2.5: km zaman-serisi — servis geçişiyle AYNI transaction (tamamlamada çıkış km).
+            // Kabul bulgusu: okuma araç km'sini de İLERİ taşır (küçükse araç km'si değişmez).
+            var reading = kmLog?.Invoke(rec);
+            if (reading is not null) db.KmLoglari.Add(reading);
+
+            if (setVehicleTo is not null || reading is not null)
             {
                 var vehicle = await db.Vehicles.FirstOrDefaultAsync(v => v.Id == rec.VehicleId, ct);
-                if (vehicle is not null && (onlyWhenVehicleIs is null || vehicle.Durum == onlyWhenVehicleIs))
+                if (vehicle is not null && reading is not null
+                    && RentACar.Application.Vehicles.Odometer.Advance(vehicle.Km, reading.Km) is var km && km != vehicle.Km)
+                {
+                    vehicle.Km = km;
+                    vehicle.UpdatedAtUtc = DateTimeOffset.UtcNow;
+                }
+                if (setVehicleTo is VehicleStatus vs && vehicle is not null
+                    && (onlyWhenVehicleIs is null || vehicle.Durum == onlyWhenVehicleIs))
                 {
                     vehicle.Durum = vs;
                     vehicle.UpdatedAtUtc = DateTimeOffset.UtcNow;

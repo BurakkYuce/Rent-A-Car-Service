@@ -117,7 +117,8 @@ public sealed class ServiceRecordService(
         }, setVehicleTo: null, onlyWhenVehicleIs: null, ct: ct);
     }
 
-    /// <summary>Açık → Serviste; araç Serviste'ye geçer.</summary>
+    /// <summary>Açık → Serviste; araç Serviste'ye geçer. Açık kirası olan araç başlatılamaz (kayıt açılabilir,
+    /// "Servise Başla" kira dönünce yapılır — kabul bulgusu: araç Kirada→Serviste olup kira açık kalıyordu).</summary>
     public Task<bool> StartAsync(Guid id, CancellationToken ct = default)
         => _repository.TransitionAsync(id, r =>
         {
@@ -126,9 +127,10 @@ public sealed class ServiceRecordService(
             if (r.Durum != ServiceStatus.Acik)
                 throw new ValidationException("Yalnız 'Açık' servis başlatılabilir.");
             r.Durum = ServiceStatus.Serviste;
-        }, setVehicleTo: VehicleStatus.Serviste, onlyWhenVehicleIs: null, ct: ct);
+        }, setVehicleTo: VehicleStatus.Serviste, onlyWhenVehicleIs: null, ct: ct, rejectWhenVehicleRented: true);
 
-    /// <summary>Serviste → Tamamlandi; çıkış KM/tarih, sonraki bakım KM; araç Musait'e döner.</summary>
+    /// <summary>Serviste → Tamamlandi; çıkış KM/tarih, sonraki bakım KM; araç Musait'e döner. Çıkış KM araç km'sini
+    /// İLERİ taşır (araç km'si daha büyükse dokunulmaz — repo <c>kmLog</c> yolu).</summary>
     public Task<bool> CompleteAsync(Guid id, int pickupKm, int? nextMaintenanceKm = null, CancellationToken ct = default)
         => _repository.TransitionAsync(id, r =>
         {

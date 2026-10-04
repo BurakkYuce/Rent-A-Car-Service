@@ -22,14 +22,16 @@ namespace RentACar.Application.Pricing;
 /// Tutar; KM aşım/sigorta MATRAHA GİRMEZ, booking QuoteRequest'inde yok — KURAL A) sözleşmeye yansır + döküm
 /// alanları dolar (HediyeGun/IskontoTutar/HaftaSonuFark/FaturalananGun). Otomatik DEĞİLKEN (legacy blank-rate)
 /// bu facade YALNIZ günlük baz ücreti çözer → Tutar = gün × baz (iskontosuz, döküm null; eski davranış).
-/// KM aşım dönüşte (ReturnMath), ek hizmet RentalAddOn'da. Çok-döviz: matris TRY değilse auto UYGULANMAZ
-/// (booking tek-döviz) → 0 (Otomatik ise temiz red).
+/// KM aşım dönüşte (ReturnMath), ek hizmet RentalAddOn'da. Çok-döviz: tarife tutarları TARİFENİN dövizindedir
+/// (RateMatrix.ParaBirimi / RateCard.Doviz); kira dövizi farklıysa kira başlangıç gününün kuruyla çevrilir,
+/// kur yoksa gürültülü red (<see cref="TariffToBookingAsync"/>).
 /// </summary>
 public sealed class PricingService(
     IVehicleRepository vehicles, RentalQuoteEngine quoteEngine, RateCardService rateCards,
     Customers.ICustomerRepository customers, ReservationSources.IReservationSourceRepository sources,
-    Finance.VatDefault vatDefault)
+    Finance.VatDefault vatDefault, Kur.ExchangeRateResolver exchangeRates)
 {
+    private readonly Kur.ExchangeRateResolver _exchangeRates = exchangeRates;
     private readonly IVehicleRepository _vehicles = vehicles;
     private readonly RentalQuoteEngine _quoteEngine = quoteEngine;
     private readonly RateCardService _rateCards = rateCards;
@@ -103,19 +105,22 @@ public sealed class PricingService(
                     : null;
                 if (q?.TarifeKodu is not null)
                 {
-                    // Matris EŞLEŞTİ. TRY ise efektif günlük ücreti çöz; TRY-dışı → booking tek-döviz → 0 kalır
-                    // (RateCard'a DÜŞME — MEDIUM-1 kararı); Otomatik ise aşağıda temiz red.
-                    if (string.Equals(q.ParaBirimi, "TRY", StringComparison.OrdinalIgnoreCase) && q.GunlukUcret > 0)
+                    // Matris EŞLEŞTİ (RateCard'a DÜŞME — MEDIUM-1 kararı). Tarifenin tutarları TARİFENİN KENDİ
+                    // para birimindedir (RateMatrix.ParaBirimi); sözleşme ise KİRANIN dövizinde tutulur
+                    // (Doviz). Aynıysa doğrudan, farklıysa kira başlangıç gününün kuruyla çevrilir; kur yoksa
+                    // gürültülü red (kabul bulgusu: TL tarife EUR kirada 9.600 TL yerine 9.600 € yazılıyordu).
+                    if (q.GunlukUcret > 0)
                     {
-                        input.GunlukUcret = q.GunlukUcret; // efektif günlük ücret sözleşmeye
+                        var fx = await TariffToBookingAsync(q.ParaBirimi, input.Doviz, input.BasTar, ct);
+                        input.GunlukUcret = fx.Convert(q.GunlukUcret); // efektif günlük ücret sözleşmeye
                         // TAM teklif (iskonto/hediye/hafta-sonu → Tutar + döküm) YALNIZ "Otomatik" seçildiğinde
                         // (adversarial M1: aksi halde her boş-ücretli booking sessizce promosyon uygulardı; legacy
                         // blank-rate yolu yalnız günlük ücreti çözer → gün × baz, iskontosuz, döküm null).
                         if (auto)
-                            return new PricedRental(q.Gun, q.GenelToplam,
+                            return new PricedRental(q.Gun, fx.Convert(q.GenelToplam),
                                 q.HediyeGun > 0 ? q.HediyeGun : null,
-                                q.IskontoTutar > 0 ? q.IskontoTutar : null,
-                                q.HaftaSonuFark > 0 ? q.HaftaSonuFark : null,
+                                q.IskontoTutar > 0 ? fx.Convert(q.IskontoTutar) : null,
+                                q.HaftaSonuFark > 0 ? fx.Convert(q.HaftaSonuFark) : null,
                                 q.HediyeGun > 0 ? q.FaturalananGun : null);
                     }
                 }
@@ -131,7 +136,9 @@ public sealed class PricingService(
 #pragma warning disable CS0618
                     var card = await _rateCards.GetRateAsync(group, day, input.BasTar, ct);
 #pragma warning restore CS0618
-                    if (card?.GunlukUcret is { } r && r > 0) input.GunlukUcret = r;
+                    // Kart da kendi dövizini taşır (RateCard.Doviz) → aynı çevrim kuralı.
+                    if (card?.GunlukUcret is { } r && r > 0)
+                        input.GunlukUcret = (await TariffToBookingAsync(card.Doviz, input.Doviz, input.BasTar, ct)).Convert(r);
                 }
             }
         }
@@ -190,6 +197,38 @@ public sealed class PricingService(
         if (string.IsNullOrWhiteSpace(group)) return (null, null);
         return await _quoteEngine.ResolveKmRuleAsync(
             group, await ResolveChannelAsync(source, ct), pickupOffice, start, end, ct);
+    }
+
+    /// <summary>Tarife dövizinden kira dövizine çevrim (kabul bulgusu B-A1). Kur, kiranın başlangıç günü
+    /// için <see cref="Kur.ExchangeRateResolver"/>'dan (tenant sabit kur → TCMB) alınır — RentalService'in
+    /// KurSnapshot'ı ve önizleme paneli de AYNI gün/AYNI kaynağı kullanır (önizleme == kayıt). Çapraz
+    /// çevrim TL üzerinden: tutar × kur(tarife) ÷ kur(kira). Kur çözülemezse gürültülü red — sessiz 1:1 yok.</summary>
+    private async Task<CurrencyConversion> TariffToBookingAsync(
+        string? tariffCurrency, string? bookingCurrency, DateTimeOffset date, CancellationToken ct)
+    {
+        var from = Kur.ExchangeRateService.NormalizeCode(tariffCurrency);
+        var to = Kur.ExchangeRateService.NormalizeCode(bookingCurrency);
+        if (from == to) return CurrencyConversion.Identity;
+        try
+        {
+            var fromRate = await _exchangeRates.ResolveAsync(from, null, date, ct);
+            var toRate = await _exchangeRates.ResolveAsync(to, null, date, ct);
+            return new CurrencyConversion(fromRate, toRate);
+        }
+        catch (ValidationException ex)
+        {
+            throw new ValidationException(
+                $"Tarife {from} cinsinden, kira dövizi {to}; çevrim için kur bulunamadı ({ex.Message}). "
+                + "Kur tanımlayın ya da kira dövizini tarifeyle aynı seçin.");
+        }
+    }
+
+    /// <summary>Tarife → kira dövizi çevrimi; her tutar ayrı yuvarlanır (2 hane, AwayFromZero).</summary>
+    private readonly record struct CurrencyConversion(decimal FromRate, decimal ToRate)
+    {
+        public static CurrencyConversion Identity => new(1m, 1m);
+        public decimal Convert(decimal amount) =>
+            FromRate == ToRate ? amount : VatMath.RoundGross(amount * FromRate / ToRate);
     }
 
     /// <summary>Kaynak metnini doğrulanmış kanala çevirir (FAZ 3.A4): boş → null; aktif

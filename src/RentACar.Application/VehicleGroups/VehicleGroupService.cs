@@ -36,35 +36,32 @@ public sealed class VehicleGroupService(
     /// <summary>
     /// FAZ-20 — grup ADI başına araç sayısı (liste ekranındaki "Araç Sayısı" kolonu).
     ///
-    /// <para>Eşleştirme, <see cref="ListUnmatchedGroupValuesAsync"/> ile AYNI kuralı kullanır
-    /// (<c>TurkishText.EqualsIgnoreTurkishCase</c>): araçtaki grup bir METİN alanıdır, FK değil —
-    /// "Ekonomik" ile "EKONOMİK" aynı gruptur. İki yerde iki farklı eşleştirme kuralı olsaydı
-    /// "eşleşmeyen" listesi ile sayaç birbirini tutmazdı.</para>
-    ///
-    /// <para>Dönen sözlüğün anahtarı grup ADIdır; listede olmayan ad hiç görünmez (sayaç 0 olarak
-    /// okunur).</para>
+    /// <para>Eşleştirme, <see cref="ListUnmatchedGroupValuesAsync"/> ve fiyat/doluluk tarafıyla AYNI kuralı kullanır
+    /// (<see cref="VehicleGroupMatch.Find"/>: önce Kod, sonra Türkçe-duyarsız Ad — kabul B-A2 / adversarial M2b):
+    /// araçtaki grup bir METİN alanıdır, FK değil — "Ekonomik", "EKONOMİK" ve kod "EKO" aynı gruptur. İki yerde
+    /// iki farklı eşleştirme kuralı olsaydı "eşleşmeyen" listesi, sayaç ve fiyat birbirini tutmazdı; bir araç
+    /// tek gruba sayılır.</para>
     /// </summary>
     public async Task<IReadOnlyDictionary<Guid, int>> VehicleCountsAsync(CancellationToken ct = default)
     {
         var groups = await ListAsync(ct);
         var fleet = await vehicles.ListAsync(ct);
-        return groups.ToDictionary(
-            g => g.Id,
-            g => fleet.Count(v => !string.IsNullOrWhiteSpace(v.Grup)
-                                 && TurkishText.EqualsIgnoreTurkishCase(g.Ad, v.Grup!)));
+        var owners = fleet.Select(v => VehicleGroupMatch.Find(groups, v.Grup, activeOnly: false)?.Id).ToList();
+        return groups.ToDictionary(g => g.Id, g => owners.Count(o => o == g.Id));
     }
 
-    /// <summary>PR-4.5 tanılama — engelleyici değil, yalnız görünürlük. Yetki gerektirmez (okuma).</summary>
+    /// <summary>PR-4.5 tanılama — engelleyici değil, yalnız görünürlük. Yetki gerektirmez (okuma). Eşleşme kuralı
+    /// <see cref="VehicleGroupMatch.Find"/> (aktif gruplar); kodla kayıtlı araç artık "eşleşmeyen" sayılmaz.</summary>
     public async Task<IReadOnlyList<UnmatchedGrupValue>> ListUnmatchedGroupValuesAsync(CancellationToken ct = default)
     {
-        var activeNames = (await ListActiveAsync(ct)).Select(g => g.Ad).ToList();
+        var groups = await ListAsync(ct);
         var fleet = await vehicles.ListAsync(ct);
 
         var result = fleet
             .Select(v => v.Grup)
             .Where(g => !string.IsNullOrWhiteSpace(g))
             .Select(g => g!)
-            .Where(g => !activeNames.Any(name => TurkishText.EqualsIgnoreTurkishCase(name, g)))
+            .Where(g => VehicleGroupMatch.Find(groups, g) is null)
             .GroupBy(g => g, StringComparer.Ordinal)
             .Select(grp => new UnmatchedGrupValue(grp.Key, grp.Count()))
             .OrderByDescending(x => x.AracSayisi)
@@ -76,6 +73,21 @@ public sealed class VehicleGroupService(
         if (emptyCount > 0) result.Add(new UnmatchedGrupValue("(boş)", emptyCount, Bos: true));
 
         return result;
+    }
+
+    /// <summary>Adversarial M2a: bir grubun Ad'ı başka bir grubun Kod'una (ya da tersi) Türkçe-duyarsız eşitse red.
+    /// Araç <c>Grup</c> değeri hem kod hem ad olabildiği için (<see cref="VehicleGroupMatch"/>) böyle bir çakışma aynı
+    /// değeri iki gruba bağlardı (ör. A1/"SUV" + SUV/"Büyük": "SUV" yazan araç hangi grubun?).</summary>
+    private async Task RequireNoCodeNameCrossAsync(VehicleGroupInput n, Guid? excludeId, CancellationToken ct)
+    {
+        foreach (var g in await ListAsync(ct))
+        {
+            if (excludeId is { } id && g.Id == id) continue;
+            if (TurkishText.EqualsIgnoreTurkishCase(g.Kod?.Trim(), n.Ad?.Trim()))
+                throw new ValidationException($"'{n.Ad}' adı başka bir araç grubunun kodu ('{g.Ad}') — ad ile kod çakışamaz.", "ad");
+            if (TurkishText.EqualsIgnoreTurkishCase(g.Ad?.Trim(), n.Kod?.Trim()))
+                throw new ValidationException($"'{n.Kod}' kodu başka bir araç grubunun adı — kod ile ad çakışamaz.", "kod");
+        }
     }
 
     public Task<VehicleGroup?> GetAsync(Guid id, CancellationToken ct = default)
@@ -90,6 +102,7 @@ public sealed class VehicleGroupService(
             throw new ValidationException($"'{n.Kod}' kodlu araç grubu zaten var.");
         if (await _repository.NameExistsAsync(n.Ad, excludeId: null, ct))
             throw new ValidationException($"'{n.Ad}' adlı araç grubu zaten var.");
+        await RequireNoCodeNameCrossAsync(n, excludeId: null, ct);
 
         var group = new VehicleGroup();
         Apply(group, n);
@@ -116,6 +129,7 @@ public sealed class VehicleGroupService(
         // ÜSTÜNE rename edilirse iki grubun filosu tek isim havuzunda birleşirdi.
         if (await _repository.NameExistsAsync(n.Ad, excludeId: id, ct))
             throw new ValidationException($"'{n.Ad}' adlı araç grubu zaten var.");
+        await RequireNoCodeNameCrossAsync(n, excludeId: id, ct);
 
         void ApplyAll(VehicleGroup group)
         {

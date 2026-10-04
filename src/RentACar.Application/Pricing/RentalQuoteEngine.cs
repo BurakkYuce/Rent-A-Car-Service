@@ -54,7 +54,10 @@ public sealed class RentalQuoteEngine(
         if (req.TahminiKm is < 0) throw new ValidationException("Tahmini KM negatif olamaz.");
 
         var notes = new List<string>();
-        var groupCode = req.AracGrupKod.Trim().ToUpperInvariant();
+        // Kabul B-A2: istek değeri aracın Grup alanından gelebilir — ekrandan açılan araçta grubun ADI. Tanımlı gruba
+        // çözülür (önce Kod, sonra Ad) ve tüm eşleşmeler grubun KODUYLA yapılır; tanımsız değer eskisi gibi kod sayılır.
+        var group = VehicleGroupMatch.Find(await _vehicleGroups.ListAsync(ct), req.AracGrupKod); // tüm gruplar (M1)
+        var groupCode = (group?.Kod ?? req.AracGrupKod).Trim().ToUpperInvariant();
         var channel = req.Kanal?.Trim();
         var branch = req.Sube?.Trim();
         var day = BookingMath.ComputeDays(req.BasTar, req.BitTar);
@@ -105,7 +108,7 @@ public sealed class RentalQuoteEngine(
             ? "TRY" : matrix!.ParaBirimi!.Trim().ToUpperInvariant();
 
         // 2) Araç grubu kuralları → KM aşım + provizyon/muafiyet + genç sürücü eşiği (kuraldan bağımsız)
-        var group = (await _vehicleGroups.ListActiveAsync(ct)).FirstOrDefault(g => g.Kod == groupCode);
+        // (grup en başta çözüldü — VehicleGroupMatch; Kod ya da Ad.)
         decimal kmOverage = 0m, preAuth = 0m, exemption = 0m;
         var youngDriver = false;
         if (group is null)
@@ -236,11 +239,12 @@ public sealed class RentalQuoteEngine(
         CancellationToken ct = default)
     {
         if (string.IsNullOrWhiteSpace(groupCode) || end <= start) return (null, null);
-        var code = groupCode.Trim().ToUpperInvariant();
+        // QuoteAsync ile AYNI grup çözümü (Kod sonra Ad — VehicleGroupMatch) ve AYNI kodla matris eşleşmesi.
+        var group = VehicleGroupMatch.Find(await _vehicleGroups.ListAsync(ct), groupCode);
+        var code = (group?.Kod ?? groupCode).Trim().ToUpperInvariant();
         var day = BookingMath.ComputeDays(start, end);
         var notes = new List<string>();
         var matrix = SelectMatrix(await _rateMatrices.ListActiveAsync(ct), code, channel?.Trim(), branch?.Trim(), start, day, notes);
-        var group = (await _vehicleGroups.ListActiveAsync(ct)).FirstOrDefault(g => g.Kod == code);
         return EffectiveKm(matrix, group, day, notes);
     }
 
