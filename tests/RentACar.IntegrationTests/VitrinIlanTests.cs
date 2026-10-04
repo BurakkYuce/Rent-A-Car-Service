@@ -423,35 +423,183 @@ public sealed class VitrinIlanTests(PostgresFixture fx)
         // owner rolünde BYPASSRLS YOK → rezervasyon tenant kapsamlı servisten okunur.
         var res = await staff.ServiceProvider
             .GetRequiredService<RentACar.Application.Bookings.ReservationService>().GetAsync(resId);
-        Assert.Equal(1500m, res!.GunlukUcret);
+        // NET ilan 1.500 → net-mod brüt 1.500 × 1,20 = 1.800 (bkz. KDV_haric_ilan_fiyati_... — fatura neti 1.500/gün).
+        Assert.Equal(1800m, res!.GunlukUcret);
+    }
+
+    /// <summary>
+    /// Kabul bulgusu d-web-talep-03: sitede KDV DAHİL 1.500/gün gösterilen talep rezervasyona 1.250/gün
+    /// yazılıyordu. Kira zinciri (fiyat türü boş = "KDV Dahil Günlük") ücreti BRÜT işler ve fatura
+    /// GenelToplam'dan net+KDV ayrıştırır → müşteriye %16,7 eksik fatura. Gösterilen fiyat, rezervasyon,
+    /// kira ve fatura BİREBİR aynı brütü taşımalı.
+    ///
+    /// ELLE ORACLE (tenant KDV varsayılanı %20, 3 gün): brüt 3 × 1.500 = 4.500; net 4.500 / 1,20 = 3.750;
+    /// KDV 750.
+    /// </summary>
+    [Fact]
+    public async Task KDV_dahil_ilan_fiyati_rezervasyon_kira_ve_faturaya_AYNEN_gecer()
+    {
+        var (res, invoice) = await ConvertAndInvoiceAsync(daily: 1500m, vatIncluded: true, phone: "0555 000 55 66");
+
+        Assert.Equal(1500m, res.GunlukUcret);
+        Assert.Equal(4500m, res.Tutar);
+        Assert.Equal(4500m, invoice.GenelToplam);
+        Assert.Equal(3750m, invoice.NetTutar);
+        Assert.Equal(750m, invoice.KdvTutar);
+    }
+
+    /// <summary>
+    /// KDV HARİÇ ilan (sitede "1.500 + KDV"): kira NET-MOD ("Günlük") ile açılır, brüt = 1.500 × 1,20 = 1.800/gün.
+    /// ELLE ORACLE (3 gün): brüt 5.400; net 4.500 (= 3 × 1.500, sitedeki rakam); KDV 900. Eskiden 1.500 brüt
+    /// gibi işlenip net 3.750'ye düşüyordu.
+    /// </summary>
+    [Fact]
+    public async Task KDV_haric_ilan_fiyati_net_modla_brute_cevrilir_faturada_net_ayni_kalir()
+    {
+        var (res, invoice) = await ConvertAndInvoiceAsync(daily: 1500m, vatIncluded: false, phone: "0555 000 77 88");
+
+        Assert.Equal(1800m, res.GunlukUcret);
+        Assert.Equal(5400m, res.Tutar);
+        Assert.Equal("Toplam", res.FiyatTuru); // NET TOPLAM modu: sitedeki net toplam kuruşu kuruşuna korunur
+        Assert.Equal(0.20m, res.KdvOranSnapshot);
+        Assert.Equal(5400m, invoice.GenelToplam);
+        Assert.Equal(4500m, invoice.NetTutar);
+        Assert.Equal(900m, invoice.KdvTutar);
+    }
+
+    /// <summary>
+    /// Adversarial H1 (#361): 8+ günlük talepte site HAFTALIK kademeyi gösterir (FleetShowcaseService.DailyEquivalent)
+    /// ama talep 1–7 gün fiyatını saklıyordu. ELLE ORACLE: 10 gün, günlük 1.500, haftalık 9.000 (KDV dahil) →
+    /// günlük eşdeğer 9.000 / 7 = 1.285,71; sitedeki toplam 10 × 1.285,71 = 12.857,10 (15.000 DEĞİL).
+    /// </summary>
+    [Fact]
+    public async Task Haftalik_kademe_sitede_gosterilen_toplamla_rezervasyon_ve_faturaya_gecer()
+    {
+        var (res, invoice) = await ConvertAndInvoiceAsync(
+            daily: 1500m, vatIncluded: true, phone: "0555 000 88 99", days: 10, weekly: 9000m);
+
+        Assert.Equal(1285.71m, res.GunlukUcret);
+        Assert.Equal(12857.10m, res.Tutar);
+        Assert.Equal(12857.10m, invoice.GenelToplam);
+    }
+
+    /// <summary>
+    /// Adversarial L1 (#361): KDV hariç ilanda günlük net önce brüte yuvarlanıp gün ile çarpılınca kuruş birikiyordu.
+    /// ELLE ORACLE — faturadaki NET, sitedeki net toplamın ta kendisi olmalı:
+    /// 999,99 × 3 = 2.999,97 (eski yol 2.999,98); 33,33 × 30 = 999,90 (eski yol 1.000,00).
+    /// </summary>
+    [Theory]
+    [InlineData(999.99, 3, 2999.97)]
+    [InlineData(33.33, 30, 999.90)]
+    public async Task KDV_haric_ilanda_fatura_neti_sitedeki_net_toplama_esittir(double daily, int days, double expectedNet)
+    {
+        var (_, invoice) = await ConvertAndInvoiceAsync(
+            daily: (decimal)daily, vatIncluded: false, phone: "0555 000 12 " + days.ToString("00"), days: days);
+
+        Assert.Equal((decimal)expectedNet, invoice.NetTutar);
+    }
+
+    /// <summary>
+    /// #361 adversarial kalıcı kilitleri (elle oracle, tenant KDV %20). P1/P2/P3 yukarıdaki testlerde.
+    /// P1b — aylık kademe: 30 gün, aylık 36.000 KDV dahil → günlük 1.200, rezervasyon ve fatura 36.000.
+    /// P4 — KDV hariç + haftalık kademe: 10 gün, haftalık 7.000 net → günlük net 1.000, net toplam 10.000 →
+    /// brüt 12.000; faturada net 10.000 / KDV 2.000.
+    /// </summary>
+    [Fact]
+    public async Task P1b_aylik_kademe_KDV_dahil_gosterilen_toplam_aynen_gecer()
+    {
+        var (res, invoice) = await ConvertAndInvoiceAsync(
+            daily: 1500m, vatIncluded: true, phone: "0555 001 00 01", days: 30, monthly: 36000m);
+        Assert.Equal(1200m, res.GunlukUcret);
+        Assert.Equal(36000m, res.Tutar);
+        Assert.Equal(36000m, invoice.GenelToplam);
     }
 
     [Fact]
-    public async Task KDV_dahil_ilan_fiyati_sozlesmeye_NET_gecer()
+    public async Task P4_KDV_haric_haftalik_kademe_net_toplam_faturada_aynen_kalir()
+    {
+        var (res, invoice) = await ConvertAndInvoiceAsync(
+            daily: 1500m, vatIncluded: false, phone: "0555 001 00 04", days: 10, weekly: 7000m);
+        Assert.Equal(12000m, res.Tutar);
+        Assert.Equal(12000m, invoice.GenelToplam);
+        Assert.Equal(10000m, invoice.NetTutar);
+        Assert.Equal(2000m, invoice.KdvTutar);
+    }
+
+    /// <summary>P5 — net toplam ("Toplam") modlu site rezervasyonu DOKUNULMADAN yeniden kaydedilir: tutar ve günlük
+    /// brüt DEĞİŞMEZ (çift gross-up yok). 1.500 net × 3 → brüt 5.400, günlük 1.800.</summary>
+    [Fact]
+    public async Task P5_toplam_modlu_rezervasyon_dokunulmadan_kaydedilince_tutar_degismez()
+    {
+        var (res, invoice) = await ConvertAndInvoiceAsync(
+            daily: 1500m, vatIncluded: false, phone: "0555 001 00 05",
+            edit: (svc, r) => svc.UpdateAsync(r.Id, EditInput(r, r.GunlukUcret)));
+        Assert.Equal(1800m, res.GunlukUcret);
+        Assert.Equal(5400m, res.Tutar);
+        Assert.Equal("Toplam", res.FiyatTuru);
+        Assert.Equal(4500m, invoice.NetTutar);
+    }
+
+    /// <summary>P6 (Medium) — "Toplam" modlu rezervasyonda formdaki "Günlük ücret" (kayıtlı günlük BRÜT) 1.700'e
+    /// çekilir: tutar 3 × 1.700 = 5.100 (eskiden net toplam sayılıp 2.040). Mod "KDV Dahil Günlük"e normalize olur;
+    /// fatura brüt 5.100 / net 4.250 / KDV 850.</summary>
+    [Fact]
+    public async Task P6_toplam_modda_gunluk_ucret_duzenlemesi_gunluk_brut_sayilir()
+    {
+        var (res, invoice) = await ConvertAndInvoiceAsync(
+            daily: 1500m, vatIncluded: false, phone: "0555 001 00 06",
+            edit: (svc, r) => svc.UpdateAsync(r.Id, EditInput(r, 1700m)));
+        Assert.Equal(1700m, res.GunlukUcret);
+        Assert.Equal(5100m, res.Tutar);
+        Assert.Equal("KDV Dahil Günlük", res.FiyatTuru);
+        Assert.Null(res.KdvOranSnapshot);
+        Assert.Equal(5100m, invoice.GenelToplam);
+        Assert.Equal(4250m, invoice.NetTutar);
+        Assert.Equal(850m, invoice.KdvTutar);
+    }
+
+    /// <summary>Düzenleme formunun tam-durum gövdesi: kayıtlı değerler + verilen günlük ücret.</summary>
+    private static RentACar.Application.Bookings.BookingInput EditInput(Reservation r, decimal dailyFee) => new()
+    {
+        MusteriId = r.MusteriId, VehicleId = r.VehicleId, BasTar = r.BasTar, BitTar = r.BitTar,
+        CikisOfisi = r.CikisOfisi, DonusOfisi = r.DonusOfisi, Kaynak = r.Kaynak, Aciklama = r.Aciklama,
+        GunlukUcret = dailyFee, FiyatTuru = r.FiyatTuru,
+    };
+
+    /// <summary>Talep → rezervasyon → (isteğe bağlı düzenleme) → kira → fatura zincirini uçtan uca yürütür.</summary>
+    private async Task<(Reservation Res, Invoice Invoice)> ConvertAndInvoiceAsync(
+        decimal daily, bool vatIncluded, string phone, int days = 3, decimal? weekly = null, decimal? monthly = null,
+        Func<RentACar.Application.Bookings.ReservationService, Reservation, Task<bool>>? edit = null)
     {
         using var host = new TestHost(fx.AppConnectionString);
         var t = Guid.NewGuid();
-        var (listingId, _, vehicleIds) = await SetupListingAsync(host, t, daily: 1200m, vatIncluded: true);
-
-        var vehicleId = vehicleIds[0];
+        var (listingId, _, vehicleIds) = await SetupListingAsync(
+            host, t, daily: daily, weekly: weekly, monthly: monthly, vatIncluded: vatIncluded);
 
         using (var s = host.ScopeFor(t, role: null))
             await s.ServiceProvider.GetRequiredService<PublicBookingRequestService>().CreateAsync(
                 new PublicBookingRequestInput
                 {
-                    AdSoyad = "Ali Veli", Telefon = "0555 000 55 66", IlanId = listingId,
-                    BasTar = DateTimeOffset.UtcNow.AddDays(5), BitTar = DateTimeOffset.UtcNow.AddDays(8),
+                    AdSoyad = "Ali Veli", Telefon = phone, IlanId = listingId,
+                    BasTar = TestZaman.DaysLater(5), BitTar = TestZaman.DaysLater(5 + days),
                 });
 
         using var staff = host.ScopeFor(t);
         var svc = staff.ServiceProvider.GetRequiredService<PublicBookingRequestService>();
-        var resId = await svc.ConvertAsync((await svc.ListAsync()).Single().Id, vehicleId);
+        var resId = await svc.ConvertAsync((await svc.ListAsync()).Single().Id, vehicleIds[0]);
 
-        // ELLE ORACLE: ERP zinciri NET çalışır. 1200 brüt / 1,20 = 1000 net. Brütü olduğu gibi
-        // geçirmek sözleşmeyi KDV oranı kadar ŞİŞİRİRDİ.
-        var res = await staff.ServiceProvider
-            .GetRequiredService<RentACar.Application.Bookings.ReservationService>().GetAsync(resId);
-        Assert.Equal(1000m, res!.GunlukUcret);
+        var reservations = staff.ServiceProvider.GetRequiredService<RentACar.Application.Bookings.ReservationService>();
+        var res = (await reservations.GetAsync(resId))!;
+        if (edit is not null)
+        {
+            Assert.True(await edit(reservations, res));
+            res = (await reservations.GetAsync(resId))!;
+        }
+        var rentalId = await reservations.ConvertToRentalAsync(resId);
+
+        var invoices = staff.ServiceProvider.GetRequiredService<RentACar.Application.Finance.InvoiceService>();
+        var invoice = (await invoices.GetAsync(await invoices.CreateFromRentalAsync(rentalId)))!;
+        return (res, invoice);
     }
 
     // ---- İzolasyon ----

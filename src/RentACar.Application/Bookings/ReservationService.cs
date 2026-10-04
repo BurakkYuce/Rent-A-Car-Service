@@ -166,6 +166,7 @@ public sealed class ReservationService(
         // kiraya çevrilince taşınır — önceden (kontrol yokken) yazılmış yabancı kimlik düzenlemeyle "aklanmasın".
         // Maliyet iki birincil anahtar okuması. Önceki /api/ui davranışıyla aynı (orada da her PUT'ta denetleniyordu).
         await BookingPartyCheck.RequireAsync(customers, vehicles, input.MusteriId, input.VehicleId, ct);
+        NormalizeEditedFee(existing, input);
 
         // FAZ 3.A7 adversarial B4: FİYAT-ETKİLEYEN girdiler değişmedikçe REPRICE ATLANIR — no-op/not
         // düzenlemesi kabul edilmiş fiyatı (create'te kilitlenen surge dahil) SESSİZCE düşüremez/yükseltemez.
@@ -251,6 +252,29 @@ public sealed class ReservationService(
         return expectedVersion is null
             ? await _repository.UpdateReservationAsync(id, Apply, ct)
             : await _repository.UpdateReservationAsync(id, expectedVersion, Apply, ct);
+    }
+
+    /// <summary>Kayıtta GÜNLÜK BRÜT saklanan (PricingService.ApplyVatMode normalize eder) fiyat türleri — girilen
+    /// değeri net ya da toplam olarak yorumlayan modlar.</summary>
+    private static readonly string[] NonDailyGrossModes = ["Günlük", "Toplam", "KDV Dahil Toplam"];
+
+    /// <summary>
+    /// #361 adversarial M1: net/toplam modlu rezervasyonda (site talebi "Toplam" ile gelir; elle de seçilebilir)
+    /// kayıtlı <c>GunlukUcret</c> GÜNLÜK BRÜT'tür ve düzenleme formunun "Günlük ücret" alanı bu değeri gösterir.
+    /// Kullanıcı modu değiştirmeden ücreti düzenlerse yazdığı değer de günlük brüttür — eskiden servis onu modun
+    /// anlamıyla (net toplam / net günlük) yeniden yorumluyordu: Toplam modda 1.700 → tutar 2.040 (beklenen
+    /// 3 × 1.700 = 5.100). Bu durumda fiyat türü "KDV Dahil Günlük"e normalize edilir: tutar = gün × girilen ücret,
+    /// net-mod snapshot'ı düşer (yeni fiyat brüt girildi; fatura tenant oranından ayrıştırır).
+    /// <para>"Günlük" (net günlük) mod da aynı sınıftadır — alanda brüt 1.200 görünürken 1.100 yazmak net 1.100
+    /// sayılıp 1.320 olurdu; kural üç modu birlikte kapsar. Ücrete dokunulmadıysa ya da mod da değiştirildiyse
+    /// (kullanıcı modun anlamını bilerek seçti) davranış değişmez.</para>
+    /// </summary>
+    private static void NormalizeEditedFee(Reservation existing, BookingInput input)
+    {
+        var sameMode = string.Equals(existing.FiyatTuru ?? "", input.FiyatTuru?.Trim() ?? "", StringComparison.OrdinalIgnoreCase);
+        var nonDailyGross = NonDailyGrossModes.Any(m => string.Equals(m, existing.FiyatTuru?.Trim(), StringComparison.OrdinalIgnoreCase));
+        if (sameMode && nonDailyGross && existing.GunlukUcret != input.GunlukUcret && input.GunlukUcret > 0m)
+            input.FiyatTuru = "KDV Dahil Günlük";
     }
 
     public Task<bool> ConfirmAsync(Guid id, CancellationToken ct = default)
