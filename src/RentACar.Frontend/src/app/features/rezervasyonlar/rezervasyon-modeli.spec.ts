@@ -7,8 +7,24 @@ import {
   reservationBody,
   mergeServerValues,
   defaultDates,
+  grossDailyFeeNoteVisible,
 } from './rezervasyon-modeli';
 import { VEHICLE_ID, CUSTOMER_ID, reservationDetail } from './rezervasyon-test-verisi';
+
+describe('günlük ücret notu (#361 L1): net/toplam modda alan KDV dahil günlük ücreti gösterir', () => {
+  it.each([
+    ['Toplam', 'Toplam', true],
+    ['KDV Dahil Toplam', 'KDV Dahil Toplam', true],
+    ['Günlük', 'Günlük', true],
+    // Mod değiştirildiyse sunucu normalize etmez (kullanıcı modun anlamını bilerek seçti) → not yok.
+    ['Toplam', 'Günlük', false],
+    ['KDV Dahil Günlük', 'KDV Dahil Günlük', false],
+    ['Otomatik', 'Otomatik', false],
+    [null, null, false],
+  ] as const)('kayıtlı %j, formda %j → %s', (saved, current, visible) => {
+    expect(grossDailyFeeNoteVisible(saved, current)).toBe(visible);
+  });
+});
 
 describe('rezervasyon modeli', () => {
   it('varsayılan tarihler: bugün 09:00 (İstanbul) geçmediyse bugün, geçtiyse yarın; bitiş +3 gün', () => {

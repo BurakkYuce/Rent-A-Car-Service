@@ -6,6 +6,7 @@ import {
   inject,
   untracked,
 } from '@angular/core';
+import { toSignal } from '@angular/core/rxjs-interop';
 import type { AbstractControl } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 
@@ -35,6 +36,7 @@ import {
   toNumber,
   mergeServerValues,
   defaultDates,
+  grossDailyFeeNoteVisible,
   type ReservationField,
   type ReservationDetailResponse,
   type ReservationFormValue,
@@ -96,6 +98,13 @@ export class ReservationFormPage implements UnsavedChangesOwner {
   protected readonly sourceDataSource = serverSelectionSource('rezervasyon-kaynagi');
 
   protected readonly res = computed(() => this.detay.veri()?.rezervasyon ?? null);
+  private readonly priceMode = toSignal(this.form.controls.fiyatTuru.valueChanges, {
+    initialValue: this.form.controls.fiyatTuru.value,
+  });
+  /** #361 L1: net/toplam modlu kayıtta "Günlük ücret" KDV dahil günlük ücrettir — düzenlenirse mod değişir. */
+  protected readonly grossFeeNote = computed(
+    () => !this.yeni && grossDailyFeeNoteVisible(this.res()?.fiyatTuru, this.priceMode()),
+  );
   /** Sayfa bandı başlığı (sayfanın tek `<h1>`'i). */
   protected readonly baslik = computed(() =>
     this.yeni

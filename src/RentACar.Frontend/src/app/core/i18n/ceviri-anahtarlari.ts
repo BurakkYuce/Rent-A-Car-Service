@@ -4064,6 +4064,7 @@ export type CeviriAnahtari =
   | 'rezervasyon.alan.fiyatTuru'
   | 'rezervasyon.alan.geldigiBirim'
   | 'rezervasyon.alan.gunlukUcret'
+  | 'rezervasyon.alan.gunlukUcretBrutNot'
   | 'rezervasyon.alan.kampanyaIpucu'
   | 'rezervasyon.alan.kampanyaKodu'
   | 'rezervasyon.alan.kaynak'
