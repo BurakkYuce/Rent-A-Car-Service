@@ -23,7 +23,7 @@
     "kullanici": {
       "baslik": "Kullanıcı Yönetimi",
       "aciklama": "Firma kullanıcıları, rolleri, şube kapsamı ve kullanıcı bazlı izin istisnaları. Tüm işlemler denetim kaydına yazılır.",
-      "adminNotu": "Admin hesaplarını oluşturma, düzenleme ve ManageUsers izni verme yalnız Admin rolüne açıktır.",
+      "adminNotu": "Kullanıcı oluşturma, düzenleme, parola sıfırlama ve izin istisnaları yalnız Admin rolüne açıktır; bu ekranı salt okunur görüyorsunuz.",
       "yeni": "Yeni kullanıcı",
       "liste": "Kullanıcılar",
       "kullaniciAdi": "Kullanıcı adı",
@@ -47,6 +47,11 @@
       "yeniParola": "{{ad}} için yeni parola",
       "parolaKaydet": "Parolayı kaydet",
       "parolaSifirlandi": "{{ad}} kullanıcısının parolası değiştirildi.",
+      "duzenle": "Rol / şube",
+      "duzenleBaslik": "{{ad}} — rol ve şube",
+      "duzenleNotu": "Kaydedince kullanıcının açık oturumları kısa süre içinde (en geç ~1 dk) kapanır; yeniden girişte yeni rol ve şube geçerli olur. Kendinizden kıdemli bir rol atayamazsınız.",
+      "duzenleKaydet": "Kaydet",
+      "guncellendi": "{{ad}} güncellendi; açık oturumları yeniden giriş ister.",
       "rol": {
         "Admin": "Admin",
         "Yonetici": "Yönetici",
@@ -55,7 +60,7 @@
       },
       "istisna": {
         "baslik": "İzin istisnaları",
-        "aciklama": "Rol matrisinin üstüne tek kullanıcıya ek izin verme ya da matristen gelen bir izni geri alma. Yasak her zaman kazanır. Değişiklik kullanıcının bir sonraki girişinde etkinleşir. Kendi istisnanızı değiştiremezsiniz.",
+        "aciklama": "Rol matrisinin üstüne tek kullanıcıya ek izin verme ya da matristen gelen bir izni geri alma. Yasak her zaman kazanır. Değişiklikte kullanıcının açık oturumları kısa süre içinde (en geç ~1 dk) kapanır; yeniden girişte yeni izinler geçerli olur. Kendi istisnanızı değiştiremezsiniz.",
         "bos": "İstisna yok (herkes rol matrisine göre).",
         "izin": "İzin",
         "tur": "Tür",
@@ -65,15 +70,16 @@
         "ekIzin": "Ek izin",
         "yasakEtiket": "Yasak",
         "kaydet": "İstisnayı kaydet",
-        "kaydedildi": "İstisna kaydedildi (sonraki girişte etkin).",
+        "kaydedildi": "İstisna kaydedildi; kullanıcının açık oturumları yeniden giriş ister.",
         "kaldir": "Kaldır",
         "kaldirBaslik": "İstisna kaldırılsın mı?",
-        "kaldirMesaj": "{{ad}} kullanıcısının {{izin}} istisnası kaldırılır (sonraki girişte etkin).",
+        "kaldirMesaj": "{{ad}} kullanıcısının {{izin}} istisnası kaldırılır; kullanıcının açık oturumları yeniden giriş ister.",
         "kaldirildi": "İstisna kaldırıldı."
       }
     },
     "yetki": {
       "baslik": "Ekran Yetkileri",
+      "yalnizAdmin": "Ekran yetkisi, rol kopyalama ve şablon değişiklikleri yalnız Admin rolüne açıktır; bu ekranı salt okunur görüyorsunuz.",
       "aciklama": "Rol-izin matrisi (taban) üstüne ekran bazlı sıkılaştırma. Bir ekran için override tanımlarsanız yalnız seçili roller erişir; matris izni yine şarttır — override yetkiyi genişletmez. Override yoksa matris aynen geçerlidir.",
       "overrideler": "Ekran override'ları",
       "overrideYok": "Override yok (tüm ekranlar matrise göre).",
@@ -411,7 +417,7 @@
       "yeni": "Yeni parola",
       "tekrar": "Yeni parola (tekrar)",
       "kaydet": "Parolayı değiştir",
-      "degisti": "Parolanız değiştirildi."
+      "degisti": "Parolanız değiştirildi. Güvenlik için tüm oturumlarınız kapatıldı; yeni parolanızla giriş yapın."
     },
     "ayarlar": {
       "baslik": "Firma Ayarları",

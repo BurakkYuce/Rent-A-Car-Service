@@ -30,6 +30,8 @@ public sealed class JwtTokenService(IOptions<JwtOptions> options)
             new(ApiClaims.TenantCode, login.Tenant.Code),
             new(ApiClaims.AssignedBranch, login.User.AtanmisSube ?? string.Empty),
             new(ApiClaims.AssignedBranchId, login.User.AtanmisSubeId?.ToString() ?? string.Empty), // FAZ 5-C1
+            // Güvenlik L2: oturum damgası — OnTokenValidated her istekte DB'dekiyle karşılaştırır (web çereziyle aynı).
+            new(ApiClaims.SecurityStamp, UserSessionStateCache.Normalize(login.User.GuvenlikDamgasi)),
         };
 
         // Kullanıcı-bazlı istisnalar — cookie ile AYNI claim adları (izin adı başına bir claim).

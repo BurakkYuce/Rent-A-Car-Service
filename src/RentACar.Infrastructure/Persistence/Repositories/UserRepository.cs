@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using RentACar.Application.Users;
 using RentACar.Domain.Entities;
+using RentACar.Infrastructure.Identity;
 
 namespace RentACar.Infrastructure.Persistence.Repositories;
 
@@ -9,9 +10,10 @@ namespace RentACar.Infrastructure.Persistence.Repositories;
 /// filtresi BURADA db.TenantId ile açıkça uygulanır. Oluşturmada TenantId damgalanır;
 /// DB tarafında RLS yazma politikası (WITH CHECK tenant) ikinci savunma katmanıdır.
 /// </summary>
-public sealed class UserRepository(IDbContextFactory<AppDbContext> factory) : IUserRepository
+public sealed class UserRepository(IDbContextFactory<AppDbContext> factory, UserSessionStateCache? sessions = null) : IUserRepository
 {
     private readonly IDbContextFactory<AppDbContext> _factory = factory;
+    private readonly UserSessionStateCache? _sessions = sessions;
 
     public async Task<IReadOnlyList<User>> ListAsync(CancellationToken ct = default)
     {
@@ -69,11 +71,46 @@ public sealed class UserRepository(IDbContextFactory<AppDbContext> factory) : IU
     /// F11.1b güvenlik M1/M2 — kiracı kilidi ALTINDA güncelleme: uygulamadan sonra aktif Admin kalmayacaksa red
     /// (sayım kilit altında; eşzamanlı iki pasifleştirme ayrı ayrı geçemez); denetim kaydı aynı işlemde.
     /// </summary>
-    public async Task<bool> UpdateAuditedAsync(Guid id, Action<User> apply, UserAuditEntry audit, CancellationToken ct = default)
+    public Task<bool> UpdateAuditedAsync(Guid id, Action<User> apply, UserAuditEntry audit, CancellationToken ct = default)
+        => UpdateAuditedCoreAsync(id, expectedVersion: null, apply, audit, ct);
+
+    public Task<bool> UpdateAuditedAsync(Guid id, string expectedVersion, Action<User> apply, UserAuditEntry audit, CancellationToken ct = default)
+        => UpdateAuditedCoreAsync(id, expectedVersion, apply, audit, ct);
+
+    public async Task<IReadOnlyDictionary<Guid, string>> GetVersionsAsync(CancellationToken ct = default)
+    {
+        await using var db = await _factory.CreateDbContextAsync(ct);
+        var tenantId = db.TenantId;
+        var rows = await db.Database.SqlQuery<UserVersion>(
+            $"SELECT \"Id\", xmin::text AS \"Surum\" FROM \"Users\" WHERE \"TenantId\" = {tenantId}").ToListAsync(ct);
+        return rows.ToDictionary(r => r.Id, r => r.Surum);
+    }
+
+    private sealed class UserVersion
+    {
+        public Guid Id { get; set; }
+        public string Surum { get; set; } = "";
+    }
+
+    private async Task<bool> UpdateAuditedCoreAsync(
+        Guid id, string? expectedVersion, Action<User> apply, UserAuditEntry audit, CancellationToken ct)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
         await using var tx = await db.Database.BeginTransactionAsync(ct);
         await UserAdminAudit.LockTenantAsync(db, ct);
+        if (expectedVersion is not null)
+        {
+            // Satır kilidi + sürüm aynı işlemde: karşılaştırma ile yazma arasında başka yazım giremez. Kiracı koşulu
+            // açık (Users RLS'siz platform tablosu) — başka kiracının satırı "yok"tur.
+            var tenantId = db.TenantId;
+            var current = await db.Database.SqlQuery<string>(
+                $"SELECT xmin::text AS \"Value\" FROM \"Users\" WHERE \"Id\" = {id} AND \"TenantId\" = {tenantId} FOR UPDATE")
+                .ToListAsync(ct);
+            if (current.Count == 0) return false;
+            if (!string.Equals(current[0], expectedVersion.Trim(), StringComparison.Ordinal))
+                throw new Application.Common.ConcurrentModificationException(
+                    Application.Common.ConcurrentModificationException.RecordMessage);
+        }
         var user = await db.Users.FirstOrDefaultAsync(u => u.Id == id && u.TenantId == db.TenantId, ct);
         if (user is null) return false;
         var wasActiveAdmin = user is { IsActive: true, Rol: Domain.Enums.UserRole.Admin };
@@ -81,11 +118,28 @@ public sealed class UserRepository(IDbContextFactory<AppDbContext> factory) : IU
         if (wasActiveAdmin && user is not { IsActive: true, Rol: Domain.Enums.UserRole.Admin }
             && !await db.Users.AsNoTracking().AnyAsync(u => u.TenantId == db.TenantId && u.Id != id && u.IsActive
                                                           && u.Rol == Domain.Enums.UserRole.Admin, ct))
-            throw new Application.Common.ValidationException("Son aktif Admin kullanıcısı pasifleştirilemez.");
+            throw new Application.Common.ValidationException(
+                "Son aktif Admin kullanıcısı pasifleştirilemez ya da rolü değiştirilemez.");
+        // Güvenlik F1: yönetim eylemi (rol/şube/aktiflik/parola) oturum damgasını yeniler → hedefin açık oturumları
+        // bir sonraki istekte düşer (çerez doğrulaması karşılaştırır).
+        user.GuvenlikDamgasi = UserSessionStateCache.NewStamp();
         UserAdminAudit.Add(db, UserAdminAudit.UsersEntity, id, Domain.Enums.AuditAction.Update, audit,
             new Dictionary<string, object?> { ["KullaniciAdi"] = user.UserName });
         await db.SaveChangesAsync(ct);
         await tx.CommitAsync(ct);
+        _sessions?.Invalidate(id);
+        return true;
+    }
+
+    /// <summary>Güvenlik F1 — izin istisnası gibi Users dışı yetki değişikliklerinde hedefin oturum damgasını yeniler.</summary>
+    public async Task<bool> RenewSecurityStampAsync(Guid id, CancellationToken ct = default)
+    {
+        await using var db = await _factory.CreateDbContextAsync(ct);
+        var user = await db.Users.FirstOrDefaultAsync(u => u.Id == id && u.TenantId == db.TenantId, ct);
+        if (user is null) return false;
+        user.GuvenlikDamgasi = UserSessionStateCache.NewStamp();
+        await db.SaveChangesAsync(ct);
+        _sessions?.Invalidate(id);
         return true;
     }
 }

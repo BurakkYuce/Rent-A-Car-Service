@@ -43,21 +43,23 @@
                     </td>
                     <td>{{ s.guncellemeUtc | tarihSaat }}</td>
                     <td class="satir-eylemleri">
-                      <button
-                        type="button"
-                        class="rc-dugme rc-dugme--hayalet rc-dugme--kucuk"
-                        (click)="edit(s)"
-                      >
-                        {{ 'sistem.yetki.duzenle' | transloco }}
-                      </button>
-                      <button
-                        type="button"
-                        class="rc-dugme rc-dugme--hayalet rc-dugme--kucuk"
-                        [disabled]="busy()"
-                        (click)="removeOverride(s)"
-                      >
-                        {{ 'sistem.ortak.sil' | transloco }}
-                      </button>
+                      @if (isAdmin()) {
+                        <button
+                          type="button"
+                          class="rc-dugme rc-dugme--hayalet rc-dugme--kucuk"
+                          (click)="edit(s)"
+                        >
+                          {{ 'sistem.yetki.duzenle' | transloco }}
+                        </button>
+                        <button
+                          type="button"
+                          class="rc-dugme rc-dugme--hayalet rc-dugme--kucuk"
+                          [disabled]="busy()"
+                          (click)="removeOverride(s)"
+                        >
+                          {{ 'sistem.ortak.sil' | transloco }}
+                        </button>
+                      }
                     </td>
                   </tr>
                 }
@@ -71,81 +73,91 @@
       }
     }
 
-    <h3>{{ 'sistem.yetki.overrideEkle' | transloco }}</h3>
-    <rc-form-hatalari [hatalar]="overrideSubmit.genelHatalar()" />
-    <div class="rc-form-izgara" [formGroup]="overrideForm">
-      <rc-alan [etiket]="'sistem.yetki.ekranKodu' | transloco">
-        <rc-metin-girdisi
-          formControlName="ekranKodu"
-          [azamiUzunluk]="64"
-          [yerTutucu]="'sistem.yetki.ekranKoduOrnek' | transloco"
-        />
-      </rc-alan>
-      <fieldset class="onay-grubu">
-        <legend>{{ 'sistem.yetki.izinliRoller' | transloco }}</legend>
-        @for (r of roles; track r) {
-          <rc-onay-kutusu [formControlName]="r">{{ r }}</rc-onay-kutusu>
-        }
-      </fieldset>
-      <rc-onay-kutusu formControlName="aktif">{{
-        'sistem.ortak.aktif' | transloco
-      }}</rc-onay-kutusu>
-      <div class="eylemler">
-        <button
-          type="button"
-          class="rc-dugme rc-dugme--birincil"
-          [disabled]="overrideSubmit.gonderiliyor()"
-          (click)="saveOverride()"
-        >
-          {{ 'sistem.ortak.kaydet' | transloco }}
-        </button>
+    @if (!isAdmin()) {
+      <p class="rc-form-mesaji rc-form-mesaji--uyari">
+        {{ 'sistem.yetki.yalnizAdmin' | transloco }}
+      </p>
+    } @else {
+      <h3>{{ 'sistem.yetki.overrideEkle' | transloco }}</h3>
+      <rc-form-hatalari [hatalar]="overrideSubmit.genelHatalar()" />
+      <div class="rc-form-izgara" [formGroup]="overrideForm">
+        <rc-alan [etiket]="'sistem.yetki.ekranKodu' | transloco">
+          <rc-metin-girdisi
+            formControlName="ekranKodu"
+            [azamiUzunluk]="64"
+            [yerTutucu]="'sistem.yetki.ekranKoduOrnek' | transloco"
+          />
+        </rc-alan>
+        <fieldset class="onay-grubu">
+          <legend>{{ 'sistem.yetki.izinliRoller' | transloco }}</legend>
+          @for (r of roles; track r) {
+            <rc-onay-kutusu [formControlName]="r">{{ r }}</rc-onay-kutusu>
+          }
+        </fieldset>
+        <rc-onay-kutusu formControlName="aktif">{{
+          'sistem.ortak.aktif' | transloco
+        }}</rc-onay-kutusu>
+        <div class="eylemler">
+          <button
+            type="button"
+            class="rc-dugme rc-dugme--birincil"
+            [disabled]="overrideSubmit.gonderiliyor()"
+            (click)="saveOverride()"
+          >
+            {{ 'sistem.ortak.kaydet' | transloco }}
+          </button>
+        </div>
       </div>
-    </div>
+    }
   </section>
 
-  <section class="rc-bolum" aria-labelledby="yetki-kopyala">
-    <h2 id="yetki-kopyala">{{ 'sistem.yetki.kopyalaBolum' | transloco }}</h2>
-    <p class="not">{{ 'sistem.yetki.kopyalaAciklama' | transloco }}</p>
-    <rc-form-hatalari [hatalar]="copySubmit.genelHatalar()" />
-    <div class="rc-form-izgara" [formGroup]="copyForm">
-      <rc-alan [etiket]="'sistem.yetki.kaynakRol' | transloco">
-        <rc-secim formControlName="kaynak" [secenekler]="roleOptions" />
-      </rc-alan>
-      <rc-alan [etiket]="'sistem.yetki.hedefRol' | transloco">
-        <rc-secim formControlName="hedef" [secenekler]="roleOptions" />
-      </rc-alan>
-      <div class="eylemler">
-        <button
-          type="button"
-          class="rc-dugme"
-          [disabled]="copySubmit.gonderiliyor()"
-          (click)="copyRole()"
-        >
-          {{ 'sistem.yetki.kopyala' | transloco }}
-        </button>
+  @if (isAdmin()) {
+    <section class="rc-bolum" aria-labelledby="yetki-kopyala">
+      <h2 id="yetki-kopyala">{{ 'sistem.yetki.kopyalaBolum' | transloco }}</h2>
+      <p class="not">{{ 'sistem.yetki.kopyalaAciklama' | transloco }}</p>
+      <rc-form-hatalari [hatalar]="copySubmit.genelHatalar()" />
+      <div class="rc-form-izgara" [formGroup]="copyForm">
+        <rc-alan [etiket]="'sistem.yetki.kaynakRol' | transloco">
+          <rc-secim formControlName="kaynak" [secenekler]="roleOptions" />
+        </rc-alan>
+        <rc-alan [etiket]="'sistem.yetki.hedefRol' | transloco">
+          <rc-secim formControlName="hedef" [secenekler]="roleOptions" />
+        </rc-alan>
+        <div class="eylemler">
+          <button
+            type="button"
+            class="rc-dugme"
+            [disabled]="copySubmit.gonderiliyor()"
+            (click)="copyRole()"
+          >
+            {{ 'sistem.yetki.kopyala' | transloco }}
+          </button>
+        </div>
       </div>
-    </div>
-  </section>
+    </section>
+  }
 
   <section class="rc-bolum" aria-labelledby="yetki-gruplar">
     <h2 id="yetki-gruplar">{{ 'sistem.yetki.gruplar' | transloco }}</h2>
     <p class="not">{{ 'sistem.yetki.gruplarAciklama' | transloco }}</p>
-    <rc-form-hatalari [hatalar]="groupSubmit.genelHatalar()" />
-    <div class="rc-form-izgara" [formGroup]="groupForm">
-      <rc-alan [etiket]="'sistem.yetki.sablonAdi' | transloco">
-        <rc-metin-girdisi formControlName="ad" [azamiUzunluk]="128" />
-      </rc-alan>
-      <div class="eylemler">
-        <button
-          type="button"
-          class="rc-dugme"
-          [disabled]="groupSubmit.gonderiliyor()"
-          (click)="saveGroup()"
-        >
-          {{ 'sistem.yetki.grupKaydet' | transloco }}
-        </button>
+    @if (isAdmin()) {
+      <rc-form-hatalari [hatalar]="groupSubmit.genelHatalar()" />
+      <div class="rc-form-izgara" [formGroup]="groupForm">
+        <rc-alan [etiket]="'sistem.yetki.sablonAdi' | transloco">
+          <rc-metin-girdisi formControlName="ad" [azamiUzunluk]="128" />
+        </rc-alan>
+        <div class="eylemler">
+          <button
+            type="button"
+            class="rc-dugme"
+            [disabled]="groupSubmit.gonderiliyor()"
+            (click)="saveGroup()"
+          >
+            {{ 'sistem.yetki.grupKaydet' | transloco }}
+          </button>
+        </div>
       </div>
-    </div>
+    }
     @if ((groups.veri() ?? []).length === 0) {
       <p class="bos">{{ 'sistem.yetki.grupYok' | transloco }}</p>
     } @else {
@@ -164,22 +176,24 @@
                 <td>{{ g.ad }}</td>
                 <td class="rc-num">{{ g.ekranSayisi }}</td>
                 <td class="satir-eylemleri">
-                  <button
-                    type="button"
-                    class="rc-dugme rc-dugme--hayalet rc-dugme--kucuk"
-                    [disabled]="busy()"
-                    (click)="applyGroup(g)"
-                  >
-                    {{ 'sistem.yetki.uygula' | transloco }}
-                  </button>
-                  <button
-                    type="button"
-                    class="rc-dugme rc-dugme--hayalet rc-dugme--kucuk"
-                    [disabled]="busy()"
-                    (click)="removeGroup(g)"
-                  >
-                    {{ 'sistem.ortak.sil' | transloco }}
-                  </button>
+                  @if (isAdmin()) {
+                    <button
+                      type="button"
+                      class="rc-dugme rc-dugme--hayalet rc-dugme--kucuk"
+                      [disabled]="busy()"
+                      (click)="applyGroup(g)"
+                    >
+                      {{ 'sistem.yetki.uygula' | transloco }}
+                    </button>
+                    <button
+                      type="button"
+                      class="rc-dugme rc-dugme--hayalet rc-dugme--kucuk"
+                      [disabled]="busy()"
+                      (click)="removeGroup(g)"
+                    >
+                      {{ 'sistem.ortak.sil' | transloco }}
+                    </button>
+                  }
                 </td>
               </tr>
             }

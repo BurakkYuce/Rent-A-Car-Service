@@ -29,7 +29,9 @@ public static partial class SystemAdminApi
 
     private static void MapUsers(RouteGroupBuilder v1)
     {
-        var g = v1.MapGroup("/kullanicilar").WithTags(SystemApiCommon.Tag).RequirePermission(Permission.ManageUsers);
+        // Güvenlik tur 2 M1: okuma ManageUsers; YAZMALAR (oluştur/güncelle/aktiflik/parola/istisna) yalnız Admin rolü.
+        var g = v1.MapGroup("/kullanicilar").WithTags(SystemApiCommon.Tag).RequirePermission(Permission.ManageUsers)
+            .RequireAdminRoleForWrites();
 
         g.MapGet("", async Task<Ok<IReadOnlyList<UserDto>>> (UserService users, UserPermissionService exceptions, CancellationToken ct)
             => TypedResults.Ok(await ListUsersAsync(users, exceptions, ct)));
@@ -54,6 +56,22 @@ public static partial class SystemAdminApi
                 ? TypedResults.Created($"{UiApiExtensions.V1}/kullanicilar/{id}", d)
                 : SystemApiCommon.NotFound("Kullanıcı bulunamadı.");
         }).MapFields(UserRules);
+
+        // Kabul d-sistem-kullanici-09: rol + atanmış şube güncellemesi (tam değiştirme; surum zorunlu, bayat → 409 cakisma).
+        // Yeni rol/şube hedef kullanıcının BİR SONRAKİ girişinde geçerli olur (claim girişte donar — istisnalarla aynı).
+        g.MapPut("/{id:guid}", async Task<Results<Ok<UserDto>, ProblemHttpResult>> (Guid id, UserUpdateRequest i, UserService users,
+            UserPermissionService exceptions, BranchService branches, CancellationToken ct) =>
+        {
+            if (string.IsNullOrWhiteSpace(i.Surum))
+                throw new ValidationException("Kayıt sürümü (surum) zorunludur; kaydı yeniden açın.", "surum");
+            var role = F5Shared.EnumAdi<UserRole>(i.Rol, "rol") ?? throw new ValidationException("Rol zorunludur.", "rol");
+            var branch = await ResolveBranchRefAsync(i.AtanmisSube, branches, ct);
+            if (!await users.UpdateAsync(id, new UserUpdateInput { Rol = role, AtanmisSube = branch?.Ad, AtanmisSubeId = branch?.Id },
+                    i.Surum, ct))
+                return SystemApiCommon.NotFound("Kullanıcı bulunamadı.");
+            return (await ListUsersAsync(users, exceptions, ct)).FirstOrDefault(u => u.Id == id) is { } d
+                ? TypedResults.Ok(d) : SystemApiCommon.NotFound("Kullanıcı bulunamadı.");
+        }).MapFields([("Kendi rolünüzü", "rol"), ("Son aktif Admin", "rol"), ("Kayıt sürümü", "surum")]);
 
         g.MapPost("/{id:guid}/aktif", async Task<Results<Ok<UserDto>, ProblemHttpResult>> (Guid id, UserActiveRequest i, UserService users,
             UserPermissionService exceptions, CancellationToken ct) =>
@@ -132,9 +150,19 @@ public static partial class SystemAdminApi
         return match?.Ad ?? throw new ValidationException("Atanmış şube firmanın aktif şubelerinden biri olmalıdır.", "atanmisSube");
     }
 
+    /// <summary>Güncellemede şube adı + kimliği birlikte (aynı kural: yalnız aktif şube; yok/pasif → 400 errors[atanmisSube]).</summary>
+    private static async Task<(string Ad, Guid Id)?> ResolveBranchRefAsync(string? branch, BranchService branches, CancellationToken ct)
+    {
+        if (SystemApiCommon.Clean(branch) is not { } b) return null;
+        var match = (await branches.ListActiveAsync(ct)).FirstOrDefault(x => string.Equals(x.Ad, b, StringComparison.Ordinal))
+            ?? throw new ValidationException("Atanmış şube firmanın aktif şubelerinden biri olmalıdır.", "atanmisSube");
+        return (match.Ad, match.Id);
+    }
+
     private static async Task<IReadOnlyList<UserDto>> ListUsersAsync(UserService users, UserPermissionService exceptions, CancellationToken ct)
     {
         var list = await users.ListAsync(ct);
+        var versions = await users.GetVersionsAsync(ct);
         var ex = (await exceptions.ListAsync(ct)).ToLookup(x => x.UserId);
         return list.Select(u =>
         {
@@ -143,7 +171,8 @@ public static partial class SystemAdminApi
             var deny = own.Where(x => !x.Ver).Select(x => x.Izin).ToList();
             return new UserDto(u.Id, u.UserName, u.DisplayName, u.Rol.ToString(), u.IsActive, u.AtanmisSube,
                 own.Select(x => new PermissionExceptionDto(x.Izin, x.Ver, x.Tanimlayan, x.TarihUtc.ToUniversalTime())).ToList(),
-                Enum.GetValues<Permission>().Where(p => EffectivePermission.Has(u.Rol, p, grant, deny)).Select(p => p.ToString()).ToList());
+                Enum.GetValues<Permission>().Where(p => EffectivePermission.Has(u.Rol, p, grant, deny)).Select(p => p.ToString()).ToList(),
+                versions.GetValueOrDefault(u.Id));
         }).ToList();
     }
 
@@ -152,8 +181,12 @@ public static partial class SystemAdminApi
             Enum.GetValues<Permission>().Where(p => RolePermissions.Has(r, p)).Select(p => p.ToString()).ToList())).ToList();
 }
 
+/// <summary><c>Surum</c>: satır sürümü — rol/şube güncellemesinin (<c>PUT /kullanicilar/{id}</c>) zorunlu <c>surum</c>'u.</summary>
 public sealed record UserDto(Guid Id, string KullaniciAdi, string GorunenAd, string Rol, bool Aktif, string? AtanmisSube,
-    IReadOnlyList<PermissionExceptionDto> Istisnalar, IReadOnlyList<string> EtkinIzinler);
+    IReadOnlyList<PermissionExceptionDto> Istisnalar, IReadOnlyList<string> EtkinIzinler, string? Surum);
+
+/// <summary>Kabul d-sistem-kullanici-09 — rol + atanmış şube tam değiştirme gövdesi.</summary>
+public sealed record UserUpdateRequest(string? Rol, string? AtanmisSube, string? Surum);
 
 public sealed record PermissionExceptionDto(string Izin, bool Ver, string? Tanimlayan, DateTimeOffset TarihUtc);
 

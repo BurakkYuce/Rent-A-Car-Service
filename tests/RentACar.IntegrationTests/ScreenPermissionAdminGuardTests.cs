@@ -8,8 +8,9 @@ namespace RentACar.IntegrationTests;
 
 /// <summary>
 /// #304 L3 — Admin'in ekran erişimine dokunan override yazımı yalnız Admin rolüne açıktır. ManageUsers istisnası almış
-/// Yönetici Admin'i bir listeden çıkaramaz, Admin'i ekleyemez, Admin'i dışlayan override'ı kaldıramaz; Admin'e dokunmayan
-/// değişiklikleri yapabilir. Beklenen değerler elle kurulmuş senaryodan (bağımsız oracle).
+/// Yönetici Admin'i bir listeden çıkaramaz, Admin'i ekleyemez, Admin'i dışlayan override'ı kaldıramaz. Güvenlik tur 2 M1
+/// (koordinatör kararı): ekran yetkisi YAZMALARININ tamamı yalnız Admin rolüne — istisnalı Yönetici Admin'e dokunmayan
+/// değişikliği de yapamaz. Beklenen değerler elle kurulmuş senaryodan (bağımsız oracle).
 /// </summary>
 [Collection("postgres")]
 public sealed class ScreenPermissionAdminGuardTests(PostgresFixture fx)
@@ -53,11 +54,11 @@ public sealed class ScreenPermissionAdminGuardTests(PostgresFixture fx)
         Assert.Equal("Yonetici", await CsvAsync(host, t, "rapor-b"));
         Assert.Null(await CsvAsync(host, t, "yeni-ekran"));
 
-        // Admin'e dokunmayan değişiklik serbest.
-        await svc.SetAsync("rapor-a", [UserRole.Admin, UserRole.Yonetici, UserRole.Muhasebe]);
-        await svc.SetAsync("rapor-b", [UserRole.Yonetici, UserRole.Operator]);
-        Assert.Equal("Admin,Yonetici,Muhasebe", await CsvAsync(host, t, "rapor-a"));
-        Assert.Equal("Yonetici,Operator", await CsvAsync(host, t, "rapor-b"));
+        // Güvenlik tur 2 M1: ekran yetkisi yazmaları yalnız Admin rolü — Admin'e dokunmayan değişiklik de reddedilir.
+        await Assert.ThrowsAsync<NoPermissionException>(() => svc.SetAsync("rapor-a", [UserRole.Admin, UserRole.Yonetici, UserRole.Muhasebe]));
+        await Assert.ThrowsAsync<NoPermissionException>(() => svc.SetAsync("rapor-b", [UserRole.Yonetici, UserRole.Operator]));
+        Assert.Equal("Admin,Yonetici", await CsvAsync(host, t, "rapor-a"));
+        Assert.Equal("Yonetici", await CsvAsync(host, t, "rapor-b"));
     }
 
     // 2026-09-25 — Admin'i dışlayan PASİF kayıt da Admin'e dokunmaktır: bugün etkisizdir ama şablon anlık görüntüsüne
@@ -80,18 +81,15 @@ public sealed class ScreenPermissionAdminGuardTests(PostgresFixture fx)
         await Assert.ThrowsAsync<NoPermissionException>(() => svc.SetAsync("rapor-a", [UserRole.Yonetici], active: false));
         Assert.Equal("Admin,Yonetici", await CsvAsync(host, t, "rapor-a"));
 
-        // Admin'e dokunmayan pasif kayıt serbest (Admin listede).
-        await svc.SetAsync("rapor-a", [UserRole.Admin, UserRole.Yonetici], active: false);
-        await svc.SetAsync("pasif-ekran", [UserRole.Admin, UserRole.Muhasebe], active: false);
-        Assert.Equal("Admin,Muhasebe", await CsvAsync(host, t, "pasif-ekran"));
+        // Güvenlik tur 2 M1: Admin'e dokunmayan pasif kayıt da artık yalnız Admin rolüyle.
+        await Assert.ThrowsAsync<NoPermissionException>(() => svc.SetAsync("pasif-ekran", [UserRole.Admin, UserRole.Muhasebe], active: false));
+        Assert.Null(await CsvAsync(host, t, "pasif-ekran"));
 
-        // Admin aynı Admin'siz pasif kaydı oluşturabilir; Yönetici onu rol listesine dokunmadan yeniden kaydedebilir,
-        // Admin'i geri ekleyemez ya da kaldıramaz (saklı listedeki Admin değişir).
+        // Admin aynı Admin'siz pasif kaydı oluşturabilir; Yönetici ona hiç dokunamaz.
         using (var admin2 = host.ScopeFor(t, role: UserRole.Admin))
             await admin2.ServiceProvider.GetRequiredService<ScreenPermissionService>()
                 .SetAsync("gizli-ekran", [UserRole.Yonetici], active: false);
-        await svc.SetAsync("gizli-ekran", [UserRole.Yonetici], active: false);
-        await Assert.ThrowsAsync<NoPermissionException>(() => svc.SetAsync("gizli-ekran", [UserRole.Yonetici, UserRole.Admin], active: false));
+        await Assert.ThrowsAsync<NoPermissionException>(() => svc.SetAsync("gizli-ekran", [UserRole.Yonetici], active: false));
         await Assert.ThrowsAsync<NoPermissionException>(() => svc.RemoveAsync("gizli-ekran"));
         Assert.Equal("Yonetici", await CsvAsync(host, t, "gizli-ekran"));
     }
@@ -108,13 +106,15 @@ public sealed class ScreenPermissionAdminGuardTests(PostgresFixture fx)
 
         await Assert.ThrowsAsync<NoPermissionException>(() => svc.CopyRoleAsync(UserRole.Yonetici, UserRole.Admin));
         Assert.Equal("Yonetici", await CsvAsync(host, t, "rapor-b"));
-        // Admin'e dokunmayan kopya serbest.
-        Assert.Equal(1, await svc.CopyRoleAsync(UserRole.Yonetici, UserRole.Operator));
+        // Güvenlik tur 2 M1: Admin'e dokunmayan kopya da yalnız Admin rolüyle.
+        await Assert.ThrowsAsync<NoPermissionException>(() => svc.CopyRoleAsync(UserRole.Yonetici, UserRole.Operator));
+        Assert.Equal("Yonetici", await CsvAsync(host, t, "rapor-b"));
 
-        // Admin rolü aynı kopyayı yapabilir.
+        // Admin rolü kopyaları yapabilir.
         using var admin2 = host.ScopeFor(t, role: UserRole.Admin);
-        Assert.Equal(1, await admin2.ServiceProvider.GetRequiredService<ScreenPermissionService>()
-            .CopyRoleAsync(UserRole.Yonetici, UserRole.Admin));
+        var adminSvc = admin2.ServiceProvider.GetRequiredService<ScreenPermissionService>();
+        Assert.Equal(1, await adminSvc.CopyRoleAsync(UserRole.Yonetici, UserRole.Operator));
+        Assert.Equal(1, await adminSvc.CopyRoleAsync(UserRole.Yonetici, UserRole.Admin));
         Assert.Equal("Yonetici,Operator,Admin", await CsvAsync(host, t, "rapor-b"));
     }
 

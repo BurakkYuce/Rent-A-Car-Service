@@ -26,8 +26,8 @@ public interface IUserPermissionRepository
 /// kapanır. Admin ROLÜNDEKİ bir kullanıcıya ManageUsers YASAĞI konamaz — iki admin birbirini
 /// kilitleyip tenant'ı yönetimsiz bırakabilirdi (kalan tek çıkış platform konsoluydu).</para>
 ///
-/// <para><b>Etkinleşme:</b> istisnalar login'de claim'e yazılır → değişiklik hedef kullanıcının
-/// BİR SONRAKİ girişinde etkinleşir. UI bunu açıkça söyler.</para>
+/// <para><b>Etkinleşme:</b> istisnalar login'de claim'e yazılır; değişiklik hedefin oturum damgasını yeniler (güvenlik
+/// F1) → hedefin açık oturumları bir sonraki istekte düşer, yeniden girişte yeni izinler geçerli olur.</para>
 /// </summary>
 public sealed class UserPermissionService(
     IUserPermissionRepository repository, IUserRepository users, ICurrentUser currentUser)
@@ -41,6 +41,7 @@ public sealed class UserPermissionService(
     public async Task SetAsync(Guid userId, string permissionName, bool give, CancellationToken ct = default)
     {
         PermissionGuard.Require(currentUser, Permission.ManageUsers);
+        AdminRoleGuard.Require(currentUser); // güvenlik tur 2 M1: istisna yazmaları yalnız Admin rolü
 
         if (!Enum.TryParse<Permission>(permissionName, ignoreCase: false, out var permission))
             throw new ValidationException("Geçersiz izin adı.");
@@ -57,13 +58,16 @@ public sealed class UserPermissionService(
         // F11.1b güvenlik M2: ManageUsers vermek ve Admin hesabının istisnalarına dokunmak yalnız Admin ROLÜNE.
         if ((give && permission == Permission.ManageUsers) || target.Rol == UserRole.Admin)
             RequireAdminRole();
+        await FreshActor.RequireAsync(users, currentUser, ct); // güvenlik F1: aktörün güncel rolü DB'den
 
         await repository.UpsertAsync(userId, permission.ToString(), give, currentUser.UserName, ct);
+        await users.RenewSecurityStampAsync(userId, ct); // güvenlik F1: hedefin açık oturumu yeni izinle yeniden açılır
     }
 
     public async Task<bool> RemoveAsync(Guid userId, string permissionName, CancellationToken ct = default)
     {
         PermissionGuard.Require(currentUser, Permission.ManageUsers);
+        AdminRoleGuard.Require(currentUser); // güvenlik tur 2 M1
         if (currentUser.UserId == userId)
             throw new ValidationException("Kendi izin istisnanızı değiştiremezsiniz (başka bir yönetici yapmalı).");
         // F11.1b güvenlik M2: ManageUsers istisnasını kaldırmak (yasağı kaldırmak = yetki iadesi) ve Admin hesabına
@@ -71,7 +75,10 @@ public sealed class UserPermissionService(
         if (string.Equals(permissionName, nameof(Permission.ManageUsers), StringComparison.Ordinal)
             || (await users.FindAsync(userId, ct))?.Rol == UserRole.Admin)
             RequireAdminRole();
-        return await repository.RemoveAsync(userId, permissionName, ct);
+        await FreshActor.RequireAsync(users, currentUser, ct); // güvenlik F1
+        var removed = await repository.RemoveAsync(userId, permissionName, ct);
+        if (removed) await users.RenewSecurityStampAsync(userId, ct); // güvenlik F1
+        return removed;
     }
 
     private void RequireAdminRole()

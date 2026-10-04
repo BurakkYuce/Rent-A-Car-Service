@@ -14,6 +14,7 @@ public static class IdentityClaims
     public const string AssignedBranchId = "assigned_sube_id"; // FAZ 5-C1
     public const string PermissionExtra = "izin_ek";       // kullanıcı-bazlı EK izin (izin adı başına bir claim)
     public const string PermissionDenied = "izin_yasak"; // kullanıcı-bazlı YASAK izin
+    public const string SecurityStamp = "security_stamp"; // güvenlik F1 — oturum damgası (SessionStampValidator)
     // Rol, standart ClaimTypes.Role olarak yazılır → [Authorize(Roles="Admin")] doğrudan çalışır.
 }
 
