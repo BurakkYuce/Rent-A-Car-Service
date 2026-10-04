@@ -173,7 +173,7 @@ test('izin: Muhasebe aracı okur (ViewReports) ama yazamaz; durum panosu ve tan�
   for (const path of ['/app/arac-durum', '/app/arac-sahipleri', '/app/araclar/yeni']) {
     await page.goto(`${ROOT}${path}`);
     await expect(page.getByText('Bu sayfayı görüntüleme yetkiniz yok.')).toBeVisible();
-    await expect(page).toHaveURL(`${ROOT}/app/`);
+    await expect(page).toHaveURL(`${ROOT}/app/panel`);
   }
 });
 

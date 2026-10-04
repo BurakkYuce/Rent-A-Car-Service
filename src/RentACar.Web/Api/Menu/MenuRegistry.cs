@@ -20,11 +20,15 @@ namespace RentACar.Web.Api.Menu;
 /// yetkisinden türetilir (<c>MenuKaydiTests</c> kilitler).</item>
 /// <item><c>Modul</c>: satın alınabilir modül bayrağı (ör. <see cref="ModulMetadata.Website"/>); kapalıysa öğe gizli.</item>
 /// <item><c>RozetKodu</c>: sayaç rozeti (<see cref="MenuRegistry.BadgeUnreadNotification"/>, <see cref="MenuRegistry.BadgeNewRequest"/>).</item>
+/// <item><c>AlternatifIzinler</c>: sayfanın rota kapısı ve okuma uçları "izinlerden BİRİ" ise (<c>RequireAnyPermission</c>)
+/// <c>Izin</c>'e ek olarak öğeyi gösteren izinler — kabul testi: operatörün açabildiği ama menüde göremediği operasyon
+/// raporları, Cezalar, Satışlar ve Kurlar. Öğe <c>Izin</c> VEYA bunlardan biri varsa görünür.</item>
 /// </list>
 /// </summary>
 public sealed record MenuOgesi(
     string Rota, string Etiket, string Grup, int Sira, string Sahip,
-    Permission? Izin, string? Modul, string? RozetKodu, bool HizliBaglanti);
+    Permission? Izin, string? Modul, string? RozetKodu, bool HizliBaglanti,
+    IReadOnlyList<Permission>? AlternatifIzinler = null);
 
 /// <summary>
 /// Blazor <c>MainLayout</c> menüsünün TAMAMININ kaydı (F1.6) — gruplar, sıra, hızlı bağlantılar, rozetler,
@@ -59,12 +63,17 @@ public static class MenuRegistry
         const string WS = ModulMetadata.Website;
 
         var l = new List<MenuOgesi>();
-        void E(string group, string route, string label, Permission? permission, string? module = null, string? badge = null, bool quick = false)
+        void E(string group, string route, string label, Permission? permission, string? module = null, string? badge = null,
+            bool quick = false, Permission[]? orAny = null)
             => l.Add(new MenuOgesi(route, label, group, (l.Count + 1) * 10,
-                SpaHostingPath(route) ? Spa : Blazor, permission, module, badge, quick));
+                SpaHostingPath(route) ? Spa : Blazor, permission, module, badge, quick, orAny));
+        // Rota kapısı "izinlerden biri" olan sayfalar (SPA `anyPermissionGuard`, uç `RequireAnyPermission`).
+        Permission[] opsReport = [OW];      // OW ∨ VR — ReportApi "ops" grubu
+        Permission[] opsOrReport = [OW, VR]; // FW ∨ OW ∨ VR — ceza/satış/kur okuma
 
         // ---- Kısa yollar (MainLayout: Roles="Admin,Yonetici,Operator")
-        E(Shortcuts, "/app/rezervasyonlar", "Yeni Rezervasyon", OW, quick: true); // F5.4: spa
+        // Kabul testi: "Yeni Rezervasyon" boş formu açar (Blazor'da form liste sayfasının içindeydi; SPA'da ayrı rota).
+        E(Shortcuts, "/app/rezervasyonlar/yeni", "Yeni Rezervasyon", OW, quick: true); // F5.4: spa
         E(Shortcuts, "/app/kiralar/yeni", "Yeni Kira", OW, quick: true); // F4.6: spa
         E(Shortcuts, "/app/musaitlik", "Müsaitlik-Rez Açma", OW, quick: true); // F5.4: spa
 
@@ -163,19 +172,19 @@ public static class MenuRegistry
         E(Finance, "/app/kasa", "Kasa / Banka", FW); // F8.3: grubun tamamı spa
         E(Finance, "/app/finans/nakit-islem", "Nakit İşlem", FW);
         E(Finance, "/app/finans/bakiye-duzeltme", "Bakiye Düzeltme", FW);
-        E(Finance, "/app/kurlar", "Döviz Kurları", FW);
+        E(Finance, "/app/kurlar", "Döviz Kurları", FW, orAny: opsOrReport);
         E(Finance, "/app/faturalar", "Faturalar", FW);
         E(Finance, "/app/faturalar/detay-listesi", "Fatura Detay Listesi", FW);
         E(Finance, "/app/gelen-efatura", "Gelen e-Fatura", FW);
         E(Finance, "/app/giderler", "Giderler", FW);
-        E(Finance, "/app/satislar", "Satışlar", FW);
+        E(Finance, "/app/satislar", "Satışlar", FW, orAny: opsOrReport);
         E(Finance, "/app/cari-virman", "Cari Virman", FW);
         E(Finance, "/app/depozito", "Depozito", FW);
         E(Finance, "/app/toplu-tahsilat", "Toplu Tahsilat", FW);
         E(Finance, "/app/tek-cari-toplu", "Tek Cari Toplu Kapatma", FW);
         E(Finance, "/app/otomatik-tahsilat", "Otomatik Tahsilat", FW);
         E(Finance, "/app/toplu-gider", "Toplu Gider", FW);
-        E(Finance, "/app/cezalar", "Cezalar", FW);
+        E(Finance, "/app/cezalar", "Cezalar", FW, orAny: opsOrReport);
         E(Finance, "/app/donem-kapanis", "Dönem Kapanışı", FW);
 
         // ---- Raporlar (MainLayout: Roles="Admin,Yonetici,Muhasebe" → ViewReports). F10.3: grubun tamamı spa.
@@ -192,15 +201,15 @@ public static class MenuRegistry
         E(Report, "/app/raporlar/tahsilat-fatura", "Tahsilat-Fatura", VR);
         E(Report, "/app/raporlar/kdv-listesi", "KDV Listesi", VR);
         E(Report, "/app/raporlar/ek-hizmet", "Ek Hizmet", VR);
-        E(Report, "/app/raporlar/periyodik-servis", "Periyodik Servis", VR);
-        E(Report, "/app/raporlar/km-detay", "KM Detay", VR);
+        E(Report, "/app/raporlar/periyodik-servis", "Periyodik Servis", VR, orAny: opsReport);
+        E(Report, "/app/raporlar/km-detay", "KM Detay", VR, orAny: opsReport);
         E(Report, "/app/raporlar/rezervasyon-kaynak", "Rezervasyon Kaynak", VR);
-        E(Report, "/app/raporlar/karsilastirmali-analiz", "Karşılaştırmalı Analiz", VR);
+        E(Report, "/app/raporlar/karsilastirmali-analiz", "Karşılaştırmalı Analiz", VR, orAny: opsReport);
         E(Report, "/app/raporlar/fatura-donem", "Fatura Dönem", VR);
-        E(Report, "/app/raporlar/arac-durum-takip", "Araç Durum Takip", VR);
+        E(Report, "/app/raporlar/arac-durum-takip", "Araç Durum Takip", VR, orAny: opsReport);
         E(Report, "/app/raporlar/arac-gunluk-durum", "Araç Günlük Durum", VR);
-        E(Report, "/app/raporlar/personel-calisma", "Personel Çalışma (Vardiya)", VR);
-        E(Report, "/app/raporlar/sigorta-muayene", "Sigorta / Muayene Envanteri", VR);
+        E(Report, "/app/raporlar/personel-calisma", "Personel Çalışma (Vardiya)", VR, orAny: opsReport);
+        E(Report, "/app/raporlar/sigorta-muayene", "Sigorta / Muayene Envanteri", VR, orAny: opsReport);
         E(Report, "/app/raporlar/kasa-banka", "Kasa-Banka Defteri", VR);
         E(Report, "/app/raporlar/virman-gecmisi", "Virman Geçmişi", VR);
         E(Report, "/app/raporlar/servis-ozet", "Servis Özet", VR);
