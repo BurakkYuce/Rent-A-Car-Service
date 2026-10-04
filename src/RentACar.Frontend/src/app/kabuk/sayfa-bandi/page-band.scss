@@ -100,6 +100,18 @@ rc-sayfa-bandi {
     }
   }
 
+  // Pasif bant düğmesi (çerçeveli ve dolu) BANT renklerinde kalır. Yoksa global `.rc-dugme:disabled` (özgüllük
+  // 0,2,0) bant kuralını (0,1,1) ezip lacivert bantta açık kutu + soluk metin çiziyordu; yükleme bitip düğme
+  // etkinleşirken 150 ms renk geçişinin ara karesi (#e1dfdb / #6676a8, 3,34:1) axe'ye yakalanıyordu. Pasif metin
+  // bant ikincil rengi: beyaz ↔ ikincil geçişinin her karesi lacivertte ≥ 8:1.
+  .rc-dugme:disabled,
+  .rc-dugme[aria-disabled='true'] {
+    border-color: var(--rc-bant-buton-kenar);
+    background-color: transparent;
+    color: var(--rc-bant-ikincil);
+    text-decoration: none;
+  }
+
   .bant__menu-dugmesi {
     display: none;
     place-items: center;
@@ -156,6 +168,13 @@ rc-sayfa-bandi {
 
         &:focus-visible {
           outline-color: var(--rc-odak);
+        }
+
+        // Açık panelde pasif düğme panel zemininde soluk (bant kuralı burada geçerli değil).
+        &:disabled,
+        &[aria-disabled='true'] {
+          background-color: transparent;
+          color: var(--rc-metin-pasif);
         }
       }
     }

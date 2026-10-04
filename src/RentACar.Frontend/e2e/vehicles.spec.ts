@@ -286,6 +286,74 @@ test('tanım (araç sahipleri): düzenle → tekil okunan surum ile PUT; aktif d
   expect(errors).toEqual([]);
 });
 
+/**
+ * Kök neden kilidi (ara sıra axe color-contrast 3,34 — #e1dfdb / #6676a8): sayfa bandındaki "Yenile" yükleme
+ * boyunca PASİF. Global `.rc-dugme:disabled` (özgüllük 0,2,0) bandın `rc-sayfa-bandi .rc-dugme`'sini (0,1,1)
+ * eziyordu → pasif düğme lacivert bantta AÇIK zemin + soluk metin; veri gelince 150 ms renk geçişiyle bant
+ * renklerine dönerken axe ara kareyi ölçüyordu. Pasif bant düğmesi bant renklerinde kalmalı ve geçişin HER
+ * karesinde metin/zemin kontrastı ≥ 4,5 olmalı.
+ */
+test('arac-durum: bant "Yenile" pasifken bant renklerinde; pasif→etkin geçişinin her karesi AA', async ({
+  page,
+}) => {
+  await vehicleEndpoints(page);
+  let release: () => void = () => undefined;
+  let delayed = false;
+  await page.route(
+    (u) => u.pathname === '/api/ui/v1/araclar/durum',
+    async (route) => {
+      if (delayed) await new Promise<void>((r) => (release = r));
+      return route.fallback();
+    },
+  );
+  await page.goto(BOARD.yol);
+  await waitReady(page, BOARD);
+  const button = page.locator('rc-sayfa-bandi').getByRole('button', { name: 'Yenile' });
+  await expect(button).toBeEnabled();
+
+  delayed = true;
+  await button.click();
+  await expect(button).toBeDisabled();
+  await page.mouse.move(0, 0); // fare üstte kalırsa bandın :hover kuralı pasif kuralı örter (ölçüm yanılır)
+  await page.waitForTimeout(400); // geçiş (150 ms) bitti: pasif son hâl
+  const disabledStyle = await button.evaluate((b) => getComputedStyle(b).backgroundColor);
+  expect(disabledStyle).toBe('rgba(0, 0, 0, 0)'); // açık kutu değil, bant zemini görünür
+
+  // Etkin hâle dönüşte geçişin karelerini örnekle (bant zemini düz lacivert).
+  const samples = button.evaluate(
+    (b) =>
+      new Promise<number[]>((done) => {
+        const lum = (rgb: number[]) => {
+          const [r = 0, g = 0, bl = 0] = rgb.map((v) => {
+            const c = v / 255;
+            return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
+          });
+          return 0.2126 * r + 0.7152 * g + 0.0722 * bl;
+        };
+        const parse = (c: string) => (c.match(/[\d.]+/g) ?? []).map(Number);
+        const bandEl = b.closest('rc-sayfa-bandi');
+        const band = parse(bandEl ? getComputedStyle(bandEl).backgroundColor : '');
+        const ratios: number[] = [];
+        const start = performance.now();
+        const tick = () => {
+          const s = getComputedStyle(b);
+          const [r = 0, g = 0, bl = 0, a = 1] = parse(s.backgroundColor);
+          const bg = [r, g, bl].map((v, i) => v * a + (band[i] ?? 0) * (1 - a));
+          const fg = parse(s.color).slice(0, 3);
+          const [hi, lo] = [lum(fg), lum(bg)].sort((x, y) => y - x);
+          ratios.push(((hi ?? 0) + 0.05) / ((lo ?? 0) + 0.05));
+          if (performance.now() - start < 400) requestAnimationFrame(tick);
+          else done(ratios);
+        };
+        requestAnimationFrame(tick);
+      }),
+  );
+  release();
+  const ratios = await samples;
+  expect(ratios.length).toBeGreaterThan(5);
+  expect(Math.min(...ratios)).toBeGreaterThanOrEqual(4.5);
+});
+
 for (const s of [LIST, DETAILED, NEW, EDIT, DETAIL, BOARD, OWNERS]) {
   test.describe(`${s.ad}: mobil taşma (dokunmatik öykünme)`, () => {
     test.use({ isMobile: true, hasTouch: true, deviceScaleFactor: 2 });

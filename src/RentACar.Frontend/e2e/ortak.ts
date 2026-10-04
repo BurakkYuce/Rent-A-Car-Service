@@ -13,7 +13,24 @@ export function collectErrors(page: Page, expected: RegExp[] = []): string[] {
   return errors;
 }
 
+/**
+ * axe DURAN hâli ölçer: süren sonlu animasyon/geçişler (ör. düğmenin pasif→etkin 150 ms renk geçişi) bitmeden
+ * koşarsa ara kareyi ölçüp yanlış color-contrast verir (ölçüldü: `.rc-dugme--tehlike` onay kutusu işaretlenince
+ * 3,14:1 ara renk). Sonsuz animasyonlar (iskelet, döner simge) beklenmez.
+ */
+async function settleTransitions(page: Page): Promise<void> {
+  await page.evaluate(() =>
+    Promise.all(
+      document
+        .getAnimations()
+        .filter((a) => a.effect?.getComputedTiming().iterations !== Infinity)
+        .map((a) => a.finished.catch(() => undefined)),
+    ).then(() => undefined),
+  );
+}
+
 export async function seriousViolations(page: Page, scope?: string): Promise<string[]> {
+  await settleTransitions(page);
   const axe = new AxeBuilder({ page });
   if (scope) axe.include(scope);
   const result = await axe.analyze();
