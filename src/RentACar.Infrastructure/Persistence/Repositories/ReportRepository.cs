@@ -1519,15 +1519,17 @@ public sealed class ReportRepository(IDbContextFactory<AppDbContext> factory) : 
             var received = await gq.ToListAsync(ct);
             // Elle giderleştirilmiş ("İşlendi" + ETTN'i evrak no olan gider): KDV'si gider satırında — tarihi
             // dönem dışında olsa bile e-Fatura ikinci kez sayılmaz.
-            var ettns = received.Select(g => g.Ettn).Distinct().ToList();
-            var booked = ettns.Count == 0
+            // Eşleşme yazımdan BAĞIMSIZ (#369 adversarial M1): evrak no elle girilir — küçük harf, "ETTN …" öneki,
+            // boşluk aynı belgeyi iki kez saydırıyordu. Anahtar: metindeki GUID (ETTN biçimi), yoksa kırpılmış büyük harf.
+            var booked = received.Count == 0
                 ? new HashSet<string>()
-                : (await db.Expenses.AsNoTracking().Where(e => e.EvrakNo != null && ettns.Contains(e.EvrakNo))
-                    .Select(e => e.EvrakNo!).Distinct().ToListAsync(ct)).ToHashSet(StringComparer.Ordinal);
+                : (await db.Expenses.AsNoTracking().Where(e => e.EvrakNo != null)
+                    .Select(e => e.EvrakNo!).Distinct().ToListAsync(ct))
+                    .Select(DocumentKey).Where(k => k.Length > 0).ToHashSet(StringComparer.Ordinal);
 
             foreach (var g in received)
             {
-                if (booked.Contains(g.Ettn)) continue;
+                if (booked.Contains(DocumentKey(g.Ettn))) continue;
                 if (!string.Equals(g.Currency?.Trim(), "TRY", StringComparison.OrdinalIgnoreCase))
                 {
                     skipped++;   // kur kolonu yok → base'e çevrilemez
@@ -1542,10 +1544,11 @@ public sealed class ReportRepository(IDbContextFactory<AppDbContext> factory) : 
                 }
                 else
                 {
-                    // Kırılımsız: tek standart oran çözülürse o kademe, yoksa "Diğer" (oran uydurulmaz).
-                    var rate = IncomingEInvoiceVatBreakdown.Rates
-                        .FirstOrDefault(o => VatMath.FromNet(g.NetTutar, o).Kdv == g.KdvTutar, -1m);
-                    if (rate >= 0m) columns.Add(rate, g.NetTutar, g.KdvTutar);
+                    // Kırılımsız: toplam TAM OLARAK TEK standart orana uyuyorsa o kademe; hiç uymuyor ya da birden
+                    // çok oran uyuyorsa (belirsiz — #369 adversarial L1) "Diğer". Oran uydurulmaz.
+                    var matches = IncomingEInvoiceVatBreakdown.Rates
+                        .Where(o => VatMath.FromNet(g.NetTutar, o).Kdv == g.KdvTutar).ToList();
+                    if (matches.Count == 1) columns.Add(matches[0], g.NetTutar, g.KdvTutar);
                     else columns.AddOther(g.NetTutar, g.KdvTutar);
                 }
                 rows.Add(columns.ToRow(
@@ -1560,6 +1563,19 @@ public sealed class ReportRepository(IDbContextFactory<AppDbContext> factory) : 
             .ThenBy(r => r.Tarih)
             .ThenBy(r => r.No, StringComparer.Ordinal)
             .ToList(), skipped);
+    }
+
+    private static readonly System.Text.RegularExpressions.Regex GuidPattern = new(
+        "[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}",
+        System.Text.RegularExpressions.RegexOptions.CultureInvariant);
+
+    /// <summary>Belge numarası eşleştirme anahtarı: metin içinde GUID (ETTN biçimi) varsa onun büyük harf hâli, yoksa
+    /// kırpılmış büyük harf metin. "ettn …", küçük harf ve boşluk farkı aynı belgeyi ayrı saydırmaz.</summary>
+    private static string DocumentKey(string? value)
+    {
+        var s = (value ?? string.Empty).Trim();
+        var m = GuidPattern.Match(s);
+        return (m.Success ? m.Value : s).ToUpperInvariant();
     }
 
     /// <summary>KDV geniş görünümün oran sütunları: %20/%10/%1/%0 kademeleri + kademe-dışı "Diğer".
