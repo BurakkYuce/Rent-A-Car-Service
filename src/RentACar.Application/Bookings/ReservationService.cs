@@ -277,6 +277,14 @@ public sealed class ReservationService(
         if (reservation.Durum is not (ReservationStatus.Rezerv or ReservationStatus.Onayli))
             throw new ValidationException("Yalnız Rezerv/Onaylı rezervasyon kiraya çevrilebilir.");
 
+        // Kabul bulgusu d-rapor-km-detay-03: doğrudan kirayla AYNI kural (GroupKmPolicy) — rezervasyonda km
+        // limiti boşsa grubun limiti × gün ve aşım ücreti kiraya snapshot'lanır; KmSinirsiz kaynak 0'da tutar.
+        var km = GroupKmPolicy.Resolve(
+            await _feeLines.ResolveGroupAsync(reservation.VehicleId, ct), reservation.Gun,
+            reservation.KmLimit, reservation.FazlaKmUcret,
+            currency: null, // rezervasyon dövizsizdir (TL); dönüşen kira da varsayılan dövizde açılır
+            source: await _sourceRule.ResolveAsync(reservation.Kaynak, ct));
+
         var rentalId = await _repository.ConvertToRentalAsync(id, res => new RentalContract
         {
             Durum = RentalStatus.Kirada,
@@ -289,8 +297,8 @@ public sealed class ReservationService(
             DonusOfisi = res.DonusOfisi,
             Gun = res.Gun,
             GunlukUcret = res.GunlukUcret,
-            KmLimit = res.KmLimit,
-            FazlaKmUcret = res.FazlaKmUcret,
+            KmLimit = km.KmLimit,
+            FazlaKmUcret = km.FazlaKmUcret,
             YakitBirimUcret = res.YakitBirimUcret,
             Tutar = res.Tutar,
             HediyeGun = res.HediyeGun, FaturalananGun = res.FaturalananGun, IskontoTutar = res.IskontoTutar, HaftaSonuFark = res.HaftaSonuFark,

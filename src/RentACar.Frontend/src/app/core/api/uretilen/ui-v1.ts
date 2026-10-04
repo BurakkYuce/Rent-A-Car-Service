@@ -27767,6 +27767,10 @@ export interface components {
       /** Format: double */
       kalan: number | string;
       notlar?: null | string[];
+      /** Format: int32 */
+      kmLimit?: null | number | string;
+      /** Format: double */
+      fazlaKmUcret?: null | number | string;
     };
     KiralaSorgusu: {
       vfrom: string;

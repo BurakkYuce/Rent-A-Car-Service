@@ -2888,6 +2888,8 @@ export type CeviriAnahtari =
   | 'kiraFormu.hesap.faturalananGun'
   | 'kiraFormu.hesap.fazlaKm'
   | 'kiraFormu.hesap.genelToplam'
+  | 'kiraFormu.hesap.grupKmLimiti'
+  | 'kiraFormu.hesap.grupKmUcreti'
   | 'kiraFormu.hesap.gun'
   | 'kiraFormu.hesap.haftaSonu'
   | 'kiraFormu.hesap.hediyeGun'

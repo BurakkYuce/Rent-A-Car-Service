@@ -266,7 +266,9 @@
       "hediyeGun": "Hediye gün: {{deger}}",
       "faturalananGun": "Faturalanan gün: {{deger}}",
       "iskonto": "İskonto: {{deger}}",
-      "haftaSonu": "Hafta sonu farkı: {{deger}}"
+      "haftaSonu": "Hafta sonu farkı: {{deger}}",
+      "grupKmLimiti": "Araç grubundan km limiti: {{km}} km",
+      "grupKmUcreti": "aşım km başına {{ucret}}"
     },
     "ekHizmet": {
       "ekle": "Ek hizmet ekle",

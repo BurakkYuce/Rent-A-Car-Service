@@ -135,9 +135,13 @@ public sealed class RentalService(
         var resolvedSourceRule = await _sourceRule.ResolveAsync(input.Kaynak, ct);
         ReservationSourceRule.MaxDaysGuard(resolvedSourceRule, BookingMath.ComputeDays(input.BasTar, input.BitTar));
         ReservationSourceRule.DropGuard(resolvedSourceRule, input.CikisOfisi, input.DonusOfisi);
-        var sourceKmLimit = ReservationSourceRule.ApplyKmLimit(resolvedSourceRule, input.KmLimit);
 
         var pr = await _pricing.PriceAsync(input, ct: ct); // fiyat motoru: manuel >0 kazanır, yoksa tarife (tam teklif)
+        // Kabul bulgusu d-rapor-km-detay-03: boş km limiti/aşım ücreti grubun değerinden SNAPSHOT alınır
+        // (elle girilen öncelikli; KmSinirsiz kaynak yine 0'a sabitler) — kural GroupKmPolicy'de TEK yerde.
+        var km = GroupKmPolicy.Resolve(
+            await feeLines.ResolveGroupAsync(input.VehicleId, ct), pr.Gun, input.KmLimit, input.FazlaKmUcret,
+            input.Doviz, resolvedSourceRule);
         var defaultVat = await vatDefault.RateAsync(ct); // FAZ 3.A6 (net-mod çiti gross-up oranıyla karşılaştırır)
 
         // Yumuşak ön-kontrol (kullanıcı dostu hata); kesin garanti exclusion constraint.
@@ -164,8 +168,8 @@ public sealed class RentalService(
             DonusOfisi = Lim(input.DonusOfisi, 64, "Dönüş ofisi"),
             Gun = pr.Gun,
             GunlukUcret = input.GunlukUcret,
-            KmLimit = sourceKmLimit,          // FAZ-49: KmSinirsiz kaynakta 0'a (sınırsız) sabitlenir
-            FazlaKmUcret = input.FazlaKmUcret,
+            KmLimit = km.KmLimit,             // FAZ-49 + grup snapshot (GroupKmPolicy)
+            FazlaKmUcret = km.FazlaKmUcret,
             YakitBirimUcret = input.YakitBirimUcret,
             Tutar = pr.Tutar,
             GenelToplam = pr.Tutar,

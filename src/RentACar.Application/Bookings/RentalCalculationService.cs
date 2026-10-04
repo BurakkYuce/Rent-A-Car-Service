@@ -53,7 +53,9 @@ public sealed record KiraHesapSonuc(
     decimal? GenelToplamTl,
     decimal? Tahsilat,
     decimal Kalan,
-    IReadOnlyList<string>? Notlar = null);
+    IReadOnlyList<string>? Notlar = null,
+    int? KmLimit = null,
+    decimal? FazlaKmUcret = null);
 
 /// <summary>
 /// Kira formu CANLI hesap servisi (JS fetch → GET /kiralar/hesapla → JSON). UI HİÇBİR formül taşımaz:
@@ -136,9 +138,13 @@ public sealed class RentalCalculationService(
         // FAZ 3.A3a: SİSTEM ücret satırları önizlemesi — kayıtla AYNI saf hesap (FeeLineService.HesaplaSaf)
         // + AYNI kalem matematiği (net = round(birim×gün,2); KdvMath.FromNet) → önizleme == kayıt.
         var feeNotes = new List<string>();
+        GroupKmPolicy.Result? km = null;
         if (request.VehicleId is Guid feeVid)
         {
             var group = await feeLines.ResolveGroupAsync(feeVid, ct);
+            // Kabul bulgusu d-rapor-km-detay-03: kayıtla AYNI kural ve AYNI gün (pr.Gun). Yeni kira formu km
+            // limiti göndermez (alan yalnız kayıtlı kirada düzenlenir) → girilen 0; kaynak kuralı formda yok.
+            km = GroupKmPolicy.Resolve(group, pr.Gun, 0, 0m, currency, source: null);
             var birth = request.MusteriId is Guid mid ? (await customers.FindAsync(mid, ct))?.DogumTarihi : null;
             // FAZ-22: gün, MinGun koşulu için geçiyor. Önizleme ve kayıt AYNI gün sayısını
             // (pr.Gun / c.Gun) kullanır — aksi hâlde önizleme==kayıt sözleşmesi bozulurdu.
@@ -192,7 +198,9 @@ public sealed class RentalCalculationService(
             EkKalemler: items, EkHizmetToplam: extraTotal,
             GenelToplam: grandTotal, Doviz: currency, Kur: exchangeRateValue, GenelToplamTl: grandTotalTry,
             Tahsilat: collection, Kalan: remaining,
-            Notlar: feeNotes.Count > 0 ? feeNotes : null);
+            Notlar: feeNotes.Count > 0 ? feeNotes : null,
+            KmLimit: km is { KmLimit: > 0 } k ? k.KmLimit : null,
+            FazlaKmUcret: km is { KmLimit: > 0, FazlaKmUcret: > 0m } f ? f.FazlaKmUcret : null);
     }
 
     private static KiraHesapSonuc Invalid(string message, string currency) => new(
