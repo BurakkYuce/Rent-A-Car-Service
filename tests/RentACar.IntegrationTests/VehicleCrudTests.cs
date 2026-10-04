@@ -39,13 +39,14 @@ public sealed class VehicleCrudTests(PostgresFixture fx)
 
         var ok = await svc.UpdateAsync(id, new VehicleInput
         {
-            Plaka = "34CRUD01", Marka = "Renault Clio", Durum = VehicleStatus.Kirada, Km = 1200, Yakit = FuelType.Dizel
+            // Kabul bulgusu: kart durumu elle Kirada/Serviste yapamaz (VehicleStateGuardTests) → serbest geçiş Pasif.
+            Plaka = "34CRUD01", Marka = "Renault Clio", Durum = VehicleStatus.Pasif, Km = 1200, Yakit = FuelType.Dizel
         });
         Assert.True(ok);
 
         var updated = await svc.GetAsync(id);
         Assert.Equal("Renault Clio", updated!.Marka);
-        Assert.Equal(VehicleStatus.Kirada, updated.Durum);
+        Assert.Equal(VehicleStatus.Pasif, updated.Durum);
         Assert.Equal(1200, updated.Km);
     }
 

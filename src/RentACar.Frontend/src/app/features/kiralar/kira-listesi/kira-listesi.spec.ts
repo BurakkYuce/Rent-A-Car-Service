@@ -57,6 +57,7 @@ function satir(no: string, extra: Partial<RentalListRow> = {}): RentalListRow {
     hediyeGun: null,
     faturalananGun: null,
     tutar: 3600,
+    genelToplam: 3600,
     bakiye: 1200,
     doviz: 'TRY',
     kaynak: null,

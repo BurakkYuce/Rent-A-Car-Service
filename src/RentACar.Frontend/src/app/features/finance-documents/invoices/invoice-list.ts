@@ -151,7 +151,8 @@ export class InvoiceList implements UnsavedChangesOwner {
   protected readonly batchResult = signal<BatchInvoiceResult | null>(null);
   protected readonly candidates = computed<readonly RentalRow[]>(() =>
     (this.store.unbilled.veri()?.kayitlar ?? []).filter(
-      (r) => r.durum !== 'Iptal' && (toNumber(r.tutar) ?? 0) > 0,
+      // Faturanın kestiği tutar GenelToplam (fatura servisi de "tutar yok" kararını onunla verir).
+      (r) => r.durum !== 'Iptal' && (toNumber(r.genelToplam) ?? 0) > 0,
     ),
   );
 
