@@ -348,8 +348,7 @@ public sealed class VehicleRepository(IDbContextFactory<AppDbContext> factory) :
                 .FromSqlRaw("SELECT * FROM \"Vehicles\" WHERE \"Id\" = {0} FOR UPDATE", id)
                 .FirstOrDefaultAsync(ct);
             if (vehicle is null) return false;
-            if (km < vehicle.Km)
-                throw new ValidationException($"KM geriye gidemez (araç odometresi {vehicle.Km}).");
+            RentACar.Application.Vehicles.Odometer.EnsureNotBackwards(vehicle.Km, km); // kartla TEK kural
 
             vehicle.Km = km;
             vehicle.UpdatedAtUtc = DateTimeOffset.UtcNow;
@@ -370,6 +369,12 @@ public sealed class VehicleRepository(IDbContextFactory<AppDbContext> factory) :
             .Where(k => k.VehicleId == vehicleId)
             .OrderByDescending(k => k.Tarih).ThenByDescending(k => k.Km)
             .Take(limit).ToListAsync(ct);
+    }
+
+    public async Task<RentACar.Application.Vehicles.VehicleCommitments> CommitmentsAsync(Guid id, CancellationToken ct = default)
+    {
+        await using var db = await _factory.CreateDbContextAsync(ct);
+        return await VehicleCommitmentQueries.AllAsync(db, id, ct);
     }
 
     private static bool IsUniqueViolation(DbUpdateException ex)
