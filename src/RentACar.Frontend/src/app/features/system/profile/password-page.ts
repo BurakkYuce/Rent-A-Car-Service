@@ -5,6 +5,7 @@ import { TranslocoPipe } from '@jsverse/transloco';
 import { ApiIstemcisi } from '@core/api/api-istemcisi';
 import { pageLeaveGuard } from '@core/form/kaydedilmemis-degisiklik';
 import { ToastService } from '@core/geri-bildirim/toast-service';
+import { SessionService } from '@core/oturum/session-service';
 import { translationFunction } from '@core/i18n/ceviri';
 import { Alan } from '@shared/form/alan/alan';
 import { formSubmission } from '@shared/form/form-submission';
@@ -70,6 +71,7 @@ const PASSWORD_MAX = 128;
 export class PasswordPage {
   private readonly api = inject(ApiIstemcisi);
   private readonly toast = inject(ToastService);
+  private readonly session = inject(SessionService);
   private readonly t = translationFunction();
 
   protected readonly form = new FormGroup({
@@ -105,6 +107,9 @@ export class PasswordPage {
         basarili: () => {
           this.form.reset();
           this.toast.basari(this.t('sistem.profil.degisti'));
+          // Güvenlik F1: parola değişince oturum damgası yenilenir — bu dahil tüm açık oturumlar kapanır. Kullanıcı
+          // bir sonraki istekte sessizce düşmesin; yeni parolayla girişe yönlendirilir.
+          void this.session.logout();
         },
       },
     );

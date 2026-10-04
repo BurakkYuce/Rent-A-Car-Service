@@ -14,18 +14,31 @@ export type Role = (typeof ROLES)[number];
  * ManageUsers istisnasıyla kullanıcı yöneten bir Yönetici bu düğmeleri görmez (görse de sunucu 403 verir).
  */
 export function canManageAccount(actorRole: string | null | undefined, target: UserDto): boolean {
-  return actorRole === 'Admin' || target.rol !== 'Admin';
+  return (actorRole === 'Admin' || target.rol !== 'Admin') && !outranks(actorRole, target);
 }
 
-/** Oluşturma formunda seçilebilecek roller (Admin yalnız Admin'e). */
+/** Rol kıdemi (sunucu `UserService.Rank` ile aynı): Admin > Yönetici > Operatör = Muhasebe. */
+export function roleRank(role: string | null | undefined): number {
+  return role === 'Admin' ? 3 : role === 'Yonetici' ? 2 : role ? 1 : 0;
+}
+
+/**
+ * Oluşturma formunda seçilebilecek roller: aktörün kıdeminden yüksek olmayanlar (güvenlik F2 — Admin yalnız Admin'e,
+ * ManageUsers istisnalı Operatör Yönetici veremez).
+ */
 export function creatableRoles(actorRole: string | null | undefined): readonly Role[] {
-  return actorRole === 'Admin' ? ROLES : ROLES.filter((r) => r !== 'Admin');
+  return ROLES.filter((r) => roleRank(r) <= roleRank(actorRole));
+}
+
+/** Kıdemli (aktörden yüksek roldeki) hesaba dokunulmaz (sunucu 403). */
+export function outranks(actorRole: string | null | undefined, target: UserDto): boolean {
+  return roleRank(target.rol) > roleRank(actorRole);
 }
 
 /**
  * Rol/şube düzenlemesinde seçilebilecek roller (sunucu kuralının yansıması — asıl kapı `UserService.UpdateAsync`):
- * kendi rolü DEĞİŞMEZ (yalnız mevcut rol; kendini düşürüp son Admin'i yok etme yolu kapalı); Admin rolünü yalnız
- * Admin verir; Admin hesabının kendisi zaten yalnız Admin'e düzenlenebilir (`canManageAccount`).
+ * kendi kaydı düzenlenmez (ekranda düğme yok; sunucu rol ve şube değişimini reddeder); aktör kendi kıdeminden yüksek
+ * rol veremez; Admin hesabının kendisi zaten yalnız Admin'e düzenlenebilir (`canManageAccount`).
  */
 export function editableRoles(
   actorRole: string | null | undefined,

@@ -90,7 +90,8 @@
                   <td>{{ u.atanmisSube ?? ('sistem.kullanici.tumSubeler' | transloco) }}</td>
                   <td>{{ (u.aktif ? 'sistem.ortak.aktif' : 'sistem.ortak.pasif') | transloco }}</td>
                   <td class="satir-eylemleri">
-                    @if (canManage(u)) {
+                    @if (canManage(u) && u.id !== actorId()) {
+                      <!-- Kendi rol/şubesi değiştirilemez (güvenlik F2; sunucu da reddeder). -->
                       <button
                         type="button"
                         class="rc-dugme rc-dugme--hayalet rc-dugme--kucuk"
@@ -145,9 +146,6 @@
                         "
                       >
                         <p class="not">{{ 'sistem.kullanici.duzenleNotu' | transloco }}</p>
-                        @if (u.id === actorId()) {
-                          <p class="not">{{ 'sistem.kullanici.kendiRolNotu' | transloco }}</p>
-                        }
                         <rc-form-hatalari [hatalar]="editSubmit.genelHatalar()" />
                         <div class="rc-form-izgara" [formGroup]="editForm">
                           <rc-alan [etiket]="'sistem.kullanici.rolBaslik' | transloco">

@@ -41,6 +41,13 @@ public interface IUserRepository
 
     /// <summary>Geçerli kiracının kullanıcılarının satır sürümleri (PUT'un <c>surum</c>'u).</summary>
     Task<IReadOnlyDictionary<Guid, string>> GetVersionsAsync(CancellationToken ct = default);
+
+    /// <summary>
+    /// Güvenlik F1 — kullanıcının oturum damgasını yeniler (açık oturumları bir sonraki istekte düşer). Rol/şube/aktiflik/
+    /// parola değişiklikleri <see cref="UpdateAuditedAsync(Guid, Action{User}, UserAuditEntry, CancellationToken)"/> içinde
+    /// zaten yeniler; bu yöntem Users dışı yetki değişiklikleri (izin istisnası) içindir. Tenant dışıysa false.
+    /// </summary>
+    Task<bool> RenewSecurityStampAsync(Guid id, CancellationToken ct = default);
 }
 
 /// <summary>F11.1b — kullanıcı yönetimi denetim satırının içeriği (işlem adı + parola içermeyen ayrıntı).</summary>

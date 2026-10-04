@@ -27,6 +27,24 @@ public sealed class UserService(IUserRepository repository, IPasswordHasher hash
         if (_currentUser.Role != Domain.Enums.UserRole.Admin) throw new NoPermissionException(message);
     }
 
+    /// <summary>Rol kıdemi (güvenlik F2): Admin &gt; Yönetici &gt; Operatör = Muhasebe.</summary>
+    private static int Rank(Domain.Enums.UserRole? role) => role switch
+    {
+        Domain.Enums.UserRole.Admin => 3,
+        Domain.Enums.UserRole.Yonetici => 2,
+        null => 0,
+        _ => 1,
+    };
+
+    /// <summary>
+    /// Güvenlik F2 — aktör kendi kıdeminden YÜKSEK rol atayamaz ve kendisinden kıdemli kullanıcıyı değiştiremez
+    /// (ManageUsers istisnalı Operatör → Yönetici yapamaz; Yönetici → Admin zaten M2 ile kapalı).
+    /// </summary>
+    private void RequireRankAtMostActor(Domain.Enums.UserRole role, string message)
+    {
+        if (Rank(role) > Rank(_currentUser.Role)) throw new NoPermissionException(message);
+    }
+
     public async Task<IReadOnlyList<UserListItem>> ListAsync(CancellationToken ct = default)
     {
         RequireAdmin();
@@ -56,6 +74,8 @@ public sealed class UserService(IUserRepository repository, IPasswordHasher hash
         };
         // F11.1b güvenlik M2: Admin rolü atamak yalnız Admin'e (ManageUsers istisnalı Yönetici kendine Admin açamaz).
         if (input.Rol == Domain.Enums.UserRole.Admin) RequireAdminRole("Admin rolünde kullanıcıyı yalnız Admin oluşturabilir.");
+        RequireRankAtMostActor(input.Rol, "Kendi rolünüzden yüksek bir rolde kullanıcı oluşturamazsınız.");
+        await FreshActor.RequireAsync(_repository, _currentUser, ct); // güvenlik F1: aktörün güncel rolü DB'den
         user.PasswordHash = _hasher.Hash(input.Password);
         await _repository.CreateAsync(user, new UserAuditEntry("KullaniciOlusturma", $"Rol={user.Rol}"), ct);
         return user.Id;
@@ -67,8 +87,11 @@ public sealed class UserService(IUserRepository repository, IPasswordHasher hash
         // Kendini pasifleştirme/kilitlenme önlemi.
         if (!active && id == _currentUser.UserId)
             throw new ValidationException("Kendi hesabınızı pasifleştiremezsiniz.");
-        if (await _repository.FindAsync(id, ct) is { Rol: Domain.Enums.UserRole.Admin })
+        var target = await _repository.FindAsync(id, ct);
+        if (target is { Rol: Domain.Enums.UserRole.Admin })
             RequireAdminRole("Admin hesabının durumunu yalnız Admin değiştirebilir.");
+        if (target is not null) RequireRankAtMostActor(target.Rol, "Sizden kıdemli roldeki kullanıcının durumunu değiştiremezsiniz.");
+        await FreshActor.RequireAsync(_repository, _currentUser, ct); // güvenlik F1
         // F11.1b — son aktif Admin kemeri (M1: sayım repo'da kiracı kilidi ALTINDA, eşzamanlı iki pasifleştirme geçemez).
         return await _repository.UpdateAuditedAsync(id, u => u.IsActive = active,
             new UserAuditEntry(active ? "KullaniciAktif" : "KullaniciPasif"), ct);
@@ -83,11 +106,12 @@ public sealed class UserService(IUserRepository repository, IPasswordHasher hash
 
     /// <summary>
     /// Kabul d-sistem-kullanici-09 — rol ve atanmış şubeyi değiştirir (tam değiştirme, zorunlu sürüm; bayat → 409).
-    /// Kemerler: kendi rolünü değiştiremez (kendini düşürüp son Admin'i yok etme / kilitlenme yolu kapalı; şubesi
-    /// değişebilir); Admin hesabına dokunmak ve Admin rolü vermek yalnız Admin ROLÜNE (M2); son aktif Admin'in rolü
-    /// repo'da kiracı kilidi altında da korunur. Şubenin varlığı/aktifliği çağıranda doğrulanır (ad + kimlik birlikte).
-    /// <para>Oturum notu: rol ve şube giriş anında claim'e yazılır; değişiklik hedef kullanıcının bir sonraki
-    /// girişinde geçerli olur (izin istisnalarıyla aynı model — oturum yenileme deseni yok).</para>
+    /// Kemerler: kendi rolünü ve kendi şubesini değiştiremez (kendini düşürüp son Admin'i yok etme, kapsamını genişletme
+    /// ve kilitlenme yolları kapalı — güvenlik F2); kendi kıdeminden yüksek rol veremez ve kıdemlisini değiştiremez;
+    /// Admin hesabına dokunmak ve Admin rolü vermek yalnız Admin ROLÜNE (M2); son aktif Admin'in rolü repo'da kiracı
+    /// kilidi altında da korunur. Şubenin varlığı/aktifliği çağıranda doğrulanır (ad + kimlik birlikte).
+    /// <para>Oturum: güncelleme hedefin oturum damgasını yeniler (repo) → hedefin açık oturumu bir sonraki istekte düşer
+    /// ve yeniden girişte yeni rol/şube geçerli olur (güvenlik F1).</para>
     /// </summary>
     public async Task<bool> UpdateAsync(Guid id, UserUpdateInput input, string expectedVersion, CancellationToken ct = default)
     {
@@ -95,14 +119,22 @@ public sealed class UserService(IUserRepository repository, IPasswordHasher hash
         if (string.IsNullOrWhiteSpace(expectedVersion))
             throw new ValidationException("Kayıt sürümü (surum) zorunludur; kaydı yeniden açın.", "surum");
         if (await _repository.FindAsync(id, ct) is not { } current) return false;
-        if (_currentUser.UserId is { } self && self == id && current.Rol != input.Rol)
-            throw new ValidationException("Kendi rolünüzü değiştiremezsiniz; başka bir Admin değiştirmelidir.", "rol");
+        var branch = string.IsNullOrWhiteSpace(input.AtanmisSube) ? null : input.AtanmisSube.Trim();
+        if (_currentUser.UserId is { } self && self == id)
+        {
+            if (current.Rol != input.Rol)
+                throw new ValidationException("Kendi rolünüzü değiştiremezsiniz; başka bir Admin değiştirmelidir.", "rol");
+            if (!string.Equals(current.AtanmisSube?.Trim(), branch, StringComparison.Ordinal))
+                throw new ValidationException("Kendi şubenizi değiştiremezsiniz; başka bir yönetici değiştirmelidir.", "atanmisSube");
+        }
         if (current.Rol == Domain.Enums.UserRole.Admin)
             RequireAdminRole("Admin hesabını yalnız Admin değiştirebilir.");
         if (input.Rol == Domain.Enums.UserRole.Admin && current.Rol != Domain.Enums.UserRole.Admin)
             RequireAdminRole("Admin rolünü yalnız Admin verebilir.");
+        RequireRankAtMostActor(current.Rol, "Sizden kıdemli roldeki kullanıcıyı değiştiremezsiniz.");
+        RequireRankAtMostActor(input.Rol, "Kendi rolünüzden yüksek bir rol atayamazsınız.");
+        await FreshActor.RequireAsync(_repository, _currentUser, ct); // güvenlik F1: aktörün güncel rolü DB'den
 
-        var branch = string.IsNullOrWhiteSpace(input.AtanmisSube) ? null : input.AtanmisSube.Trim();
         var branchId = branch is null ? null : input.AtanmisSubeId;
         return await _repository.UpdateAuditedAsync(id, expectedVersion, u =>
         {
@@ -123,8 +155,11 @@ public sealed class UserService(IUserRepository repository, IPasswordHasher hash
             throw new ValidationException("Kendi parolanızı Profil > Parola Değiştir'den değiştirin.", "sifre");
         if (string.IsNullOrWhiteSpace(newPassword) || newPassword.Length < 6)
             throw new ValidationException("Parola en az 6 karakter olmalıdır.");
-        if (await _repository.FindAsync(id, ct) is { Rol: Domain.Enums.UserRole.Admin })
+        var target = await _repository.FindAsync(id, ct);
+        if (target is { Rol: Domain.Enums.UserRole.Admin })
             RequireAdminRole("Admin hesabının parolasını yalnız Admin sıfırlayabilir.");
+        if (target is not null) RequireRankAtMostActor(target.Rol, "Sizden kıdemli roldeki kullanıcının parolasını sıfırlayamazsınız.");
+        await FreshActor.RequireAsync(_repository, _currentUser, ct); // güvenlik F1
         var hash = _hasher.Hash(newPassword);
         return await _repository.UpdateAuditedAsync(id, u => u.PasswordHash = hash, new UserAuditEntry("ParolaSifirlama"), ct);
     }

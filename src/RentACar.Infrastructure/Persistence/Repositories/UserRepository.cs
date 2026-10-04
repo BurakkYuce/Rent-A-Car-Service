@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using RentACar.Application.Users;
 using RentACar.Domain.Entities;
+using RentACar.Infrastructure.Identity;
 
 namespace RentACar.Infrastructure.Persistence.Repositories;
 
@@ -9,9 +10,10 @@ namespace RentACar.Infrastructure.Persistence.Repositories;
 /// filtresi BURADA db.TenantId ile açıkça uygulanır. Oluşturmada TenantId damgalanır;
 /// DB tarafında RLS yazma politikası (WITH CHECK tenant) ikinci savunma katmanıdır.
 /// </summary>
-public sealed class UserRepository(IDbContextFactory<AppDbContext> factory) : IUserRepository
+public sealed class UserRepository(IDbContextFactory<AppDbContext> factory, UserSessionStateCache? sessions = null) : IUserRepository
 {
     private readonly IDbContextFactory<AppDbContext> _factory = factory;
+    private readonly UserSessionStateCache? _sessions = sessions;
 
     public async Task<IReadOnlyList<User>> ListAsync(CancellationToken ct = default)
     {
@@ -118,10 +120,26 @@ public sealed class UserRepository(IDbContextFactory<AppDbContext> factory) : IU
                                                           && u.Rol == Domain.Enums.UserRole.Admin, ct))
             throw new Application.Common.ValidationException(
                 "Son aktif Admin kullanıcısı pasifleştirilemez ya da rolü değiştirilemez.");
+        // Güvenlik F1: yönetim eylemi (rol/şube/aktiflik/parola) oturum damgasını yeniler → hedefin açık oturumları
+        // bir sonraki istekte düşer (çerez doğrulaması karşılaştırır).
+        user.GuvenlikDamgasi = UserSessionStateCache.NewStamp();
         UserAdminAudit.Add(db, UserAdminAudit.UsersEntity, id, Domain.Enums.AuditAction.Update, audit,
             new Dictionary<string, object?> { ["KullaniciAdi"] = user.UserName });
         await db.SaveChangesAsync(ct);
         await tx.CommitAsync(ct);
+        _sessions?.Invalidate(id);
+        return true;
+    }
+
+    /// <summary>Güvenlik F1 — izin istisnası gibi Users dışı yetki değişikliklerinde hedefin oturum damgasını yeniler.</summary>
+    public async Task<bool> RenewSecurityStampAsync(Guid id, CancellationToken ct = default)
+    {
+        await using var db = await _factory.CreateDbContextAsync(ct);
+        var user = await db.Users.FirstOrDefaultAsync(u => u.Id == id && u.TenantId == db.TenantId, ct);
+        if (user is null) return false;
+        user.GuvenlikDamgasi = UserSessionStateCache.NewStamp();
+        await db.SaveChangesAsync(ct);
+        _sessions?.Invalidate(id);
         return true;
     }
 }

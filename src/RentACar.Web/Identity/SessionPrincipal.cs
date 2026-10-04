@@ -22,6 +22,8 @@ public static class SessionPrincipal
             new(IdentityClaims.UserId, result.User.Id.ToString()),
             new(IdentityClaims.TenantId, result.Tenant.Id.ToString()),
             new(IdentityClaims.TenantCode, result.Tenant.Code),
+            // Güvenlik F1: oturum damgası — her istekte DB'dekiyle karşılaştırılır (SessionStampValidator).
+            new(IdentityClaims.SecurityStamp, UserSessionStateCache.Normalize(result.User.GuvenlikDamgasi)),
         };
         // Kullanıcı-bazlı istisnalar: izin adı başına BİR claim (CSV değil — FindAll ile
         // ayrıştırmasız okunur). Değişiklik sonraki girişte etkinleşir (claim login'de donar).

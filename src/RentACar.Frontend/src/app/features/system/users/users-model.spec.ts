@@ -46,6 +46,13 @@ describe('kullanıcı yönetimi kuralları (M2)', () => {
     expect(grantablePermissions('Admin')).toContain('ManageUsers');
   });
 
+  it('güvenlik F2: aktör kıdeminden yüksek rol veremez ve kıdemlisine dokunamaz', () => {
+    expect(creatableRoles('Operator')).toEqual(['Operator', 'Muhasebe']);
+    expect(canManageAccount('Operator', MANAGER)).toBe(false);
+    expect(canManageAccount('Operator', OPERATOR)).toBe(true);
+    expect(editableRoles('Operator', 'baska', OPERATOR)).toEqual(['Operator', 'Muhasebe']);
+  });
+
   it('rol düzenleme: kendi rolü sabit; Admin rolünü yalnız Admin verir (kabul d-sistem-kullanici-09)', () => {
     expect(editableRoles('Admin', 'admin', ADMIN)).toEqual(['Admin']);
     expect(editableRoles('Admin', 'admin', OPERATOR)).toEqual([

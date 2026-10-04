@@ -4737,7 +4737,6 @@ export type CeviriAnahtari =
   | 'sistem.kullanici.istisna.yasak'
   | 'sistem.kullanici.istisna.yasakEtiket'
   | 'sistem.kullanici.kendiParolam'
-  | 'sistem.kullanici.kendiRolNotu'
   | 'sistem.kullanici.kullaniciAdi'
   | 'sistem.kullanici.liste'
   | 'sistem.kullanici.olustur'

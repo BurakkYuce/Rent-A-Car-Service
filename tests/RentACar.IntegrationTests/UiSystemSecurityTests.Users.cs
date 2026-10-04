@@ -26,7 +26,9 @@ public sealed partial class UiSystemSecurityTests
                 Send(b, HttpMethod.Post, $"{Users}/{e.UserIds[Who.Admin]}/aktif", new { aktif = false }));
             Assert.Equal(1, await ActiveAdminsAsync(e));
             Assert.Single(results, r => r.StatusCode == HttpStatusCode.OK);
-            Assert.Single(results, r => r.StatusCode == HttpStatusCode.BadRequest);
+            // Kaybeden: kilit altında son-Admin kemeri (400) ya da — güvenlik F1 — pasifleştirilmiş aktörün oturumu
+            // istek doğrulanırken zaten düşmüşse 401 / DB'deki güncel durumu 403. Üçü de yazmadan reddeder.
+            Assert.Single(results, r => r.StatusCode is HttpStatusCode.BadRequest or HttpStatusCode.Unauthorized or HttpStatusCode.Forbidden);
         }
     }
 
