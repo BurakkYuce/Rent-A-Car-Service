@@ -9,8 +9,8 @@ namespace RentACar.Infrastructure.Persistence;
 /// BranchFkInterceptor yeni/güncellenen satırları zaten çözer; bu tip yalnız hiç dokunulmayan ESKİ
 /// satırları düzeltir. İDEMPOTENT (FK dolunca no-op). Başlangıçta (DbInitializer, owner) koşar.
 /// BYPASSRLS varsayımı YOK: tenant listesi üzerinden GUC set + AÇIK TenantId (Users FORCE-RLS değil,
-/// owner bypass eder → yalnız GUC yetmez). Eşleşme BranchRepository.FindByAdAsync ile birebir
-/// (lower(btrim)=lower(btrim), aynı adda Kod sırası). Expense ATLANIR (immutable mali kayıt; yeni
+/// owner bypass eder → yalnız GUC yetmez). Eşleşme <see cref="BranchNameMatch"/> (harf duyarsız aday; birebir ad →
+/// aktif şube → Kod sırası — oturum çözümüyle aynı kural). Expense ATLANIR (immutable mali kayıt; yeni
 /// giderler interceptor ile insert'te dolar).
 /// </summary>
 public static class BranchBackfill
@@ -45,15 +45,17 @@ public static class BranchBackfill
             {
                 // Açık TenantId scope: FORCE-RLS olmayan Users'ta owner bypass'ına karşı korur; Branches
                 // FORCE-RLS'te GUC ile zaten kapsanır ama açık koşul defense-in-depth.
+                // Güvenlik F5: ad → şube kuralı BranchNameMatch'te TEK yerde (oturum çözümüyle aynı: birebir → aktif → Kod).
+                var nameExpr = $"x.\"{branchCol}\"";
                 var sql = $"""
                     UPDATE "{table}" x SET "{fkCol}" = (
                         SELECT b."Id" FROM "Branches" b
-                        WHERE b."TenantId" = '{t}' AND lower(btrim(b."Ad")) = lower(btrim(x."{branchCol}"))
-                        ORDER BY b."Kod" LIMIT 1)
+                        WHERE b."TenantId" = '{t}' AND {BranchNameMatch.Where("b", nameExpr)}
+                        ORDER BY {BranchNameMatch.OrderBy("b", nameExpr)} LIMIT 1)
                     WHERE x."TenantId" = '{t}' AND x."{fkCol}" IS NULL AND x."{branchCol}" IS NOT NULL
                         AND btrim(x."{branchCol}") <> ''
                         AND EXISTS (SELECT 1 FROM "Branches" b2 WHERE b2."TenantId" = '{t}'
-                            AND lower(btrim(b2."Ad")) = lower(btrim(x."{branchCol}")));
+                            AND {BranchNameMatch.Where("b2", nameExpr)});
                     """;
                 total += await db.Database.ExecuteSqlRawAsync(sql, ct);
             }
