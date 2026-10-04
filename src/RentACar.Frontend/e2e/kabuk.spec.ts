@@ -1,6 +1,7 @@
 import { expect, test, type Page } from '@playwright/test';
 
 import { seriousViolations, collectErrors, logIn } from './ortak';
+import { waitReady } from './vitrin-sayfalari';
 
 /**
  * F3.2 kabuk: menü kayıttan (sahte `/api/ui/v1/menu`), etkin sayfa, Blazor öğesinin tam sayfa açılışı
@@ -144,6 +145,8 @@ test('390 px: yan menü çekmece — odak içeride, Esc kapatır ve odağı geri
 }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto('/app/vitrin');
+  // axe kabuk çizimi bitmeden (ikon kaydı, çeviri) koşarsa düğme adları henüz yok → ara sıra yanlış alarm.
+  await waitReady(page, { ad: 'dizin', yol: '/app/vitrin', baslik: 'Vitrin' });
   const button = page.getByRole('button', { name: 'Menüyü aç' });
   await expect(menu(page)).toBeHidden();
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
