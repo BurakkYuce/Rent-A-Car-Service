@@ -44,7 +44,7 @@ public static class ReturnMath
 
         // Uzatma (geç dönüş): kira gün hesabıyla AYNI kural ve AYNI 3 saat toleransı — tek kaynak
         // BookingMath.LateReturnDays (kabul bulguları a-kkayit-09 / C-GUN: eski "ceil" 1 dk gecikmeyi tam gün sayıyordu).
-        var extensionDays = BookingMath.LateReturnDays(c.BasTar, c.BitTar, actualReturn);
+        var extensionDays = BookingMath.LateReturnDays(c.BasTar, c.Gun, c.BitTar, actualReturn);
         var extensionCharge = Math.Round(extensionDays * c.GunlukUcret, 2, MidpointRounding.AwayFromZero);
 
         var grandTotal = c.Tutar + excessKmCharge + fuelCharge + extensionCharge;

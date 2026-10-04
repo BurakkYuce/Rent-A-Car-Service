@@ -103,6 +103,25 @@ public sealed class ReturnMathTests
         Assert.Equal(100m, r.UzatmaBedeli);
     }
 
+    /// <summary>
+    /// #372 adversarial L1 (probe P2): geç dönüş günü SÖZLEŞMEDE FATURALANAN güne (c.Gun) göre sayılır, planlanan
+    /// süre yeniden hesaplanmaz. ELLE ORACLE: planlanan 2 gün 2 sa 57 dk (kural 2 gün derdi) ama sözleşme 3 gün
+    /// faturalanmış; 5 dk geç dönüş → toplam 2 gün 3 sa 02 dk = 3 gün → 3 − 3 = 0 ek gün (eski kural 3 − 2 = 1 gün
+    /// daha faturalıyordu — müşteri aynı günü iki kez ödüyordu).
+    /// </summary>
+    [Fact]
+    public void Late_days_are_counted_against_billed_days()
+    {
+        var c = Base();
+        c.Gun = 3;
+        c.Tutar = 300m;
+        c.BitTar = Start.AddDays(2).AddHours(2).AddMinutes(57);
+        var r = ReturnMath.Compute(c, returnKm: 1100, returnFuel: 8, actualReturn: c.BitTar.AddMinutes(5));
+        Assert.Equal(0, r.UzatmaGun);
+        Assert.Equal(0m, r.UzatmaBedeli);
+        Assert.Equal(300m, r.GenelToplam);
+    }
+
     [Fact]
     public void Combined_charges_sum()
     {
