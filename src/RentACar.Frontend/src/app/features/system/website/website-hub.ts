@@ -17,6 +17,7 @@ import type { Schema } from '@core/api/ui-tipleri';
 import { ConfirmService } from '@core/geri-bildirim/confirm-service';
 import { ToastService } from '@core/geri-bildirim/toast-service';
 import { translationFunction } from '@core/i18n/ceviri';
+import { DUGME_IZINLERI } from '@core/oturum/dugme-izinleri';
 import { SessionService } from '@core/oturum/session-service';
 import { TemelStore } from '@core/veri/temel-store';
 import { MoneyPipe } from '@shared/bicim/bicim-pipe';
@@ -50,6 +51,10 @@ export class WebsiteHub {
 
   private readonly session = inject(SessionService);
   protected readonly module = computed(() => this.session.ben()?.moduller.webSitesi === true);
+  /** Güvenlik takip (b): ilan silme OperationsDelete ister (yayından kaldırma durum düğmesiyle, izin gerekmez). */
+  protected readonly canDelete = computed(() =>
+    this.session.hasPermissions(DUGME_IZINLERI.ilanSil.izinler),
+  );
   protected readonly missingPhoto = MISSING_PHOTO;
   protected readonly summary = new TemelStore<Summary>(() =>
     this.api.get<Summary>(`${LISTINGS_ROOT}/ozet`),

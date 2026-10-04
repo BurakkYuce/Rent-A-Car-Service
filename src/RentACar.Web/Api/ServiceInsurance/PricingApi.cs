@@ -38,7 +38,8 @@ internal static partial class PricingApi
         imp.MapGet("", ImportView).MapFields(F5Shared.SortRules);
         imp.MapPost("/yukle", Upload).DisableAntiforgery() // CSRF: group header filter (X-XSRF-TOKEN)
             .WithMetadata(new RequestSizeLimitAttribute(ImportRequestLimit));
-        imp.MapPost("/kanal-sil", DeleteChannel).MapFields([("Silinecek rezervasyon kaynağı", "kanal"), ("Toplu silme", "kanal")]);
+        imp.MapPost("/kanal-sil", DeleteChannel).MapFields([("Silinecek rezervasyon kaynağı", "kanal"), ("Toplu silme", "kanal")])
+            .RequirePermission(Permission.OperationsDelete); // güvenlik takip (a): toplu silme dar izin ister
     }
 
     // ------------------------------------------------------------------ fiyat hesapla

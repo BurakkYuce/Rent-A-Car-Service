@@ -127,14 +127,16 @@
                           {{ 'sistem.web.yayinla' | transloco }}
                         </button>
                       }
-                      <button
-                        type="button"
-                        class="rc-dugme rc-dugme--hayalet rc-dugme--kucuk"
-                        [disabled]="busy() !== null"
-                        (click)="remove(r)"
-                      >
-                        {{ 'sistem.ortak.sil' | transloco }}
-                      </button>
+                      @if (canDelete()) {
+                        <button
+                          type="button"
+                          class="rc-dugme rc-dugme--hayalet rc-dugme--kucuk"
+                          [disabled]="busy() !== null"
+                          (click)="remove(r)"
+                        >
+                          {{ 'sistem.ortak.sil' | transloco }}
+                        </button>
+                      }
                     </td>
                   </tr>
                 }

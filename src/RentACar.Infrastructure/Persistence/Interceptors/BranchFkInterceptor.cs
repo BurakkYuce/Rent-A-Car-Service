@@ -8,8 +8,8 @@ namespace RentACar.Infrastructure.Persistence.Interceptors;
 
 /// <summary>
 /// Şube-FK denormalizasyonu (roadmap F1 tamamlama): kaydedilen <see cref="IBranchScoped"/> entity'lerin
-/// SubeAdi serbest-metnini tenant Branch master'ından çözüp SubeFk'yi doldurur (BranchRepository.
-/// FindByAdAsync ile BİREBİR: lower(btrim)=lower(btrim) eşleşme + aynı adda Kod sırası deterministik;
+/// SubeAdi serbest-metnini tenant Branch master'ından çözüp SubeFk'yi doldurur (<see cref="BranchNameMatch.Pick"/>:
+/// harf duyarsız aday, birebir ad → aktif şube → Kod sırası — backfill ve oturum çözümüyle AYNI kural, #379 L1;
 /// eşleşmezse null). Tek doğruluk kaynağı SubeAdi metni; SubeFk daima türev — MERKEZÎ, servisler tek
 /// tek çözmez. Yalnız SubeAdi dolu Added/Modified entity varsa Branch okunur (ekstra sorgu nadir).
 /// Audit interceptor'dan ÖNCE koşar (çözülen SubeFk denetim izine yansısın). Stateless → singleton.
@@ -23,7 +23,8 @@ public sealed class BranchFkInterceptor : SaveChangesInterceptor
         {
             var scoped = Collect(db);
             if (scoped.Count > 0)
-                Apply(scoped, db.Set<Branch>().AsNoTracking().Select(b => new BranchRef(b.Id, b.Ad, b.Kod)).ToList());
+                Apply(scoped, db.Set<Branch>().AsNoTracking()
+                    .Select(b => new BranchNameMatch.Candidate(b.Id, b.Ad, b.Kod, b.Aktif)).ToList());
         }
         return base.SavingChanges(eventData, result);
     }
@@ -36,12 +37,10 @@ public sealed class BranchFkInterceptor : SaveChangesInterceptor
             var scoped = Collect(db);
             if (scoped.Count > 0)
                 Apply(scoped, await db.Set<Branch>().AsNoTracking()
-                    .Select(b => new BranchRef(b.Id, b.Ad, b.Kod)).ToListAsync(ct));
+                    .Select(b => new BranchNameMatch.Candidate(b.Id, b.Ad, b.Kod, b.Aktif)).ToListAsync(ct));
         }
         return await base.SavingChangesAsync(eventData, result, ct);
     }
-
-    private readonly record struct BranchRef(Guid Id, string Ad, string Kod);
 
     private static List<EntityEntry<IBranchScoped>> Collect(AppDbContext db)
     {
@@ -52,17 +51,9 @@ public sealed class BranchFkInterceptor : SaveChangesInterceptor
             .ToList();
     }
 
-    private static void Apply(List<EntityEntry<IBranchScoped>> scoped, List<BranchRef> branches)
+    private static void Apply(List<EntityEntry<IBranchScoped>> scoped, List<BranchNameMatch.Candidate> branches)
     {
-        // Ad case-insensitive → Id; aynı adda Kod sırası (L2 deseni; FindByAdAsync ile birebir).
-        var map = branches
-            .GroupBy(b => b.Ad.Trim().ToLowerInvariant())
-            .ToDictionary(g => g.Key, g => g.OrderBy(b => b.Kod).First().Id);
-
         foreach (var e in scoped)
-        {
-            var key = e.Entity.SubeAdi!.Trim().ToLowerInvariant();
-            e.Entity.SubeFk = map.TryGetValue(key, out var id) ? id : null; // eşleşmezse null (metin korunur)
-        }
+            e.Entity.SubeFk = BranchNameMatch.Pick(branches, e.Entity.SubeAdi!); // eşleşmezse null (metin korunur)
     }
 }

@@ -152,6 +152,7 @@ public sealed class SiteContentService(
     public async Task DeleteAsync(Guid id, CancellationToken ct = default)
     {
         await GuardAsync(ct);
+        PermissionGuard.Require(currentUser, Permission.OperationsDelete); // güvenlik takip (b)
         if (!await repository.DeleteAsync(id, ct)) throw new ValidationException("Sayfa bulunamadı.");
         InvalidateCache();
     }
@@ -217,6 +218,7 @@ public sealed class SiteContentService(
     public async Task DeleteFaqAsync(Guid id, CancellationToken ct = default)
     {
         await GuardAsync(ct);
+        PermissionGuard.Require(currentUser, Permission.OperationsDelete); // güvenlik takip (b)
         if (!await repository.DeleteFaqAsync(id, ct)) throw new ValidationException("Soru bulunamadı.");
         InvalidateCache();
     }

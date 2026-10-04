@@ -129,6 +129,8 @@ public sealed class VehicleOrderService(IVehicleOrderRepository repository, ICur
     public async Task<bool> ChangeStatusAsync(Guid id, OrderStatus status, CancellationToken ct = default)
     {
         PermissionGuard.Require(_currentUser, Permission.OperationsWrite);
+        // Güvenlik takip (a): iptal yıkıcı geçiştir — dar silme izni (operatör iptal etmez; uç da aynı izni ister).
+        if (status == OrderStatus.Iptal) PermissionGuard.Require(_currentUser, Permission.OperationsDelete);
         return await _repository.UpdateLockedAsync(id, null, row =>
         {
             if (row.Durum == status) return;

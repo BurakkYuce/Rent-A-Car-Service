@@ -90,6 +90,16 @@ export const DUGME_IZINLERI = {
     izinler: ['OperationsWrite', 'OperationsDelete'],
     uc: 'DELETE /api/ui/v1/vardiyalar/{id:guid}',
   },
+  /** Web sitesi ilanı "Sil" (kaydı siler; yayından kaldırma ayrı durum geçişi) — güvenlik takip (b). */
+  ilanSil: {
+    izinler: ['OperationsWrite', 'OperationsDelete'],
+    uc: 'DELETE /api/ui/v1/web-sitesi/ilanlar/{id:guid}',
+  },
+  /** Tarife aktar "kanalı sil" (bekleyen satırları toplu siler) — güvenlik takip (a). */
+  tarifeKanalSil: {
+    izinler: ['ManageUsers', 'OperationsDelete'],
+    uc: 'POST /api/ui/v1/tarife-aktar/kanal-sil',
+  },
 } as const satisfies Readonly<Record<string, DugmeIzni>>;
 
 export type ButtonName = keyof typeof DUGME_IZINLERI;

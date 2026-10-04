@@ -51,7 +51,8 @@ public static partial class WebsiteApi
         }).MapFields(BlogRules);
 
         g.MapDelete("/{id:guid}", async Task<Results<NoContent, ProblemHttpResult>> (Guid id, BlogService s, CancellationToken ct)
-            => await s.DeleteAsync(id, ct) ? TypedResults.NoContent() : SystemApiCommon.NotFound("Yazı bulunamadı."));
+            => await s.DeleteAsync(id, ct) ? TypedResults.NoContent() : SystemApiCommon.NotFound("Yazı bulunamadı."))
+            .RequirePermission(Permission.OperationsDelete); // güvenlik takip (b)
 
         g.MapGet("/{id:guid}/onizleme", async Task<Results<Ok<BlogPreviewDto>, ProblemHttpResult>> (
             Guid id, BlogService s, CancellationToken ct)

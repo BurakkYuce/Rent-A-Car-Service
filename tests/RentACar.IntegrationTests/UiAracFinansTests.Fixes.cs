@@ -29,7 +29,8 @@ public sealed partial class UiAracFinansTests
     public async Task Order_transition_table_every_pair_and_flags()
     {
         var o = await SetUpEnvironmentAsync();
-        var s = await LoginAsync(o, Kim.OperatorA);
+        // Güvenlik takip (a): iptal OperationsDelete ister → tam geçiş tablosu silebilen rolle (Admin) sınanır.
+        var s = await LoginAsync(o, Kim.Admin);
         foreach (var from in Enum.GetValues<OrderStatus>())
         {
             // Yetki bayrakları oracle ile aynı olmalı (tek kaynak).
@@ -57,8 +58,8 @@ public sealed partial class UiAracFinansTests
     public async Task Order_two_tabs_cannot_undo_delivery()
     {
         var o = await SetUpEnvironmentAsync();
-        var tab1 = await LoginAsync(o, Kim.OperatorA);
-        var tab2 = await LoginAsync(o, Kim.OperatorA);
+        var tab1 = await LoginAsync(o, Kim.Admin); // iptal adımı OperationsDelete ister (güvenlik takip a)
+        var tab2 = await LoginAsync(o, Kim.Admin);
         var id = await OrderInStateAsync(o, OrderStatus.Onaylandi);
         await Json(await Gonder(tab1, HttpMethod.Post, $"{Order}/{id}/teslim-al"));
         await ExpectProblem(await Gonder(tab2, HttpMethod.Post, $"{Order}/{id}/onayla"), HttpStatusCode.Conflict, "cakisma");

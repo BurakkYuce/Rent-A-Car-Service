@@ -115,7 +115,7 @@
   }
 
   @if (channel(); as k) {
-    @if (deleteVisible()) {
+    @if (deleteVisible() && canDeleteChannel()) {
       <div class="rc-form-mesaji rc-form-mesaji--uyari">
         <button
           type="button"
