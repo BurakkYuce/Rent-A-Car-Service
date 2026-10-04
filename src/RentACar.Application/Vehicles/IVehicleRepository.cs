@@ -54,4 +54,8 @@ public interface IVehicleRepository
 
     /// <summary>FAZ 2.5 — aracın km zaman serisi (en yeni önce, limitli; araç kartı listesi).</summary>
     Task<IReadOnlyList<VehicleKmLog>> KmLogsAsync(Guid vehicleId, int limit = 20, CancellationToken ct = default);
+
+    /// <summary>Kabul bulgusu — aracın durumunu belirleyen açık kayıtlar (açık kira, serviste kayıt, açık tahsis,
+    /// tamamlanmış satış); kart durum kuralı <see cref="VehicleStatusRule"/> bunlarla karar verir.</summary>
+    Task<VehicleCommitments> CommitmentsAsync(Guid id, CancellationToken ct = default);
 }
