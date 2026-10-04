@@ -3,6 +3,7 @@ import { expect, test, type Route } from '@playwright/test';
 import {
   EXPENSE_1,
   INCOMING_1,
+  INVOICE_1,
   PENALTY_1,
   documentEndpoints,
   incomingRow,
@@ -86,6 +87,18 @@ for (const s of PAGES) {
     expect(errors).toEqual([]);
   });
 }
+
+test('/app/faturalar/{id} doğrudan açılır: liste + o faturanın detayı (kalemler, tutarlar)', async ({
+  page,
+}) => {
+  const errors = collectErrors(page, NETWORK_ERROR);
+  await documentEndpoints(page);
+  await page.goto(`/app/faturalar/${INVOICE_1}`);
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText('Faturalar');
+  await expect(page.getByRole('heading', { name: 'Fatura RNT2026000000001' })).toBeVisible();
+  await expect(page).toHaveURL(new RegExp(`/app/faturalar/${INVOICE_1}$`));
+  expect(errors).toEqual([]);
+});
 
 test('manuel fatura: doğrulama hatasında form korunur; "1.500,50" → 1500.50; 3 ondalık reddedilir; tekrar AYNI anahtar', async ({
   page,

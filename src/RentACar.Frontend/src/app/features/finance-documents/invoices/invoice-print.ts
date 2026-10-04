@@ -7,9 +7,15 @@ import { PageBand } from '../../../kabuk/sayfa-bandi/page-band';
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
+/** Rota parametresi geçerli bir fatura kimliği (UUID) mi; değilse `null` (istek atılmaz). */
+export function invoiceRouteId(id: string | null | undefined): string | null {
+  return id && UUID.test(id) ? id : null;
+}
+
 /** Faturanın PDF adresi (sunucu ucu; SPA'ya yönlenmez). Geçersiz kimlikte `null`. */
 export function invoicePdfPath(id: string | null | undefined): string | null {
-  return id && UUID.test(id) ? `/faturalar/${id}/pdf` : null;
+  const valid = invoiceRouteId(id);
+  return valid ? `/faturalar/${valid}/pdf` : null;
 }
 
 /**

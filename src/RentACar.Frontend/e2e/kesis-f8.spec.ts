@@ -200,11 +200,12 @@ test('kira formu finans paneli: depozito, fatura ve ceza bağlantıları SPA rot
   );
   await panel.getByRole('tab', { name: 'Faturalar', exact: true }).click();
   const invoiceLink = panel.getByRole('link', { name: 'RNT2026000000001' });
-  await expect(invoiceLink).toHaveAttribute('href', '/app/faturalar');
+  // Kabul testi: fatura no o faturanın detayını açar (`/faturalar/{id}`), yalnız listeyi değil.
+  await expect(invoiceLink).toHaveAttribute('href', `/app/faturalar/${INVOICE_1}`);
   expect(await fallenLinks(page, 'main')).toEqual([]);
 
   await markWindow(page);
   await invoiceLink.click();
-  await expect(page).toHaveURL((url) => url.pathname === '/app/faturalar');
+  await expect(page).toHaveURL((url) => url.pathname === `/app/faturalar/${INVOICE_1}`);
   expect(await windowMarked(page)).toBe(true);
 });

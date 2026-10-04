@@ -327,6 +327,6 @@ test('izin: Muhasebe taksit öder yetkisini görür ama kredi açamaz; BAF/hasar
   for (const path of ['/app/baf', '/app/hasar', '/app/arac-siparis/yeni']) {
     await page.goto(`${ROOT}${path}`);
     await expect(page.getByText('Bu sayfayı görüntüleme yetkiniz yok.')).toBeVisible();
-    await expect(page).toHaveURL(`${ROOT}/app/`);
+    await expect(page).toHaveURL(`${ROOT}/app/panel`);
   }
 });

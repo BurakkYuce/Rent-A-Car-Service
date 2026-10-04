@@ -20,7 +20,6 @@ export interface VitrinSayfasi {
 const LAYOUT_ENDPOINT = '**/api/ui/v1/tablo-duzenleri/**';
 
 export const SHOWCASE_PAGES: readonly VitrinSayfasi[] = [
-  { ad: 'ana-sayfa', yol: '/app/', baslik: 'Yeni arayüz yapım aşamasında' },
   { ad: 'dizin', yol: '/app/vitrin', baslik: 'Vitrin' },
   { ad: 'tokenlar', yol: '/app/vitrin/tokenlar', baslik: 'Token’lar' },
   { ad: 'primitifler', yol: '/app/vitrin/primitifler', baslik: 'Primitifler' },

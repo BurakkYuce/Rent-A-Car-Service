@@ -31,18 +31,18 @@ import { VEHICLE_ROUTES } from '@features/vehicles/vehicles.routes';
  * - Çeviri: özellik metinleri ilk pakette değil; sayfa kendi bloğunu yükler: `canActivate: [ceviriBlogu('panel')]`
  *   ya da özellik rota dizisi `ceviriBloguyla('<blok>', [...])` (AGENTS.md "i18n").
  */
+/**
+ * Kök (`/app/`) → Panel. Eski "yapım aşamasında" yer tutucusu kalktı (kabul testi: bilinmeyen adres ve yetki reddi
+ * son kullanıcıya geliştirici vitrin bağlantılarını gösteriyordu). Sunucunun girişi ve hata hedefleri de Panel'dir
+ * (`Cutover.SpaPanel`). Bilinmeyen adres: kabuğun `**` 404 sayfası (`kabuk.routes.ts`).
+ */
+export const HOME_REDIRECT: Routes[number] = { path: '', pathMatch: 'full', redirectTo: 'panel' };
+
 export const PAGES: Routes = [
+  HOME_REDIRECT,
   {
-    path: '',
-    pathMatch: 'full',
-    title: 'Yeni arayüz — RentACar',
-    loadComponent: () => import('@features/yer-tutucu/placeholder').then((m) => m.Placeholder),
-    canActivate: [ceviriBlogu('vitrin')],
-  },
-  {
-    // F4.5 Panel (Blazor `/`). Kök yerine `/panel`: kök F3 vitrin/e2e/görsel tabanlarının çapası. F4.6: pilot
-    // girişinin varsayılan inişi (`PILOT_INIS`), menü "Panel" kaydı (`/app/panel`, sahip spa) ve Blazor `/`'ın
-    // pilot yönlendirmesi bu rota. İzin kapısı içerikte (sunucu).
+    // F4.5 Panel (Blazor `/`). F4.6: girişin varsayılan inişi (`PILOT_INIS`), menü "Panel" kaydı (`/app/panel`, sahip
+    // spa), Blazor `/`'ın yönlendirmesi ve kabuk kökü bu rota. İzin kapısı içerikte (sunucu).
     path: 'panel',
     title: 'Panel — RentACar',
     loadComponent: () => import('@features/panel/panel-page').then((m) => m.PanelPage),
@@ -104,6 +104,10 @@ export const PAGES: Routes = [
       canDeactivate: [unsavedChangesGuard],
     },
   ]),
+  // Vitrin (F3.7): GİZLİ geliştirici sayfaları — menüde, komut paletinde ya da herhangi bir son kullanıcı ekranında
+  // bağlantısı YOK; yalnız adresi bilen açar (oturum yine şart, veri/uç yok). Geliştirme derlemesine kısıtlanmadı:
+  // CI e2e (axe, taşma, görsel regresyon) bu sayfaları ÜRETİM derlemesinde koşar; ayrı derleme yapılandırması bu
+  // kapıları üretim paketinden koparırdı.
   ...withTranslationBlock('vitrin', [
     {
       // F3.7 vitrin dizini: çekirdeğin her parçasına bağlantı (e2e: axe iki tema, 320–1440 taşma, görsel).

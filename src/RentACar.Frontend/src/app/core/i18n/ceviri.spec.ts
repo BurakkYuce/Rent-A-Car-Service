@@ -14,7 +14,7 @@ describe('i18n (Transloco, yalnız tr)', () => {
   it('etkin dil tr; tipli çeviri fonksiyonu tr.json metnini döner', () => {
     expect(TestBed.inject(TranslocoService).getActiveLang()).toBe('tr');
     const t = TestBed.runInInjectionContext(() => translationFunction());
-    expect(t('yerTutucu.baslik')).toBe('Yeni arayüz yapım aşamasında');
+    expect(t('kabuk.bulunamadi.baslik')).toBe('Sayfa bulunamadı');
     expect(t('tema.koyu')).toBe('Koyu');
   });
 
