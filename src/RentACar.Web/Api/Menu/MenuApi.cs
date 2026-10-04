@@ -31,11 +31,14 @@ public static class MenuApi
         return v1;
     }
 
-    /// <summary>Görünürlük kuralı (test edilebilir, saf): izin yoksa herkes; varsa etkin izin; modül bayrağı açık olmalı.
+    /// <summary>Görünürlük kuralı (test edilebilir, saf): izin yoksa herkes; varsa etkin izin YA DA öğenin alternatif
+    /// izinlerinden biri (rota kapısı "izinlerden biri" olan sayfa); modül bayrağı açık olmalı.
     /// Bilinmeyen modül adı → gizli (güvenli varsayılan).</summary>
     public static IEnumerable<MenuOgesi> Visible(ClaimsPrincipal user, bool websiteModule)
         => MenuRegistry.Items.Where(o =>
-            (o.Izin is not { } permission || AuthExtensions.HasPermission(user, permission))
+            (o.Izin is not { } permission
+             || AuthExtensions.HasPermission(user, permission)
+             || (o.AlternatifIzinler ?? []).Any(p => AuthExtensions.HasPermission(user, p)))
             && (o.Modul is null || (o.Modul == ModulMetadata.Website && websiteModule)));
 
     private static async Task<Ok<MenuYaniti>> Menu(

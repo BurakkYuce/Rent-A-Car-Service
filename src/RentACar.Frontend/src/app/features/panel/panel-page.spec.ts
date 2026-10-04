@@ -174,6 +174,16 @@ describe('PanelSayfasi', () => {
     expect(satirlar('panel-donusler')).toEqual([expect.stringContaining('2026220901002')]);
   });
 
+  it('üst bant "+ Kira" yeni kira formunu açar (liste değil), "+ Rezervasyon" yeni rezervasyonu', async () => {
+    const { kok } = await open(ozet());
+    const link = (text: string) =>
+      [...kok.querySelectorAll('a')]
+        .find((a) => a.textContent?.trim() === text)
+        ?.getAttribute('href');
+    expect(link('+ Kira')).toBe('/kiralar/yeni');
+    expect(link('+ Rezervasyon')).toBe('/rezervasyonlar/yeni');
+  });
+
   it('finans bloğu yanıtta yoksa çizilmez; varsa özet + filo KPI + trend görünür', async () => {
     const none = await open(ozet());
     expect(none.kok.querySelector('#panel-finans')).toBeNull();

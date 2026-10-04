@@ -225,8 +225,23 @@ test('F5.4 kesiş: panelin rezervasyon/müsaitlik bağlantıları SPA rotası (B
     'href',
     '/app/musaitlik',
   );
+  await expect(main.getByRole('link', { name: '+ Kira', exact: true })).toHaveAttribute(
+    'href',
+    '/app/kiralar/yeni',
+  );
   await main.getByRole('link', { name: '+ Rezervasyon', exact: true }).click();
   await expect(page).toHaveURL((url) => url.pathname === '/app/rezervasyonlar/yeni');
+});
+
+test('kök /app/ Panel’e gider (eski yer tutucu yok)', async ({ page }) => {
+  const errors = collectErrors(page);
+  await logIn(page);
+  await fakePanel(page, () => ozet(true));
+  await page.goto('/app/');
+  await ready(page);
+  await expect(page).toHaveURL(/\/app\/panel$/);
+  await expect(page.getByText('yapım aşamasında')).toHaveCount(0);
+  expect(errors).toEqual([]);
 });
 
 test('Tahsil Et: sunucu anahtarı aynen gider, gönderim kilitli, 2xx sonrası panel tazelenir', async ({

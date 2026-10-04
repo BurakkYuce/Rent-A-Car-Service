@@ -127,6 +127,8 @@ export class RentalFinanceState {
   private readonly t = translationFunction();
   /** Belirsiz tahsilat denemeleri ANAHTARA bağlı, uygulama geneli (Nakit ↔ Kart, liste ↔ Panel ortak). */
   private readonly attemptRecord = inject(CollectionAttemptRecord);
+  /** Dönem "Kes" onay penceresi açık: ikinci tık yok sayılır. */
+  private periodConfirming = false;
 
   /** Sayfaya "kayıt değişti" bildirimi (panelin `degisti` çıktısı); panel kurucuda bağlar. */
   changed: () => void = () => undefined;
@@ -512,6 +514,14 @@ export class RentalFinanceState {
       {
         // L4: geçersiz alan kapalı <details> içindeyse görünmüyordu (sessiz "Fatura kes") → bileşen açıp odaklar.
         ...(invalid ? { gecersiz: invalid } : {}),
+        // Kabul testi: kesilen fatura silinemez (düzeltme yalnız iade faturasıyla) → önce onay.
+        onay: () =>
+          this.approval.ask({
+            baslik: this.t('kiraFinans.fatura.onayBaslik'),
+            mesaj: this.t('kiraFinans.fatura.onayMesaj'),
+            onayEtiketi: this.t('kiraFinans.fatura.kesDugme'),
+            tehlikeli: true,
+          }),
         basarili: () => {
           this.invoiceForm.reset(this.invoiceDefaults());
           this.tamam('kiraFinans.bildirim.fatura');
@@ -524,10 +534,24 @@ export class RentalFinanceState {
    * Dönem faturası kes (+ isteğe bağlı tahsilat) — E18/E19 yapısal + deterministik `RowKey(kira, sıra)`:
    * tekrar SESSİZ 200 (aynı fatura). `tahsilatYazildi=false` ise sunucunun `bilgi`'si GİZLENMEZ.
    */
-  issuePeriod(d: RentalPeriod): void {
+  async issuePeriod(d: RentalPeriod): Promise<void> {
     const k = this.kira();
-    if (!k || this.periodLock.gonderiliyor()) return;
+    if (!k || this.periodLock.gonderiliyor() || this.periodConfirming) return;
     const order = Number(d.donemSira);
+    // Kabul testi: dönem faturası silinemez (düzeltme yalnız iade faturasıyla) → önce onay.
+    this.periodConfirming = true;
+    let approved: boolean;
+    try {
+      approved = await this.approval.ask({
+        baslik: this.t('kiraFinans.donem.onayBaslik'),
+        mesaj: this.t('kiraFinans.donem.onayMesaj', { sira: order }),
+        onayEtiketi: this.t('kiraFinans.donem.kes'),
+        tehlikeli: true,
+      });
+    } finally {
+      this.periodConfirming = false;
+    }
+    if (!approved || this.periodLock.gonderiliyor()) return;
     const f = this.periodForm(order).getRawValue();
     const body: PeriodInvoiceRequest = {
       kiraId: k.id,

@@ -20,6 +20,7 @@ import { ConfirmService } from '@core/geri-bildirim/confirm-service';
 import { ToastService } from '@core/geri-bildirim/toast-service';
 import type { CeviriAnahtari } from '@core/i18n/ceviri-anahtarlari';
 import { translationFunction } from '@core/i18n/ceviri';
+import { MenuRefresh } from '@core/sayac/menu-refresh';
 import { TemelStore } from '@core/veri/temel-store';
 import { MoneyPipe, DatePipe, DateTimePipe } from '@shared/bicim/bicim-pipe';
 import { Alan } from '@shared/form/alan/alan';
@@ -106,6 +107,8 @@ export class BookingRequestsPage {
   private readonly confirm = inject(ConfirmService);
   private readonly toast = inject(ToastService);
   private readonly destroyRef = inject(DestroyRef);
+  /** "Yeni talep" rozeti işlemden sonra hemen güncellensin (kabul testi). */
+  private readonly menuRefresh = inject(MenuRefresh);
   private readonly t = translationFunction();
 
   protected readonly filters = new FormGroup({
@@ -263,6 +266,7 @@ export class BookingRequestsPage {
           this.open.set(null);
           this.toast.basari(this.t('sistem.talep.donusturuldu'));
           this.list.yenile();
+          this.menuRefresh.request();
         },
       },
     );
@@ -278,6 +282,7 @@ export class BookingRequestsPage {
         this.open.set(null);
         this.toast.basari(this.t('sistem.ortak.kaydedildi'));
         this.list.yenile();
+        this.menuRefresh.request();
       },
       error: (e: unknown) => {
         this.busy.set(false);

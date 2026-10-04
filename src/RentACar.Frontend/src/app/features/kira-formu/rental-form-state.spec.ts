@@ -326,6 +326,44 @@ describe('KiraFormuDurumu (yeni kira)', () => {
     const list = await firstValueFrom(d.addOnSource('bebek', 20));
     expect(list).toEqual([{ id: DEFINITION_ID, etiket: 'Bebek koltuğu (75,50 ₺ net)' }]);
   });
+  it('Dönüşü tamamla GERİ ALINAMAZ: önce onay; vazgeçilirse istek yok, onaylanırsa tek POST …/donus', async () => {
+    const { d, cagrilar } = await exchangeRate({});
+    const confirm = TestBed.inject(ConfirmService) as unknown as {
+      ask: ReturnType<typeof vi.fn>;
+    };
+    const returns = () => cagrilar.filter((c) => c.yontem === 'POST' && c.yol.endsWith('/donus'));
+
+    // Geçersiz formda onay sorulmaz (önce alan hataları).
+    d.doReturn();
+    await wait(0);
+    expect(confirm.ask).not.toHaveBeenCalled();
+    expect(returns()).toHaveLength(0);
+
+    d.returnForm.patchValue({
+      donusKm: 12500,
+      donusYakit: 6,
+      gercekDonus: new Date().toISOString(),
+    });
+    confirm.ask.mockResolvedValueOnce(false);
+    d.doReturn();
+    await wait(0);
+    expect(confirm.ask).toHaveBeenCalledTimes(1);
+    expect(confirm.ask).toHaveBeenCalledWith(
+      expect.objectContaining({
+        baslik: 'Dönüş tamamlansın mı?',
+        onayEtiketi: 'Dönüşü tamamla',
+        tehlikeli: true,
+      }),
+    );
+    expect(returns()).toHaveLength(0);
+
+    d.doReturn();
+    d.doReturn(); // onay penceresi açıkken ikinci tık yok sayılır
+    await wait(0);
+    expect(returns()).toHaveLength(1);
+    expect(returns()[0]?.govde).toMatchObject({ donusKm: 12500, donusYakit: 6 });
+  });
+
   it('katalog KESİKSE (toplam > satır) ekleme kaynağı sunucuda arar (q); katalogdaki öğe fiyatlı, SYS yok', async () => {
     catalogResponse = { ...FULL_CATALOG, toplam: 206 };
     const { d, cagrilar: calls } = await exchangeRate({});

@@ -62,7 +62,18 @@ public sealed class MenuKaydiTests
 
     /// <summary>Kaydın, F4.6 öncesi menüyle karşılaştırılabilir hâli: <c>spa</c> öğesinin rotası Blazor karşılığına çevrilir.</summary>
     private static string OldRoute(MenuOgesi o)
-        => o.Sahip == MenuRegistry.Spa ? RentACar.Web.Spa.Cutover.BlazorEquivalent(o.Rota) ?? o.Rota : o.Rota;
+        => o.Sahip != MenuRegistry.Spa ? o.Rota
+            : SpaOnlyRoutes.TryGetValue(o.Rota, out var old) ? old
+            : RentACar.Web.Spa.Cutover.BlazorEquivalent(o.Rota) ?? o.Rota;
+
+    /// <summary>
+    /// SPA'da ayrı rotası olan ama Blazor'da başka sayfanın İÇİNDE çizilen ekranlar (haritada yok — Blazor'da @page'i
+    /// yoktu). Kabul testi: "Yeni Rezervasyon" kısa yolu boş formu açar; Blazor'da form rezervasyon listesindeydi.
+    /// </summary>
+    private static readonly Dictionary<string, string> SpaOnlyRoutes = new(StringComparer.Ordinal)
+    {
+        ["/app/rezervasyonlar/yeni"] = "/rezervasyonlar",
+    };
 
     [Fact]
     public void Kayit_F46_oncesi_MainLayout_menusuyle_birebir_ayni_sirada()
@@ -125,7 +136,7 @@ public sealed class MenuKaydiTests
                 "/app/raporlar/otomatik-servisler", "/app/raporlar/periyodik-servis", "/app/raporlar/personel-calisma",
                 "/app/raporlar/rezervasyon-kaynak", "/app/raporlar/servis-ozet", "/app/raporlar/sigorta-muayene",
                 "/app/raporlar/tahsilat-fatura", "/app/raporlar/virman-gecmisi", "/app/regulasyon",
-                "/app/rez-sartlari", "/app/rezervasyonlar", "/app/rezervasyonlar", "/app/satislar", "/app/segmentler",
+                "/app/rez-sartlari", "/app/rezervasyonlar", "/app/rezervasyonlar/yeni", "/app/satislar", "/app/segmentler",
                 "/app/segmentler", "/app/servis-tanimlari", "/app/servisler", "/app/sigorta-urunleri", "/app/sikayetler",
                 "/app/takvim", "/app/tarife-aktar", "/app/tarife-gruplari", "/app/tarife-matris", "/app/tarifeler",
                 "/app/tek-cari-toplu", "/app/teklifler", "/app/toplu-gider", "/app/toplu-tahsilat", "/app/vade",
@@ -163,6 +174,44 @@ public sealed class MenuKaydiTests
         Assert.True(errors.Count == 0, "Menü izni sayfa yetkisiyle uyuşmuyor:\n" + string.Join("\n", errors));
     }
 
+    /// <summary>
+    /// Kabul testi: rota kapısı "izinlerden BİRİ" olan sayfaların menü görünürlüğü rota ile AYNI küme. Elle yazılmış
+    /// oracle — SPA rota dosyalarındaki <c>anyPermissionGuard(...)</c> ve uçların <c>RequireAnyPermission(...)</c>
+    /// satırlarından (reports.routes.ts "ops", finance-documents.routes.ts cezalar/satislar, finance.routes.ts kurlar).
+    /// Listede olmayan öğenin alternatif izni OLMAZ (tek izinle görünür).
+    /// </summary>
+    private static readonly Dictionary<string, Permission[]> AnyOfRouteGates = new(StringComparer.Ordinal)
+    {
+        ["/app/raporlar/arac-durum-takip"] = [Permission.OperationsWrite, Permission.ViewReports],
+        ["/app/raporlar/km-detay"] = [Permission.OperationsWrite, Permission.ViewReports],
+        ["/app/raporlar/periyodik-servis"] = [Permission.OperationsWrite, Permission.ViewReports],
+        ["/app/raporlar/sigorta-muayene"] = [Permission.OperationsWrite, Permission.ViewReports],
+        ["/app/raporlar/karsilastirmali-analiz"] = [Permission.OperationsWrite, Permission.ViewReports],
+        ["/app/raporlar/personel-calisma"] = [Permission.OperationsWrite, Permission.ViewReports],
+        ["/app/cezalar"] = [Permission.OperationsWrite, Permission.FinanceWrite, Permission.ViewReports],
+        ["/app/satislar"] = [Permission.OperationsWrite, Permission.FinanceWrite, Permission.ViewReports],
+        ["/app/kurlar"] = [Permission.OperationsWrite, Permission.FinanceWrite, Permission.ViewReports],
+    };
+
+    [Fact]
+    public void Izinlerden_biri_kapili_sayfalarin_menu_izni_rota_kapisiyla_ayni()
+    {
+        var errors = new List<string>();
+        foreach (var o in MenuRegistry.Items)
+        {
+            var actual = new[] { o.Izin }.OfType<Permission>().Concat(o.AlternatifIzinler ?? []).Distinct().Order().ToList();
+            if (AnyOfRouteGates.TryGetValue(o.Rota, out var expected))
+            {
+                if (!expected.Order().SequenceEqual(actual))
+                    errors.Add($"{o.Grup}|{o.Rota}: beklenen {string.Join("∨", expected)}, kayıtta {string.Join("∨", actual)}");
+            }
+            else if (o.AlternatifIzinler is { Count: > 0 })
+                errors.Add($"{o.Grup}|{o.Rota}: alternatif izin beklenmiyordu ({string.Join("∨", o.AlternatifIzinler)})");
+        }
+        Assert.True(errors.Count == 0, string.Join("\n", errors));
+        Assert.Equal(AnyOfRouteGates.Keys.Order(), MenuRegistry.Items.Where(o => o.AlternatifIzinler is { Count: > 0 }).Select(o => o.Rota).Order());
+    }
+
     // F13.1b: "MainLayout menüyü kayıttan çizer" testi Blazor kabuğuyla birlikte silindi; menü yalnız /api/ui/v1/menu
     // (MenuApi.Visible — UiSecimMenuTests) üzerinden çizilir.
 
@@ -195,8 +244,13 @@ public sealed class MenuKaydiTests
     [Theory]
     [InlineData(UserRole.Admin, "", "")]
     [InlineData(UserRole.Yonetici, "", "")]
+    // Kabul testi: operatör, rota kapısı "OperationsWrite VEYA …" olan altı operasyon raporunu ve Cezalar/Satışlar/Kurlar'ı
+    // artık menüde görür (açabildiği sayfayı göremiyordu).
     [InlineData(UserRole.Operator,
-        "", "Araçlar|/vehicles/detayli;Araçlar|/musteri-taksit;Cariler & CRM|/crm;Fiyat & Tarife|/maliyet-hesapla;Fiyat & Tarife|/maliyet-teklifleri")]
+        "Raporlar|/raporlar/arac-durum-takip;Raporlar|/raporlar/km-detay;Raporlar|/raporlar/periyodik-servis;" +
+        "Raporlar|/raporlar/sigorta-muayene;Raporlar|/raporlar/karsilastirmali-analiz;Raporlar|/raporlar/personel-calisma;" +
+        "Finans|/cezalar;Finans|/satislar;Finans|/kurlar",
+        "Araçlar|/vehicles/detayli;Araçlar|/musteri-taksit;Cariler & CRM|/crm;Fiyat & Tarife|/maliyet-hesapla;Fiyat & Tarife|/maliyet-teklifleri")]
     [InlineData(UserRole.Muhasebe,
         "Araçlar|/vehicles/detayli;Araçlar|/musteri-taksit;Cariler & CRM|/crm;Fiyat & Tarife|/maliyet-hesapla;Fiyat & Tarife|/maliyet-teklifleri", "")]
     public void Rol_bazinda_menu_farki_F46_oncesine_gore(UserRole rol, string wins, string loses)
@@ -231,10 +285,12 @@ public sealed class MenuKaydiTests
         Assert.DoesNotContain(NewVisible(User(UserRole.Muhasebe, ban: ["ViewReports"])),
             x => x.StartsWith("Raporlar|", StringComparison.Ordinal));
         // F8.3: Finans spa öğeleri FinanceWrite'a bağlı — operatöre ek FinanceWrite ile görünür (yukarıda), Muhasebe'ye
-        // yasakla gizlenir.
+        // yasakla gizlenir — okuması "FinanceWrite VEYA ViewReports" olan Cezalar/Satışlar/Kurlar hariç (rota kapısı
+        // ViewReports'la açılır; menü de gösterir).
         Assert.Contains("Finans|/faturalar", extra);
-        Assert.DoesNotContain(NewVisible(User(UserRole.Muhasebe, ban: ["FinanceWrite"])),
-            x => x.StartsWith("Finans|", StringComparison.Ordinal));
+        var noFinance = NewVisible(User(UserRole.Muhasebe, ban: ["FinanceWrite"]));
+        Assert.Equal(new[] { "Finans|/cezalar", "Finans|/kurlar", "Finans|/satislar" },
+            noFinance.Where(x => x.StartsWith("Finans|", StringComparison.Ordinal)).Order(StringComparer.Ordinal));
         // F9.3: Servis & Sigorta ve Fiyat & Tarife spa öğeleri de izne bağlı; maliyet ekranları FinanceWrite ister.
         Assert.DoesNotContain(ban, x => x.StartsWith("Servis & Sigorta|", StringComparison.Ordinal));
         Assert.DoesNotContain("Fiyat & Tarife|/tarifeler", ban);

@@ -10,7 +10,7 @@ import {
 } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
-import { RouterLink } from '@angular/router';
+import { ActivatedRoute, RouterLink } from '@angular/router';
 import { TranslocoPipe } from '@jsverse/transloco';
 import { finalize } from 'rxjs';
 
@@ -56,6 +56,7 @@ import {
 } from '../document-model';
 import { INVOICES, InvoiceStore, recordPath, summaryParameters } from '../document.store';
 import { pruneSelection } from './batch-selection';
+import { invoiceRouteId } from './invoice-print';
 import { ManualInvoiceForm } from './manual-invoice-form';
 import { PageBand } from '../../../kabuk/sayfa-bandi/page-band';
 import { PlateChipComponent } from '@shared/plaka/plaka';
@@ -200,6 +201,12 @@ export class InvoiceList implements UnsavedChangesOwner {
       );
     });
     pageLeaveGuard(() => this.hasUnsavedChanges());
+    // `/faturalar/:id`: aynı ekran, detay kimlikle açık (geçersiz kimlik → istek yok, yalnız liste).
+    const routeId = invoiceRouteId(inject(ActivatedRoute).snapshot.paramMap.get('id'));
+    if (routeId) {
+      this.selectedId.set(routeId);
+      this.store.detail.yukle(routeId);
+    }
   }
 
   hasUnsavedChanges(): boolean {

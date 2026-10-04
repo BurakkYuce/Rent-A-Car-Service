@@ -2,21 +2,6 @@
   "uygulama": {
     "ad": "RentACar"
   },
-  "yerTutucu": {
-    "baslik": "Yeni arayüz yapım aşamasında",
-    "aciklama": "RentACar'ın yeni arayüzü hazırlanıyor. Bu sırada mevcut ekranları kullanmaya devam edebilirsiniz.",
-    "ornekBaslik": "Biçim örnekleri",
-    "ornekTutar": "Tutar",
-    "ornekTarih": "Tarih",
-    "ornekDurum": "Durum",
-    "durumHazir": "Hazır",
-    "durumYapimda": "Yapımda",
-    "vitrinler": "Vitrinler",
-    "vitrinDizini": "Tüm vitrin",
-    "formVitrini": "Form vitrini",
-    "tanimVitrini": "Tanım vitrini",
-    "tabloVitrini": "Tablo vitrini"
-  },
   "tema": {
     "etiket": "Tema",
     "sistem": "Sistem",
@@ -243,6 +228,12 @@
     }
   },
   "kabuk": {
+    "bulunamadi": {
+      "baslik": "Sayfa bulunamadı",
+      "ozet": "Bu adreste bir sayfa yok.",
+      "aciklama": "Adres yanlış yazılmış ya da sayfa taşınmış olabilir. Adresi kontrol edin veya Panel'e dönün.",
+      "panelaDon": "Panel'e dön"
+    },
     "icerigeGec": "İçeriğe geç",
     "anaMenu": "Ana menü",
     "menuyuAc": "Menüyü aç",
@@ -290,7 +281,8 @@
       "bugunCikan": "Bugün çıkanlar",
       "bugunDonecek": "Bugün dönecekler",
       "faturasiz": "Faturası kesilmeyenler",
-      "kapali": "Kapalı sözleşmeler"
+      "kapali": "Kapalı sözleşmeler",
+      "iptal": "İptal edilenler"
     },
     "sube": {
       "etiket": "Şube",

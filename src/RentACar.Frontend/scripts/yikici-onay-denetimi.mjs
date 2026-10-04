@@ -37,6 +37,13 @@ const VERBS = new Set([
   'cancel',
   'reverse',
 ]);
+/**
+ * Fiili silme olmayan ama GERİ ALINAMAZ yazma uçları (kabul testi): son yol parçası BİREBİR bunlardan biriyse çağrı
+ * yıkıcı sayılır — dönüşü tamamla (`/kiralar/{id}/donus`), kiradan fatura kes (`/finans/fatura`), dönem "Kes"
+ * (`/finans/donem-fatura`), manuel fatura (`/faturalar/manuel`). Tam eşleşme: `donus-hesapla` (önizleme) ya da
+ * `faturalar` (liste) yıkıcı DEĞİL.
+ */
+const IRREVERSIBLE = new Set(['donus', 'fatura', 'donem-fatura', 'manuel']);
 const CONFIRM = /\.ask\(\s*\{|\bconfirm\s*:/;
 
 /**
@@ -94,6 +101,7 @@ export function destructiveLiteral(text) {
   if (!text.includes('/')) return false;
   const path = text.split(/[?#]/)[0].replace(/\/+$/, '');
   const last = path.slice(path.lastIndexOf('/') + 1);
+  if (IRREVERSIBLE.has(last.toLowerCase())) return true;
   return last.split(/[-_]/).some((w) => VERBS.has(w.toLowerCase()));
 }
 
@@ -210,7 +218,7 @@ for (const [key, e] of EXCEPTIONS) {
     errors.push(`İstisnanın kanıtı kayboldu: ${key} → ${e.kanit[0]} içinde "${e.kanit[1]}" yok`);
 }
 // Tarama çalışıyor mu: bugün ölçülen alt sınır (ölçerek güncelleyin; taramanın kendi sayımından türetmeyin).
-const MIN = 40; // 2026-09-26 ölçümü: 43 çağrı
+const MIN = 44; // 2026-09-26 ölçümü: 43 çağrı; 2026-10-04 (geri alınamaz uçlar eklendi): 47
 if (all.length < MIN)
   errors.push(`Tarama şüpheli: yalnız ${all.length} yıkıcı çağrı bulundu (beklenen ≥ ${MIN}).`);
 

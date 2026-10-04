@@ -114,7 +114,7 @@
       "genelToplam": "Genel toplam",
       "provizyon": "Provizyon (bloke)",
       "muafiyet": "Muafiyet",
-      "gencSurucu": "Genç sürücü ücreti uygulandı.",
+      "gencSurucu": "Sürücü genç sürücü yaşında. Genç sürücü ücreti bu hesaba DAHİL DEĞİLDİR; araç grubunda tanımlıysa kirada ayrı satır olarak eklenir.",
       "sigortaKalemleri": "Sigorta / ek hizmet kalemleri",
       "birim": "Birim",
       "tutar": "Tutar"

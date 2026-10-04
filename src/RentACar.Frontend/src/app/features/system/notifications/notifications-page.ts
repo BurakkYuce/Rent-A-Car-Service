@@ -9,6 +9,7 @@ import { ApiIstemcisi } from '@core/api/api-istemcisi';
 import type { Schema } from '@core/api/ui-tipleri';
 import { ToastService } from '@core/geri-bildirim/toast-service';
 import { translationFunction } from '@core/i18n/ceviri';
+import { MenuRefresh } from '@core/sayac/menu-refresh';
 import { TemelStore } from '@core/veri/temel-store';
 import { DatePipe, DateTimePipe } from '@shared/bicim/bicim-pipe';
 import { PageBand } from '../../../kabuk/sayfa-bandi/page-band';
@@ -39,6 +40,7 @@ export class NotificationsPage {
   private readonly api = inject(ApiIstemcisi);
   private readonly toast = inject(ToastService);
   private readonly destroyRef = inject(DestroyRef);
+  private readonly menuRefresh = inject(MenuRefresh);
   private readonly t = translationFunction();
 
   protected readonly filter = signal<ReadFilter>('okunmamis');
@@ -76,6 +78,7 @@ export class NotificationsPage {
         this.busy.set(false);
         this.toast.basari(this.t('sistem.bildirim.okundu'));
         this.center.yenile();
+        this.menuRefresh.request(); // okunmamış rozeti (menü + zil) hemen düşsün (kabul testi)
       },
       error: (e: unknown) => {
         this.busy.set(false);

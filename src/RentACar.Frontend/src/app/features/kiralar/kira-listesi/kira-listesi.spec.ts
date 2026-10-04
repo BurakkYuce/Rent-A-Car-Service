@@ -324,3 +324,16 @@ describe('KiraListesi sayfası', () => {
     expect(kok.querySelector('rc-gorunum-cipleri [aria-current="page"]')).toBeNull();
   });
 });
+
+describe('Kira iptal onay metni', () => {
+  it('"fatura ve tahsilata dokunulmaz" demez; faturalı/tahsilatlı sözleşmenin iptal edilemediğini söyler', async () => {
+    TestBed.configureTestingModule({ providers: [...provideTranslation()] });
+    const transloco = TestBed.inject(TranslocoService);
+    await firstValueFrom(transloco.load('tr'));
+    const text = transloco.translate('kiraListesi.iptalMesaj', { no: '2026041001001' });
+    expect(text).toContain('2026041001001');
+    expect(text).not.toContain('dokunulmaz');
+    expect(text).toContain('Faturası ya da tahsilatı olan sözleşme iptal edilemez');
+    expect(text).toContain('geri alınamaz');
+  });
+});

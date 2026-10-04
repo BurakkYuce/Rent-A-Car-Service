@@ -50,7 +50,7 @@ import { RentalFinanceState } from './rental-finance-state';
           @for (x of s.veri() ?? []; track x.id) {
             <tr>
               <td>
-                <a routerLink="/faturalar">{{ x.no }}</a>
+                <a [routerLink]="['/faturalar', x.id]">{{ x.no }}</a>
               </td>
               <td>{{ x.tarih | tarih }}</td>
               <td class="rc-num">{{ money(x.genelToplam, x.currency) }}</td>

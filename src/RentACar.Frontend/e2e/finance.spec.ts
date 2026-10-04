@@ -442,6 +442,30 @@ test('dönem kapanışı: kilitle ve kilit kaldır ONAYLI; vazgeçilirse istek g
   expect(written[0]?.anahtar).toBeUndefined(); // E36 yapısal: işlem anahtarı yok
 });
 
+test('dönem kapanışı: sunucunun alan hatası (ileri tarih) Kapanış Tarihi altında GÖRÜNÜR, değer korunur', async ({
+  page,
+}) => {
+  const MESSAGE = 'Kapanış tarihi bugünden ileri olamaz.';
+  await financeHubEndpoints(page, {
+    write: async (r) => {
+      await problem(r, 400, 'dogrulama', MESSAGE, { errors: { kapanisTarihi: [MESSAGE] } });
+      return true;
+    },
+  });
+  await page.goto(PERIOD.yol);
+  await waitReady(page, PERIOD);
+  const field = page.getByRole('textbox', { name: 'Kapanış Tarihi' });
+  await field.fill('31.08.2026');
+  await page.getByRole('button', { name: 'Dönemi Kapat (fiş + kilit)' }).click();
+  await page
+    .getByRole('alertdialog')
+    .getByRole('button', { name: 'Dönemi Kapat (fiş + kilit)' })
+    .click();
+  await expect(page.getByText(MESSAGE)).toBeVisible();
+  await expect(field).toHaveAttribute('aria-invalid', 'true');
+  await expect(field).toHaveValue('31.08.2026');
+});
+
 // ---------------------------------------------------------------- r299 bağımsız inceleme düzeltmeleri
 
 test('r299 HIGH-1: kayıp yanıt → tekrar → mevcut SUZ 409: "daha önce kaydedildi", "yazılmadı/değişti" denmez', async ({

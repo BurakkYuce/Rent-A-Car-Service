@@ -5,11 +5,13 @@ import {
   Component,
   computed,
   DestroyRef,
+  effect,
   ElementRef,
   inject,
   Injector,
   linkedSignal,
   signal,
+  untracked,
   viewChild,
 } from '@angular/core';
 import { NavigationEnd, Router, RouterOutlet } from '@angular/router';
@@ -20,6 +22,7 @@ import type { CeviriAnahtari } from '@core/i18n/ceviri-anahtarlari';
 import { trUpperCase } from '@core/metin/tr-normalize';
 import { PageLeave } from '@core/form/kaydedilmemis-degisiklik';
 import { SessionService } from '@core/oturum/session-service';
+import { MenuRefresh } from '@core/sayac/menu-refresh';
 import { FetchPolicy } from '@core/veri/fetch-policy';
 import type { StoreState } from '@core/veri/temel-store';
 import { Icon } from '@shared/ikon/icon';
@@ -146,6 +149,13 @@ export class Kabuk {
       parametre: signal<number>(0),
       yukle: (p) => this.store.menu.yukle(p),
       sifirla: () => this.store.menu.reset(),
+    });
+
+    // Rozet değiştiren işlemden sonra (bildirim okundu, talep işlendi) sayfanın isteğiyle HEMEN tazele.
+    const refresh = inject(MenuRefresh);
+    effect(() => {
+      if (refresh.requests() === 0) return;
+      untracked(() => this.policy.yenile());
     });
 
     const subscription = this.router.events.subscribe((evt) => {

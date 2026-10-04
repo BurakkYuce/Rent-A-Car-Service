@@ -69,6 +69,7 @@ describe('kiraGorunumleri', () => {
       '/kiralar?gorunum=bugun-donecek',
       '/kiralar?gorunum=faturasiz',
       '/kiralar?gorunum=kapali',
+      '/kiralar?gorunum=iptal',
     ]);
     expect(new Set(g.map((x) => x.kayit.kimlik)).size).toBe(g.length);
     expect(g.filter((x) => x.hata).map((x) => x.kod)).toEqual(['geciken']);
