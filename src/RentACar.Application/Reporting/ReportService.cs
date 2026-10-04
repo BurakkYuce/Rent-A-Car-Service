@@ -961,31 +961,56 @@ public sealed class ReportService(IReportRepository repository, TutSatEsikleri h
         => _repository.GetStatementSummaryRowsAsync(filter, asOf ?? DateTimeOffset.UtcNow, ct);
 
     /// <summary>
-    /// Cari borç yaşlandırma (v1: BRÜT borç, tahsilat mahsubu yok). Borç satırları yaşa (asOf−Tarih,
-    /// gün) göre 0-30 / 31-60 / 61-90 / 90+ kovalarına. Yalnız borç bakiyesi olan cariler.
+    /// Cari borç yaşlandırma — FIFO mahsuplu. Cari defterindeki alacak hareketleri (tahsilat, iade,
+    /// ters kayıt) tarihlerinden bağımsız olarak EN ESKİ borçtan başlayarak düşülür; kalan borç
+    /// parçaları yaşa (asOf−Tarih, gün) göre 0-30 / 31-60 / 61-90 / 90+ kovalarına girer.
+    ///
+    /// <para><b>Değişmez:</b> kovaların toplamı carinin asOf itibarıyla bakiyesine (Σ SignedBase) EŞİTTİR.
+    /// Yalnız borç bakiyesi (&gt; 0) olan cariler listelenir; alacaklı (bakiye ≤ 0) cari için
+    /// yaşlanacak alacak yoktur. Eski sürüm (v1) yalnız borç satırlarını topluyordu ve bakiyesi 700
+    /// olan cariyi 1.400 gösteriyordu (kabul testi d-rapor-cari-bakiye-03).</para>
+    ///
+    /// <para>İşaret satır başına belirlenir (Borç +, Alacak −); negatif tutarlı bir borç satırı
+    /// mahsup havuzuna, negatif tutarlı bir alacak satırı borç listesine girer — toplam yine bakiyedir.</para>
     /// </summary>
     public async Task<IReadOnlyList<AgingRowDto>> GetAgingAsync(DateTimeOffset asOf, CancellationToken ct = default)
     {
         var rows = await _repository.GetAccountLedgerRowsAsync(asOf, ct);
         return rows
-            .Where(r => r.Direction == LedgerDirection.Debit) // yalnız borç (brüt)
             .GroupBy(r => (r.CariId, r.Ad))
-            .Select(g =>
-            {
-                decimal b0 = 0, b30 = 0, b60 = 0, b90 = 0;
-                foreach (var r in g)
-                {
-                    var day = (asOf.UtcDateTime.Date - r.Tarih.UtcDateTime.Date).Days;
-                    if (day <= 30) b0 += r.Base;
-                    else if (day <= 60) b30 += r.Base;
-                    else if (day <= 90) b60 += r.Base;
-                    else b90 += r.Base;
-                }
-                return new AgingRowDto(g.Key.CariId, g.Key.Ad, b0, b30, b60, b90, b0 + b30 + b60 + b90);
-            })
-            .Where(a => a.Toplam != 0m)
+            .Select(g => AgeFifo(g.Key.CariId, g.Key.Ad, g, asOf))
+            .Where(a => a.Toplam > 0m)
             .OrderByDescending(a => a.Toplam)
             .ToList();
+    }
+
+    /// <summary>Bir carinin hareketlerinden FIFO mahsuplu yaşlandırma satırı (bkz. <see cref="GetAgingAsync"/>).</summary>
+    private static AgingRowDto AgeFifo(Guid cariId, string name, IEnumerable<CariLedgerRowDto> rows, DateTimeOffset asOf)
+    {
+        var debts = new List<(DateTimeOffset Date, decimal Amount)>();
+        decimal credit = 0m;
+        foreach (var r in rows)
+        {
+            var signed = r.Direction == LedgerDirection.Debit ? r.Base : -r.Base;
+            if (signed > 0m) debts.Add((r.Tarih, signed));
+            else credit -= signed;
+        }
+
+        decimal b0 = 0, b30 = 0, b60 = 0, b90 = 0;
+        foreach (var (date, amount) in debts.OrderBy(d => d.Date))
+        {
+            var applied = Math.Min(credit, amount);
+            credit -= applied;
+            var remaining = amount - applied;
+            if (remaining == 0m) continue;
+
+            var day = (asOf.UtcDateTime.Date - date.UtcDateTime.Date).Days;
+            if (day <= 30) b0 += remaining;
+            else if (day <= 60) b30 += remaining;
+            else if (day <= 90) b60 += remaining;
+            else b90 += remaining;
+        }
+        return new AgingRowDto(cariId, name, b0, b30, b60, b90, b0 + b30 + b60 + b90);
     }
 
     /// <summary>

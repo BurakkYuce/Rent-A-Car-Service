@@ -263,8 +263,8 @@ public sealed class CariBakiyeFilter
 }
 
 /// <summary>
-/// Cari borç yaşlandırma (v1: BRÜT borç — tahsilat FIFO mahsubu yok). Borç (Debit) satırları
-/// yaşa göre kovalanır. Toplam = kovaların toplamı (net bakiye DEĞİL).
+/// Cari borç yaşlandırma — alacak hareketleri (tahsilat/iade) EN ESKİ borçtan FIFO ile düşülür,
+/// kalan borç yaşa göre kovalanır. Toplam = kovaların toplamı = carinin net (borç) bakiyesi.
 /// </summary>
 public sealed record AgingRowDto(
     Guid CariId, string Ad, decimal B0_30, decimal B31_60, decimal B61_90, decimal B90Plus, decimal Toplam);
