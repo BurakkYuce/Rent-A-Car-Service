@@ -20,8 +20,13 @@ public sealed class BookingInput
     public string? CikisOfisi { get; set; }
     public string? DonusOfisi { get; set; }
     public decimal GunlukUcret { get; set; }
+    /// <summary>Toplam serbest km. 0 = BOŞ → tarife/araç grubu günlük limiti × gün (GroupKmPolicy); sınırsız
+    /// için <see cref="KmSinirsiz"/>.</summary>
     public int KmLimit { get; set; }
     public decimal FazlaKmUcret { get; set; }
+    /// <summary>Km sınırsız açık kararı (#366 M2) — true → limit uygulanmaz, grup/tarife kopyalanmaz.
+    /// null = belirtilmedi: oluşturmada false, rezervasyon düzenlemesinde mevcut değer korunur.</summary>
+    public bool? KmSinirsiz { get; set; }
     public decimal YakitBirimUcret { get; set; }
 
     // Ödeme-derinlik (roadmap A2; bilgi amaçlı, deftere yansımaz)

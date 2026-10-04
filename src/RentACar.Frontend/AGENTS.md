@@ -228,6 +228,10 @@ detay, alanlar? }`. `features/**` içinde `HttpClient` içe aktarımı lint'le y
   zorunlu (`'<Ad> — RentACar'` → belge başlığı + sekme etiketi), `loadComponent`, kirli form varsa
   `canDeactivate: [kaydedilmemisDegisiklikGuard]`, izin varsa `canMatch: [izinGuard(...)]`. Kayıt sayfası
   yol parametresi olarak YALNIZ `:id` kullanır (`kiralar/:id`); başka parametreli sayfa yenilemede geri gelmez.
+- **Kök, 404, izin reddi:** kök (`/app/`) → `/panel`; bilinmeyen adres → kabuğun `**` 404 sayfası
+  (`kabuk/not-found`, adres korunur, sekme açmaz); `izinGuard`/`anyPermissionGuard` reddi → uyarı bandı + `/panel`
+  (sunucunun `?hata=yetki_yok` hedefiyle aynı). Yer tutucu sayfa yok; vitrin rotaları gizli (bağlantısız) kalır —
+  CI e2e/görsel kapıları onları üretim derlemesinde koşar. Veri istemeyen e2e sayfası: `/app/vitrin`.
 - **Menü:** `GET /api/ui/v1/menu`'den (`MenuStore` + `FetchPolicy`, 5 dk'da bir ve bağlam değişince tazelenir).
   İstemci SÜZMEZ (izin/modül sunucuda). `sahip: 'spa'` → router (`rota` router yolu; `/app` öneki de kabul),
   diğer her sahip → **tam sayfa** (`/app` dışı Blazor adresi). Blazor'a geçmeden önce TÜM sekmelerdeki

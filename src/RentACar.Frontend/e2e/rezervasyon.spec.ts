@@ -231,7 +231,7 @@ test('`cakisma` formu silmez: PUT sürümü taşır, 409 → bant + güncel kay�
   await expect(page.getByLabel('Proje adı')).toHaveValue('Kongre');
   await expect(page.getByLabel('Onay kodu')).toHaveValue('ONY-2'); // dokunulmamış → güncel
   expect(puts[0]).toMatchObject({ surum: '812', projeAdi: 'Kongre', gunlukUcret: 1250.5 });
-  expect(Object.keys(puts[0] ?? {})).toHaveLength(33);
+  expect(Object.keys(puts[0] ?? {})).toHaveLength(34); // +kmSinirsiz (#366 M2)
 
   await expect(saveButton(page)).toBeEnabled();
   await saveButton(page).click();

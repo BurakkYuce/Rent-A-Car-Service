@@ -244,6 +244,8 @@ export interface KiraFormKontrolleri {
   aksZincirCikis: K<boolean>;
   aksIlkYardimCikis: K<boolean>;
   aksLastikCikis: K<string>;
+  /** Km sınırsız açık kararı (#366 M2): boş km limiti artık "sınırsız" değil, tarife/grup limiti demek. */
+  kmSinirsiz: K<boolean>;
   // Yalnız düzenleme (Blazor create ucu bunları BAĞLAMIYOR — yeni kirada sessizce kaybolmasın diye pasif)
   kmLimit: K<number>;
   fazlaKmUcret: K<Money>;
@@ -290,6 +292,7 @@ export const EDIT_ONLY: readonly (keyof KiraFormKontrolleri)[] = [
 /** Tamamlanmış kirada sunucunun reddettiği değişiklikler (aşım parametreleri, 2. sürücü, ofisler, drop). */
 export const FROZEN_WHEN_COMPLETED: readonly (keyof KiraFormKontrolleri)[] = [
   'kmLimit',
+  'kmSinirsiz',
   'fazlaKmUcret',
   'yakitBirimUcret',
   'ikinciSurucu',
@@ -380,6 +383,7 @@ export function createRentalForm(mod: RentalFormMode): RentalForm {
     aksZincirCikis: k<boolean>(false),
     aksIlkYardimCikis: k<boolean>(false),
     aksLastikCikis: text(64),
+    kmSinirsiz: k<boolean>(false),
     kmLimit: k<number>(null, ...requiredEdit, Validators.min(0)),
     fazlaKmUcret: k<Money>(null, ...requiredEdit),
     yakitBirimUcret: k<Money>(null, ...requiredEdit),
@@ -568,6 +572,7 @@ export function valuesFromDetail(d: RentalDetailResponse, noRecordLabel = '—')
     aksZincirCikis: k.aksZincirCikis ?? false,
     aksIlkYardimCikis: k.aksIlkYardimCikis ?? false,
     aksLastikCikis: k.aksLastikCikis,
+    kmSinirsiz: k.kmSinirsiz,
     kmLimit: toNumber(k.kmLimit),
     fazlaKmUcret: k.fazlaKmUcret,
     yakitBirimUcret: k.yakitBirimUcret,
@@ -715,6 +720,7 @@ export function createBody(d: RentalFormValue): CreateRentalRequest {
     ikinciSurucuSerbestTel: empty(d.ikinciSurucuSerbestTel),
     ikinciSurucuSerbestEhliyetSinifi: empty(d.ikinciSurucuSerbestEhliyetSinifi),
     ekHizmetler: extraSelections(d),
+    kmSinirsiz: d.kmSinirsiz ?? false,
   };
 }
 
@@ -751,6 +757,7 @@ export function updateBody(d: RentalFormValue, context: GuncelleBaglami): Update
     kmLimit: zorunlu(d.kmLimit, 'kmLimit'),
     fazlaKmUcret: zorunlu(d.fazlaKmUcret, 'fazlaKmUcret'),
     yakitBirimUcret: zorunlu(d.yakitBirimUcret, 'yakitBirimUcret'),
+    kmSinirsiz: d.kmSinirsiz ?? false,
     provizyon: d.provizyon,
     depozito: d.depozito,
     komisyonOran: d.komisyonOran,
@@ -830,6 +837,9 @@ export function calculateParams(
     musteriId: d.musteri?.id ?? null,
     kampanyaKodu: empty(d.kampanyaKodu),
     ikinciSurucuId: d.ikinciSurucu?.id ?? null,
+    // #366 L1: km hakkı önizlemesi kaynak kuralını (km sınırsız kaynak) ve sınırsız kararını bilir.
+    kaynak: empty(d.kaynak),
+    kmSinirsiz: d.kmSinirsiz ? 'true' : null,
     rentalId,
   };
 }

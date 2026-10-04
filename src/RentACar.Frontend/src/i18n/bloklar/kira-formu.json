@@ -112,7 +112,8 @@
       "islemSube": "İşlem şube",
       "subeTuretilir": "çıkış ofisinden türetilir",
       "subeEslenmemis": "— (ofis şubeye eşlenmemiş)",
-      "kmLimit": "Km limit (0 = sınırsız)",
+      "kmLimit": "Km limit (toplam; boş/0 = tarife veya araç grubu limiti)",
+      "kmSinirsiz": "Km sınırsız",
       "fazlaKmUcret": "Fazla km ücreti",
       "yakitBirimUcret": "Eksik yakıt birim ücreti",
       "opsiyonNet": "Opsiyon net",
@@ -266,7 +267,10 @@
       "hediyeGun": "Hediye gün: {{deger}}",
       "faturalananGun": "Faturalanan gün: {{deger}}",
       "iskonto": "İskonto: {{deger}}",
-      "haftaSonu": "Hafta sonu farkı: {{deger}}"
+      "haftaSonu": "Hafta sonu farkı: {{deger}}",
+      "grupKmLimiti": "Tarife / araç grubundan km limiti: {{km}} km",
+      "grupKmUcreti": "aşım km başına {{ucret}}",
+      "kmSinirsiz": "Km sınırsız — fazla km ücretlendirilmez."
     },
     "ekHizmet": {
       "ekle": "Ek hizmet ekle",

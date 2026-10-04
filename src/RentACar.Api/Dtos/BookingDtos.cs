@@ -15,8 +15,13 @@ public sealed class BookingRequest
     public decimal GunlukUcret { get; set; }
     public string? CikisOfisi { get; set; }
     public string? DonusOfisi { get; set; }
+    /// <summary>Toplam serbest km. 0/boş → tarife kademesi / araç grubu günlük limiti × gün uygulanır
+    /// (#366 M2 — 0 artık "sınırsız" DEĞİL); sınırsız için <see cref="KmSinirsiz"/>.</summary>
     public int KmLimit { get; set; }
     public decimal FazlaKmUcret { get; set; }
+    /// <summary>#366 — km sınırsız açık kararı. true → limit uygulanmaz, tarife/grup limiti kopyalanmaz.
+    /// Gönderilmezse (null) false (yalnız oluşturma uçları var; saklı kayıt bu uçlarla değişmez).</summary>
+    public bool? KmSinirsiz { get; set; }
     /// <summary>Eksik yakıt birim ücreti — harici sözleşmede YÜZDE PUANI başına (eski sözleşme korunur).
     /// İç birim on ikide bir depo başınadır; <see cref="ToInput"/> sınırda çevirir (× 100/12, 4 hane).</summary>
     public decimal YakitBirimUcret { get; set; }
@@ -35,7 +40,7 @@ public sealed class BookingRequest
     {
         MusteriId = MusteriId, VehicleId = VehicleId, BasTar = BasTar, BitTar = BitTar,
         GunlukUcret = GunlukUcret, CikisOfisi = CikisOfisi, DonusOfisi = DonusOfisi,
-        KmLimit = KmLimit, FazlaKmUcret = FazlaKmUcret,
+        KmLimit = KmLimit, FazlaKmUcret = FazlaKmUcret, KmSinirsiz = KmSinirsiz,
         YakitBirimUcret = FuelContract.UnitFeeInclusive(YakitBirimUcret), Aciklama = Aciklama,
         OtaKiraBedeli = OtaKiraBedeli, OtaDropBedeli = OtaDropBedeli, OtaBebekKoltugu = OtaBebekKoltugu,
         OtaNavigasyon = OtaNavigasyon, OtaLcf = OtaLcf, OtaCdw = OtaCdw, OtaScdw = OtaScdw, OtaEkSurucu = OtaEkSurucu
@@ -46,12 +51,13 @@ public sealed record ReservationResponse(
     Guid Id, string ReservationNo, ReservationStatus Durum, Guid MusteriId, Guid VehicleId,
     DateTimeOffset BasTar, DateTimeOffset BitTar, string? CikisOfisi, string? DonusOfisi,
     int Gun, decimal GunlukUcret, decimal Tutar, int KmLimit, decimal FazlaKmUcret, decimal YakitBirimUcret,
-    string? Aciklama, Guid? RentalContractId, DateTimeOffset CreatedAtUtc, DateTimeOffset? UpdatedAtUtc)
+    string? Aciklama, Guid? RentalContractId, DateTimeOffset CreatedAtUtc, DateTimeOffset? UpdatedAtUtc,
+    bool KmSinirsiz)
 {
     public static ReservationResponse From(Reservation r) => new(
         r.Id, r.ReservationNo, r.Durum, r.MusteriId, r.VehicleId, r.BasTar, r.BitTar, r.CikisOfisi, r.DonusOfisi,
         r.Gun, r.GunlukUcret, r.Tutar, r.KmLimit, r.FazlaKmUcret, FuelContract.UnitFeeExclusive(r.YakitBirimUcret), r.Aciklama, r.RentalContractId,
-        r.CreatedAtUtc, r.UpdatedAtUtc);
+        r.CreatedAtUtc, r.UpdatedAtUtc, r.KmSinirsiz);
 }
 
 /// <summary>
@@ -69,7 +75,8 @@ public sealed record RentalResponse(
     int KmLimit, decimal FazlaKmUcret, decimal YakitBirimUcret,
     int? CikisKm, int? DonusKm, int? CikisYakit, int? DonusYakit, DateTimeOffset? GercekDonusTar,
     int FazlaKm, decimal FazlaKmBedeli, int EksikYakit, decimal YakitBedeli, int UzatmaGun, decimal UzatmaBedeli,
-    string? Aciklama, DateTimeOffset CreatedAtUtc, DateTimeOffset? UpdatedAtUtc)
+    string? Aciklama, DateTimeOffset CreatedAtUtc, DateTimeOffset? UpdatedAtUtc,
+    bool KmSinirsiz, int? KmLimitGunluk)
 {
     public static RentalResponse From(RentalContract c) => new(
         c.Id, c.SozlesmeNo, c.Durum, c.ReservationId, c.MusteriId, c.VehicleId, c.BasTar, c.BitTar,
@@ -77,7 +84,7 @@ public sealed record RentalResponse(
         c.KmLimit, c.FazlaKmUcret, FuelContract.UnitFeeExclusive(c.YakitBirimUcret), c.CikisKm, c.DonusKm,
         FuelScale.TwelfthsToPercent(c.CikisYakit), FuelScale.TwelfthsToPercent(c.DonusYakit),
         c.GercekDonusTar, c.FazlaKm, c.FazlaKmBedeli, FuelScale.TwelfthsToPercent(c.EksikYakit), c.YakitBedeli, c.UzatmaGun, c.UzatmaBedeli,
-        c.Aciklama, c.CreatedAtUtc, c.UpdatedAtUtc);
+        c.Aciklama, c.CreatedAtUtc, c.UpdatedAtUtc, c.KmSinirsiz, c.KmLimitGunluk);
 }
 
 /// <summary>Araç teslim (çıkış) isteği. <c>CikisYakit</c> YÜZDE (0–100); sınırda 0–12'ye en yakına çevrilir

@@ -6,7 +6,10 @@ namespace RentACar.Application.Bookings;
 /// FiyatTuru/Doviz/KurSnapshot/MusteriId/VehicleId) bu tipte YOKTUR — form ne gönderirse göndersin
 /// değişemezler. Tarih değişikliği yalnız ExtendAsync; fiyat farkları fark faturası akışıyla.
 /// Form tam-durum gönderir (tüm alanlar prefill) → null = alan temizlendi (null yazılır);
-/// KmLimit/FazlaKmUcret/YakitBirimUcret'te null → 0 (create semantiğiyle aynı: 0 = sınırsız/ücretsiz).
+/// KmLimit/FazlaKmUcret/YakitBirimUcret'te null → 0 (create semantiğiyle aynı). KM İÇİN 0 = BOŞ: tarife kademesi /
+/// araç grubu günlük limiti × gün uygulanır (GroupKmPolicy); "sınırsız" yalnız <see cref="KmSinirsiz"/> bayrağıyla
+/// seçilir (#366 M2 — "0" artık iki anlam taşımaz). Kayıtlı limit aynen geri gönderilirse günlük snapshot korunur.
+/// FazlaKmUcret/YakitBirimUcret'te 0 = ücretsiz.
 /// </summary>
 public sealed class RentalUpdateInput
 {
@@ -45,6 +48,8 @@ public sealed class RentalUpdateInput
     public int KmLimit { get; set; }
     public decimal FazlaKmUcret { get; set; }
     public decimal YakitBirimUcret { get; set; }
+    /// <summary>Km sınırsız açık kararı (#366 M2). null = belirtilmedi → mevcut değer korunur.</summary>
+    public bool? KmSinirsiz { get; set; }
 
     // Ödeme-derinlik (bilgi amaçlı; deftere yansımaz)
     public decimal? Provizyon { get; set; }

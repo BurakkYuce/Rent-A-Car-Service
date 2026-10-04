@@ -82,10 +82,10 @@ for (const path of [
   '/app/filo-kiralama',
   '/app/teklifler',
 ]) {
-  test(`sayfa izni: Muhasebe ${path} açamaz (uyarı bandı + ana sayfa)`, async ({ page }) => {
+  test(`sayfa izni: Muhasebe ${path} açamaz (uyarı bandı + Panel)`, async ({ page }) => {
     await login(page, ORTAM.gercekMuhasebe);
     await page.goto(`${ROOT}${path}`);
     await expect(page.getByText('Bu sayfayı görüntüleme yetkiniz yok.')).toBeVisible();
-    await expect(page).toHaveURL(`${ROOT}/app/`);
+    await expect(page).toHaveURL(`${ROOT}/app/panel`);
   });
 }

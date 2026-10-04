@@ -243,7 +243,7 @@ test('çıkış: tam temizlik (tema tercihi kalır) ve giriş sayfası', async (
     logoutCalled = true;
     return route.fulfill({ status: 204 });
   });
-  await page.goto('/app/');
+  await page.goto('/app/vitrin');
   await page.evaluate(() => {
     localStorage.setItem('rc.tema', 'koyu');
     localStorage.setItem('rc.sekmeler', '[{"rota":"/kiralar/5"}]');

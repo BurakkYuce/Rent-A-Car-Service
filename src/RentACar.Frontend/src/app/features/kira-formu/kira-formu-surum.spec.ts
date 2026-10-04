@@ -42,6 +42,8 @@ function kira(extra: Partial<RentalContract> = {}): RentalContract {
     kmLimit: 300,
     fazlaKmUcret: 2.5,
     yakitBirimUcret: 45.75,
+    kmSinirsiz: false,
+    kmLimitGunluk: null,
     cikisKm: null,
     cikisYakit: null,
     donusKm: null,

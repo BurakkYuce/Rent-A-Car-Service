@@ -51,6 +51,7 @@ const PUT_FIELDS = [
   'kmLimit',
   'fazlaKmUcret',
   'yakitBirimUcret',
+  'kmSinirsiz',
   'provizyon',
   'depozito',
   'komisyonOran',
@@ -110,6 +111,8 @@ function kira(extra: Partial<RentalContract> = {}): RentalContract {
     kmLimit: 300,
     fazlaKmUcret: 2.5,
     yakitBirimUcret: 45.75,
+    kmSinirsiz: false,
+    kmLimitGunluk: null,
     cikisKm: null,
     cikisYakit: null,
     donusKm: null,
@@ -510,7 +513,15 @@ describe('form durumu', () => {
       musteriId: null,
       kampanyaKodu: null,
       ikinciSurucuId: null,
+      kaynak: null,
+      kmSinirsiz: null,
       rentalId: RENTAL_ID,
+    });
+    // #366 L1: km hakkı önizlemesi kaynak ve sınırsız kararını taşır.
+    form.patchValue({ kaynak: 'Web', kmSinirsiz: true });
+    expect(calculateParams(form.getRawValue())).toMatchObject({
+      kaynak: 'Web',
+      kmSinirsiz: 'true',
     });
   });
 });

@@ -298,9 +298,13 @@ public record RezervasyonIstegi
     public string? DonusOfisi { get; init; }
     public string? Kaynak { get; init; }
     public string? Aciklama { get; init; }
+    /// <summary>Boş/0 → kiraya çevrilirken tarife kademesi / araç grubu km limiti uygulanır; sınırsız için
+    /// <see cref="KmSinirsiz"/>.</summary>
     public int? KmLimit { get; init; }
     public decimal? FazlaKmUcret { get; init; }
     public decimal? YakitBirimUcret { get; init; }
+    /// <summary>#366 M2 — km sınırsız açık kararı. Gönderilmezse: oluşturmada false, düzenlemede kayıttaki değer.</summary>
+    public bool? KmSinirsiz { get; init; }
     // ödeme/komisyon (bilgi; deftere/bakiyeye yansımaz)
     public decimal? Provizyon { get; init; }
     public decimal? Depozito { get; init; }
@@ -333,6 +337,7 @@ public record RezervasyonIstegi
         CikisOfisi = F5Shared.Nz(CikisOfisi), DonusOfisi = F5Shared.Nz(DonusOfisi),
         Kaynak = F5Shared.Nz(Kaynak), Aciklama = F5Shared.Nz(Aciklama),
         KmLimit = KmLimit ?? 0, FazlaKmUcret = FazlaKmUcret ?? 0m, YakitBirimUcret = YakitBirimUcret ?? 0m,
+        KmSinirsiz = KmSinirsiz,
         Provizyon = Provizyon, Depozito = Depozito, KomisyonOran = KomisyonOran, KomisyonTutar = KomisyonTutar,
         DropUcreti = DropUcreti, SonraOdeOran = SonraOdeOran,
         OtaKiraBedeli = OtaKiraBedeli, OtaDropBedeli = OtaDropBedeli, OtaBebekKoltugu = OtaBebekKoltugu,
@@ -378,7 +383,7 @@ public sealed record RezervasyonDto(
     decimal? OtaKiraBedeli, decimal? OtaDropBedeli, decimal? OtaBebekKoltugu, decimal? OtaNavigasyon,
     decimal? OtaLcf, decimal? OtaCdw, decimal? OtaScdw, decimal? OtaEkSurucu,
     string? TalepTuru, string? GeldigiBirim, string? OnayKodu, string? ProjeAdi,
-    Guid? KiraId, DateTimeOffset OlusturmaUtc)
+    Guid? KiraId, DateTimeOffset OlusturmaUtc, bool KmSinirsiz)
 {
     public static RezervasyonDto From(Reservation r, string? version) => new(
         r.Id, r.ReservationNo, r.Durum.ToString(), version, r.MusteriId, r.VehicleId, r.BasTar, r.BitTar,
@@ -386,5 +391,6 @@ public sealed record RezervasyonDto(
         r.HaftaSonuFark, r.FiyatTuru, r.KampanyaKodu, r.KdvOranSnapshot, r.KmLimit, r.FazlaKmUcret, r.YakitBirimUcret,
         r.Provizyon, r.Depozito, r.KomisyonOran, r.KomisyonTutar, r.DropUcreti, r.SonraOdeOran, r.Kaynak, r.Aciklama,
         r.OtaKiraBedeli, r.OtaDropBedeli, r.OtaBebekKoltugu, r.OtaNavigasyon, r.OtaLcf, r.OtaCdw, r.OtaScdw,
-        r.OtaEkSurucu, r.TalepTuru, r.GeldigiBirim, r.OnayKodu, r.ProjeAdi, r.RentalContractId, r.CreatedAtUtc);
+        r.OtaEkSurucu, r.TalepTuru, r.GeldigiBirim, r.OnayKodu, r.ProjeAdi, r.RentalContractId, r.CreatedAtUtc,
+        r.KmSinirsiz);
 }

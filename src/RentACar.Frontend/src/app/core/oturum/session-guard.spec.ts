@@ -9,7 +9,7 @@ import { FULL_PAGE_NAVIGATION } from '@core/form/kaydedilmemis-degisiklik';
 import { WarningBannerService } from '@core/geri-bildirim/warning-banner-service';
 import { provideTranslation } from '@core/i18n/ceviri';
 
-import { permissionGuard, guestGuard, sessionGuard } from './session-guard';
+import { anyPermissionGuard, permissionGuard, guestGuard, sessionGuard } from './session-guard';
 import { SessionService } from './session-service';
 import type { Permission } from './oturum-tipleri';
 
@@ -40,6 +40,11 @@ describe('oturum/izin guard (canMatch)', () => {
           { path: 'giris', canMatch: [guestGuard], component: Empty },
           { path: 'kiralar', canMatch: [sessionGuard], component: Empty },
           { path: 'finans', canMatch: [permissionGuard('FinanceWrite')], component: Empty },
+          {
+            path: 'arac',
+            canMatch: [anyPermissionGuard('OperationsWrite', 'ViewReports')],
+            component: Empty,
+          },
           { path: 'panel', component: Empty },
           { path: '', component: Empty },
         ]),
@@ -88,13 +93,13 @@ describe('oturum/izin guard (canMatch)', () => {
     expect(navigate).toHaveBeenLastCalledWith('/login?ReturnUrl=%2Fvehicles');
   });
 
-  it('izin eksikse uyarı bandı + ana sayfa; izin varsa geçer', async () => {
+  it('izin eksikse uyarı bandı + Panel (sunucunun ?hata=yetki_yok hedefiyle aynı); izin varsa geçer', async () => {
     loggedIn.set(true);
     const harness = await RouterTestingHarness.create();
     const router = TestBed.inject(Router);
 
     await harness.navigateByUrl('/finans');
-    expect(router.url).toBe('/');
+    expect(router.url).toBe('/panel');
     expect(TestBed.inject(WarningBannerService).bant()).toMatchObject({
       kod: 'yetki_yok',
       mesaj: 'Bu sayfayı görüntüleme yetkiniz yok.',
@@ -103,6 +108,20 @@ describe('oturum/izin guard (canMatch)', () => {
     permissions.set(['FinanceWrite']);
     await harness.navigateByUrl('/finans');
     expect(router.url).toBe('/finans');
+  });
+
+  it('"izinlerden biri" guard’ı da reddi Panel’e + banda yönlendirir', async () => {
+    loggedIn.set(true);
+    const harness = await RouterTestingHarness.create();
+    const router = TestBed.inject(Router);
+
+    await harness.navigateByUrl('/arac');
+    expect(router.url).toBe('/panel');
+    expect(TestBed.inject(WarningBannerService).bant()).toMatchObject({ kod: 'yetki_yok' });
+
+    permissions.set(['ViewReports']);
+    await harness.navigateByUrl('/arac');
+    expect(router.url).toBe('/arac');
   });
 
   it('izin guard’ı oturum yoksa önce girişe yönlendirir', async () => {

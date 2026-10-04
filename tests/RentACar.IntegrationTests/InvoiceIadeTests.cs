@@ -102,6 +102,31 @@ public sealed class InvoiceIadeTests(PostgresFixture fx)
         await Assert.ThrowsAsync<ValidationException>(() => inv.CreateRefundAsync(Guid.NewGuid())); // olmayan fatura
     }
 
+    /// <summary>
+    /// İade, geri aldığı faturadan ÖNCE tarihlenemez (adversarial Low): 10 gün önceki faturanın iadesi 11 gün önceye
+    /// yazılamaz; aynı güne ve sonrasına yazılabilir. Red alan hatasıdır (errors[tarih]) ve defterde iz bırakmaz.
+    /// </summary>
+    [Fact]
+    public async Task Iade_kaynak_faturadan_once_tarihlenemez()
+    {
+        using var host = new TestHost(fx.AppConnectionString);
+        using var scope = host.ScopeFor(Guid.NewGuid());
+        var sp = scope.ServiceProvider;
+        var customerId = await Account(sp);
+        var inv = sp.GetRequiredService<InvoiceService>();
+        var invoiceDate = TestZaman.DaysLater(-10);
+
+        var srcId = await inv.CreateManualAsync(new ManualInvoiceInput
+        { CariId = customerId, NetTutar = 500m, KdvOrani = 0.20m, Tarih = invoiceDate });
+
+        var ex = await Assert.ThrowsAsync<ValidationException>(() => inv.CreateRefundAsync(srcId, invoiceDate.AddDays(-1)));
+        Assert.Equal("tarih", ex.Alan);
+        Assert.Equal(600m, await sp.GetRequiredService<CashService>().GetAccountBalanceAsync(customerId)); // iade yazılmadı
+
+        await inv.CreateRefundAsync(srcId, invoiceDate);                                                  // aynı an: geçerli
+        Assert.Equal(0m, await sp.GetRequiredService<CashService>().GetAccountBalanceAsync(customerId));
+    }
+
     [Fact]
     public async Task Iade_donem_kilidine_tabi()
     {
