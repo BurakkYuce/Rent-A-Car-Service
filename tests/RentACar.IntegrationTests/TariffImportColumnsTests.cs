@@ -84,4 +84,72 @@ public sealed class TariffImportColumnsTests(PostgresFixture fx)
         Assert.Contains(r.Uyarilar, u => u.Contains("'Not'"));
         Assert.Equal(900m, Assert.Single(await sp.GetRequiredService<RateMatrixService>().ListAsync()).GunHaftalik);
     }
+
+    /// <summary>Adversarial #365 Medium: "1.250" eskiden 1,25 okunuyordu (fiyat 1000 kat düşük). Tek ayraç + ardından
+    /// tam 3 hane belirsizdir → satır hatası. Belirsiz olmayan biçimler aynen okunur (elle: 1.250,00 → 1250;
+    /// 1250,5 → 1250,5; 1250.5 → 1250,5; 1.250.000,75 → 1250000,75).</summary>
+    [Fact]
+    public async Task Ambiguous_thousands_or_decimal_value_is_a_row_error()
+    {
+        using var host = new TestHost(fx.AppConnectionString);
+        using var scope = host.ScopeFor(Guid.NewGuid());
+        var sp = scope.ServiceProvider;
+
+        var csv = "Kod;Gün 1;Gün 2\n" +
+                  "AMB-1;1.250;100\n" +          // belirsiz → hata
+                  "AMB-2;1,250;100\n" +          // belirsiz → hata
+                  "OK-1;1.250,00;1250,5\n" +
+                  "OK-2;1250.5;1.250.000,75";
+        var r = await Svc(sp).ImportTariffsAsync(ImportService.Parse(Csv(csv), "t.csv"));
+
+        Assert.Equal(2, r.Eklenen);
+        Assert.Equal(2, r.Hatali);
+        Assert.Contains(r.Hatalar, h => h.StartsWith("AMB-1:") && h.Contains("belirsiz"));
+        Assert.Contains(r.Hatalar, h => h.StartsWith("AMB-2:") && h.Contains("belirsiz"));
+        var list = await sp.GetRequiredService<RateMatrixService>().ListAsync();
+        var ok1 = Assert.Single(list, m => m.Kod == "OK-1");
+        Assert.Equal(1250m, ok1.Gun1);
+        Assert.Equal(1250.5m, ok1.Gun2);
+        var ok2 = Assert.Single(list, m => m.Kod == "OK-2");
+        Assert.Equal(1250.5m, ok2.Gun1);
+        Assert.Equal(1250000.75m, ok2.Gun2);
+    }
+
+    /// <summary>Adversarial L1: iki sütun aynı alana eşleşiyor ("Haftalık"=500 + "Haftalık (8-29 gün)"=450) → başlık
+    /// uyarısı + değerler farklı olan satır hatası (hangisinin geçerli olduğu tahmin edilmez); değerler aynıysa satır
+    /// girer.</summary>
+    [Fact]
+    public async Task Two_columns_for_the_same_field_warn_and_conflicting_rows_fail()
+    {
+        using var host = new TestHost(fx.AppConnectionString);
+        using var scope = host.ScopeFor(Guid.NewGuid());
+        var sp = scope.ServiceProvider;
+
+        var parsed = ImportService.ParseWithHeaders(
+            Csv("Kod;Gün 1;Haftalık;Haftalık (8-29 gün)\nDUP-1;1000;500;450\nDUP-2;1000;450;450"), "t.csv");
+        var r = await Svc(sp).ImportTariffsAsync(parsed.Rows, parsed.Headers);
+
+        var warning = Assert.Single(r.Uyarilar);
+        Assert.Contains("'Haftalık'", warning);
+        Assert.Contains("'Haftalık (8-29 gün)'", warning);
+        Assert.Equal(1, r.Eklenen);
+        Assert.Contains(r.Hatalar, h => h.StartsWith("DUP-1:"));
+        Assert.Equal(450m, Assert.Single(await sp.GetRequiredService<RateMatrixService>().ListAsync()).GunHaftalik);
+    }
+
+    /// <summary>Adversarial L2: uyarı listesi en çok 20 satır + özet satırı (30 tanınmayan sütun → 21 satır).</summary>
+    [Fact]
+    public async Task Warnings_are_capped()
+    {
+        using var host = new TestHost(fx.AppConnectionString);
+        using var scope = host.ScopeFor(Guid.NewGuid());
+        var sp = scope.ServiceProvider;
+
+        var extra = string.Join(";", Enumerable.Range(1, 30).Select(i => $"Fazla{i}"));
+        var parsed = ImportService.ParseWithHeaders(Csv($"Kod;Gün 1;{extra}\nCAP-1;100"), "t.csv");
+        var r = await Svc(sp).ImportTariffsAsync(parsed.Rows, parsed.Headers);
+
+        Assert.Equal(21, r.Uyarilar.Count);
+        Assert.Contains("+10 uyarı daha", r.Uyarilar[^1]);
+    }
 }
