@@ -31,6 +31,9 @@ public sealed class CrmDefinitionDeletePermissionTests(WebFixture fx)
         public string Password = "";
         public string Operator = "";
         public string Admin = "";
+        public string Manager = "";
+        public Guid OperatorId, ManagerId, OtherComplaint, Kdv, Penalty, Insurer, Group, Document;
+        public string LegalOwnNo = "", LegalOtherNo = "", LegalNoneNo = "";
         public Guid LegalOwn, LegalOther, LegalNone, Survey, Complaint, Assistance, Brand, ExpenseType, OtherCustomer;
     }
 
@@ -38,7 +41,11 @@ public sealed class CrmDefinitionDeletePermissionTests(WebFixture fx)
 
     private async Task<Env> SetUpAsync()
     {
-        var e = new Env { TenantId = Guid.NewGuid(), Code = Rnd("sil"), Password = WebFixture.RandomPassword(), Operator = Rnd("op"), Admin = Rnd("ad") };
+        var e = new Env
+        {
+            TenantId = Guid.NewGuid(), Code = Rnd("sil"), Password = WebFixture.RandomPassword(), Operator = Rnd("op"),
+            Admin = Rnd("ad"), Manager = Rnd("yo"),
+        };
         var opts = new DbContextOptionsBuilder<AppDbContext>().UseNpgsql(fx.Pg.OwnerConnectionString).Options;
         await using (var db = new AppDbContext(opts, NullTenantContext.Instance, NullCurrentUser.Instance))
         {
@@ -58,6 +65,14 @@ public sealed class CrmDefinitionDeletePermissionTests(WebFixture fx)
         var assistance = new AssistansTalep { Mesaj = "Lastik patladı" };
         var brand = new Brand { Kod = Rnd("M").ToUpperInvariant(), Ad = Rnd("Marka") };
         var expense = new ExpenseCategory { Kod = Rnd("G").ToUpperInvariant(), Ad = Rnd("Gider") };
+        // Kadıköy ofisine bağlı şikayet (harici API kapsam süzmesi için) ve tanım silme probe'unun tanımları.
+        var otherOffice = new Location { Kod = "K1", Ad = "K1 Kadıköy", Sube = "Kadıköy" };
+        var otherComplaint = new Sikayet { Konu = "KDK-GIZLI", CikisOfisi = otherOffice.Ad };
+        var kdv = new KdvRate { Kod = Rnd("K"), Ad = Rnd("Kdv"), Oran = 0.1m };
+        var penalty = new PenaltyType { Kod = Rnd("C"), Ad = Rnd("Ceza") };
+        var insurer = new InsuranceCompany { Kod = Rnd("S"), Ad = Rnd("Sig") };
+        var group = new VehicleGroup { Kod = Rnd("G"), Ad = Rnd("Grup") };
+        var document = new FirmaDokuman { Baslik = "Gizli", DosyaAdi = "a.pdf", Bytes = [1, 2, 3], Boyut = 3, Sira = 1 };
         using (var host = new TestHost(fx.Pg.AppConnectionString))
         using (var scope = host.ScopeFor(e.TenantId))
         {
@@ -73,13 +88,23 @@ public sealed class CrmDefinitionDeletePermissionTests(WebFixture fx)
             db.AssistansTalepleri.Add(assistance);
             db.Brands.Add(brand);
             db.ExpenseCategories.Add(expense);
+            db.Locations.Add(otherOffice);
+            db.Sikayetler.Add(otherComplaint);
+            db.KdvOranlari.Add(kdv);
+            db.CezaTurleri.Add(penalty);
+            db.InsuranceCompanies.Add(insurer);
+            db.VehicleGroups.Add(group);
+            db.FirmaDokumanlari.Add(document);
             await db.SaveChangesAsync();
         }
+        (e.OtherComplaint, e.Kdv, e.Penalty, e.Insurer, e.Group, e.Document) =
+            (otherComplaint.Id, kdv.Id, penalty.Id, insurer.Id, group.Id, document.Id);
+        (e.LegalOwnNo, e.LegalOtherNo, e.LegalNoneNo) = (legalOwn.DosyaNo, legalOther.DosyaNo, legalNone.DosyaNo);
 
         await using (var db = new AppDbContext(opts, NullTenantContext.Instance, NullCurrentUser.Instance))
         {
             var hasher = fx.Web.Services.GetRequiredService<IPasswordHasher<User>>();
-            foreach (var (name, role) in new[] { (e.Operator, UserRole.Operator), (e.Admin, UserRole.Admin) })
+            foreach (var (name, role) in new[] { (e.Operator, UserRole.Operator), (e.Admin, UserRole.Admin), (e.Manager, UserRole.Yonetici) })
             {
                 var u = new User
                 {
@@ -89,6 +114,8 @@ public sealed class CrmDefinitionDeletePermissionTests(WebFixture fx)
                 };
                 u.PasswordHash = hasher.HashPassword(u, e.Password);
                 db.Users.Add(u);
+                if (role == UserRole.Operator) e.OperatorId = u.Id;
+                if (role == UserRole.Yonetici) e.ManagerId = u.Id;
             }
             await db.SaveChangesAsync();
         }
@@ -152,6 +179,90 @@ public sealed class CrmDefinitionDeletePermissionTests(WebFixture fx)
         var createText = await create.Content.ReadAsStringAsync();
         Assert.True(create.StatusCode == HttpStatusCode.Forbidden, $"beklenen 403, gelen {(int)create.StatusCode}: {createText}");
         Assert.Equal(HttpStatusCode.OK, (await admin.C.GetAsync($"{V1}/hukuk-dosyalari/{e.LegalOther}")).StatusCode);
+    }
+
+    // ---- güvenlik incelemesi F3/F4 (probe'lar kalıcı teste çevrildi) ----
+
+    [Fact]
+    public async Task F3_operator_diger_tanimlari_da_silemez_admin_siler()
+    {
+        var e = await SetUpAsync();
+        var op = await LoginAsync(e.Code, e.Operator, e.Password);
+        var admin = await LoginAsync(e.Code, e.Admin, e.Password);
+        var urls = new[]
+        {
+            $"{V1}/kdv-oranlari/{e.Kdv}", $"{V1}/ceza-turleri/{e.Penalty}", $"{V1}/sigorta-sirketleri/{e.Insurer}",
+            $"{V1}/arac-gruplari/{e.Group}", $"{V1}/dokumanlar/{e.Document}",
+        };
+        foreach (var url in urls)
+        {
+            var r = await Send(op, HttpMethod.Delete, url);
+            Assert.True(r.StatusCode == HttpStatusCode.Forbidden, $"operatör DELETE {url}: beklenen 403, gelen {(int)r.StatusCode}");
+        }
+        foreach (var url in urls)
+        {
+            var r = await Send(admin, HttpMethod.Delete, url);
+            Assert.True(r.StatusCode == HttpStatusCode.NoContent, $"admin DELETE {url}: beklenen 204, gelen {(int)r.StatusCode}: {await r.Content.ReadAsStringAsync()}");
+        }
+    }
+
+    [Fact]
+    public async Task F3_kullanici_bazli_istisna_ve_yasak_silmede_gecerli_kapsam_korunur()
+    {
+        var e = await SetUpAsync();
+        await GrantAsync(e, e.OperatorId, "OperationsDelete", true);
+        await GrantAsync(e, e.ManagerId, "OperationsDelete", false);
+        var op = await LoginAsync(e.Code, e.Operator, e.Password);
+        var manager = await LoginAsync(e.Code, e.Manager, e.Password);
+
+        Assert.Equal(HttpStatusCode.Forbidden, (await Send(manager, HttpMethod.Delete, $"{V1}/hukuk-dosyalari/{e.LegalOwn}")).StatusCode);
+        // İstisnalı operatör: başka şubenin dosyası "yok" (404), kendi şubesininkini siler.
+        Assert.Equal(HttpStatusCode.NotFound, (await Send(op, HttpMethod.Delete, $"{V1}/hukuk-dosyalari/{e.LegalOther}")).StatusCode);
+        Assert.Equal(HttpStatusCode.NoContent, (await Send(op, HttpMethod.Delete, $"{V1}/hukuk-dosyalari/{e.LegalOwn}")).StatusCode);
+    }
+
+    [Fact]
+    public async Task F4_hukuk_exportu_sube_kapsamli()
+    {
+        var e = await SetUpAsync();
+        await GrantAsync(e, e.OperatorId, "ViewReports", true);
+        var op = await LoginAsync(e.Code, e.Operator, e.Password);
+        var r = await op.C.GetAsync("/listeler/export/hukuk?format=csv");
+        var body = (await r.Content.ReadAsStringAsync()).ToUpperInvariant();
+        Assert.True(r.StatusCode == HttpStatusCode.OK, $"export {(int)r.StatusCode}: {body}");
+        Assert.Contains(e.LegalOwnNo, body);
+        Assert.Contains(e.LegalNoneNo, body);
+        Assert.DoesNotContain(e.LegalOtherNo, body);
+    }
+
+    [Fact]
+    public async Task F4_harici_api_hukuk_ve_sikayet_listeleri_sube_kapsamli()
+    {
+        var e = await SetUpAsync();
+        using var api = new ApiFactory(fx.Pg.AppConnectionString);
+        var op = await api.LoginClientAsync(e.Code, e.Operator, e.Password);
+        var admin = await api.LoginClientAsync(e.Code, e.Admin, e.Password);
+
+        static async Task<List<Guid>> Ids(HttpClient c, string url)
+        {
+            var r = await c.GetAsync(url);
+            var text = await r.Content.ReadAsStringAsync();
+            Assert.True(r.StatusCode == HttpStatusCode.OK, $"{url} {(int)r.StatusCode}: {text}");
+            return JsonDocument.Parse(text).RootElement.EnumerateArray().Select(x => x.GetProperty("id").GetGuid()).Order().ToList();
+        }
+
+        Assert.Equal(new[] { e.LegalOwn, e.LegalNone }.Order(), await Ids(op, "/api/v1/legal"));
+        Assert.Equal(new[] { e.LegalOwn, e.LegalOther, e.LegalNone }.Order(), await Ids(admin, "/api/v1/legal"));
+        Assert.Equal(new[] { e.Complaint }, await Ids(op, "/api/v1/crm/sikayetler"));
+        Assert.Equal(new[] { e.Complaint, e.OtherComplaint }.Order(), await Ids(admin, "/api/v1/crm/sikayetler"));
+    }
+
+    private async Task GrantAsync(Env e, Guid userId, string permission, bool grant)
+    {
+        var opts = new DbContextOptionsBuilder<AppDbContext>().UseNpgsql(fx.Pg.OwnerConnectionString).Options;
+        await using var db = new AppDbContext(opts, NullTenantContext.Instance, NullCurrentUser.Instance);
+        db.KullaniciIzinIstisnalari.Add(new KullaniciIzinIstisna { TenantId = e.TenantId, UserId = userId, Izin = permission, Ver = grant });
+        await db.SaveChangesAsync();
     }
 
     private static async Task<IEnumerable<Guid>> LegalIdsAsync(Session s)

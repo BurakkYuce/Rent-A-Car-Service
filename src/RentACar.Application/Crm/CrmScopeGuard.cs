@@ -42,6 +42,42 @@ public sealed class CrmScopeGuard(ICurrentUser currentUser, IBookingRepository b
     private async Task<bool> OfficeInScopeAsync(BranchScope.BranchFilter filter, string office, CancellationToken ct)
         => BranchScope.InScope(filter, (await locations.FindByNameAsync(office, ct))?.SubeId, office);
 
+    /// <summary>
+    /// Güvenlik F4 — liste süzmesi (harici JWT API gibi Web'deki toplu <c>CrmScope</c>'tan geçmeyen yüzeyler): her kayıt
+    /// <see cref="Visible"/> kuralından geçer (kira kapsamı, yoksa ofis kapsamı; şubesiz kayıt herkese). Kapsamsız
+    /// kullanıcıda liste aynen döner. Kira ve ofis kararları istek içinde önbelleğe alınır.
+    /// </summary>
+    public async Task<IReadOnlyList<T>> FilterAsync<T>(
+        IReadOnlyList<T> rows, Func<T, (Guid? RentalId, string? Office)> key, CancellationToken ct = default)
+    {
+        if (!Restricted(out var filter)) return rows;
+        var rentals = new Dictionary<Guid, bool?>();
+        var offices = new Dictionary<string, bool>(StringComparer.Ordinal);
+        var result = new List<T>(rows.Count);
+        foreach (var row in rows)
+        {
+            var (rentalId, office) = key(row);
+            bool? rentalIn = null;
+            if (rentalId is { } id && id != Guid.Empty)
+            {
+                if (!rentals.TryGetValue(id, out rentalIn))
+                {
+                    rentalIn = await bookings.FindRentalAsync(id, ct) is { } r ? BranchScope.InScope(filter, r.CikisSubeId, r.CikisOfisi) : null;
+                    rentals[id] = rentalIn;
+                }
+            }
+            var o = office?.Trim();
+            bool? officeIn = null;
+            if (!string.IsNullOrEmpty(o))
+            {
+                if (!offices.TryGetValue(o, out var known)) offices[o] = known = await OfficeInScopeAsync(filter, o, ct);
+                officeIn = known;
+            }
+            if (Visible(rentalId, rentalIn, o, officeIn)) result.Add(row);
+        }
+        return result;
+    }
+
     /// <summary>Mevcut kayıt (okuma/güncelleme/silme) kapsamda olmalı; değilse 403 — durum kontrolünden ÖNCE çağrılır.</summary>
     public async Task RequireRecordAsync(Guid? rentalId, string? office, CancellationToken ct = default)
     {

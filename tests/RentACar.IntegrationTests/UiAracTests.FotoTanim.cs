@@ -127,7 +127,9 @@ public sealed partial class UiAracTests
         Assert.Equal("Kompakt", segG.GetProperty("ad").GetString());
         var tip = await Json(await Gonder(opA, HttpMethod.Post, V1 + "/arac-tipleri", new { kod = "egea", ad = "Egea", marka = "Fiat", grup = "C" }), HttpStatusCode.Created);
         Assert.Equal("EGEA", tip.GetProperty("kod").GetString());
-        Assert.Equal(HttpStatusCode.NoContent, (await Gonder(opA, HttpMethod.Delete, $"{V1}/arac-tipleri/{tip.GetProperty("id").GetGuid()}")).StatusCode);
+        // Güvenlik F3: silme OperationsDelete ister — operatör 403, Admin siler.
+        await ExpectProblem(await Gonder(opA, HttpMethod.Delete, $"{V1}/arac-tipleri/{tip.GetProperty("id").GetGuid()}"), HttpStatusCode.Forbidden, "yetki_yok");
+        Assert.Equal(HttpStatusCode.NoContent, (await Gonder(await LoginAsync(o, Kim.Admin), HttpMethod.Delete, $"{V1}/arac-tipleri/{tip.GetProperty("id").GetGuid()}")).StatusCode);
 
         // Seçim: tanımlı sahip (kodlu) + araç kaydında geçen serbest değer; q süzgeci; limit en çok 20.
         await VehicleAsync(o, Plate("34S"));

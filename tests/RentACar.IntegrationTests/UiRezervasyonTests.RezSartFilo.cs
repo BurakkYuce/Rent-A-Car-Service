@@ -47,7 +47,9 @@ public sealed partial class UiRezervasyonTests
         await ExpectProblem(await Gonder(a, HttpMethod.Post, Term, new { musteriId = o.MusteriId, sart = "x", grup = new string('g', 70) }),
             HttpStatusCode.BadRequest, "dogrulama", "grup");
 
-        Assert.Equal(HttpStatusCode.NoContent, (await Gonder(a, HttpMethod.Delete, $"{Term}/{id}")).StatusCode);
+        // Güvenlik F3: silme OperationsDelete ister — operatör 403, Admin siler.
+        await ExpectProblem(await Gonder(a, HttpMethod.Delete, $"{Term}/{id}"), HttpStatusCode.Forbidden, "yetki_yok");
+        Assert.Equal(HttpStatusCode.NoContent, (await Gonder(await LoginAsync(o, Kim.Admin), HttpMethod.Delete, $"{Term}/{id}")).StatusCode);
         Assert.Equal(HttpStatusCode.NotFound, (await a.C.GetAsync($"{Term}/{id}")).StatusCode);
     }
 
@@ -142,7 +144,8 @@ public sealed partial class UiRezervasyonTests
             .Where(e => prefixes.Any(p => Below("/" + (e.RoutePattern.RawText ?? "").TrimStart('/'), p)))
             .ToDictionary(e => (e.Metadata.GetMetadata<HttpMethodMetadata>()?.HttpMethods.Single() ?? "?") + " /" + e.RoutePattern.RawText!.Trim('/'),
                 e => e.Metadata.GetMetadata<IzinMetadata>()?.Izin.ToString());
-        var narrow = new[] { $"POST {TestReservation}/{{id:guid}}/iptal", $"POST {Fleet}/{{id:guid}}/iptal" };
+        // Güvenlik F3: rez şartı silme de dar izin (OperationsDelete) ister.
+        var narrow = new[] { $"POST {TestReservation}/{{id:guid}}/iptal", $"POST {Fleet}/{{id:guid}}/iptal", $"DELETE {Term}/{{id:guid}}" };
         Assert.Equal(32, endpoints.Count);
         foreach (var (key, permission) in endpoints)
             Assert.True((narrow.Contains(key) ? "OperationsDelete" : "OperationsWrite") == permission, $"{key}: {permission}");

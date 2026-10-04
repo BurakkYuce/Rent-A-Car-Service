@@ -80,7 +80,7 @@ public sealed class LocationService(ILocationRepository repository, ICurrentUser
 
     public async Task<bool> DeleteAsync(Guid id, CancellationToken ct = default)
     {
-        PermissionGuard.Require(_currentUser, Permission.OperationsWrite);
+        PermissionGuard.Require(_currentUser, Permission.OperationsDelete); // güvenlik F3: operatör siler DEĞİL
         // F11.1b güvenlik (H1 devamı): başka şubenin ofisi silinemez.
         if (await _repository.FindAsync(id, ct) is not { } current) return false;
         BranchScope.RequireInScope(_currentUser, current.SubeId, current.Sube);

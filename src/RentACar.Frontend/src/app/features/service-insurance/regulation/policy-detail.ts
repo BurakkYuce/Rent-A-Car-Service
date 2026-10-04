@@ -22,7 +22,9 @@ import type { DayText } from '@core/form/tarih-girdisi';
 import { ConfirmService } from '@core/geri-bildirim/confirm-service';
 import { ToastService } from '@core/geri-bildirim/toast-service';
 import { translationFunction } from '@core/i18n/ceviri';
+import { DUGME_IZINLERI } from '@core/oturum/dugme-izinleri';
 import { genelGosterilir } from '@core/oturum/session-interceptor';
+import { SessionService } from '@core/oturum/session-service';
 import { tabContext } from '@core/sekme/tab-state';
 import { FetchPolicy } from '@core/veri/fetch-policy';
 import { momentValue, textValue } from '@features/planlama-ortak/form-yardimcilari';
@@ -76,6 +78,11 @@ import { PageBand } from '../../../kabuk/sayfa-bandi/page-band';
 export class PolicyDetail implements UnsavedChangesOwner {
   protected readonly store = inject(PolicyDetailStore);
   private readonly optionsStore = inject(RegulationOptionsStore);
+  private readonly session = inject(SessionService);
+  /** Zeyil silme dar izin ister (güvenlik F3). */
+  protected readonly canDelete = computed(() =>
+    this.session.hasPermissions(DUGME_IZINLERI.zeyilSil.izinler),
+  );
   private readonly api = inject(ApiIstemcisi);
   private readonly toast = inject(ToastService);
   private readonly confirm = inject(ConfirmService);

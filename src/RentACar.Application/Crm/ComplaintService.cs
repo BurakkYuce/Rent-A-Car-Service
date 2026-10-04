@@ -23,6 +23,10 @@ public sealed class ComplaintService(IComplaintRepository repository, ICurrentUs
     }
 
     public Task<IReadOnlyList<Sikayet>> ListAsync(CancellationToken ct = default) => _repository.ListAsync(ct);
+
+    /// <summary>Güvenlik F4 — şube kapsamına süzülmüş liste (harici JWT API; Web listesi kendi toplu süzmesini yapar).</summary>
+    public async Task<IReadOnlyList<Sikayet>> ListInScopeAsync(CancellationToken ct = default)
+        => await scope.FilterAsync(await _repository.ListAsync(ct), s => (s.RentalId, s.CikisOfisi), ct);
     public Task<Sikayet?> GetAsync(Guid id, CancellationToken ct = default) => _repository.FindAsync(id, ct);
 
     /// <summary>FAZ-43 — filtreli liste (sözleşme/araç/müşteri/personel adları çözülmüş).</summary>

@@ -43,6 +43,10 @@ public sealed class SurveyService(
 
     public Task<IReadOnlyList<Anket>> ListAsync(CancellationToken ct = default) => _repository.ListAsync(ct);
 
+    /// <summary>Güvenlik F4 — şube kapsamına süzülmüş liste (harici JWT API; Web listesi kendi toplu süzmesini yapar).</summary>
+    public async Task<IReadOnlyList<Anket>> ListInScopeAsync(CancellationToken ct = default)
+        => await scope.FilterAsync(await _repository.ListAsync(ct), a => (a.RentalId, a.CikisOfisi), ct);
+
     /// <summary>FAZ-42 filtreli liste.</summary>
     public Task<IReadOnlyList<Anket>> SearchAsync(AnketFilter? filter = null, CancellationToken ct = default)
         => filter is null ? _repository.ListAsync(ct) : _repository.ListAsync(filter, ct);

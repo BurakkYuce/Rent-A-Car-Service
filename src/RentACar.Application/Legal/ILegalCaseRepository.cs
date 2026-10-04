@@ -20,4 +20,14 @@ public interface ILegalCaseRepository
 
     /// <summary>F7.1 — satır sürümü (opak); yok/başka kiracı → null.</summary>
     Task<string?> GetVersionAsync(Guid id, CancellationToken ct = default);
+
+    /// <summary>
+    /// Güvenlik F4 — hukuk dosyası şube kapsamının girdisi: carilerin işlem şubesi (kimlik + ad). Bu kiracıda olmayan
+    /// cari sözlükte YOKTUR (RLS kapsamlı okuma).
+    /// </summary>
+    Task<IReadOnlyDictionary<Guid, LegalCustomerBranch>> CustomerBranchesAsync(
+        IReadOnlyCollection<Guid> customerIds, CancellationToken ct = default);
 }
+
+/// <summary>Carinin işlem şubesi (yoksa iki alan da null).</summary>
+public sealed record LegalCustomerBranch(Guid? BranchId, string? BranchName);

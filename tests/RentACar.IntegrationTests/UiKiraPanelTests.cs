@@ -1225,7 +1225,10 @@ public sealed class UiKiraPanelTests(WebFixture fx)
             RentACar.Application.EkHizmetler.EkHizmetTanimInput Input(string code) =>
                 new() { Kod = code, Ad = t.Ad, BirimUcret = t.BirimUcret, KdvOrani = t.KdvOrani, Aktif = t.Aktif };
             await Assert.ThrowsAsync<ValidationException>(() => svc.UpdateAsync(definitionId, Input("DROPX")));   // kod değişmez
-            await Assert.ThrowsAsync<ValidationException>(() => svc.DeleteAsync(definitionId));                    // silinmez
+            await Assert.ThrowsAsync<NoPermissionException>(() => svc.DeleteAsync(definitionId));                  // operatör silemez (güvenlik F3)
+            using (var adminScope = host.ScopeFor(o.TenantId, Guid.NewGuid(), "ad", UserRole.Admin))
+                await Assert.ThrowsAsync<ValidationException>(() => adminScope.ServiceProvider
+                    .GetRequiredService<RentACar.Application.EkHizmetler.AddOnDefinitionService>().DeleteAsync(definitionId)); // SYS silinmez
             Assert.True(await svc.UpdateAsync(definitionId, Input(t.Kod)));                                        // aynı kodla düzenleme serbest
             await Assert.ThrowsAsync<ValidationException>(() => svc.UpdateAsync(o.EkHizmetId, new()          // normal → SYS- olmaz
             { Kod = "SYS-GPS", Ad = "Navigasyon", BirimUcret = 50m, KdvOrani = 0.20m, Aktif = true }));

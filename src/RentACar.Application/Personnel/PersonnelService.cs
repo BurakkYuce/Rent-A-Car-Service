@@ -147,6 +147,7 @@ public sealed class PersonnelService(
     public async Task<bool> DeleteAsync(Guid id, CancellationToken ct = default)
     {
         PermissionGuard.Require(_currentUser, Permission.ManageUsers);
+        PermissionGuard.Require(_currentUser, Permission.OperationsDelete); // güvenlik F3
         await _screens.EnsureScreenAccessAsync("personel", Permission.ManageUsers, ct);
         return await _repository.DeleteAsync(id, ct);
     }

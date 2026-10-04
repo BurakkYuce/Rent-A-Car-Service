@@ -19,7 +19,11 @@ public static partial class FinanceHubApi
         write.MapPost("/kurlar/yenile", RefreshRates);
         write.MapPost("/kurlar/sabit", CreateFixedRate);
         write.MapPut("/kurlar/sabit/{id:guid}", UpdateFixedRate);
-        write.MapDelete("/kurlar/sabit/{id:guid}", DeleteFixedRate);
+        // Güvenlik F3: silme dar izin ister. Finans grubunda silmenin karşılığı FinanceReverse (Muhasebe'de var,
+        // matris: "yazan herkes silemez" kullanıcı-bazlı yasakla daraltılabilir); OperationsDelete Muhasebe'yi
+        // kendi tanımından kilitlerdi.
+        RentACar.Web.Identity.AuthExtensions.RequirePermission(
+            write.MapDelete("/kurlar/sabit/{id:guid}", DeleteFixedRate), RentACar.Application.Authorization.Permission.FinanceReverse);
     }
 
     private static async Task<Ok<RatesScreen>> GetRates(

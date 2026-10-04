@@ -39,7 +39,7 @@ public static class ReservationTermApi
         g.MapPut("/{id:guid}", Update).MapFields(WriteRules);
         g.MapPost("/{id:guid}/karsilandi", Fulfilled);
         g.MapPost("/{id:guid}/geri-al", Undo);
-        g.MapDelete("/{id:guid}", Delete);
+        g.MapDelete("/{id:guid}", Delete).RequirePermission(Permission.OperationsDelete); // güvenlik F3
         return g;
     }
 

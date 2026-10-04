@@ -15,6 +15,22 @@ public sealed class LegalCaseRepository(IDbContextFactory<AppDbContext> factory)
 {
     private readonly IDbContextFactory<AppDbContext> _factory = factory;
 
+    /// <summary>Güvenlik F4 — carilerin işlem şubesi (kimlik + ad); RLS kapsamlı (başka kiracının carisi yok).</summary>
+    public async Task<IReadOnlyDictionary<Guid, LegalCustomerBranch>> CustomerBranchesAsync(
+        IReadOnlyCollection<Guid> customerIds, CancellationToken ct = default)
+    {
+        if (customerIds.Count == 0) return new Dictionary<Guid, LegalCustomerBranch>();
+        await using var db = await _factory.CreateDbContextAsync(ct);
+        var ids = customerIds.Distinct().ToList();
+        var rows = await db.Customers.AsNoTracking().Where(c => ids.Contains(c.Id))
+            .Select(c => new { c.Id, c.IslemSubeId }).ToListAsync(ct);
+        var branchIds = rows.Where(r => r.IslemSubeId != null).Select(r => r.IslemSubeId!.Value).Distinct().ToList();
+        var names = branchIds.Count == 0 ? new Dictionary<Guid, string>()
+            : await db.Branches.AsNoTracking().Where(b => branchIds.Contains(b.Id)).ToDictionaryAsync(b => b.Id, b => b.Ad, ct);
+        return rows.ToDictionary(r => r.Id, r => new LegalCustomerBranch(r.IslemSubeId,
+            r.IslemSubeId is { } sid ? names.GetValueOrDefault(sid) : null));
+    }
+
     public async Task<IReadOnlyList<HukukDosya>> ListAsync(CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);

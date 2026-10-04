@@ -42,7 +42,7 @@ public abstract class MasterDefinitionService<T>(
 
     public async Task<bool> DeleteAsync(Guid id, CancellationToken ct = default)
     {
-        PermissionGuard.Require(_currentUser, Permission.OperationsWrite);
+        PermissionGuard.Require(_currentUser, Permission.OperationsDelete); // kabul D-4: operatör siler DEĞİL
         try
         {
             return await _repository.DeleteAsync(id, ct);

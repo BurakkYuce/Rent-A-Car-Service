@@ -37,6 +37,7 @@ import type { CeviriAnahtari } from '@core/i18n/ceviri-anahtarlari';
 import { translationFunction } from '@core/i18n/ceviri';
 import { requestContext } from '@core/oturum/request-context';
 import { genelGosterilir } from '@core/oturum/session-interceptor';
+import { DUGME_IZINLERI } from '@core/oturum/dugme-izinleri';
 import { SessionService } from '@core/oturum/session-service';
 import { FetchPolicy } from '@core/veri/fetch-policy';
 import { listQueryUrlSync } from '@core/veri/liste-sorgusu-url';
@@ -139,6 +140,10 @@ export class CatalogPage implements UnsavedChangesOwner {
     { oncekiVeriyiKoru: true },
   );
   protected readonly canWrite = computed(() => this.session.izinVar('OperationsWrite'));
+  /** Sil yalnız silebilene (güvenlik F3; tüm kataloglar aynı kapı). */
+  protected readonly canDelete = computed(() =>
+    this.session.hasPermissions(DUGME_IZINLERI.katalogSil.izinler),
+  );
   protected readonly columns = catalogColumns(this.config, this.t, this.canWrite());
   protected readonly rowId = (r: CatalogRow) => r.id;
   protected readonly editableFields = this.config.fields.filter((f) => f.kind !== 'readonly');

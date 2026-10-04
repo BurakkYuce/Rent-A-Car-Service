@@ -114,7 +114,7 @@ public sealed class DropDefinitionService(IDropDefinitionRepository repository, 
 
     public Task<bool> DeleteAsync(Guid id, CancellationToken ct = default)
     {
-        PermissionGuard.Require(_currentUser, Permission.OperationsWrite);
+        PermissionGuard.Require(_currentUser, Permission.OperationsDelete); // kabul D-4: operatör siler DEĞİL
         return _repository.DeleteAsync(id, ct);
     }
 

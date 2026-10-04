@@ -19,22 +19,56 @@ public sealed class LegalCaseService(ILegalCaseRepository repository, ICurrentUs
     private readonly ILegalCaseRepository _repository = repository;
     private readonly ICurrentUser _currentUser = currentUser;
 
-    public Task<IReadOnlyList<HukukDosya>> ListAsync(CancellationToken ct = default)
-        => _repository.ListAsync(ct);
+    // ---- Güvenlik F4: şube kapsamı (LegalScope — TEK kural; SPA, export ve harici API aynı yoldan) ----
 
-    /// <summary>FAZ-41 — filtreli liste (müşteri adı çözülmüş). Salt-okur; ekran zaten rol kapılı.</summary>
-    public Task<IReadOnlyList<HukukDosyaSatirDto>> SearchAsync(
+    private async Task<Func<Guid?, bool>> VisibilityAsync(IEnumerable<Guid?> customerIds, CancellationToken ct)
+    {
+        var filter = BranchScope.EffectiveFilter(_currentUser);
+        if (filter.Unrestricted) return static _ => true;
+        var ids = customerIds.Where(x => x is not null).Select(x => x!.Value).Distinct().ToList();
+        var branches = await _repository.CustomerBranchesAsync(ids, ct);
+        return customerId => LegalScope.Visible(filter, customerId, branches);
+    }
+
+    /// <summary>Kayıt var VE kapsamdaysa kayıt; aksi null (çağıran 404 verir — başka şubenin dosyası sızmaz).</summary>
+    private async Task<HukukDosya?> VisibleAsync(Guid id, CancellationToken ct)
+    {
+        if (await _repository.FindAsync(id, ct) is not { } row) return null;
+        return (await VisibilityAsync([row.CariId], ct))(row.CariId) ? row : null;
+    }
+
+    /// <summary>Yazma hedefi: bağlanan cari kapsam dışındaysa 403 (başka şubeye dosya açılamaz/taşınamaz).</summary>
+    private async Task RequireTargetAsync(Guid? customerId, CancellationToken ct)
+    {
+        if (!(await VisibilityAsync([customerId], ct))(customerId))
+            throw new NoPermissionException("Seçilen cari şube kapsamınız dışında.");
+    }
+
+    public async Task<IReadOnlyList<HukukDosya>> ListAsync(CancellationToken ct = default)
+    {
+        var rows = await _repository.ListAsync(ct);
+        var visible = await VisibilityAsync(rows.Select(r => r.CariId), ct);
+        return rows.Where(r => visible(r.CariId)).ToList();
+    }
+
+    /// <summary>FAZ-41 — filtreli liste (müşteri adı çözülmüş), şube kapsamına süzülmüş (export da bu yoldan).</summary>
+    public async Task<IReadOnlyList<HukukDosyaSatirDto>> SearchAsync(
         HukukDosyaFilter? filter = null, CancellationToken ct = default)
-        => _repository.SearchAsync(filter, ct);
+    {
+        var rows = await _repository.SearchAsync(filter, ct);
+        var visible = await VisibilityAsync(rows.Select(r => r.Dosya.CariId), ct);
+        return rows.Where(r => visible(r.Dosya.CariId)).ToList();
+    }
 
-    public Task<HukukDosya?> GetAsync(Guid id, CancellationToken ct = default)
-        => _repository.FindAsync(id, ct);
+    /// <summary>Kapsam dışı dosya "yok"tur (null → 404).</summary>
+    public Task<HukukDosya?> GetAsync(Guid id, CancellationToken ct = default) => VisibleAsync(id, ct);
 
     public async Task<Guid> CreateAsync(HukukDosyaInput input, CancellationToken ct = default)
     {
         PermissionGuard.Require(_currentUser, Permission.OperationsWrite);
         var n = Normalize(input);
         Validate(n);
+        await RequireTargetAsync(n.CariId, ct);
         if (await _repository.FileNoExistsAsync(n.DosyaNo!, excludeId: null, ct))
             throw new ValidationException($"'{n.DosyaNo}' dosya no zaten var.");
 
@@ -47,8 +81,10 @@ public sealed class LegalCaseService(ILegalCaseRepository repository, ICurrentUs
     public async Task<bool> UpdateAsync(Guid id, HukukDosyaInput input, CancellationToken ct = default)
     {
         PermissionGuard.Require(_currentUser, Permission.OperationsWrite);
+        if (await VisibleAsync(id, ct) is null) return false; // kapsam doğrulamadan ÖNCE
         var n = Normalize(input);
         Validate(n);
+        await RequireTargetAsync(n.CariId, ct);
         if (await _repository.FileNoExistsAsync(n.DosyaNo!, excludeId: id, ct))
             throw new ValidationException($"'{n.DosyaNo}' dosya no zaten var.");
 
@@ -63,8 +99,10 @@ public sealed class LegalCaseService(ILegalCaseRepository repository, ICurrentUs
     public async Task<bool> UpdateAsync(Guid id, HukukDosyaInput input, string expectedVersion, CancellationToken ct = default)
     {
         PermissionGuard.Require(_currentUser, Permission.OperationsWrite);
+        if (await VisibleAsync(id, ct) is null) return false; // kapsam doğrulamadan/sürümden ÖNCE
         var n = Normalize(input);
         Validate(n);
+        await RequireTargetAsync(n.CariId, ct);
         if (await _repository.FileNoExistsAsync(n.DosyaNo!, excludeId: id, ct))
             throw new ValidationException($"'{n.DosyaNo}' dosya no zaten var.");
         return await _repository.UpdateAsync(id, expectedVersion, row =>
@@ -77,10 +115,11 @@ public sealed class LegalCaseService(ILegalCaseRepository repository, ICurrentUs
     /// <summary>F7.1 — satır sürümü (PUT'un <c>surum</c>'u); yok/başka kiracı → null.</summary>
     public Task<string?> GetVersionAsync(Guid id, CancellationToken ct = default) => _repository.GetVersionAsync(id, ct);
 
-    public Task<bool> DeleteAsync(Guid id, CancellationToken ct = default)
+    public async Task<bool> DeleteAsync(Guid id, CancellationToken ct = default)
     {
         PermissionGuard.Require(_currentUser, Permission.OperationsDelete); // kabul C-HUKUK: operatör siler DEĞİL
-        return _repository.DeleteAsync(id, ct);
+        if (await VisibleAsync(id, ct) is null) return false; // kapsam dışı → 404
+        return await _repository.DeleteAsync(id, ct);
     }
 
     private static void Validate(HukukDosyaInput n)

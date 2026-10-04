@@ -44,7 +44,8 @@ public static partial class SystemDefinitionsApi
             return await InsuranceAsync(id, s, ct) is { } d ? TypedResults.Ok(d) : SystemApiCommon.NotFound();
         }).MapFields(InsuranceRules);
         g.MapDelete("/{id:guid}", async Task<Results<NoContent, ProblemHttpResult>> (Guid id, InsuranceCompanyService s, CancellationToken ct)
-            => await s.DeleteAsync(id, ct) ? TypedResults.NoContent() : SystemApiCommon.NotFound());
+            => await s.DeleteAsync(id, ct) ? TypedResults.NoContent() : SystemApiCommon.NotFound())
+            .RequirePermission(Permission.OperationsDelete); // güvenlik F3: tanım silme operatöre kapalı
     }
 
     private static void InsuranceLimits(InsuranceCompanyRequest i)
@@ -95,7 +96,8 @@ public static partial class SystemDefinitionsApi
             return await VatAsync(id, s, ct) is { } d ? TypedResults.Ok(d) : SystemApiCommon.NotFound();
         }).MapFields(VatRules);
         g.MapDelete("/{id:guid}", async Task<Results<NoContent, ProblemHttpResult>> (Guid id, VatRateService s, CancellationToken ct)
-            => await s.DeleteAsync(id, ct) ? TypedResults.NoContent() : SystemApiCommon.NotFound());
+            => await s.DeleteAsync(id, ct) ? TypedResults.NoContent() : SystemApiCommon.NotFound())
+            .RequirePermission(Permission.OperationsDelete); // güvenlik F3
     }
 
     private static void VatLimits(KdvRateRequest i)
@@ -146,7 +148,8 @@ public static partial class SystemDefinitionsApi
             return await PenaltyAsync(id, s, ct) is { } d ? TypedResults.Ok(d) : SystemApiCommon.NotFound();
         }).MapFields(PenaltyRules);
         g.MapDelete("/{id:guid}", async Task<Results<NoContent, ProblemHttpResult>> (Guid id, PenaltyTypeService s, CancellationToken ct)
-            => await s.DeleteAsync(id, ct) ? TypedResults.NoContent() : SystemApiCommon.NotFound());
+            => await s.DeleteAsync(id, ct) ? TypedResults.NoContent() : SystemApiCommon.NotFound())
+            .RequirePermission(Permission.OperationsDelete); // güvenlik F3
     }
 
     private static void PenaltyLimits(PenaltyTypeRequest i)
