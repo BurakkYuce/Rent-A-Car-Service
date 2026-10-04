@@ -398,9 +398,12 @@ public sealed class FaturaDonemKdvGenisTests(PostgresFixture fx)
     private static GelenEFaturaInput Incoming(string ettn, decimal net, decimal vat, DateTimeOffset date, string currency = "TRY")
         => new()
         {
-            Ettn = ettn, GonderenVkn = "1234567890", GonderenUnvan = "Tedarikçi A.Ş.",
+            Ettn = TestEttn.Of(ettn), GonderenVkn = "1234567890", GonderenUnvan = "Tedarikçi A.Ş.",
             Tarih = date, NetTutar = net, KdvTutar = vat, GenelToplam = net + vat, Currency = currency
         };
+
+    /// <summary>Etiketin belgeye yazılan (GİB biçimli) ETTN'i — rapor satırının "No"su.</summary>
+    private static string No(string label) => TestEttn.Of(label);
 
     /// <summary>
     /// Spec senaryosu: 1 gelen e-Fatura (oran kırılımlı) + 1 satış faturası. Satış ve alış AYRI
@@ -442,7 +445,7 @@ public sealed class FaturaDonemKdvGenisTests(PostgresFixture fx)
         Assert.Equal(0, withPurchase.AtlananDovizliAlis);
 
         var purchaseLine = withPurchase.Satirlar.Single(r => r.AlisMi);
-        Assert.Equal("ETTN-A1", purchaseLine.No);
+        Assert.Equal(No("ETTN-A1"), purchaseLine.No);
         Assert.Equal(1000m, purchaseLine.Net20);
         Assert.Equal(200m, purchaseLine.Kdv20);
     }
@@ -476,12 +479,14 @@ public sealed class FaturaDonemKdvGenisTests(PostgresFixture fx)
         var g = await scope.ServiceProvider.GetRequiredService<ReportService>()
             .GetVatExtendedAsync(D(2026, 6, 1), D(2026, 6, 30).AddDays(1).AddTicks(-1), includePurchases: true);
 
-        var purchase = g.Satirlar.Where(r => r.AlisMi).OrderBy(r => r.No, StringComparer.Ordinal).ToList();
-        Assert.Equal(["ETTN-R1", "ETTN-R3", "ETTN-R4"], purchase.Select(r => r.No)); // elle: B (red) dışarıda
-        Assert.Equal(180m, purchase[1].Kdv20);
-        Assert.Equal(900m, purchase[1].Net20);
-        Assert.Equal(150m, purchase[2].DigerKdv);
-        Assert.Equal(1000m, purchase[2].DigerNet);
+        var purchase = g.Satirlar.Where(r => r.AlisMi).ToDictionary(r => r.No);
+        Assert.Equal(3, purchase.Count);                                                 // elle: B (red) dışarıda
+        Assert.Contains(No("ETTN-R1"), purchase.Keys);
+        Assert.DoesNotContain(No("ETTN-R2"), purchase.Keys);
+        Assert.Equal(180m, purchase[No("ETTN-R3")].Kdv20);
+        Assert.Equal(900m, purchase[No("ETTN-R3")].Net20);
+        Assert.Equal(150m, purchase[No("ETTN-R4")].DigerKdv);
+        Assert.Equal(1000m, purchase[No("ETTN-R4")].DigerNet);
         Assert.Equal(350m, g.AlisKdv);           // elle: 20 + 180 + 150
     }
 
@@ -535,8 +540,8 @@ public sealed class FaturaDonemKdvGenisTests(PostgresFixture fx)
         Assert.Equal(330m, g.AlisKdv);
         Assert.Equal(2150m, g.AlisNet);
         Assert.Equal(-130m, g.NetKdv);
-        Assert.DoesNotContain(g.Satirlar, r => r.No == "ETTN-G2");         // giderleştirilmiş belge kendi satırıyla gelmez
-        var e1Row = Assert.Single(g.Satirlar, r => r.No == "ETTN-G1");
+        Assert.DoesNotContain(g.Satirlar, r => r.No == No("ETTN-G2"));     // giderleştirilmiş belge kendi satırıyla gelmez
+        var e1Row = Assert.Single(g.Satirlar, r => r.No == No("ETTN-G1"));
         Assert.Equal(1000m, e1Row.Net10);
         Assert.Equal(100m, e1Row.Kdv10);
 

@@ -35,18 +35,22 @@ public static class ListExportCatalog
             E(x.WebRezKapat), E(x.OfisRezKapat), E(x.ZIzni), E(x.Utts), E(x.KarLastigi), E(x.YedekAnahtar), E(x.Temizlik), E(x.Rehin)
         }).ToList());
 
-    public static ExportTable Customers(IReadOnlyList<Customer> c) => new(
+    public static ExportTable Customers(IReadOnlyList<Customer> c, CustomerPrivacy privacy) => new(
         "Cariler",
-        // KVKK: TC Kimlik BİLİNÇLİ olarak yok (bkz. sınıf özeti). Kurumsal Vergi No dahil.
+        // KVKK: TC Kimlik BİLİNÇLİ olarak yok (bkz. sınıf özeti). Vergi No yalnız kurumsal (bireyselde TC olabilir —
+        // ekrandaki kart kuralı). Ad/telefon/e-posta/adres carinin Anonim* bayraklarıyla (CustomerPrivacy).
         ["Ünvan/Ad", "Tip", "Vergi No", "Telefon", "E-posta", "İl", "İlçe", "Kaynak", "Vade Gün",
          "Vergi Dairesi", "GSM2", "Adres", "Sınıf", "Müşteri Temsilcisi", "İYS İzinli", "Fatura Dönemi", "Risk Limiti", "HGS Yansıtma", "Özel Cari Tip"],
         c.Select(x => new object?[]
         {
-            x.DisplayName, x.Tip.ToString(), x.VergiNo, x.CepTel, x.Email, x.Il, x.Ilce, x.Kaynak, x.VadeGun,
-            x.VergiDairesi, x.Gsm2, x.Adres, x.Sinif, x.MusteriTemsilcisi, E(x.IysIzinli), x.FaturaDonemi, x.RiskLimiti, x.HgsYansitmaTuru, x.OzelCariTip
+            privacy.Name(x.Id, x.DisplayName), x.Tip.ToString(), CustomerPrivacy.TaxNumber(x),
+            privacy.Phone(x.Id, x.CepTel), privacy.Email(x.Id, x.Email),
+            privacy.Address(x.Id, x.Il), privacy.Address(x.Id, x.Ilce), x.Kaynak, x.VadeGun,
+            x.VergiDairesi, privacy.Phone(x.Id, x.Gsm2), privacy.Address(x.Id, x.Adres), x.Sinif, x.MusteriTemsilcisi,
+            E(x.IysIzinli), x.FaturaDonemi, x.RiskLimiti, x.HgsYansitmaTuru, x.OzelCariTip
         }).ToList());
 
-    public static ExportTable Invoices(IReadOnlyList<Invoice> f, Func<Guid, string?> customerName) => new(
+    public static ExportTable Invoices(IReadOnlyList<Invoice> f, Func<Guid, string?> customerName, CustomerPrivacy privacy) => new(
         "Faturalar",
         // İlk 6 kolon geriye-uyum için SABİT; kalanlar (parite derinliği) sona eklendi.
         ["No", "Tarih", "Net", "KDV", "Toplam", "Durum",
@@ -54,7 +58,7 @@ public static class ListExportCatalog
         f.Select(x => new object?[]
         {
             x.No, ExportDate.Day(x.Tarih), x.NetTutar, x.KdvTutar, x.GenelToplam, x.Durum.ToString(),
-            customerName(x.CariId), D(x.VadeTarihi), x.Currency, x.Kur, InvoiceType(x), x.DamgaVergisi,
+            privacy.Name(x.CariId, customerName(x.CariId)), D(x.VadeTarihi), x.Currency, x.Kur, InvoiceType(x), x.DamgaVergisi,
             x.EFaturaGonderildi ? (x.EFaturaEttn ?? "Gönderildi") : ""
         }).ToList());
 
@@ -88,16 +92,18 @@ public static class ListExportCatalog
     /// <summary>FAZ-52 — fatura DETAY (satır) listesi. Tutarlar faturanın kesildiği andaki
     /// değerlerdir; burada yeniden hesaplanmaz. İptal satırları da yazılır (Durum kolonuyla ayrışır)
     /// — ekranda görünen ile indirilen aynı küme olmalı.</summary>
-    public static ExportTable InvoiceDetails(IReadOnlyList<RentACar.Application.Finance.FaturaSatirDto> rows) => new(
+    public static ExportTable InvoiceDetails(IReadOnlyList<RentACar.Application.Finance.FaturaSatirDto> rows, CustomerPrivacy privacy) => new(
         "Fatura Detay",
-        ["Fatura No", "Tarih", "Vade", "Durum", "Cari", "Şehir", "Mail", "Vergi No",
+        // Şehir / Mail / Vergi No YOK (#378 adversarial M1): ekran (InvoiceLineListRow) bunları göstermiyor ve bireysel
+        // carinin vergi no'su TC olabilir — "gördüğün = indirdiğin".
+        ["Fatura No", "Tarih", "Vade", "Durum", "Cari",
          "Açıklama", "Miktar", "Birim Net", "KDV Oranı", "Satır Net", "Satır KDV", "Satır Toplam",
          "Döviz", "Kur", "Plaka", "Sözleşme No", "Çıkış Ofisi", "Rez. Kaynağı"],
         rows.Select(r => new object?[]
         {
             r.FaturaNo, ExportDate.Day(r.Tarih), ExportDate.Day(r.VadeTarihi),
             r.Iptal ? "İptal" : r.IadeMi ? "İade" : "Geçerli",
-            r.CariAd, r.CariSehir, r.CariEmail, r.CariVergiNo,
+            privacy.Name(r.CariId, r.CariAd),
             r.Aciklama, r.Miktar, r.BirimNetFiyat, r.KdvOrani, r.SatirNet, r.SatirKdv, r.SatirToplam,
             r.Doviz, r.Kur, r.Plaka, r.SozlesmeNo, r.CikisOfisi, r.RezervasyonKaynagi
         }).ToList());
@@ -132,13 +138,13 @@ public static class ListExportCatalog
     /// Tarih YEREL GÜN olarak yazılır: ham UTC yazmak, ekranda 01.03 görünen kaydı export'ta
     /// 28.02 yapıyordu (repoda bilinen bir-gün-geri tuzağı).
     /// </summary>
-    public static ExportTable CashTransactions(IReadOnlyList<NakitIslemSatirDto> n) => new(
+    public static ExportTable CashTransactions(IReadOnlyList<NakitIslemSatirDto> n, CustomerPrivacy privacy) => new(
         "Nakit İşlemler",
         ["No", "Tip", "Tarih", "Cari", "Cari Kod", "Kanal", "Tutar", "Döviz", "Karşı Hesap", "Ters mi", "Açıklama"],
         n.Select(r => new object?[]
         {
             r.Islem.No, r.Islem.Tip.ToString(), ExportDate.Day(r.Islem.Tarih),
-            r.CariAd, r.CariKod, r.Islem.Kanal,
+            privacy.Name(r.Islem.CariId, r.CariAd), r.CariKod, r.Islem.Kanal,
             r.Islem.Amount.Amount, r.Islem.Amount.Currency,
             r.Islem.KarsiHesap.ToString(), r.Islem.TersKayitMi ? "Evet" : "Hayır", r.Islem.Aciklama
         }).ToList());
@@ -159,7 +165,7 @@ public static class ListExportCatalog
     /// <para>Kolon başlıkları katmanların BİLGİ olduğunu söyler: resmi tutar "Birim Fiyat"tır,
     /// Piyasa/Ops/Filo hiçbir toplama girmez.</para>
     /// </summary>
-    public static ExportTable VehicleOrders(IReadOnlyList<AracSiparis> s,
+    public static ExportTable VehicleOrders(IReadOnlyList<AracSiparis> s, CustomerPrivacy privacy,
         Func<Guid, string?>? account = null, Func<Guid, string?>? loan = null) => new(
         "Araç Siparişleri",
         ["No", "Dosya No", "Tedarikçi", "Cari", "Sipariş Tarihi", "İmza Tarihi", "Beklenen Teslim",
@@ -170,7 +176,7 @@ public static class ListExportCatalog
         s.Select(x => new object?[]
         {
             x.No, x.DosyaNo, x.Tedarikci,
-            x.TedarikciCariId is Guid c ? account?.Invoke(c) : null,
+            x.TedarikciCariId is Guid c ? privacy.Name(c, account?.Invoke(c)) : null,
             ExportDate.Day(x.SiparisTarihi), ExportDate.Day(x.ImzaTarih),
             ExportDate.Day(x.BeklenenTeslim),
             x.SatisTemsilci, x.OzelTemsilci,
@@ -183,14 +189,14 @@ public static class ListExportCatalog
 
     /// <summary>FAZ-13: Dosya No / Cari / Araç kolonları eklendi — ekrandaki tabloyla aynı bilgi
     /// dışarı çıksın (cari ve plaka Id olarak tutulur, export'a ADLARI yazılır).</summary>
-    public static ExportTable VehicleLoans(IReadOnlyList<AracKredi> k,
+    public static ExportTable VehicleLoans(IReadOnlyList<AracKredi> k, CustomerPrivacy privacy,
         Func<Guid, string?>? account = null, Func<Guid, string?>? plate = null) => new(
         "Araç Kredileri",
         ["No", "Dosya No", "Banka", "Cari", "Araç", "Kredi Tutarı", "Faiz %", "Taksit", "Ödenen Taksit", "Başlangıç", "Döviz", "Durum", "Açıklama"],
         k.Select(x => new object?[]
         {
             x.No, x.DosyaNo, x.BankaAdi,
-            x.CariId is Guid c ? account?.Invoke(c) : null,
+            x.CariId is Guid c ? privacy.Name(c, account?.Invoke(c)) : null,
             x.VehicleId is Guid v ? plate?.Invoke(v) : null,
             x.KrediTutari, x.FaizOran, x.TaksitSayisi, x.OdenenTaksit,
             ExportDate.Day(x.BaslangicTarihi), x.Currency, x.Durum.ToString(), x.Aciklama
@@ -205,12 +211,15 @@ public static class ListExportCatalog
             x.DonusKm, x.DonusYakit, x.Sube, x.Durum.ToString(), x.Aciklama
         }).ToList());
 
-    public static ExportTable Rentals(IReadOnlyList<RentalRow> r) => new(
+    public static ExportTable Rentals(IReadOnlyList<RentalRow> r, CustomerPrivacy privacy) => new(
         "Kiralar",
         ["Sözleşme No", "Müşteri", "Plaka", "Başlangıç", "Bitiş", "Gün", "Tutar", "Bakiye", "Durum", "Faturalı"],
         r.Select(x => new object?[]
         {
-            x.SozlesmeNo, x.MusteriAd, x.Plaka, ExportDate.Day(x.BasTar), ExportDate.Day(x.BitTar),
+            x.SozlesmeNo,
+            // Satırın kendi bayrağı (ekran: CustomerView.ListName) + cari kuralı — ikisinden biri yeter.
+            x.MusteriAnonimAd ? RentACar.Application.Customers.CustomerAnonymity.NameLabel : privacy.Name(x.MusteriId, x.MusteriAd),
+            x.Plaka, ExportDate.Day(x.BasTar), ExportDate.Day(x.BitTar),
             x.Gun, x.Tutar, x.Bakiye, x.Durum.ToString(), x.Faturali ? "Evet" : "Hayır"
         }).ToList());
 
@@ -219,13 +228,15 @@ public static class ListExportCatalog
     /// tabloyla aynı bilgi). TARİHLER YEREL GÜN — ham UTC basmak, gece yarısına yakın kayıtlarda
     /// listede görünen günün BİR GÜN GERİSİNİ yazıyordu (repoda bilinen tuzak; yenisi üretilmez).
     /// </summary>
-    public static ExportTable Reservations(IReadOnlyList<ReservationRow> r) => new(
+    public static ExportTable Reservations(IReadOnlyList<ReservationRow> r, CustomerPrivacy privacy) => new(
         "Rezervasyonlar",
         ["Rez No", "Durum", "Müşteri", "Cep Tel", "Plaka", "Başlangıç", "Bitiş", "Çıkış Ofisi", "Dönüş Ofisi",
          "Kaynak", "Talep Türü", "Geldiği Birim", "Proje Adı", "Onay Kodu", "Gün", "Günlük Ücret", "Tutar"],
         r.Select(x => new object?[]
         {
-            x.Rez.ReservationNo, x.Rez.Durum.ToString(), x.MusteriAd, x.CepTel, x.Plaka,
+            x.Rez.ReservationNo, x.Rez.Durum.ToString(),
+            x.MusteriAnonimAd ? RentACar.Application.Customers.CustomerAnonymity.NameLabel : privacy.Name(x.Rez.MusteriId, x.MusteriAd),
+            privacy.Phone(x.Rez.MusteriId, x.CepTel), x.Plaka,
             ExportDate.Day(x.Rez.BasTar), ExportDate.Day(x.Rez.BitTar),
             x.Rez.CikisOfisi, x.Rez.DonusOfisi, x.Rez.Kaynak,
             x.Rez.TalepTuru, x.Rez.GeldigiBirim, x.Rez.ProjeAdi, x.Rez.OnayKodu,
@@ -265,12 +276,13 @@ public static class ListExportCatalog
 
     /// <summary>Uzun-dönem (filo) kiralama sözleşmeleri. Plaka/müşteri FK'leri endpoint'te dict ile çözülür
     /// (<paramref name="plate"/>/<paramref name="customer"/> resolver; katalog saf kalır, test'te sahte resolver).</summary>
-    public static ExportTable FleetRentals(IReadOnlyList<FiloKiralama> f, Func<Guid, string?> plate, Func<Guid, string?> customer) => new(
+    public static ExportTable FleetRentals(IReadOnlyList<FiloKiralama> f, Func<Guid, string?> plate, Func<Guid, string?> customer,
+        CustomerPrivacy privacy) => new(
         "Filo Kiralama",
         ["No", "Müşteri", "Plaka", "Başlangıç", "Süre (Ay)", "Aylık Ücret", "KDV Oranı", "Döviz", "Kur", "Toplam KM Limiti", "Damga Vergisi", "Durum", "Açıklama"],
         f.Select(x => new object?[]
         {
-            x.No, customer(x.MusteriId), plate(x.VehicleId), D(x.BasTar), x.SureAy, x.AylikUcret, x.KdvOrani,
+            x.No, privacy.Name(x.MusteriId, customer(x.MusteriId)), plate(x.VehicleId), D(x.BasTar), x.SureAy, x.AylikUcret, x.KdvOrani,
             x.Currency, x.Kur, x.ToplamKmLimiti, x.DamgaVergisi, x.Durum.ToString(), x.Aciklama
         }).ToList());
 
@@ -291,14 +303,15 @@ public static class ListExportCatalog
     /// mali rapora karışmaz (bkz. HukukDosya.Tahsilat). Kalan entity'nin tek formülünden okunur,
     /// burada yeniden hesaplanmaz.</para>
     /// </summary>
-    public static ExportTable LegalCases(IReadOnlyList<HukukDosyaSatirDto> h) => new(
+    public static ExportTable LegalCases(IReadOnlyList<HukukDosyaSatirDto> h, CustomerPrivacy privacy) => new(
         "Hukuk Dosyalari",
         ["Dosya No", "Müşteri", "Müşteri Tel", "Fatura No", "Tür", "Avukat", "Avukat Tel", "Avukat E-posta",
          "2. Avukat", "2. Avukat Tel", "2. Avukat E-posta",
          "Tutar (bilgi)", "Tahsilat (bilgi)", "Kalan (bilgi)", "Durum", "Tarih", "Aktif", "Açıklama"],
         h.Select(x => new object?[]
         {
-            x.Dosya.DosyaNo, x.MusteriAd, x.MusteriTel, x.Dosya.FaturaNoTemp, x.Dosya.Tur.ToString(),
+            x.Dosya.DosyaNo, privacy.Name(x.Dosya.CariId, x.MusteriAd), privacy.Phone(x.Dosya.CariId, x.MusteriTel),
+            x.Dosya.FaturaNoTemp, x.Dosya.Tur.ToString(),
             x.Dosya.Avukat, x.Dosya.AvukatTel, x.Dosya.AvukatMail,
             x.Dosya.Avukat2Ad, x.Dosya.Avukat2Tel, x.Dosya.Avukat2Mail,
             x.Dosya.Tutar, x.Dosya.Tahsilat, x.Dosya.Kalan, x.Dosya.Durum.ToString(),

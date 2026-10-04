@@ -39,8 +39,12 @@ public static class ListExportEndpoints
             VehicleSaleService vss, VehicleOrderService asp, VehicleLoanService akr, BafService baf,
             RentalService rs, ReservationService rez, LocationService loc, DropDefinitionService drop,
             FleetRentalService fks, DueService vade, LegalCaseService hukuk,
-            ReportExportService ex, PdfExportService pdf) =>
+            ReportExportService ex, PdfExportService pdf,
+            Microsoft.EntityFrameworkCore.IDbContextFactory<RentACar.Infrastructure.Persistence.AppDbContext> dbf) =>
         {
+            // KVKK: anonim cari bayrakları TEK yerden (ekrandaki kural) — her cari adı/iletişimi sütunu bundan geçer.
+            var privacy = await CustomerPrivacy.LoadAsync(dbf, req.HttpContext.RequestAborted);
+
             // Cari ekstre parametreli (cariId) → switch dışında; carinin defter satır-detayı + yürüyen bakiye.
             if (liste == "cari-ekstre")
             {
@@ -62,8 +66,8 @@ public static class ListExportEndpoints
             ExportTable? t = liste switch
             {
                 "araclar" => ListExportCatalog.Vehicles(await vs.ListAsync()),
-                "cariler" => ListExportCatalog.Customers(await cs.ListAsync()),
-                "faturalar" => ListExportCatalog.Invoices(await inv.ListAsync(), CustomerResolver(await cs.ListAsync())),
+                "cariler" => ListExportCatalog.Customers(await cs.ListAsync(), privacy),
+                "faturalar" => ListExportCatalog.Invoices(await inv.ListAsync(), CustomerResolver(await cs.ListAsync()), privacy),
                 "cezalar" => ListExportCatalog.Penalties(await ps.ListAsync()),
                 // FAZ-63: ekrandaki arama export'a AYNEN taşınır (gördüğün = indirdiğin).
                 // Şube kapsamı servis içinde ayrıca uygulanır — filtre onu genişletemez.
@@ -88,7 +92,7 @@ public static class ListExportEndpoints
                         Bas = FormParse.Date(req.Query["bas"].ToString()),
                         Bit = FormParse.Date(req.Query["bit"].ToString())?.AddDays(1).AddTicks(-1),
                         IptalleriGizle = req.Query["iptal"].ToString() == "gizle"
-                    })),
+                    }), privacy),
                 // FAZ-67: export ekranla AYNI kaynaktan (cari adı/kodu çözümlü) ve ekrandaki
                 // süzgeçlerle beslenir — "gördüğün = indirdiğin".
                 "nakit-islemler" => ListExportCatalog.CashTransactions(await cash.SearchTransactionsAsync(new CashFilter
@@ -100,7 +104,7 @@ public static class ListExportEndpoints
                     Bas = FormParse.Date(NullIfEmpty(req.Query["bas"].ToString())),
                     Bit = FormParse.Date(NullIfEmpty(req.Query["bit"].ToString()))?.AddDays(1).AddTicks(-1),
                     EnFazla = 5000
-                })),
+                }), privacy),
                 "arac-satislari" => ListExportCatalog.VehicleSales(await vss.ListAsync()),
                 // FAZ-17: ekrandaki filtre export'a AYNEN taşınır (giderler/AracKredi deseni) —
                 // kullanıcı gördüğü listeyi indirir, sessizce tüm tabloyu değil.
@@ -114,7 +118,7 @@ public static class ListExportEndpoints
                         Durum = Enum.TryParse<OrderStatus>(req.Query["durumF"].ToString(), out var sd) ? sd : null,
                         Bas = FormParse.Date(req.Query["bas"].ToString()),
                         Bit = FormParse.Date(req.Query["bit"].ToString())?.AddDays(1).AddTicks(-1)
-                    }),
+                    }), privacy,
                     CustomerResolver(await cs.ListAsync()), LoanResolver(await akr.ListAsync())),
                 // FAZ-13: ekrandaki filtre export'a AYNEN taşınır (giderler deseni) — kullanıcı
                 // gördüğü listeyi indirir, sessizce tüm tabloyu değil.
@@ -127,14 +131,14 @@ public static class ListExportEndpoints
                         Durum = Enum.TryParse<LoanStatus>(req.Query["durumF"].ToString(), out var kd) ? kd : null,
                         Bas = FormParse.Date(req.Query["bas"].ToString()),
                         Bit = FormParse.Date(req.Query["bit"].ToString())?.AddDays(1).AddTicks(-1)
-                    }),
+                    }), privacy,
                     CustomerResolver(await cs.ListAsync()), PlateResolver(await vs.ListAsync())),
                 "baflar" => ListExportCatalog.Bafs(await baf.ListAsync()),
                 // F4.2: SPA kira listesinin süzgeçleri export'a AYNEN taşınır (gördüğün = indirdiğin) —
                 // parametre adları ve kurallar /api/ui/v1/kiralar ile TEK kaynaktan (KiraListeFiltresi).
                 // Parametresiz çağrı (Blazor listesinin bağlantısı) eskisi gibi TÜM kiralar. Şube kapsamı
                 // serviste ayrıca uygulanır — filtre onu genişletemez.
-                "kiralar" => ListExportCatalog.Rentals(await rs.SearchAsync(RentalExportFilter(req.Query))),
+                "kiralar" => ListExportCatalog.Rentals(await rs.SearchAsync(RentalExportFilter(req.Query)), privacy),
                 // FAZ-48: ekrandaki süzgeç export'a AYNEN taşınır (gördüğün = indirdiğin).
                 // Şube kapsamı servis içinde ayrıca uygulanır — filtre onu genişletemez.
                 "rezervasyonlar" => ListExportCatalog.Reservations(await rez.SearchAsync(new ReservationFilter
@@ -144,11 +148,11 @@ public static class ListExportEndpoints
                     TarihMin = FormParse.Date(req.Query["bas"].ToString()),
                     TarihMax = FormParse.Date(req.Query["bit"].ToString())?.AddDays(1).AddTicks(-1),
                     Kaynak = NullIfEmpty(req.Query["kaynak"].ToString())
-                })),
+                }), privacy),
                 "lokasyonlar" => ListExportCatalog.Locations(await loc.ListAsync()),
                 "drop-tanimlari" => ListExportCatalog.DropDefinitions(await drop.ListAsync()),
                 "filo-kiralama" => ListExportCatalog.FleetRentals(await fks.ListAsync(),
-                    PlateResolver(await vs.ListAsync()), CustomerResolver(await cs.ListAsync())),
+                    PlateResolver(await vs.ListAsync()), CustomerResolver(await cs.ListAsync()), privacy),
                 "vade" => ListExportCatalog.Dues(await vade.GetAllAsync(ct: default),
                     PlateResolver(await vs.ListAsync())),
                 // FAZ-41: ekrandaki süzgeç export'a AYNEN taşınır (gördüğün = indirdiğin).
@@ -162,7 +166,7 @@ public static class ListExportEndpoints
                     Ara = NullIfEmpty(req.Query["ara"].ToString()),
                     Tur = Enum.TryParse<LegalType>(req.Query["tur"].ToString(), out var ht) ? ht : null,
                     Durum = Enum.TryParse<LegalStatus>(req.Query["durum"].ToString(), out var hd) ? hd : null
-                })),
+                }), privacy),
                 _ => null
             };
             if (t is null) return Results.NotFound();

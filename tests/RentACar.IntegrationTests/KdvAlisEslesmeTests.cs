@@ -15,7 +15,7 @@ public sealed class KdvAlisEslesmeTests(PostgresFixture fx)
     private static GelenEFaturaInput Incoming(string ettn, decimal net, decimal vat, DateTimeOffset date)
         => new()
         {
-            Ettn = ettn, GonderenVkn = "1234567890", GonderenUnvan = "Tedarikçi A.Ş.",
+            Ettn = TestEttn.Of(ettn), GonderenVkn = "1234567890", GonderenUnvan = "Tedarikçi A.Ş.",
             Tarih = date, NetTutar = net, KdvTutar = vat, GenelToplam = net + vat, Currency = "TRY"
         };
 

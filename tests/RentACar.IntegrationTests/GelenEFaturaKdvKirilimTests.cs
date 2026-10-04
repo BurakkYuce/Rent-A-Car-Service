@@ -36,7 +36,7 @@ public sealed class GelenEFaturaKdvKirilimTests(PostgresFixture fx)
 
     private static GelenEFaturaInput MakeInvoice(string ettn, decimal net, decimal vat, string currency = "TRY") => new()
     {
-        Ettn = ettn,
+        Ettn = TestEttn.Of(ettn),
         GonderenVkn = "1234567890",
         GonderenUnvan = "Tedarikçi A.Ş.",
         Tarih = Day(),
@@ -120,7 +120,7 @@ public sealed class GelenEFaturaKdvKirilimTests(PostgresFixture fx)
         // net 1000 + KDV 200 = 1200 ≠ genel toplam 1300 → belge kabul edilmez.
         await Assert.ThrowsAsync<ValidationException>(() => svc.CreateManualAsync(new GelenEFaturaInput
         {
-            Ettn = "KIR-4", GonderenVkn = "1", GonderenUnvan = "X",
+            Ettn = TestEttn.Of("KIR-4"), GonderenVkn = "1", GonderenUnvan = "X",
             NetTutar = 1000m, KdvTutar = 200m, GenelToplam = 1300m
         }));
         Assert.Empty(await svc.ListAsync());
@@ -632,20 +632,24 @@ public sealed class GelenEFaturaKdvKirilimTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
         var svc = scope.ServiceProvider.GetRequiredService<IncomingEInvoiceService>();
+        // ETTN GİB UUID'idir; aralık süzgeci metin sırasıyla çalıştığı için sıralı UUID'ler.
+        const string e100 = "00000000-0000-0000-0000-000000000100";
+        const string e200 = "00000000-0000-0000-0000-000000000200";
+        const string e300 = "00000000-0000-0000-0000-000000000300";
 
         await svc.CreateManualAsync(new GelenEFaturaInput
         {
-            Ettn = "FLT-100", GonderenVkn = "1111111111", GonderenUnvan = "Alfa Lojistik",
+            Ettn = e100, GonderenVkn = "1111111111", GonderenUnvan = "Alfa Lojistik",
             Tarih = Day(), NetTutar = 100m, KdvTutar = 20m, GenelToplam = 120m
         });
         await svc.CreateManualAsync(new GelenEFaturaInput
         {
-            Ettn = "FLT-200", GonderenVkn = "2222222222", GonderenUnvan = "Beta Servis",
+            Ettn = e200, GonderenVkn = "2222222222", GonderenUnvan = "Beta Servis",
             Tarih = Day(), NetTutar = 200m, KdvTutar = 40m, GenelToplam = 240m
         });
         var third = await svc.CreateManualAsync(new GelenEFaturaInput
         {
-            Ettn = "FLT-300", GonderenVkn = "3333333333", GonderenUnvan = "Gama Petrol",
+            Ettn = e300, GonderenVkn = "3333333333", GonderenUnvan = "Gama Petrol",
             Tarih = Day(), NetTutar = 300m, KdvTutar = 60m, GenelToplam = 360m
         });
         await svc.ApproveAsync(third);
@@ -653,8 +657,8 @@ public sealed class GelenEFaturaKdvKirilimTests(PostgresFixture fx)
 
         Assert.Single(await svc.ListAsync(new GelenEFaturaFilter { Firma = "beta" }));         // ünvan (ILike)
         Assert.Single(await svc.ListAsync(new GelenEFaturaFilter { Firma = "3333333333" }));   // VKN
-        Assert.Equal(2, (await svc.ListAsync(new GelenEFaturaFilter { EttnBas = "FLT-200" })).Count);
-        Assert.Equal(2, (await svc.ListAsync(new GelenEFaturaFilter { EttnBas = "FLT-100", EttnBit = "FLT-200" })).Count);
+        Assert.Equal(2, (await svc.ListAsync(new GelenEFaturaFilter { EttnBas = e200 })).Count);
+        Assert.Equal(2, (await svc.ListAsync(new GelenEFaturaFilter { EttnBas = e100, EttnBit = e200 })).Count);
         Assert.Equal(2, (await svc.ListAsync(new GelenEFaturaFilter { Durum = IncomingEInvoiceStatus.Beklemede })).Count);
         Assert.Single(await svc.ListAsync(new GelenEFaturaFilter { Giderlestirildi = true }));
         Assert.Equal(2, (await svc.ListAsync(new GelenEFaturaFilter { Giderlestirildi = false })).Count);

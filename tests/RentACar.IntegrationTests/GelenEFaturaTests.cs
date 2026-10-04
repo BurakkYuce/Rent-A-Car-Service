@@ -16,7 +16,7 @@ public sealed class GelenEFaturaTests(PostgresFixture fx)
 {
     private static GelenEFaturaInput Sample(string ettn = "ETTN-1") => new()
     {
-        Ettn = ettn, GonderenVkn = "1234567890", GonderenUnvan = "Tedarikçi A.Ş.",
+        Ettn = TestEttn.Of(ettn), GonderenVkn = "1234567890", GonderenUnvan = "Tedarikçi A.Ş.",
         Tarih = new DateTimeOffset(2026, 5, 1, 0, 0, 0, TimeSpan.Zero),
         NetTutar = 1000m, KdvTutar = 200m, GenelToplam = 1200m, Currency = "try"
     };
@@ -31,7 +31,7 @@ public sealed class GelenEFaturaTests(PostgresFixture fx)
         var id = await svc.CreateManualAsync(Sample());
         var r = await svc.GetAsync(id);
         Assert.NotNull(r);
-        Assert.Equal("ETTN-1", r!.Ettn);
+        Assert.Equal(TestEttn.Of("ETTN-1"), r!.Ettn);
         Assert.Equal("Tedarikçi A.Ş.", r.GonderenUnvan);
         Assert.Equal(1200m, r.GenelToplam);
         Assert.Equal("TRY", r.Currency);                       // döviz upper normalize
@@ -57,8 +57,35 @@ public sealed class GelenEFaturaTests(PostgresFixture fx)
         var svc = scope.ServiceProvider.GetRequiredService<IncomingEInvoiceService>();
 
         await Assert.ThrowsAsync<ValidationException>(() => svc.CreateManualAsync(new GelenEFaturaInput { Ettn = "", GonderenVkn = "1", GonderenUnvan = "X" }));
-        await Assert.ThrowsAsync<ValidationException>(() => svc.CreateManualAsync(new GelenEFaturaInput { Ettn = "E", GonderenVkn = "", GonderenUnvan = "X" }));
-        await Assert.ThrowsAsync<ValidationException>(() => svc.CreateManualAsync(new GelenEFaturaInput { Ettn = "E", GonderenVkn = "1", GonderenUnvan = "X", GenelToplam = -5m }));
+        var ettn = TestEttn.Of("E");
+        await Assert.ThrowsAsync<ValidationException>(() => svc.CreateManualAsync(new GelenEFaturaInput { Ettn = ettn, GonderenVkn = "", GonderenUnvan = "X" }));
+        await Assert.ThrowsAsync<ValidationException>(() => svc.CreateManualAsync(new GelenEFaturaInput { Ettn = ettn, GonderenVkn = "1", GonderenUnvan = "X", GenelToplam = -5m }));
+    }
+
+    /// <summary>
+    /// ETTN GİB biçiminde (UUID) zorunlu (adversarial Low): serbest metin alan hatasıyla reddedilir. Kanonik biçim (büyük
+    /// harf) saklanır → aynı belge küçük harfle ikinci kez girilemez.
+    /// </summary>
+    [Fact]
+    public async Task Ettn_must_be_a_gib_uuid_and_is_stored_canonical()
+    {
+        using var host = new TestHost(fx.AppConnectionString);
+        using var scope = host.ScopeFor(Guid.NewGuid());
+        var svc = scope.ServiceProvider.GetRequiredService<IncomingEInvoiceService>();
+
+        foreach (var bad in new[] { "ETTN-1", "FT2026000000001", "ETTN 3F2504E0-4F89-11D3-9A0C-0305E82C3301" })
+        {
+            var ex = await Assert.ThrowsAsync<ValidationException>(() => svc.CreateManualAsync(new GelenEFaturaInput
+            { Ettn = bad, GonderenVkn = "1234567890", GonderenUnvan = "X", NetTutar = 1m, KdvTutar = 0m, GenelToplam = 1m }));
+            Assert.Equal("ettn", ex.Alan);
+        }
+
+        var lower = "3f2504e0-4f89-11d3-9a0c-0305e82c3301";
+        var id = await svc.CreateManualAsync(new GelenEFaturaInput
+        { Ettn = "  " + lower + " ", GonderenVkn = "1234567890", GonderenUnvan = "X", NetTutar = 1m, KdvTutar = 0m, GenelToplam = 1m });
+        Assert.Equal("3F2504E0-4F89-11D3-9A0C-0305E82C3301", (await svc.GetAsync(id))!.Ettn);
+        await Assert.ThrowsAsync<ValidationException>(() => svc.CreateManualAsync(new GelenEFaturaInput
+        { Ettn = lower.ToUpperInvariant(), GonderenVkn = "1234567890", GonderenUnvan = "X", NetTutar = 1m, KdvTutar = 0m, GenelToplam = 1m }));
     }
 
     [Fact]
