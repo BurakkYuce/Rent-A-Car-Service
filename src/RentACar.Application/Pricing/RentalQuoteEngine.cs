@@ -56,7 +56,7 @@ public sealed class RentalQuoteEngine(
         var notes = new List<string>();
         // Kabul B-A2: istek değeri aracın Grup alanından gelebilir — ekrandan açılan araçta grubun ADI. Tanımlı gruba
         // çözülür (önce Kod, sonra Ad) ve tüm eşleşmeler grubun KODUYLA yapılır; tanımsız değer eskisi gibi kod sayılır.
-        var group = VehicleGroupMatch.Find(await _vehicleGroups.ListActiveAsync(ct), req.AracGrupKod);
+        var group = VehicleGroupMatch.Find(await _vehicleGroups.ListAsync(ct), req.AracGrupKod); // tüm gruplar (M1)
         var groupCode = (group?.Kod ?? req.AracGrupKod).Trim().ToUpperInvariant();
         var channel = req.Kanal?.Trim();
         var branch = req.Sube?.Trim();
@@ -88,7 +88,7 @@ public sealed class RentalQuoteEngine(
                     && (k.GecerlilikBit == null || k.GecerlilikBit >= req.BasTar)
                     && WarnSurgeBranch(k, branch)).ToList();
             if (occupancyCandidates.Count > 0
-                && await occupancy.GetGroupOccupancyPercentAsync(groupCode, req.BasTar, req.BitTar, group?.Ad, ct) is { } occupancyPercent)
+                && await occupancy.GetGroupOccupancyPercentAsync(groupCode, req.BasTar, req.BitTar, ct) is { } occupancyPercent)
             {
                 var surge = occupancyCandidates.Where(k => occupancyPercent >= k.EsikYuzde)
                     .OrderByDescending(k => k.EsikYuzde).ThenByDescending(k => k.CarpanYuzde)

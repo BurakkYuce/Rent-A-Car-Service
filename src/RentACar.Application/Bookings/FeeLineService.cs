@@ -102,7 +102,7 @@ public sealed class FeeLineService(
         var value = vehicle?.Grup?.Trim();
         if (string.IsNullOrWhiteSpace(value)) return null;
         // Kabul B-A2: ekrandan açılan araç grubun ADINI taşır — Kod sonra Ad (fiyat motoruyla aynı kural).
-        return VehicleGroupMatch.Find(await groups.ListActiveAsync(ct), value);
+        return VehicleGroupMatch.Find(await groups.ListAsync(ct), value); // tüm gruplar: pasif kod Ad'a düşmez (M1)
     }
 
     /// <summary>
