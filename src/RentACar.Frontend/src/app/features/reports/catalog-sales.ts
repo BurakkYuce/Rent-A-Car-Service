@@ -48,7 +48,9 @@ export const PROFITABILITY = defineReport({
         { tur: 'metin', ad: 'plaka', baslik: 'rapor.alan.plaka', enFazla: 20 },
         { tur: 'metin', ad: 'kaynak', baslik: 'rapor.alan.rezKaynagi' },
         { tur: 'metin', ad: 'sipp', baslik: 'rapor.alan.sipp', enFazla: 10 },
-        { tur: 'bayrak', ad: 'kdvDahil', baslik: 'rapor.alan.kdvDahil' },
+        // "KDV dahil" bayrağı kaldırıldı (kabul bulgusu d-rapor-karlilik-02): P&L NET kalmak zorunda (KDV gelir
+        // değil, borçtur) ve KDV bilgisi bayraktan bağımsız olarak "Hesaplanan KDV" kartı ile
+        // hesaplananKdv / gelirKdvDahil sütunlarında zaten var — bayrak hiçbir şeyi değiştirmiyordu.
       ],
       kartlar: [
         ka.field('toplamGelir', 'para'),
