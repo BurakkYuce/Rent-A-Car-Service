@@ -1432,12 +1432,20 @@ public sealed class ReportRepository(IDbContextFactory<AppDbContext> factory) : 
     /// <item><b>KDV'siz gider HARİÇ</b> (KDV belgesi değil: harç, MTV, kredi taksiti…).</item>
     /// <item><b>Çift sayım yok:</b> giderleştirilmiş (ya da giderleştirmesi talep edilmiş) gelen e-Fatura
     /// ve ETTN'i bir giderin evrak no'sunda geçen e-Fatura kendi satırıyla GELMEZ — KDV'si gider
-    /// satırından sayılır.</item>
+    /// satırından sayılır. Eşleşme yazımdan bağımsızdır (evrak no içindeki UUID, büyük/küçük harf ve
+    /// boşluk farkı yok sayılır; <c>DocumentKey</c>).</item>
+    /// <item><b>Bilinen sınır — ETTN'siz elle gider:</b> bir gelen e-Fatura "İşle" ile dışarıda
+    /// muhasebeleştirilmiş sayılıp aynı belge için evrak no'suna ETTN YAZILMADAN elle gider girildiyse iki
+    /// kayıt eşleştirilemez ve belgenin KDV'si İKİ KEZ sayılır (biri gider, biri e-Fatura satırı). Tutar/tarih/
+    /// tedarikçi ile sezgisel eşleştirme bilinçli YAPILMAZ: aynı tedarikçiden aynı tutarlı iki gerçek fatura
+    /// sessizce tek sayılırdı (eksik beyan, daha tehlikeli yön). Önlem kullanıcıda: elle giderin evrak no'suna
+    /// ETTN yazılmalı ya da e-Fatura "Giderleştir" ile işlenmeli (o yol çift sayımı yapısal olarak önler).</item>
     /// <item><b>Reddedilen fatura HARİÇ</b> — reddedilmiş belgenin KDV'si indirilemez.</item>
     /// <item><b>Kırılımı GİRİLMEMİŞ fatura</b> (kabul bulgusu d-rapor-kdv-02 öncesi HARİÇTİ): belge
-    /// toplamından tek standart oran çözülebiliyorsa (<c>round(net×oran,2) == KDV</c> — giderleştirmenin
-    /// kullandığı aynı kural) o kademeye, çözülemiyorsa "Diğer" kovasına girer. Oran uydurulmaz, ama
-    /// indirilecek KDV de sessizce düşmez.</item>
+    /// toplamı TAM OLARAK TEK bir standart orana uyuyorsa (<c>round(net×oran,2) == KDV</c> —
+    /// giderleştirmenin kullandığı aynı kural) o kademeye girer. <b>Birden çok oran uyuyorsa</b> (çok küçük
+    /// tutarlarda %10/%1/%0 aynı KDV'yi verebilir — belirsiz) ya da <b>hiçbiri uymuyorsa</b> (karma oranlı
+    /// belge) "Diğer" kovasına girer. Oran uydurulmaz, ama indirilecek KDV de sessizce düşmez.</item>
     /// <item><b>TRY olmayan fatura HARİÇ</b> ve sayılır: <c>GelenEFatura</c>'da KUR kolonu YOKTUR
     /// (belge kendi para biriminde saklanır), uydurma kurla base'e çevrilemez. Atlanan sayısı
     /// çağırana <c>AtlananDovizliAlis</c> olarak bildirilir — sessiz eksik toplam yasak.</item>

@@ -78,6 +78,8 @@ public sealed record KiraOlusturIstegi
     public string? IkinciSurucuSerbestEhliyetSinifi { get; init; }
     /// <summary>Ek hizmet matrisi: fiyat DAİMA tanım snapshot'ı (serbest fiyat yok — önizleme == kayıt).</summary>
     public IReadOnlyList<KiraEkHizmetSecimi>? EkHizmetler { get; init; }
+    /// <summary>#366 M2 — "Km sınırsız" kutusu. false/boş → tarife kademesi / araç grubu km limiti kiraya kopyalanır.</summary>
+    public bool? KmSinirsiz { get; init; }
 
     /// <summary>Blazor <c>BookingEndpoints</c> create eşlemesinin (ApplyOdemeDerinlik + ApplyKiraDetay) aynısı.</summary>
     public BookingInput ToInput() => new()
@@ -105,6 +107,7 @@ public sealed record KiraOlusturIstegi
         OdemeSekli = Nz(OdemeSekli),
         IkinciSurucuSerbestAd = Nz(IkinciSurucuSerbestAd), IkinciSurucuSerbestSoyad = Nz(IkinciSurucuSerbestSoyad),
         IkinciSurucuSerbestTel = Nz(IkinciSurucuSerbestTel), IkinciSurucuSerbestEhliyetSinifi = Nz(IkinciSurucuSerbestEhliyetSinifi),
+        KmSinirsiz = KmSinirsiz ?? false,
     };
 
     internal static string? Nz(string? s) => string.IsNullOrWhiteSpace(s) ? null : s.Trim();

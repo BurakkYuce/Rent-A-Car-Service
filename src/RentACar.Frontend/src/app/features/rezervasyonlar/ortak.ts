@@ -9,6 +9,7 @@ import { TextArea } from '@shared/form/kontroller/text-area';
 import { TextInput } from '@shared/form/kontroller/text-input';
 import { MoneyInput } from '@shared/form/kontroller/money-input';
 import { NumberInput } from '@shared/form/kontroller/number-input';
+import { Checkbox } from '@shared/form/kontroller/checkbox';
 import { Selection } from '@shared/form/kontroller/selection';
 import { DateTimePicker } from '@shared/form/tarih/date-time-picker';
 import { DatePicker } from '@shared/form/tarih/date-picker';
@@ -33,6 +34,7 @@ export const RF_SHARED = [
   TextInput,
   MoneyInput,
   NumberInput,
+  Checkbox,
   Selection,
   DateTimePicker,
   DatePicker,
