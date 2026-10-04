@@ -23,6 +23,10 @@ public sealed class ComplaintService(IComplaintRepository repository, ICurrentUs
     }
 
     public Task<IReadOnlyList<Sikayet>> ListAsync(CancellationToken ct = default) => _repository.ListAsync(ct);
+
+    /// <summary>Güvenlik F4 — şube kapsamına süzülmüş liste (harici JWT API; Web listesi kendi toplu süzmesini yapar).</summary>
+    public async Task<IReadOnlyList<Sikayet>> ListInScopeAsync(CancellationToken ct = default)
+        => await scope.FilterAsync(await _repository.ListAsync(ct), s => (s.RentalId, s.CikisOfisi), ct);
     public Task<Sikayet?> GetAsync(Guid id, CancellationToken ct = default) => _repository.FindAsync(id, ct);
 
     /// <summary>FAZ-43 — filtreli liste (sözleşme/araç/müşteri/personel adları çözülmüş).</summary>
@@ -71,7 +75,7 @@ public sealed class ComplaintService(IComplaintRepository repository, ICurrentUs
 
     public async Task<bool> DeleteAsync(Guid id, CancellationToken ct = default)
     {
-        PermissionGuard.Require(_currentUser, Permission.OperationsWrite);
+        PermissionGuard.Require(_currentUser, Permission.OperationsDelete); // kabul C-CRMSIL: operatör siler DEĞİL
         if (await _repository.FindAsync(id, ct) is not { } current) return false;
         await scope.RequireRecordAsync(current.RentalId, current.CikisOfisi, ct); // r317 M1
         return await _repository.DeleteAsync(id, ct);

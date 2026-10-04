@@ -59,7 +59,8 @@ public static class DocumentApi
 
         docs.MapDelete("/{id:guid}", async Task<Results<NoContent, ProblemHttpResult>> (Guid id, CompanyFileService s, CancellationToken ct)
             => await s.DeleteAsync(id, ct) ? TypedResults.NoContent() : F5Shared.NotFound("Doküman bulunamadı."))
-            .RequirePermission(Permission.OperationsWrite);
+            .RequirePermission(Permission.OperationsWrite)
+            .RequirePermission(Permission.OperationsDelete); // güvenlik F3: silme operatöre kapalı
 
         v1.MapGet("/firma-belgeleri", async Task<Ok<IReadOnlyList<PlatformDocumentDto>>> (PlatformDocumentService s, CancellationToken ct)
             => TypedResults.Ok<IReadOnlyList<PlatformDocumentDto>>((await s.ListAsync(ct)).Select(PlatformDocumentDto.From).ToList()))

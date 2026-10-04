@@ -14,6 +14,7 @@ import type { DayText } from '@core/form/tarih-girdisi';
 import { type UnsavedChangesOwner, pageLeaveGuard } from '@core/form/kaydedilmemis-degisiklik';
 import { ToastService } from '@core/geri-bildirim/toast-service';
 import { translationFunction } from '@core/i18n/ceviri';
+import { DUGME_IZINLERI } from '@core/oturum/dugme-izinleri';
 import { SessionService } from '@core/oturum/session-service';
 import { FetchPolicy } from '@core/veri/fetch-policy';
 import { listQueryUrlSync } from '@core/veri/liste-sorgusu-url';
@@ -92,6 +93,10 @@ export class LegalFileList implements UnsavedChangesOwner {
   protected readonly store = inject(LegalFileStore);
   private readonly api = inject(ApiIstemcisi);
   private readonly session = inject(SessionService);
+  /** Sil düğmesi yalnız silebilene (OperationsDelete; kabul C-HUKUK). */
+  protected readonly canDelete = computed(() =>
+    this.session.hasPermissions(DUGME_IZINLERI.hukukSil.izinler),
+  );
   private readonly toast = inject(ToastService);
   private readonly labels = inject(CustomerFilterLabel);
   private readonly t = translationFunction();

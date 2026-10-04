@@ -179,8 +179,11 @@ public sealed class FiloPlanTests(PostgresFixture fx)
             var svc = op.ServiceProvider.GetRequiredService<FleetPlanService>();
             Assert.Single(await svc.ListWithCountAsync());
             Assert.True(await svc.ChangeTargetAsync(id, 1));
-            Assert.True(await svc.DeleteAsync(id));
+            // Güvenlik F3: silme OperationsDelete ister — operatör silemez, Yönetici/Admin siler.
+            await Assert.ThrowsAsync<NoPermissionException>(() => svc.DeleteAsync(id));
         }
+        using (var admin = host.ScopeFor(t1))
+            Assert.True(await admin.ServiceProvider.GetRequiredService<FleetPlanService>().DeleteAsync(id));
 
         using var s1b = host.ScopeFor(t1);
         Assert.Empty(await s1b.ServiceProvider.GetRequiredService<FleetPlanService>().ListWithCountAsync());

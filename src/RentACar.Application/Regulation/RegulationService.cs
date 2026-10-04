@@ -435,7 +435,7 @@ public sealed class RegulationService(IRegulationRepository repository, ICurrent
     /// </summary>
     public async Task DeleteEndorsementAsync(Guid id, CancellationToken ct = default)
     {
-        PermissionGuard.Require(_currentUser, Permission.OperationsWrite);
+        PermissionGuard.Require(_currentUser, Permission.OperationsDelete); // güvenlik F3: operatör siler DEĞİL
         if (!await _repository.DeleteEndorsementAsync(id, ct))
             throw new ValidationException("Zeyil kaydı bulunamadı.");
     }

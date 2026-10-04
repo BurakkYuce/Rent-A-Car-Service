@@ -101,6 +101,7 @@ public sealed class DocumentTemplateService(IDocumentTemplateRepository reposito
     public Task<bool> DeleteAsync(Guid id, CancellationToken ct = default)
     {
         PermissionGuard.Require(currentUser, Permission.ManageUsers);
+        PermissionGuard.Require(currentUser, Permission.OperationsDelete); // güvenlik F3
         return repository.DeleteAsync(id, ct);
     }
 

@@ -57,7 +57,8 @@ public static partial class SystemDefinitionsApi
             return await PersonnelAsync(id, s, ct) is { } d ? TypedResults.Ok(d) : SystemApiCommon.NotFound();
         }).MapFields(PersonnelRules);
         g.MapDelete("/{id:guid}", async Task<Results<NoContent, ProblemHttpResult>> (Guid id, PersonnelService s, CancellationToken ct)
-            => await s.DeleteAsync(id, ct) ? TypedResults.NoContent() : SystemApiCommon.NotFound());
+            => await s.DeleteAsync(id, ct) ? TypedResults.NoContent() : SystemApiCommon.NotFound())
+            .RequirePermission(Permission.OperationsDelete); // güvenlik F3
     }
 
     private static void PersonnelLimits(PersonnelRequest i)

@@ -48,7 +48,9 @@ public sealed partial class UiTanimTests
         Assert.Empty((await Json(await Send(other, HttpMethod.Get, Root))).EnumerateArray());
         await ExpectProblem(await Send(other, HttpMethod.Delete, $"{Root}/{id}"), HttpStatusCode.NotFound, null);
 
-        Assert.Equal(HttpStatusCode.NoContent, (await Send(op, HttpMethod.Delete, $"{Root}/{id}")).StatusCode);
+        // Güvenlik F3: silme OperationsDelete ister — operatör 403, Admin siler.
+        await ExpectProblem(await Send(op, HttpMethod.Delete, $"{Root}/{id}"), HttpStatusCode.Forbidden, "yetki_yok");
+        Assert.Equal(HttpStatusCode.NoContent, (await Send(await LoginAsync(env, Who.Admin), HttpMethod.Delete, $"{Root}/{id}")).StatusCode);
         Assert.Empty((await Json(await Send(op, HttpMethod.Get, Root))).EnumerateArray());
 
         // Platform documents: a new company has none; readable by any signed-in role.

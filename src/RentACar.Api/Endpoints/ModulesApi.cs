@@ -24,7 +24,7 @@ public static class ModulesApi
                     p.Id, p.Kod, p.Ad, p.Soyad, p.Sube, p.Aktif, p.IseGiris, p.IseCikis, p.SurucuBelgeNo
                 })));
 
-        // Hukuk — OperationsWrite.
+        // Hukuk — OperationsWrite. Şube kapsamı serviste (LegalScope; güvenlik F4 — SPA/export ile aynı kural).
         app.MapGroup("/api/v1/legal").WithTags("Legal").RequirePermission(Permission.OperationsWrite)
             .MapGet("/", async (LegalCaseService svc, CancellationToken ct) =>
                 Results.Ok((await svc.ListAsync(ct)).Select(h => new
@@ -32,12 +32,12 @@ public static class ModulesApi
                     h.Id, h.DosyaNo, Tur = h.Tur.ToString(), h.Avukat, h.Tutar, Durum = h.Durum.ToString(), h.Tarih, h.Aktif
                 })));
 
-        // CRM — OperationsWrite.
+        // CRM — OperationsWrite. Güvenlik F4: şube kapsamına süzülmüş (CrmScopeGuard.Visible — SPA listesiyle aynı kural).
         var crm = app.MapGroup("/api/v1/crm").WithTags("Crm").RequirePermission(Permission.OperationsWrite);
         crm.MapGet("/anketler", async (SurveyService svc, CancellationToken ct) =>
-            Results.Ok((await svc.ListAsync(ct)).Select(a => new { a.Id, a.Puan, a.Yorum, a.Kaynak, a.Tarih })));
+            Results.Ok((await svc.ListInScopeAsync(ct)).Select(a => new { a.Id, a.Puan, a.Yorum, a.Kaynak, a.Tarih })));
         crm.MapGet("/sikayetler", async (ComplaintService svc, CancellationToken ct) =>
-            Results.Ok((await svc.ListAsync(ct)).Select(s => new { s.Id, s.Konu, Durum = s.Durum.ToString(), s.Tarih, s.Cozum })));
+            Results.Ok((await svc.ListInScopeAsync(ct)).Select(s => new { s.Id, s.Konu, Durum = s.Durum.ToString(), s.Tarih, s.Cozum })));
 
         // Dönem kapanışı durumu — FinanceWrite.
         app.MapGroup("/api/v1/donem-kapanis").WithTags("DonemKapanis").RequirePermission(Permission.FinanceWrite)

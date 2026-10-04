@@ -169,7 +169,7 @@ public sealed class FleetPlanService(
 
     public async Task<bool> DeleteAsync(Guid id, CancellationToken ct = default)
     {
-        PermissionGuard.Require(_currentUser, Permission.OperationsWrite);
+        PermissionGuard.Require(_currentUser, Permission.OperationsDelete); // güvenlik F3: operatör siler DEĞİL
         return await _repository.DeleteAsync(id, ct);
     }
 

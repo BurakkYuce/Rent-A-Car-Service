@@ -43,6 +43,10 @@ public sealed class SurveyService(
 
     public Task<IReadOnlyList<Anket>> ListAsync(CancellationToken ct = default) => _repository.ListAsync(ct);
 
+    /// <summary>Güvenlik F4 — şube kapsamına süzülmüş liste (harici JWT API; Web listesi kendi toplu süzmesini yapar).</summary>
+    public async Task<IReadOnlyList<Anket>> ListInScopeAsync(CancellationToken ct = default)
+        => await scope.FilterAsync(await _repository.ListAsync(ct), a => (a.RentalId, a.CikisOfisi), ct);
+
     /// <summary>FAZ-42 filtreli liste.</summary>
     public Task<IReadOnlyList<Anket>> SearchAsync(AnketFilter? filter = null, CancellationToken ct = default)
         => filter is null ? _repository.ListAsync(ct) : _repository.ListAsync(filter, ct);
@@ -109,7 +113,7 @@ public sealed class SurveyService(
 
     public async Task<bool> DeleteAsync(Guid id, CancellationToken ct = default)
     {
-        PermissionGuard.Require(_currentUser, Permission.OperationsWrite);
+        PermissionGuard.Require(_currentUser, Permission.OperationsDelete); // kabul C-CRMSIL: operatör siler DEĞİL
         if (await _repository.FindAsync(id, ct) is not { } current) return false;
         await scope.RequireRecordAsync(current.RentalId, current.CikisOfisi, ct); // r317 M1
         return await _repository.DeleteAsync(id, ct);

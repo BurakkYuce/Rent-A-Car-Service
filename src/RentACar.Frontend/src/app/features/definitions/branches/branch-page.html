@@ -55,14 +55,16 @@
               <td>{{ h.hizmetAdi }}</td>
               <td>{{ h.aciklama ?? '—' }}</td>
               <td class="satir-eylemleri">
-                <button
-                  type="button"
-                  class="rc-dugme rc-dugme--hayalet rc-dugme--kucuk"
-                  [disabled]="serviceBusy()"
-                  (click)="removeService(h)"
-                >
-                  {{ 'tanimlar.branch.hizmet.sil' | transloco }}
-                </button>
+                @if (canDeleteService()) {
+                  <button
+                    type="button"
+                    class="rc-dugme rc-dugme--hayalet rc-dugme--kucuk"
+                    [disabled]="serviceBusy()"
+                    (click)="removeService(h)"
+                  >
+                    {{ 'tanimlar.branch.hizmet.sil' | transloco }}
+                  </button>
+                }
               </td>
             </tr>
           } @empty {

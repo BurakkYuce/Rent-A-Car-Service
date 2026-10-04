@@ -40,7 +40,8 @@ internal static partial class RegulationApi
             .Produces<UiError.MukerrerProblemi>(StatusCodes.Status409Conflict, "application/problem+json");
         g.MapPost("/sigortalar/{id:guid}/zeyiller", AddEndorsement).MapFields(EndorsementRules)
             .RequirePermission(Permission.OperationsWrite);
-        g.MapDelete("/zeyiller/{id:guid}", DeleteEndorsement).RequirePermission(Permission.OperationsWrite);
+        g.MapDelete("/zeyiller/{id:guid}", DeleteEndorsement).RequirePermission(Permission.OperationsWrite)
+            .RequirePermission(Permission.OperationsDelete); // güvenlik F3
         g.MapGet("/zeyiller", ListEndorsements).MapFields(F5Shared.SortRules).RequireAnyPermission(ReadAny);
 
         g.MapGet("/mtv", ListMtv).MapFields(F5Shared.SortRules).RequireAnyPermission(ReadAny);

@@ -20,6 +20,7 @@ import { pageLeaveGuard } from '@core/form/kaydedilmemis-degisiklik';
 import { ConfirmService } from '@core/geri-bildirim/confirm-service';
 import { ToastService } from '@core/geri-bildirim/toast-service';
 import { translationFunction } from '@core/i18n/ceviri';
+import { DUGME_IZINLERI } from '@core/oturum/dugme-izinleri';
 import { SessionService } from '@core/oturum/session-service';
 import { TemelStore } from '@core/veri/temel-store';
 import { DatePipe } from '@shared/bicim/bicim-pipe';
@@ -71,6 +72,10 @@ export class DocumentsPage {
 
   private readonly session = inject(SessionService);
   protected readonly canWrite = computed(() => this.session.izinVar('OperationsWrite'));
+  /** Sil yalnız silebilene (güvenlik F3). */
+  protected readonly canDelete = computed(() =>
+    this.session.hasPermissions(DUGME_IZINLERI.dokumanSil.izinler),
+  );
   protected readonly list = new TemelStore<readonly CompanyDocument[]>(() =>
     this.api.get<readonly CompanyDocument[]>('/api/ui/v1/dokumanlar'),
   );

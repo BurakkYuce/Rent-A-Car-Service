@@ -22,6 +22,8 @@ import { ConfirmService } from '@core/geri-bildirim/confirm-service';
 import { ToastService } from '@core/geri-bildirim/toast-service';
 import { translationFunction } from '@core/i18n/ceviri';
 import { trSearchKey } from '@core/metin/tr-normalize';
+import { DUGME_IZINLERI } from '@core/oturum/dugme-izinleri';
+import { SessionService } from '@core/oturum/session-service';
 import { Alan } from '@shared/form/alan/alan';
 import { formSubmission } from '@shared/form/form-submission';
 import { FormErrors } from '@shared/form/form-errors';
@@ -71,6 +73,11 @@ export class BranchPage {
   private readonly confirm = inject(ConfirmService);
   private readonly toast = inject(ToastService);
   private readonly destroyRef = inject(DestroyRef);
+  private readonly session = inject(SessionService);
+  /** Şube hizmeti silme dar izin ister (güvenlik F3). */
+  protected readonly canDeleteService = computed(() =>
+    this.session.hasPermissions(DUGME_IZINLERI.subeHizmetSil.izinler),
+  );
   private readonly t = translationFunction();
   private readonly crud = viewChild(DefinitionCrud);
 

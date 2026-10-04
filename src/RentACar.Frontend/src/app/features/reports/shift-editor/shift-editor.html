@@ -106,17 +106,20 @@
                   >
                     {{ 'rapor.vardiya.duzenle' | transloco }}
                   </button>
-                  <button
-                    type="button"
-                    class="rc-dugme rc-dugme--hayalet rc-dugme--kucuk"
-                    [disabled]="busy() !== null"
-                    [attr.aria-label]="
-                      'rapor.vardiya.silEtiket' | transloco: { ad: r.personelAd, gun: day(r.tarih) }
-                    "
-                    (click)="remove(r)"
-                  >
-                    {{ 'rapor.vardiya.sil' | transloco }}
-                  </button>
+                  @if (canDelete()) {
+                    <button
+                      type="button"
+                      class="rc-dugme rc-dugme--hayalet rc-dugme--kucuk"
+                      [disabled]="busy() !== null"
+                      [attr.aria-label]="
+                        'rapor.vardiya.silEtiket'
+                          | transloco: { ad: r.personelAd, gun: day(r.tarih) }
+                      "
+                      (click)="remove(r)"
+                    >
+                      {{ 'rapor.vardiya.sil' | transloco }}
+                    </button>
+                  }
                 </span>
               </td>
             </tr>

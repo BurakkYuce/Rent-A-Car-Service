@@ -28,7 +28,8 @@ const BRANCHES: VitrinSayfasi = {
 };
 
 test.beforeEach(async ({ page }) => {
-  await logIn(page, { ...BEN, izinler: [...BEN.izinler, 'ManageUsers'] });
+  // Tanım silme OperationsDelete ister (kabul D-4).
+  await logIn(page, { ...BEN, izinler: [...BEN.izinler, 'ManageUsers', 'OperationsDelete'] });
 });
 
 test('markalar: oluştur (aktif varsayılan), düzenle (surum ile PUT), axe iki tema', async ({
@@ -205,7 +206,11 @@ test('şubeler: panel formu gizli hesabı korur; birleştirme önizleme → onay
   await expect(page.getByText('Kiralar: 5')).toBeVisible();
   const mergeButton = page.getByRole('button', { name: 'Birleştir', exact: true });
   await expect(mergeButton).toBeDisabled();
+  // Axe, disabled→enabled renk geçişinin ORTASINDA ölçerse ara rengi kontrast hatası sayıyordu (yerelde ~%50
+  // aralıklı kırmızı) — geçiş süresi sıfırlanır ve düğmenin etkinleşmesi beklenir.
+  await page.emulateMedia({ reducedMotion: 'reduce' });
   await page.getByRole('checkbox', { name: 'Etkiyi gördüm, birleştir' }).check();
+  await expect(mergeButton).toBeEnabled();
   expect(await seriousViolations(page), 'önizleme').toEqual([]);
   await mergeButton.click();
   const dialog = page.getByRole('alertdialog', { name: 'Şubeler birleştirilsin mi?' });

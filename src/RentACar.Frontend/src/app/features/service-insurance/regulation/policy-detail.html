@@ -150,14 +150,16 @@
                       <td>{{ z.neden ?? '—' }}</td>
                       @if (d.yetkiler.duzenleyebilir) {
                         <td>
-                          <button
-                            type="button"
-                            class="rc-dugme rc-dugme--hayalet rc-dugme--kucuk"
-                            [disabled]="deleting() !== null"
-                            (click)="deleteEndorsement(z)"
-                          >
-                            {{ 'servisSigorta.sil' | transloco }}
-                          </button>
+                          @if (canDelete()) {
+                            <button
+                              type="button"
+                              class="rc-dugme rc-dugme--hayalet rc-dugme--kucuk"
+                              [disabled]="deleting() !== null"
+                              (click)="deleteEndorsement(z)"
+                            >
+                              {{ 'servisSigorta.sil' | transloco }}
+                            </button>
+                          }
                         </td>
                       }
                     </tr>

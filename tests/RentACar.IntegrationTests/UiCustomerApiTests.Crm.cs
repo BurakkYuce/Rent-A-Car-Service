@@ -85,7 +85,9 @@ public sealed partial class UiCustomerApiTests
         var otherAdmin = await LoginAsync(other, Who.Admin);
         await Problem(await Send(otherAdmin, HttpMethod.Get, $"{url}/{id}"), HttpStatusCode.NotFound, null);
         await Problem(await Send(otherAdmin, HttpMethod.Delete, $"{url}/{id}"), HttpStatusCode.NotFound, null);
-        Assert.Equal(HttpStatusCode.NoContent, (await Send(opB, HttpMethod.Delete, $"{url}/{id}")).StatusCode);
+        // Kabul C-CRMSIL: silme OperationsDelete ister — kendi şubesindeki operatör de 403; Admin siler.
+        await Problem(await Send(opB, HttpMethod.Delete, $"{url}/{id}"), HttpStatusCode.Forbidden, "yetki_yok");
+        Assert.Equal(HttpStatusCode.NoContent, (await Send(await LoginAsync(e, Who.Admin), HttpMethod.Delete, $"{url}/{id}")).StatusCode);
     }
 
     [Fact]
@@ -206,8 +208,12 @@ public sealed partial class UiCustomerApiTests
         var other = await SetupAsync();
         var otherOp = await LoginAsync(other, Who.OperatorA);
         await Problem(await Send(otherOp, HttpMethod.Get, $"{url}/{id}"), HttpStatusCode.NotFound, null);
-        await Problem(await Send(otherOp, HttpMethod.Delete, $"{url}/{id}"), HttpStatusCode.NotFound, null);
-        Assert.Equal(HttpStatusCode.NoContent, (await Send(opA, HttpMethod.Delete, $"{url}/{id}")).StatusCode);
+        // Kabul C-HUKUK: silme OperationsDelete ister (izin kapısı kapsamdan önce → operatör 403); başka kiracının
+        // Admin'i 404, kendi Admin'i siler.
+        await Problem(await Send(otherOp, HttpMethod.Delete, $"{url}/{id}"), HttpStatusCode.Forbidden, "yetki_yok");
+        await Problem(await Send(await LoginAsync(other, Who.Admin), HttpMethod.Delete, $"{url}/{id}"), HttpStatusCode.NotFound, null);
+        await Problem(await Send(opA, HttpMethod.Delete, $"{url}/{id}"), HttpStatusCode.Forbidden, "yetki_yok");
+        Assert.Equal(HttpStatusCode.NoContent, (await Send(await LoginAsync(e, Who.Admin), HttpMethod.Delete, $"{url}/{id}")).StatusCode);
     }
 
     [Fact]

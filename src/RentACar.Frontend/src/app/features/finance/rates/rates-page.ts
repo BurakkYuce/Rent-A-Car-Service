@@ -20,6 +20,7 @@ import { ConfirmService } from '@core/geri-bildirim/confirm-service';
 import { ToastService } from '@core/geri-bildirim/toast-service';
 import { translationFunction } from '@core/i18n/ceviri';
 import { genelGosterilir } from '@core/oturum/session-interceptor';
+import { DUGME_IZINLERI } from '@core/oturum/dugme-izinleri';
 import { SessionService } from '@core/oturum/session-service';
 import { FetchPolicy } from '@core/veri/fetch-policy';
 import { TemelStore } from '@core/veri/temel-store';
@@ -63,6 +64,10 @@ export class RatesPage implements UnsavedChangesOwner {
   private readonly t = translationFunction();
   private readonly session = inject(SessionService);
   protected readonly canWrite = computed(() => this.session.izinVar('FinanceWrite'));
+  /** Sabit kur silme FinanceReverse ister (güvenlik F3). */
+  protected readonly canDelete = computed(() =>
+    this.session.hasPermissions(DUGME_IZINLERI.sabitKurSil.izinler),
+  );
 
   protected readonly screen = new TemelStore(
     () => this.api.get<RatesScreen>(financePath('/kurlar')),

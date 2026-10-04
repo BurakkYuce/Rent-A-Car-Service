@@ -93,7 +93,8 @@ internal static class CatalogCrud
 
         g.MapDelete("/{id:guid}", async Task<Results<NoContent, ProblemHttpResult>> (Guid id, TService svc, CancellationToken ct)
             => await s.Delete(svc, id, ct) ? TypedResults.NoContent() : ServiceInsuranceShared.NotFound(s.NotFoundText))
-            .RequirePermission(s.WritePermission);
+            .RequirePermission(s.WritePermission)
+            .RequirePermission(Permission.OperationsDelete); // güvenlik F3: katalog silme operatöre kapalı
         return g;
     }
 
