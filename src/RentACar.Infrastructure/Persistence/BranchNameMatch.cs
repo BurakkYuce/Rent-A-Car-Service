@@ -38,4 +38,24 @@ public static class BranchNameMatch
             new NpgsqlParameter("t", tenantId), new NpgsqlParameter("n", name)).ToListAsync(ct);
         return ids.Count == 0 ? null : ids[0];
     }
+
+    /// <summary>Bellek-içi aday (yazım anı interceptor'u).</summary>
+    public readonly record struct Candidate(Guid Id, string Ad, string Kod, bool Aktif);
+
+    /// <summary>
+    /// #379 L1 — aynı kuralın bellek-içi karşılığı (<c>BranchFkInterceptor</c>): harf duyarsız aday, sıra birebir
+    /// (kırpılmış, harf duyarlı) ad → aktif şube → Kod. Eşleşme yoksa null.
+    /// </summary>
+    public static Guid? Pick(IEnumerable<Candidate> branches, string name)
+    {
+        var trimmed = name.Trim();
+        var key = trimmed.ToLowerInvariant();
+        return branches
+            .Where(b => b.Ad.Trim().ToLowerInvariant() == key)
+            .OrderByDescending(b => string.Equals(b.Ad.Trim(), trimmed, StringComparison.Ordinal))
+            .ThenByDescending(b => b.Aktif)
+            .ThenBy(b => b.Kod, StringComparer.Ordinal)
+            .Select(b => (Guid?)b.Id)
+            .FirstOrDefault();
+    }
 }
