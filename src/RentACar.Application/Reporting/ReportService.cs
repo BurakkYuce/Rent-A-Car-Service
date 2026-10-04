@@ -857,8 +857,9 @@ public sealed class ReportService(IReportRepository repository, TutSatEsikleri h
 
     /// <summary>
     /// FAZ-53 — KDV GENİŞ format (canlı <c>kdv_raporu.aspx</c> grain'i): SATIR = belge,
-    /// SÜTUN = KDV oranı. <paramref name="includePurchases"/> true ise gelen e-Faturaların indirilecek
-    /// KDV'si de listelenir.
+    /// SÜTUN = KDV oranı. <paramref name="includePurchases"/> true ise alış belgelerinin indirilecek
+    /// KDV'si de listelenir: KDV'li giderler + henüz giderleştirilmemiş gelen e-Faturalar (çift sayım yok;
+    /// kurallar <c>ReportRepository.GetVatExtendedRowsAsync</c>'te).
     ///
     /// <para><b>Neden pivot (<see cref="GetVatListAsync"/>) genişletilmedi de yeni bir görünüm
     /// açıldı:</b> alış KDV'si mevcut pivotun "Net/KDV/Brüt" kolonlarına eklenseydi, hesaplanan
