@@ -63,14 +63,19 @@ public static class BookingMath
 
     /// <summary>
     /// Geç dönüşte faturalanacak EK gün: gerçek dönüşe kadarki toplam süre <see cref="ComputeDays"/> ile
-    /// sayılır, planlanan sürenin gün sayısı düşülür. Tolerans böylece TOPLAM kira süresine BİR KEZ uygulanır
-    /// (kira gün hesabıyla birebir): 3 günlük kirada 2 sa 59 dk gecikme ücretsiz, 3 saat +1 gün. Planlanan
-    /// bitişte ya da öncesinde dönüş 0.
+    /// sayılır, sözleşmede ZATEN FATURALANAN gün (<paramref name="billedDays"/> = RentalContract.Gun) düşülür.
+    /// Tolerans böylece TOPLAM kira süresine BİR KEZ uygulanır (kira gün hesabıyla birebir): 3 günlük kirada
+    /// 2 sa 59 dk gecikme ücretsiz, 3 saat +1 gün. Planlanan bitişte ya da öncesinde dönüş 0.
+    ///
+    /// <para>#372 adversarial L1: planlanan süre YENİDEN hesaplanmaz — sözleşme günü kuraldan farklıysa (elle/
+    /// eski kayıt: 2 gün 2 sa 57 dk ama 3 gün faturalanmış) yeniden hesap 2 der ve 5 dk gecikmede müşteriye
+    /// zaten ödediği günü bir kez daha faturalardı.</para>
     /// </summary>
-    public static int LateReturnDays(DateTimeOffset start, DateTimeOffset plannedEnd, DateTimeOffset actualReturn)
+    public static int LateReturnDays(
+        DateTimeOffset start, int billedDays, DateTimeOffset plannedEnd, DateTimeOffset actualReturn)
         => actualReturn <= plannedEnd
             ? 0
-            : Math.Max(0, ComputeDays(start, actualReturn) - ComputeDays(start, plannedEnd));
+            : Math.Max(0, ComputeDays(start, actualReturn) - billedDays);
 
     /// <summary>Gün sayısı: 24-saat TAM blok (floor) + kısmi dönem <see cref="PartialDayThresholdHours"/>'ı aşarsa
     /// +1; en az 1. Fiyat motoru + kira/rezervasyon/teklif/uzatma-gün'ü kullanır (referans sistem parite).</summary>
