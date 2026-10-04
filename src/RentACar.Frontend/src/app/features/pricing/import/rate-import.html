@@ -49,6 +49,16 @@
           <dd>{{ r.hatali }}</dd>
         </div>
       </dl>
+      @if (r.uyarilar.length > 0) {
+        <div class="rc-form-mesaji rc-form-mesaji--uyari" role="status">
+          <strong>{{ 'fiyatTarife.aktar.sutunUyarilari' | transloco }}</strong>
+          <ul>
+            @for (u of r.uyarilar; track $index) {
+              <li>{{ u }}</li>
+            }
+          </ul>
+        </div>
+      }
       @if (r.hatalar.length > 0) {
         <div class="rc-form-mesaji rc-form-mesaji--uyari">
           <strong>{{ 'fiyatTarife.aktar.satirHatalari' | transloco }}</strong>

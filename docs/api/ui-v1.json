@@ -58458,7 +58458,8 @@
           "eklenen",
           "atlanan",
           "hatali",
-          "hatalar"
+          "hatalar",
+          "uyarilar"
         ],
         "type": "object",
         "properties": {
@@ -58487,6 +58488,12 @@
             "format": "int32"
           },
           "hatalar": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "uyarilar": {
             "type": "array",
             "items": {
               "type": "string"
