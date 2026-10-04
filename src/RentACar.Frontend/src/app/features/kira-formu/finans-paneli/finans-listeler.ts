@@ -93,7 +93,7 @@ export class FinanceRates {
               <td>{{ c.cezaTuru }}</td>
               <td class="rc-num">{{ money(c.tutar, null) }}</td>
               <td class="rc-num">{{ money(c.kalan, null) }}</td>
-              <td>{{ c.durum }}</td>
+              <td>{{ c.durum | etiket }}</td>
             </tr>
           } @empty {
             @if (s.tur() === 'hazir') {

@@ -24,6 +24,8 @@ export interface FieldSpec {
   readonly options?: readonly string[];
   /** `rate` ondalık hane. */
   readonly fraction?: number;
+  /** `rate` yüzde mi (girdide `%` eki); değilse ek yok — oran alanında ₺ gösterilmez. */
+  readonly percent?: boolean;
   readonly privacy?: PrivacyGroup;
   readonly wide?: boolean;
   readonly inputType?: 'email' | 'tel';
@@ -128,7 +130,7 @@ export const SECTIONS: readonly SectionSpec[] = [
       t('riskIzin', 64),
       t('hgsYansitmaTuru', 32),
       t('faturaDonemi', 32),
-      { name: 'tevkifatOrani', kind: 'rate', fraction: 2 },
+      { name: 'tevkifatOrani', kind: 'rate', fraction: 2, percent: true },
       s('tevkifatDurum', ['Serbest', 'Sadece Tevkifatsız', 'Sadece Tevkifatlı']),
       t('tevkifatKodu', 32),
       t('bankaIban', 34),

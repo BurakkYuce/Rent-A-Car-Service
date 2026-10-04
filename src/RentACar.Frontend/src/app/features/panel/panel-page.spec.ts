@@ -266,6 +266,10 @@ describe('PanelSayfasi', () => {
       expect(s.kok.querySelector('rc-panel-tahsilat-formu')?.textContent).toContain(
         'Tahsilat — 34 ABC 123 · A1',
       );
+      // Kabul testi (a-panel-06): öneri binlik ayırıcılı, para biçiminde (odaktaki düzenleme yazımı gruplamasızdır).
+      expect(s.kok.querySelector('rc-panel-tahsilat-formu .rc-alan__ipucu')?.textContent).toContain(
+        'Önerilen: 1.250,50 ₺',
+      );
       await s.gonder();
       await s.gonder(); // uçarken ikinci tık
       const requests = http.match(COLLECTION);

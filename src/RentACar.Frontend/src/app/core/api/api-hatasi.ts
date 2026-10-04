@@ -58,6 +58,8 @@ const DEFAULT_DETAIL: Readonly<Record<ClientErrorCode, string>> = {
   bilinmeyen: 'Beklenmeyen bir hata oluştu.',
 };
 
+const TOO_LARGE_DETAIL = 'Dosya çok büyük; daha küçük bir dosya seçin.';
+
 /**
  * `/api/ui/v1` çağrılarının TEK hata tipi. `ApiIstemcisi` her hatayı buna çevirir; `TemelStore` hata
  * durumunda bunu taşır. `kod`'a göre davranış (yeniden giriş diyaloğu, bant, toast) F3.3 interceptor'ında.
@@ -101,6 +103,11 @@ export function toApiError(error: unknown): ApiHatasi {
   const body = problemBody(error.error);
   const serverCode = serverErrorCode(body?.['kod']);
   const code: ApiErrorCode = serverCode ?? (status >= 500 ? 'sunucu' : 'bilinmeyen');
+  // 413: istek gövdesi sınırını sunucu çerçevesi uygular (`RequestSizeLimit`), Türkçe metin vermez ("Content Too
+  // Large"). Kabul testi: kullanıcı İngilizce ham metin görüyordu. Sınır uca göre değişir; ekran kendi sınırını söyler.
+  if (status === 413 && serverCode === null) {
+    return new ApiHatasi({ status, kod: 'bilinmeyen', detay: TOO_LARGE_DETAIL }, error);
+  }
   const detail =
     filledText(body?.['detail']) ??
     filledText(body?.['title']) ??

@@ -95,7 +95,7 @@ export const PANEL_COLLECTION_LOCK = new InjectionToken<SubmitLock>('PANEL_TAHSI
       <div class="tahsilat__alanlar">
         <rc-alan
           [etiket]="'panel.tahsilat.tutar' | transloco"
-          [ipucu]="'panel.tahsilat.tutarIpucu' | transloco"
+          [ipucu]="'panel.tahsilat.tutarIpucu' | transloco: { tutar: suggestion() }"
         >
           <!-- Para girdisi varsayılanı: ön dolu öneri odakta (otomatik ya da Tab) tümüyle seçili; yazılan onun yerine geçer. -->
           <rc-para-girdisi formControlName="tutar" [paraBirimi]="bilgi().doviz" />
@@ -177,6 +177,13 @@ export class PanelCollectionForm implements OnInit {
   readonly bilgi = input.required<CollectionInfo>();
   readonly plaka = input.required<string>();
   readonly belgeNo = input.required<string>();
+  /**
+   * Sunucunun önerdiği tutar para biçiminde (binlik ayırıcılı) — ipucunda. Girdinin kendisi odakta gruplamasız
+   * düzenleme yazımı gösterir (F4.4 kuralı); kabul testi öneriyi "3600,00" diye okuyordu (a-panel-06).
+   */
+  protected readonly suggestion = computed(() =>
+    formatMoney(count(this.bilgi().varsayilanTutar), this.bilgi().doviz),
+  );
 
   /** 2xx: tahsilat yazıldı → panel tazelenir (yeni anahtar). */
   readonly tamamlandi = output();

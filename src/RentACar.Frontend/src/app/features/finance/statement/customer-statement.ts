@@ -14,6 +14,7 @@ import { FormControl, FormGroup } from '@angular/forms';
 import { ActivatedRoute } from '@angular/router';
 import { finalize } from 'rxjs';
 
+import { enumLabel } from '@core/bicim/enum-label';
 import { ConfirmGate } from '@core/form/money-submission';
 import { toApiError } from '@core/api/api-hatasi';
 import { ApiIstemcisi, type QueryParameters } from '@core/api/api-istemcisi';
@@ -99,7 +100,8 @@ export class CustomerStatementPage implements UnsavedChangesOwner {
     (this.statement.veri()?.dovizler ?? []).map((d) => ({ deger: d, etiket: d })),
   );
   protected readonly sourceOptions = computed<readonly SecenekOgesi<string>[]>(() =>
-    (this.statement.veri()?.kaynaklar ?? []).map((k) => ({ deger: k, etiket: k })),
+    // Değer ham kod (sunucu süzgeci), etiket Türkçe (kabul testi: "BakiyeDuzeltme" görünüyordu).
+    (this.statement.veri()?.kaynaklar ?? []).map((k) => ({ deger: k, etiket: enumLabel(k) })),
   );
   protected readonly rentalStatusOptions: readonly SecenekOgesi<string>[] = RENTAL_STATUSES.map(
     (s) => ({

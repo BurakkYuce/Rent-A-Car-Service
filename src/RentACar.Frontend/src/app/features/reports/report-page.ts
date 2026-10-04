@@ -16,6 +16,7 @@ import { TranslocoPipe } from '@jsverse/transloco';
 import { ApiIstemcisi, type QueryParameters } from '@core/api/api-istemcisi';
 import type { Sayfa } from '@core/api/sayfa';
 import type { GunAraligi } from '@core/form/tarih-girdisi';
+import type { CeviriAnahtari } from '@core/i18n/ceviri-anahtarlari';
 import { translationFunction } from '@core/i18n/ceviri';
 import { SessionService } from '@core/oturum/session-service';
 import { requestContext } from '@core/oturum/request-context';
@@ -47,7 +48,13 @@ import { PageBand } from '../../kabuk/sayfa-bandi/page-band';
 import { findReport } from './report-catalog';
 import { ShiftEditor } from './shift-editor/shift-editor';
 import type { ShiftListRow } from './shift-editor/shift-model';
-import type { ListSource, ReportColumn, ReportFilter } from './report-model';
+import {
+  type ListSource,
+  type ReportCard,
+  type ReportColumn,
+  type ReportFilter,
+  cardTitle,
+} from './report-model';
 import {
   VIEW_KEY,
   activeView,
@@ -332,6 +339,11 @@ export class ReportPage {
 
   protected negative(value: unknown): boolean {
     return isNegative(value);
+  }
+
+  /** Kart başlığı ekrandaki süzgece göre (kasa/banka "Devir satırı" → dönem bakiyesi). */
+  protected cardLabel(card: ReportCard<unknown>): CeviriAnahtari {
+    return cardTitle(card, this.query.sorgu().filtreler as Record<string, unknown>);
   }
 
   protected header(c: ReportColumn<unknown>): string {

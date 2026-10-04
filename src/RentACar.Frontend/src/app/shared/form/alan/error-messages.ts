@@ -1,4 +1,5 @@
 import type { ValidationErrors } from '@angular/forms';
+import { sayiBicimle, tarihBicimle } from '@core/bicim/bicim';
 import { SERVER_ERROR } from '@core/form/sunucu-hatalari';
 import type { CeviriAnahtari } from '@core/i18n/ceviri-anahtarlari';
 
@@ -20,11 +21,13 @@ export function errorMessages(errors: ValidationErrors | null, translate: Transl
   const sorted: [string, (value: unknown) => string][] = [
     ['paraGecersiz', () => translate('form.hata.para')],
     ['paraFazlaHane', (d) => translate('form.hata.paraFazlaHane', { sayi: getNumber(d, 'hane') })],
+    // Anlaşılır ama negatife izin olmayan sayı (`rc-sayi-girdisi`): sınır mesajıyla aynı söz.
+    ['sayiNegatif', () => translate('form.hata.enAz', { sayi: limit(0) })],
     ['sayiGecersiz', () => translate('form.hata.sayi')],
     ['tarihGecersiz', () => translate('form.hata.tarih')],
     ['saatGecersiz', () => translate('form.hata.saat')],
     ['tarihSirasi', () => translate('form.hata.tarihSirasi')],
-    ['tarihAralikDisi', () => translate('form.hata.tarihAralikDisi')],
+    ['tarihAralikDisi', (d) => dateLimitMessage(d, translate)],
     ['required', () => translate('form.hata.zorunlu')],
     [
       'minlength',
@@ -34,8 +37,8 @@ export function errorMessages(errors: ValidationErrors | null, translate: Transl
       'maxlength',
       (d) => translate('form.hata.enCokUzunluk', { sayi: getNumber(d, 'requiredLength') }),
     ],
-    ['min', (d) => translate('form.hata.enAz', { sayi: getNumber(d, 'min') })],
-    ['max', (d) => translate('form.hata.enCok', { sayi: getNumber(d, 'max') })],
+    ['min', (d) => translate('form.hata.enAz', { sayi: limit(getNumber(d, 'min')) })],
+    ['max', (d) => translate('form.hata.enCok', { sayi: limit(getNumber(d, 'max')) })],
     ['email', () => translate('form.hata.eposta')],
     ['pattern', () => translate('form.hata.desen')],
   ];
@@ -52,6 +55,25 @@ export function errorMessages(errors: ValidationErrors | null, translate: Transl
     }
   }
   return [translate('form.hata.gecersiz')];
+}
+
+/**
+ * Sınır değeri Türkçe biçimde (kabul testi: "En az 0.01" yazıyordu): ondalık virgül, binlik nokta, en çok 6 hane
+ * (sabit kur sınırı 0,000001). Sayı değilse olduğu gibi.
+ */
+function limit(value: unknown): unknown {
+  return typeof value === 'number' && Number.isFinite(value) ? sayiBicimle(value, '1.0-6') : value;
+}
+
+/** Tarih sınırı: aşılan sınır biliniyorsa onu söyler ("En erken 05.10.2026 seçilebilir."), yoksa genel metin. */
+function dateLimitMessage(value: unknown, translate: Translate): string {
+  const min = getNumber(value, 'enAz');
+  const max = getNumber(value, 'enCok');
+  if (typeof min === 'string')
+    return translate('form.hata.tarihEnErken', { tarih: tarihBicimle(min) });
+  if (typeof max === 'string')
+    return translate('form.hata.tarihEnGec', { tarih: tarihBicimle(max) });
+  return translate('form.hata.tarihAralikDisi');
 }
 
 function getNumber(value: unknown, alan: string): unknown {

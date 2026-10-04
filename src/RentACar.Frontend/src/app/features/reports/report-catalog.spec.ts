@@ -5,7 +5,14 @@ import { firstValueFrom } from 'rxjs';
 import { provideTranslation } from '@core/i18n/ceviri';
 
 import { REPORTS } from './report-catalog';
-import { OPS_OR_VIEW, VIEW_REPORTS, columnsFor, defineView, type RowOf } from './report-model';
+import {
+  OPS_OR_VIEW,
+  VIEW_REPORTS,
+  cardTitle,
+  columnsFor,
+  defineView,
+  type RowOf,
+} from './report-model';
 import { reportListDefinition } from './report-query';
 import { REPORT_ROUTE_TABLE } from './reports.routes';
 
@@ -184,5 +191,32 @@ describe('tanımlar üretilen tiplere bağlı (derleme kilidi)', () => {
       filtreler: [{ tur: 'metin', ad: 'plaka', baslik: 'rapor.alan.plaka' }],
     });
     expect(cols.field('plaka', 'metin').kod).toBe('plaka');
+  });
+});
+
+describe('kasa/banka kartları — devir', () => {
+  it('"Devir satırı" işaretliyken bakiye kartları "dönem bakiyesi (devirsiz)" der; giriş/çıkış değişmez', async () => {
+    TestBed.configureTestingModule({ providers: [...provideTranslation()] });
+    const transloco = TestBed.inject(TranslocoService);
+    await firstValueFrom(transloco.load('tr'));
+    const cards = REPORTS.find((r) => r.kod === 'kasa-banka')!.gorunumler[0]!.kartlar;
+    const titles = (f: Record<string, unknown>) =>
+      cards.map((k) => transloco.translate(cardTitle(k, f)));
+    expect(titles({})).toEqual([
+      'Kasa giriş',
+      'Kasa çıkış',
+      'Kasa bakiye',
+      'Banka giriş',
+      'Banka çıkış',
+      'Banka bakiye',
+    ]);
+    expect(titles({ devir: true })).toEqual([
+      'Kasa giriş',
+      'Kasa çıkış',
+      'Kasa dönem bakiyesi (devirsiz)',
+      'Banka giriş',
+      'Banka çıkış',
+      'Banka dönem bakiyesi (devirsiz)',
+    ]);
   });
 });

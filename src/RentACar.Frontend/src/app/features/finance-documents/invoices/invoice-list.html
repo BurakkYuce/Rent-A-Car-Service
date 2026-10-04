@@ -149,7 +149,7 @@
           </div>
           <div>
             <dt>{{ 'finansBelge.durum' | transloco }}</dt>
-            <dd>{{ d.durum }}</dd>
+            <dd>{{ d.durum | etiket }}</dd>
           </div>
           <div>
             <dt>{{ 'finansBelge.netTutar' | transloco }}</dt>
@@ -294,7 +294,7 @@
                         <rc-plaka boyut="sm" [plaka]="r.plaka" />
                       }
                     </td>
-                    <td>{{ r.durum }}</td>
+                    <td>{{ r.durum | etiket }}</td>
                     <td class="rc-num">{{ num(r.genelToplam) | para: r.doviz || 'TRY' }}</td>
                   </tr>
                 }
