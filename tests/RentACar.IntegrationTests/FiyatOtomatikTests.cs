@@ -99,18 +99,20 @@ public sealed class FiyatOtomatikTests(PostgresFixture fx)
         Assert.Contains("Otomatik tarife", ex.Message);
     }
 
-    // (b-FX) Otomatik + yalnız EUR matris → TRY-dışı auto uygulanmaz (booking tek-döviz) → temiz red.
+    // (b-FX) Otomatik + yalnız dövizli matris + TL kira + kur YOK → temiz red (kabul B-A1: tarife kira dövizine
+    // kurla çevrilir; kur yoksa sessiz 0 ya da ham sayı yerine gürültülü red). GBP: sabit kur/TCMB kaydı yok.
+    // Kur varken çevrim: PricingTariffCurrencyTests.
     [Fact]
     public async Task Rental_otomatik_with_fx_only_matrix_rejected()
     {
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
         var rental = scope.ServiceProvider.GetRequiredService<RentalService>();
-        var (m, v) = await SeedAsync(scope, matrixCurrency: "EUR");
+        var (m, v) = await SeedAsync(scope, matrixCurrency: "GBP");
 
         var ex = await Assert.ThrowsAsync<ValidationException>(
             () => rental.CreateDirectAsync(Booking(m, v, 3, daily: 0m, priceType: "Otomatik")));
-        Assert.Contains("Otomatik tarife", ex.Message);
+        Assert.Contains("kur bulunamadı", ex.Message);
     }
 
     // (c) Otomatik DEĞİL (FiyatTuru boş ya da farklı) + manuel 500 → 500 kalır (matris 240 olsa bile) — regresyon.
