@@ -607,7 +607,8 @@ public sealed class RentalService(
                 throw new ValidationException("Dönüş KM, çıkış KM'den küçük olamaz.");
             // Sağduyu üst-sınırı: dönüş Tamamlandı'ya geçince geri alınamaz; parmak hatası (500000) aracın
             // odometresini kalıcı şişirir + bakım panosunu yanlış alarma sokar (adversarial inceleme 3c).
-            // Düzeltme yolu: araç kartındaki Km alanı (VehicleService.UpdateAsync).
+            // DİKKAT: araç kartı artık km'yi GERİ ALAMAZ (Odometer.EnsureNotBackwards — kabul bulgusu); şişirilmiş
+            // odometrenin uygulama içi düzeltme yolu yok, bu üst sınır tek savunmadır.
             if (returnKm - c.CikisKm.Value > 100_000)
                 throw new ValidationException("KM farkı gerçekçi değil (tek kirada 100.000 km üstü). Dönüş KM'yi kontrol edin.");
             if (actualReturn < c.BasTar)
