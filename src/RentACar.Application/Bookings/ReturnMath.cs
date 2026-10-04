@@ -42,10 +42,9 @@ public static class ReturnMath
             missingFuel = Math.Max(0, pickupFuel - returnFuel);
         var fuelCharge = Math.Round(missingFuel * c.YakitBirimUcret, 2, MidpointRounding.AwayFromZero);
 
-        // Uzatma: planlanan bitişten sonra döndüyse (24-saat bloğu, yukarı yuvarla).
-        var extensionDays = 0;
-        if (actualReturn > c.BitTar)
-            extensionDays = Math.Max(1, (int)Math.Ceiling((actualReturn - c.BitTar).TotalHours / 24.0));
+        // Uzatma (geç dönüş): kira gün hesabıyla AYNI kural ve AYNI 3 saat toleransı — tek kaynak
+        // BookingMath.LateReturnDays (kabul bulguları a-kkayit-09 / C-GUN: eski "ceil" 1 dk gecikmeyi tam gün sayıyordu).
+        var extensionDays = BookingMath.LateReturnDays(c.BasTar, c.BitTar, actualReturn);
         var extensionCharge = Math.Round(extensionDays * c.GunlukUcret, 2, MidpointRounding.AwayFromZero);
 
         var grandTotal = c.Tutar + excessKmCharge + fuelCharge + extensionCharge;

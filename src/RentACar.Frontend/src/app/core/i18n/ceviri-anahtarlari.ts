@@ -2064,6 +2064,7 @@ export type CeviriAnahtari =
   | 'fiyatTarife.aktar.silMesaj'
   | 'fiyatTarife.aktar.silindi'
   | 'fiyatTarife.aktar.silmeGizli'
+  | 'fiyatTarife.aktar.sutunUyarilari'
   | 'fiyatTarife.aktar.sutunlar'
   | 'fiyatTarife.aktar.yalnizKanal'
   | 'fiyatTarife.aktar.yukle'

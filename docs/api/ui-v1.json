@@ -49741,7 +49741,8 @@
           "ozelSoforBilgisi",
           "durum",
           "faturali",
-          "tahsilat"
+          "tahsilat",
+          "genelToplam"
         ],
         "type": "object",
         "properties": {
@@ -49918,6 +49919,14 @@
                 "$ref": "#/components/schemas/TahsilatBilgisi"
               }
             ]
+          },
+          "genelToplam": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double"
           }
         }
       },
@@ -58487,7 +58496,8 @@
           "eklenen",
           "atlanan",
           "hatali",
-          "hatalar"
+          "hatalar",
+          "uyarilar"
         ],
         "type": "object",
         "properties": {
@@ -58516,6 +58526,12 @@
             "format": "int32"
           },
           "hatalar": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "uyarilar": {
             "type": "array",
             "items": {
               "type": "string"

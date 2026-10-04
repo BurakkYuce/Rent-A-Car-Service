@@ -198,6 +198,9 @@ builder.Services.AddUiApi(builder.Environment);
 builder.Services.AddScoped<HttpContextIdentity>();
 builder.Services.AddScoped<ITenantContext>(sp => sp.GetRequiredService<HttpContextIdentity>());
 builder.Services.AddScoped<ICurrentUser>(sp => sp.GetRequiredService<HttpContextIdentity>());
+// Kabul B-0 (b): FK'sız (yalnız şube adlı) operatör oturumunda şube FK'sını addan çözer — ofisin şubesiyle
+// karşılaştırma FK yolundan yapılır. Yalnız o oturumlarda sorgu atar (60 sn önbellek). Claim'e YAZMAZ (antiforgery).
+builder.Services.AddSingleton<AssignedBranchResolutionMiddleware>();
 
 // ---- Platform süper-admin (tenant'tan bağımsız operatör konsolu) ----
 // Kimlik config'ten; ÜRETİMDE ZORUNLU (Pii:HmacKey deseni — yoksa açılış reddeder, arka kapı yok).
@@ -381,6 +384,8 @@ app.UseSerilogRequestLogging(options => // istek başına tek satır: metot, yol
 app.UseRateLimiter();
 
 app.UseAuthentication();
+// Kabul B-0 (b): kimlik doğrulandıktan hemen sonra (uç ve servisler ICurrentUser'ı okumadan önce).
+app.UseMiddleware<AssignedBranchResolutionMiddleware>();
 app.UseAuthorization();
 // Log zenginleştirme (auth SONRASI — claim'ler dolu): sonraki tüm istek-içi loglar tenant/user/req-id taşır.
 // ValidationException'ı sayfa yolunda da yakala (POST uçları kendi ?hata= yolunu kullanıyor;

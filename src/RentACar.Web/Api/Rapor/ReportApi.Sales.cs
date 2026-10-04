@@ -143,6 +143,6 @@ public static partial class ReportApi
         var g = ReportPeriod.ValidateDay(gun, "gun") ?? ReportPeriod.Today;
         var d = await reports.GetDailyActivityAsync(ReportPeriod.Anchor(g), F(sube), ct);
         return TypedResults.Ok(new ReportSummaryResult<GunlukFaaliyetDto>(new ReportPeriodDto(g, g), d,
-            ReportExport.Links(http, user, "gunluk", [("gun", ReportExport.Day(g))])));
+            ReportExport.Links(http, user, "gunluk", [("gun", ReportExport.Day(g)), ("sube", sube)])));
     }
 }

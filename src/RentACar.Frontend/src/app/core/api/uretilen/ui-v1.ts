@@ -27849,6 +27849,8 @@ export interface components {
       durum: string;
       faturali: boolean;
       tahsilat: null | components['schemas']['TahsilatBilgisi'];
+      /** Format: double */
+      genelToplam: number | string;
     };
     KiraMusteriOzeti: {
       /** Format: uuid */
@@ -29746,6 +29748,7 @@ export interface components {
       /** Format: int32 */
       hatali: number | string;
       hatalar: string[];
+      uyarilar: string[];
     };
     RateImportView: {
       satirlar: components['schemas']['SayfaOfRateMatrixDto'];

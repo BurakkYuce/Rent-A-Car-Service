@@ -683,6 +683,31 @@ public sealed class ReportService(IReportRepository repository, TutSatEsikleri h
             bankInflow, bankOutflow, bankInflow - bankOutflow);
     }
 
+    /// <summary>
+    /// Kasa/banka defteri ekranının kartları: <see cref="GetAccountLedgerAsync"/> ile AYNI süzgeçlerden
+    /// (hesap, döviz, işlem türü, şube) geçen satırların giriş/çıkış/bakiyesi — kart ile liste aynı kümeyi
+    /// toplar. Kabul bulgusu d-rapor-kasa-banka-03: Merkez Kasa seçiliyken kart tüm kasaların toplamını
+    /// (bakiye 200) gösteriyordu, liste 1.200.
+    ///
+    /// <para>Hesap kimliği tek bir türe aittir: Merkez Kasa süzgecinde banka kartları 0 olur (seçili hesabın
+    /// banka hareketi yoktur). Bakiye = dönem giriş − çıkış (devir eklenmez; devir satırı listede ayrıca durur).</para>
+    /// </summary>
+    public async Task<CashboxSummaryDto> GetCashBankSummaryAsync(
+        DateTimeOffset? from, DateTimeOffset? to, Guid? accountId, string? currency, string? transactionType,
+        string? branch, CancellationToken ct = default)
+    {
+        var cash = await GetAccountLedgerAsync(LedgerAccountType.Kasa, from, to, accountId, ct,
+            currency, transactionType, branch);
+        var bank = await GetAccountLedgerAsync(LedgerAccountType.Banka, from, to, accountId, ct,
+            currency, transactionType, branch);
+
+        decimal cashInflow = cash.Sum(x => x.Borc), cashOutflow = cash.Sum(x => x.Alacak);
+        decimal bankInflow = bank.Sum(x => x.Borc), bankOutflow = bank.Sum(x => x.Alacak);
+        return new CashboxSummaryDto(
+            cashInflow, cashOutflow, cashInflow - cashOutflow,
+            bankInflow, bankOutflow, bankInflow - bankOutflow);
+    }
+
     /// <summary>Home mini-trend (FAZ 6.2): son n ayın ay-pencereli GELİR toplamı (GetGelirGiderAsync ile
     /// aynı netleme — iade düşer). Ay çıpası UTC ayın 1'i; pencere [ayBas, sonrakiAyBas) — GetLedgerRows
     /// üst-ucu DAHİL olduğundan bitiş AddTicks(-1) ile verilir (sınır kaydı iki aya sayılmaz).</summary>

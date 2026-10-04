@@ -139,6 +139,7 @@ test('toplu faturalama: hata sonrası yeniden yüklenen listede olmayan kira se�
     plaka: '34ABC123',
     durum: 'Acik',
     tutar: 300,
+    genelToplam: 300,
     doviz: 'TRY',
   });
   let posts = 0;
