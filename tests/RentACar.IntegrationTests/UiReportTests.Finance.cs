@@ -1,5 +1,9 @@
 using System.Net;
 using System.Text.Json;
+using Microsoft.Extensions.DependencyInjection;
+using RentACar.Application.Finance;
+using RentACar.Domain.Enums;
+using RentACar.IntegrationTests.Infrastructure;
 
 namespace RentACar.IntegrationTests;
 
@@ -65,6 +69,56 @@ public sealed partial class UiReportTests
             .Select(h => h.GetProperty("tur").GetString()));
 
         await ExpectProblem(s, Report + "/kasa-banka?hesap=Cuzdan", HttpStatusCode.BadRequest, "dogrulama", "hesap");
+    }
+
+    /// <summary>
+    /// Kabul bulgusu d-rapor-kasa-banka-03: Hesap = Merkez Kasa seçiliyken kartlar tüm kasaların toplamını
+    /// gösteriyordu (giriş 5.500 / çıkış 5.300 / bakiye 200). Elle kurulan senaryo:
+    /// Merkez Kasa: +1.000, +500 tahsilat, −300 ödeme → 1.500 / 300 / 1.200.
+    /// Yedek Kasa: +4.000 tahsilat, −5.000 ödeme. Banka hesabı: +700 tahsilat.
+    /// Süzgeçsiz: kasa 5.500 / 5.300 / 200, banka 700. Merkez süzgeciyle: kasa 1.500 / 300 / 1.200, banka 0.
+    /// </summary>
+    [Fact]
+    public async Task Cash_ledger_cards_follow_the_account_filter()
+    {
+        var e = await SetupAsync(ledger: false);
+        var s = await LoginAsync(e, Who.Admin);
+
+        Guid main, spare, bank;
+        using (var host = new TestHost(fx.Pg.AppConnectionString))
+        using (var scope = host.ScopeFor(e.TenantId))
+        {
+            var sp = scope.ServiceProvider;
+            var accounts = sp.GetRequiredService<RentACar.Application.FinancialAccounts.FinancialAccountService>();
+            main = await accounts.CreateAsync(new RentACar.Application.FinancialAccounts.FinancialAccountInput { Kod = Random("MK"), Ad = "Merkez Kasa", Tur = "Kasa" });
+            spare = await accounts.CreateAsync(new RentACar.Application.FinancialAccounts.FinancialAccountInput { Kod = Random("YK"), Ad = "Yedek Kasa", Tur = "Kasa" });
+            bank = await accounts.CreateAsync(new RentACar.Application.FinancialAccounts.FinancialAccountInput { Kod = Random("TB"), Ad = "Test Banka", Tur = "Banka" });
+
+            var cash = sp.GetRequiredService<CashService>();
+            await cash.CollectAsync(new CashInput { CariId = e.CustomerA, Tutar = 1000m, HesapId = main });
+            await cash.CollectAsync(new CashInput { CariId = e.CustomerA, Tutar = 500m, HesapId = main });
+            await cash.PayAsync(new CashInput { CariId = e.CustomerA, Tutar = 300m, HesapId = main });
+            await cash.CollectAsync(new CashInput { CariId = e.CustomerB, Tutar = 4000m, HesapId = spare });
+            await cash.PayAsync(new CashInput { CariId = e.CustomerB, Tutar = 5000m, HesapId = spare });
+            await cash.CollectAsync(new CashInput { CariId = e.CustomerB, Tutar = 700m, Hesap = LedgerAccountType.Banka, HesapId = bank });
+        }
+
+        var all = (await GetJson(s, Report + "/kasa-banka?hesap=Kasa")).GetProperty("ozet").GetProperty("toplam");
+        Assert.Equal(5500m, Dec(all, "kasaGiris"));
+        Assert.Equal(5300m, Dec(all, "kasaCikis"));
+        Assert.Equal(200m, Dec(all, "kasaBakiye"));
+        Assert.Equal(700m, Dec(all, "bankaGiris"));
+
+        var filtered = await GetJson(s, Report + $"/kasa-banka?hesap=Kasa&hesapId={main}");
+        var total = filtered.GetProperty("ozet").GetProperty("toplam");
+        Assert.Equal(1500m, Dec(total, "kasaGiris"));
+        Assert.Equal(300m, Dec(total, "kasaCikis"));
+        Assert.Equal(1200m, Dec(total, "kasaBakiye"));
+        Assert.Equal(0m, Dec(total, "bankaGiris"));
+        Assert.Equal(0m, Dec(total, "bankaBakiye"));
+        // Kart bakiyesi listenin son yürüyen bakiyesiyle aynı (devirsiz).
+        var rows = filtered.GetProperty("satirlar").GetProperty("kayitlar").EnumerateArray().ToList();
+        Assert.Equal(1200m, Dec(rows[^1], "yuruyenBakiye"));
     }
 
     [Fact]
