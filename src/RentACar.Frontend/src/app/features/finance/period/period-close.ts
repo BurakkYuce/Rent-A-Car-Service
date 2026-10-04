@@ -47,8 +47,11 @@ export class PeriodClose {
   private readonly t = translationFunction();
   private readonly gate = new ConfirmGate();
 
-  protected readonly state = new TemelStore(() =>
-    this.api.get<PeriodCloseState>(financePath('/donem-kapanis')),
+  // Kabul testi (C-DONEM): yeniden yüklemede önceki veri KORUNUR — yoksa `@if (state.veri())` bölümü (form dahil)
+  // yeniden oluşur, kontrol yeniden kaydolurken doğrulayıcılar koşar ve sunucunun alan hatası sessizce silinirdi.
+  protected readonly state = new TemelStore(
+    () => this.api.get<PeriodCloseState>(financePath('/donem-kapanis')),
+    { oncekiVeriyiKoru: true },
   );
   protected readonly busy = signal(false);
   protected readonly errors = signal<readonly string[]>([]);
@@ -122,7 +125,8 @@ export class PeriodClose {
           const rest = applyServerErrors(this.form, e.alanlar);
           if (e.alanlar === undefined && !genelGosterilir(e)) this.errors.set([e.detay]);
           else if (rest.length > 0) this.errors.set(rest);
-          this.state.yenile();
+          // Alan hatası (doğrulama) hiçbir şey yazmadı: tazelemeye gerek yok (hata alanda kalır).
+          if (e.alanlar === undefined) this.state.yenile();
         },
       });
   }

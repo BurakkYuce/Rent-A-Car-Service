@@ -58,11 +58,10 @@
         <rc-ikon ad="filter" [boyut]="14" />
         {{ 'filoKiralama.filtre.filtrele' | transloco }}
       </button>
-      @if (liste.etkinFiltreSayisi() > 0) {
-        <button type="button" class="rc-dugme rc-dugme--hayalet rc-dugme--kucuk" (click)="clear()">
-          {{ 'filoKiralama.filtre.temizle' | transloco }}
-        </button>
-      }
+      <!-- Kabul testi: "Temizle" her zaman görünür (yazılmış ama uygulanmamış alanı da temizler). -->
+      <button type="button" class="rc-dugme rc-dugme--hayalet rc-dugme--kucuk" (click)="clear()">
+        {{ 'filoKiralama.filtre.temizle' | transloco }}
+      </button>
     </div>
   </form>
 

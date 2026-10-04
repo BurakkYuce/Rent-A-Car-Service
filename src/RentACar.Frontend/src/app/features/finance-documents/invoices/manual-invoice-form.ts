@@ -127,6 +127,16 @@ export class ManualInvoiceForm {
         path: `${INVOICES}/manuel`,
         body: manualInvoiceRequest(this.form.getRawValue() as ManualInvoiceValue),
       }),
+      // Kabul testi: kesilen fatura DEĞİŞMEZ ve GİB numarası tüketir; düzeltme yalnız iade faturasıyla → önce onay.
+      confirm: () =>
+        this.confirm.ask({
+          baslik: this.t('finansBelge.fatura.manuelOnayBaslik'),
+          mesaj: this.t('finansBelge.fatura.manuelOnayMesaj', {
+            cari: this.form.controls.cari.value?.etiket ?? '',
+          }),
+          onayEtiketi: this.t('finansBelge.fatura.manuelKes'),
+          tehlikeli: true,
+        }),
       success: (r) => {
         this.reset();
         this.announce(r);

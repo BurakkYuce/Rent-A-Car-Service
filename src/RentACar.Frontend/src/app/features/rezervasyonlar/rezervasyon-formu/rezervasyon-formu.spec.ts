@@ -100,6 +100,25 @@ async function exchangeRate(put: (n: number) => Observable<unknown>, id: string 
   };
 }
 
+describe('Rezervasyon formu — günlük ücret notu (#361 L1)', () => {
+  it('Toplam modlu kayıtta not görünür; kullanıcı modu değiştirince kaybolur, geri alınca döner', async () => {
+    const { s, detayVer } = await exchangeRate(() => of(reservationDetail()));
+    const note = () => (s as unknown as { grossFeeNote(): boolean }).grossFeeNote();
+    detayVer(reservationDetail({ fiyatTuru: 'Toplam' }));
+    expect(note()).toBe(true);
+    s.form.controls.fiyatTuru.setValue('Günlük');
+    expect(note()).toBe(false);
+    s.form.controls.fiyatTuru.setValue('Toplam');
+    expect(note()).toBe(true);
+  });
+
+  it('KDV Dahil Günlük kayıtta ve yeni formda not yok', async () => {
+    const saved = await exchangeRate(() => of(reservationDetail()));
+    saved.detayVer(reservationDetail({ fiyatTuru: 'KDV Dahil Günlük' }));
+    expect((saved.s as unknown as { grossFeeNote(): boolean }).grossFeeNote()).toBe(false);
+  });
+});
+
 describe('Rezervasyon formu sürüm akışı', () => {
   it('PUT tüm alanları + detaydaki sürümü taşır', async () => {
     const { s, kaydet, detayVer, putlar } = await exchangeRate(() => of(reservationDetail()));

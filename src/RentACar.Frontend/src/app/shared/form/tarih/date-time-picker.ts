@@ -17,7 +17,8 @@ import { Calendar } from './calendar';
  * Tarih-saat seçici. Değer UTC ANI (`"2026-09-22T11:30:00.000Z"`); kullanıcı İstanbul saatiyle görür
  * ve yazar. Ön doldurma sunucunun anından (ofsetli ISO) yapılır, YEREL saate çevrilip geri UTC
  * sayılmaz — Blazor'daki "hayalet +1 gün" hatasının kaynağı buydu. Tarih ve saat ayrı kutularda;
- * ikisi de doluysa değer bildirilir, biri eksik/bozuksa `tarihGecersiz`/`saatGecersiz`.
+ * ikisi de doluysa değer bildirilir; tarih BOŞSA alan boştur (değer `null`, hata yok — `required` konuşur), tarih
+ * bozuksa `tarihGecersiz`, tarih var saat eksik/bozuksa `saatGecersiz`.
  */
 @Component({
   selector: 'rc-tarih-saat-secici',
@@ -168,10 +169,12 @@ export class DateTimePicker extends ParsingControl<string> {
     const day = parseDay(this.dayText());
     const hour = parseHour(this.hourText());
     this.selectedDay.set(day === 'gecersiz' ? null : day);
-    if (day === null && hour === null) {
+    if (day === null) {
+      // Tarih boşsa alan boştur (saat ön-dolu kalmış olabilir): biçim hatası değil, `required` konuşur — kabul testi:
+      // silinen tarih "Geçerli bir tarih girin" diyordu, ortak form setinde boş alan "Bu alan zorunlu."dur.
       this.setError(null);
       this.notify(null);
-    } else if (day === null || day === 'gecersiz') {
+    } else if (day === 'gecersiz') {
       this.setError({ tarihGecersiz: true });
       this.notify(null);
     } else if (hour === null || hour === 'gecersiz') {

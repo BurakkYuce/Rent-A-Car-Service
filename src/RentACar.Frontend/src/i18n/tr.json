@@ -127,6 +127,8 @@
       "tarih": "Geçerli bir tarih girin (gg.aa.yyyy).",
       "saat": "Geçerli bir saat girin (ss:dd).",
       "tarihAralikDisi": "Tarih izin verilen aralığın dışında.",
+      "tarihEnErken": "En erken {{tarih}} seçilebilir.",
+      "tarihEnGec": "En geç {{tarih}} seçilebilir.",
       "tarihSirasi": "Bitiş tarihi başlangıçtan önce olamaz.",
       "gecersiz": "Değer geçersiz."
     },
@@ -279,7 +281,8 @@
       "bugunCikan": "Bugün çıkanlar",
       "bugunDonecek": "Bugün dönecekler",
       "faturasiz": "Faturası kesilmeyenler",
-      "kapali": "Kapalı sözleşmeler"
+      "kapali": "Kapalı sözleşmeler",
+      "iptal": "İptal edilenler"
     },
     "sube": {
       "etiket": "Şube",

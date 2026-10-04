@@ -54,8 +54,8 @@ import { RentalFinanceState } from './rental-finance-state';
               </td>
               <td>{{ x.tarih | tarih }}</td>
               <td class="rc-num">{{ money(x.genelToplam, x.currency) }}</td>
-              <td>{{ x.tur }}</td>
-              <td>{{ x.durum }}</td>
+              <td>{{ x.tur | etiket }}</td>
+              <td>{{ x.durum | etiket }}</td>
             </tr>
           } @empty {
             @if (s.tur() === 'hazir') {

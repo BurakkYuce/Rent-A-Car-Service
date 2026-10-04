@@ -90,6 +90,8 @@
       "tevkifatTutar": "Tevkifat Tutar",
       "damgaVergisi": "Damga Vergisi",
       "manuelKes": "Manuel Fatura Kes",
+      "manuelOnayBaslik": "Manuel fatura kesilsin mi?",
+      "manuelOnayMesaj": "{{ cari }} adına fatura kesilip cariye borç yazılır ve fatura numarası tüketilir. Kesilen fatura silinemez ya da değiştirilemez; düzeltme yalnız iade faturasıyla yapılır.",
       "manuelKesildi": "Fatura kesildi ({{ no }}).",
       "manuelKesildiTutar": "Fatura kesildi ({{ no }}, genel toplam {{ tutar }}).",
       "topluBaslik": "Toplu Faturala",

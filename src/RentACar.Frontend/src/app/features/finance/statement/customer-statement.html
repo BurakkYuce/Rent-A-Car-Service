@@ -112,7 +112,7 @@
               @for (o of s.ozet ?? []; track o.ay + o.kaynak) {
                 <tr>
                   <td>{{ o.ay }}</td>
-                  <td>{{ o.kaynak }}</td>
+                  <td>{{ o.kaynak | etiket }}</td>
                   <td class="rc-num">{{ o.adet }}</td>
                   <td class="rc-num">{{ o.borc | fsayi }}</td>
                   <td class="rc-num">{{ o.alacak | fsayi }}</td>
@@ -168,7 +168,7 @@
                 <tr>
                   <td>{{ e.tarih | tarihSaat }}</td>
                   <td>{{ e.aciklama }}</td>
-                  <td>{{ e.kaynak }}</td>
+                  <td>{{ e.kaynak | etiket }}</td>
                   <td>{{ e.doviz }}</td>
                   <td class="rc-num">{{ isZero(e.borc) ? '' : (e.borc | fsayi) }}</td>
                   <td class="rc-num">{{ isZero(e.alacak) ? '' : (e.alacak | fsayi) }}</td>

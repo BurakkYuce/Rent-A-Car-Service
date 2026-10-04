@@ -148,9 +148,11 @@
                     }
                     @case ('rate') {
                       <rc-alan [etiket]="label(spec.name)">
+                        <!-- Oran: ₺ eki YOK; yüzde alanında % (değer yine invariant ondalık metin). -->
                         <rc-para-girdisi
                           [formControlName]="spec.name"
                           [kesir]="spec.fraction ?? 2"
+                          [ek]="spec.percent ? '%' : ''"
                         />
                       </rc-alan>
                     }

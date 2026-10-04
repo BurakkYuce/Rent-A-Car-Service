@@ -27,7 +27,7 @@ import { FetchPolicy } from '@core/veri/fetch-policy';
 import { listQueryUrlSync } from '@core/veri/liste-sorgusu-url';
 import { CustomerLabels } from '@features/vehicle-finance/labels';
 import { toNumber } from '@features/vehicles/vehicle-model';
-import { MoneyPipe, NumberPipe, DatePipe } from '@shared/bicim/bicim-pipe';
+import { MoneyPipe, NumberPipe, DatePipe, EnumLabelPipe } from '@shared/bicim/bicim-pipe';
 import { Alan } from '@shared/form/alan/alan';
 import { SearchSelection } from '@shared/form/arama-secim/search-selection';
 import {
@@ -87,6 +87,7 @@ import { PlateChipComponent } from '@shared/plaka/plaka';
     TableCell,
     DatePipe,
     DatePicker,
+    EnumLabelPipe,
   ],
   providers: [FetchPolicy, InvoiceStore, CustomerLabels, PendingMoneyAttempts],
   templateUrl: './invoice-list.html',

@@ -95,6 +95,7 @@ const VIEW_DEFINITION: Readonly<
   'bugun-donecek': { etiket: 'kabuk.gorunum.bugunDonecek', sayac: 'bugunDonecek' },
   faturasiz: { etiket: 'kabuk.gorunum.faturasiz', sayac: null },
   kapali: { etiket: 'kabuk.gorunum.kapali', sayac: null },
+  iptal: { etiket: 'kabuk.gorunum.iptal', sayac: null },
 };
 
 const jsonEqual = (a: QueryParameters, b: QueryParameters) =>

@@ -54,7 +54,7 @@ import { RentalFinanceState } from './rental-finance-state';
               <td>{{ x.alinanHizmet }}</td>
               <td class="rc-num">{{ money(x.hizmetBedeli, x.currency) }}</td>
               <td class="rc-num">{{ x.tedarikciKomisyonOran }}</td>
-              <td>{{ x.durum }}</td>
+              <td>{{ x.durum | etiket }}</td>
               <td>
                 @if (x.durum === 'Kayitli' && f.finans() && f.reversePermission()) {
                   <button

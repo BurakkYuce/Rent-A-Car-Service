@@ -77,7 +77,7 @@
     "sozlesmePdfEtiketi": "{{no}} sözleşmesi, yeni sekmede açılır",
     "iptal": "İptal",
     "iptalBaslik": "Kira sözleşmesi iptal edilsin mi?",
-    "iptalMesaj": "{{no}} numaralı kira sözleşmesi İptal durumuna geçer ve araç Müsait olur; fatura ve tahsilat kayıtlarına dokunulmaz.",
+    "iptalMesaj": "{{no}} numaralı kira sözleşmesi İptal durumuna geçer ve araç Müsait olur. Bu işlem geri alınamaz. Faturası ya da tahsilatı olan sözleşme iptal edilemez: önce faturanın iadesini kesin, tahsilatı iade edin.",
     "iptalOnay": "Sözleşmeyi iptal et",
     "iptalEdildi": "{{no}} iptal edildi.",
     "tahsil": {
@@ -85,7 +85,7 @@
       "baslik": "Tahsilat — {{no}}",
       "aciklama": "{{musteri}} · kalan bakiye {{bakiye}}",
       "tutar": "Tutar",
-      "tutarIpucu": "Kalan bakiye önerilir; aşan tutar cari alacak olur.",
+      "tutarIpucu": "Önerilen: {{tutar}} (kalan bakiye); aşan tutar cari alacak olur.",
       "tutarPozitif": "Tutar sıfırdan büyük olmalıdır.",
       "hesap": "Hesap",
       "kasa": "Kasa",

@@ -121,6 +121,29 @@ test('liste → detay: sunucu taksit planı ve genel toplam, dışa aktarma Blaz
   expect(errors).toEqual([]);
 });
 
+test('süzgeç: "Temizle" her zaman var; uygulanmış süzgeci ve yazılmış ama uygulanmamış alanı temizler', async ({
+  page,
+}) => {
+  await fleetEndpoints(page);
+  await page.goto(LISTE.yol);
+  await waitReady(page, LISTE);
+  const clear = page.getByRole('button', { name: 'Temizle' });
+  const plate = page.getByRole('textbox', { name: 'Plaka' });
+  await expect(clear).toBeVisible(); // süzgeç yokken de (kabul testi a-filoliste-02)
+
+  await plate.fill('34 ABC 1');
+  await page.getByRole('button', { name: 'Ara', exact: true }).click();
+  await expect(page).toHaveURL(/plaka=34/);
+  await clear.click();
+  await expect(page).not.toHaveURL(/plaka=/);
+  await expect(plate).toHaveValue('');
+
+  // Yazılmış ama uygulanmamış alan da temizlenir (URL değişmez).
+  await plate.fill('06 X');
+  await clear.click();
+  await expect(plate).toHaveValue('');
+});
+
 test('künye: surum + dokunulmayan 1995 tarihi AYNEN; 409 cakisma formu silmez, sonraki PUT yeni sürümle', async ({
   page,
 }) => {

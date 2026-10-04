@@ -424,6 +424,17 @@ public sealed class UiKiraPanelTests(WebFixture fx)
         Assert.Equal("Iptal", r.GetProperty("durum").GetString());
         // İkinci iptal: yapısal 400 (durum geçişi)
         await ExpectProblem(await Gonder(name, HttpMethod.Post, $"{Rental}/{id}/iptal"), HttpStatusCode.BadRequest, UiError.Validation);
+
+        // Kabul testi (a-kkayit-19): iptal edilen kirada operasyon yapılamaz → detay "operasyon" yetkisini KAPALI döner
+        // (form "Bu sözleşmede değişiklik yapamazsınız" uyarısını gösterir); izin aynı kalsa da durum belirler.
+        foreach (var who in new[] { name, op })
+        {
+            var y = (await Json(await who.C.GetAsync($"{Rental}/{id}"))).GetProperty("yetkiler");
+            Assert.False(y.GetProperty("operasyon").GetBoolean());
+        }
+        // İptal edilen kira gerçekten değiştirilemez (ön koşul: bayrak sunucu kuralıyla tutarlı).
+        await ExpectProblem(await Gonder(name, HttpMethod.Post, $"{Rental}/{id}/teslim", new { cikisKm = 1000, cikisYakit = 8 }),
+            HttpStatusCode.BadRequest, UiError.Validation);
     }
 
     [Fact]

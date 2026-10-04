@@ -316,7 +316,10 @@
       "yakitBedeli": "Yakıt bedeli",
       "gecGun": "Geç dönüş gün",
       "gecBedel": "Geç dönüş bedeli",
-      "yeniGenelToplam": "Yeni genel toplam"
+      "yeniGenelToplam": "Yeni genel toplam",
+      "onayBaslik": "Dönüş tamamlansın mı?",
+      "onayMesaj": "Dönüş kaydedilince sözleşme kapanır, araç boşa çıkar ve dönüş bedelleri (fazla km, yakıt, geç dönüş) kesinleşir. Bu işlem geri alınamaz.",
+      "onayla": "Dönüşü tamamla"
     },
     "eylem": {
       "kaydet": "Kaydet",
@@ -522,7 +525,9 @@
       "iade": "İade faturası",
       "manuel": "Manuel fatura",
       "kesDugme": "Fatura kes",
-      "not": "Kira başına bir fatura; dönüş sonrası yeni bedel varsa fark faturası otomatik."
+      "not": "Kira başına bir fatura; dönüş sonrası yeni bedel varsa fark faturası otomatik.",
+      "onayBaslik": "Fatura kesilsin mi?",
+      "onayMesaj": "Bu kiranın faturası kesilip cariye borç yazılır. Kesilen fatura silinemez ya da değiştirilemez; düzeltme yalnız iade faturasıyla yapılır."
     },
     "donem": {
       "liste": "Fatura dönemleri",
@@ -535,7 +540,9 @@
       "okunamadi": "Dönem planı okunamadı.",
       "yok": "Bu kirada dönem planı yok (uzun/aylık kirada otomatik oluşur).",
       "not": "Tahsilat fatura döviz/kuruyla yazılır; tekrar gönderim güvenlidir. Fatura iadesi tahsilatı geri almaz — geri ödeme Kart/Havale sekmesinden.",
-      "tahsilatYok": "Tahsilat yazılmadı"
+      "tahsilatYok": "Tahsilat yazılmadı",
+      "onayBaslik": "Dönem faturası kesilsin mi?",
+      "onayMesaj": "{{sira}}. dönemin faturası kesilip cariye borç yazılır. Kesilen fatura silinemez ya da değiştirilemez; düzeltme yalnız iade faturasıyla yapılır."
     },
     "disHizmet": {
       "liste": "Dış hizmet alımları",
