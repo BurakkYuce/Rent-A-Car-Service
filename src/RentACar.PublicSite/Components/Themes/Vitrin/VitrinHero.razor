@@ -23,9 +23,13 @@
         {
             @* Dekoratif değil ama adı hemen altında yazılı; alt metni tekrarlamak ekran okuyucuda aynı adı iki
                kez okutur. LCP adayı: tembel değil, yüksek öncelikli. *@
-            <img class="v-sahne-foto" src="@($"/foto/{photoId}")"
-                 srcset="@($"/foto/{photoId}/thumb 400w, /foto/{photoId} 1600w")" sizes="100vw"
-                 width="1600" height="1067" alt="" fetchpriority="high" decoding="async" />
+            @* Çerçeve fotoğrafı kırpar: açılıştaki yavaş yakınlaşma sahneden taşmasın. Sahnenin kendisi
+               kırpmaz — model adının inişli harfleri alt kenarı geçer. *@
+            <div class="v-sahne-kare">
+                <img class="v-sahne-foto" src="@($"/foto/{photoId}")"
+                     srcset="@($"/foto/{photoId}/thumb 400w, /foto/{photoId} 1600w")" sizes="100vw"
+                     width="1600" height="1067" alt="" fetchpriority="high" decoding="async" />
+            </div>
         }
         <div class="wrap v-sahne-ic">
             @if (Lead is not null)

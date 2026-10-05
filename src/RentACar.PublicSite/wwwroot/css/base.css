@@ -329,10 +329,18 @@ main:focus { outline: none; }
   .iki-sutun { grid-template-columns: 1fr; }
 }
 
-/* ---- Hareket: tek kural — azaltılmış hareket isteniyorsa hiçbir geçiş yok. ---- */
-.btn, .yazi { transition: background-color .15s ease, border-color .15s ease, box-shadow .15s ease; }
+/* ---- Hareket ----
+   Ortak olan yalnız kullanıcıya CEVAP veren küçük geri bildirim: bağlantı alt çizgisi kalınlaşır, düğme
+   basılınca 1px iner. Renk geçişi YOK (geçiş ortası kare düşük kontrastlı olurdu; yalnız kalınlık ve
+   konum değişir). Açılış anı temanın kendisinde (her temada TEK an). Her animasyon görünür bir dinlenme
+   hâline `backwards` ile döner: animasyon hiç koşmasa da (azaltılmış hareket, eski tarayıcı) sayfa tam.
+   Tek kural: azaltılmış hareket isteniyorsa hiçbir geçiş ve animasyon yok. */
+a { transition: text-decoration-thickness .15s ease, text-underline-offset .15s ease; }
+.btn, .yazi { transition: background-color .15s ease, border-color .15s ease, box-shadow .15s ease, transform .1s ease; }
+.btn:active { transform: translateY(1px); }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { transition: none !important; animation: none !important; scroll-behavior: auto !important; }
+  .btn:active { transform: none; }
 }
 
 /* ---- Yazdırma: kabuk ve eylemler kağıda çıkmaz; fiyat tablosu ve özellikler kalır. Sistem renkleri

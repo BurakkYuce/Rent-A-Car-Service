@@ -461,7 +461,49 @@ h2, h3 { letter-spacing: -.005em; }
   .kt-alt-kunye { grid-column: auto; }
 }
 
-/* ---- Hareket ve yazdırma ---- */
+/* ---- Hareket ve yazdırma ----
+   TEK AN: açılışta pano önizlemesinin satırları sırayla YERİNE DÜŞER — her hücre kendi yuvasının üstünden
+   iner ve yuvasının içinde kırpılır (translate ile clip-path aynı ilerlemeyle: görünen kısım hep yuvada).
+   Opaklık/renk değişmez; split-flap taklidi yok. Kısa yükleme sekansı (~1 sn), `backwards` ile dinlenme
+   hâli animasyonsuz panoyla aynı. Azaltılmış harekette base.css hepsini kapatır. */
+@keyframes kt-dus { from { transform: translateY(-100%); clip-path: inset(100% 0 0 0); } }
+.kt-pano tbody tr > * { animation: kt-dus .55s cubic-bezier(.34, 1.25, .64, 1) backwards; animation-delay: calc(.2s + var(--sira, 0) * 120ms); }
+.kt-pano tbody tr:nth-child(2) > * { --sira: 1; }
+.kt-pano tbody tr:nth-child(3) > * { --sira: 2; }
+
+/* Kupon: imleç ya da odak kupondayken delikli ayırıcı hafifçe AÇILIR — koçan gövdeden ayrılır gibi.
+   Üçüncü maske katmanı delik çizgisi boyunca --yirtik genişliğinde bir yarık keser (dinlenmede 0).
+   @property kayıtlı: geçiş yumuşak; desteklemeyen tarayıcıda yarık yalnız anında açılır. */
+@property --yirtik { syntax: "<length>"; inherits: false; initial-value: 0px; }
+.kt-kupon .arama {
+  transition: --yirtik .3s cubic-bezier(.2, .7, .2, 1);
+  -webkit-mask-image:
+    radial-gradient(circle var(--ticket-notch) at 0 calc(var(--pad) + var(--kesim-y)), var(--mask-off) 96%, var(--mask-on) 100%),
+    radial-gradient(circle var(--ticket-notch) at 100% calc(var(--pad) + var(--kesim-y)), var(--mask-off) 96%, var(--mask-on) 100%),
+    linear-gradient(to bottom, var(--mask-on) calc(var(--pad) + var(--kesim-y) - var(--yirtik)), var(--mask-off) 0 calc(var(--pad) + var(--kesim-y) + var(--yirtik)), var(--mask-on) 0);
+  mask-image:
+    radial-gradient(circle var(--ticket-notch) at 0 calc(var(--pad) + var(--kesim-y)), var(--mask-off) 96%, var(--mask-on) 100%),
+    radial-gradient(circle var(--ticket-notch) at 100% calc(var(--pad) + var(--kesim-y)), var(--mask-off) 96%, var(--mask-on) 100%),
+    linear-gradient(to bottom, var(--mask-on) calc(var(--pad) + var(--kesim-y) - var(--yirtik)), var(--mask-off) 0 calc(var(--pad) + var(--kesim-y) + var(--yirtik)), var(--mask-on) 0);
+}
+@media (min-width: 760px) {
+  .kt-kupon .arama {
+    -webkit-mask-image:
+      radial-gradient(circle var(--ticket-notch) at calc(100% - var(--pad) - var(--kesim-x)) 0, var(--mask-off) 96%, var(--mask-on) 100%),
+      radial-gradient(circle var(--ticket-notch) at calc(100% - var(--pad) - var(--kesim-x)) 100%, var(--mask-off) 96%, var(--mask-on) 100%),
+      linear-gradient(to left, var(--mask-on) calc(var(--pad) + var(--kesim-x) - var(--yirtik)), var(--mask-off) 0 calc(var(--pad) + var(--kesim-x) + var(--yirtik)), var(--mask-on) 0);
+    mask-image:
+      radial-gradient(circle var(--ticket-notch) at calc(100% - var(--pad) - var(--kesim-x)) 0, var(--mask-off) 96%, var(--mask-on) 100%),
+      radial-gradient(circle var(--ticket-notch) at calc(100% - var(--pad) - var(--kesim-x)) 100%, var(--mask-off) 96%, var(--mask-on) 100%),
+      linear-gradient(to left, var(--mask-on) calc(var(--pad) + var(--kesim-x) - var(--yirtik)), var(--mask-off) 0 calc(var(--pad) + var(--kesim-x) + var(--yirtik)), var(--mask-on) 0);
+  }
+}
+.kt-kupon .arama:is(:hover, :focus-within) { --yirtik: 2.5px; }
+/* "Müsait araçları göster": basınca koçan damgası gibi iner (2px + iç gölge). */
+.kt-kupon .btn:active { transform: translateY(2px); box-shadow: inset 0 3px 0 color-mix(in srgb, var(--ink) 22%, transparent); }
+@media (prefers-reduced-motion: reduce) {
+  .kt-kupon .btn:active { transform: none; }
+}
 .kt-satir { transition: background-color .15s ease, border-color .15s ease; }
 @media print {
   .kt-kupon, .kt-kupon-not, .kt-satir-eylem { display: none !important; }
