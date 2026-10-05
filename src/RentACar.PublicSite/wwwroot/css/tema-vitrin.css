@@ -339,6 +339,16 @@ a.v-model:hover .v-model-ad { text-decoration: underline; text-decoration-thickn
   }
   .v-arama .arama { padding: 0; border: 0; background: none; }
   .v-model { max-width: calc(100% - 420px - var(--space-4)); }
+  /* Ad EN ÇOK İKİ SATIR ve tamamı görünür. Ad panelin yanındaki dar alana sığmak zorunda; boyu ekran
+     genişliğinden (vw) değil O ALANDAN türer — vw ile 1440'ta 22 harflik ad 3 satıra kırılıp kenarın altına
+     taşıyordu. Alan = sahne içi genişlik (cqi) − panel − ara boşluk. Bölen: kademenin en uzun adının em
+     genişliği (Archivo Expanded ≈ .62em/harf) yarıya bölünür + satır kırılım payı (en uzun kelime); 720–1920
+     ölçüldü (40 harfe kadar iki satır; 720'de alan dar olduğundan boy küçülür, satır sayısı aşmaz). Kademeler VitrinHero.SizeClass'ta: k ≤14, o ≤22, u >22 harf. Telefon kuralı yukarıda, değişmedi. */
+  .v-sahne-ic { container-type: inline-size; }
+  .v-model { --v-alan: calc(100cqi - 420px - var(--space-4)); }
+  .v-model-k { font-size: clamp(1.75rem, var(--v-alan) / 7, var(--step-5)); }
+  .v-model-o { font-size: clamp(1.375rem, var(--v-alan) / 9.5, 6.75rem); }
+  .v-model-u { font-size: clamp(1rem, var(--v-alan) / 14, 5.25rem); }
 }
 
 /* =============================================================================

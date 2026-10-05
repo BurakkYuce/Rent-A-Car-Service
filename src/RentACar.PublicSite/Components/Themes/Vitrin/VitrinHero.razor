@@ -100,10 +100,12 @@
         }
     }
 
-    /// <summary>Uzun model adı ekrana sığsın diye yazı boyu kademesi (CSS'te clamp ile).</summary>
+    /// <summary>Uzun model adı EN ÇOK İKİ SATIRDA tamamen görünsün diye yazı boyu kademesi. Geniş ekranda boy
+    /// panelin yanındaki alandan türer (tema-vitrin.css, cqi); eşikler oradaki bölenlerle birlikte ölçüldü —
+    /// biri değişirse öteki de ölçülür. Telefonda mevcut clamp kuralı geçerli.</summary>
     private static string SizeClass(string name) => name.Length switch
     {
-        <= 12 => "v-model-k",
+        <= 14 => "v-model-k",
         <= 22 => "v-model-o",
         _ => "v-model-u",
     };
