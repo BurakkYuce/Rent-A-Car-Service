@@ -236,6 +236,33 @@
 /* ---- Paylaşılan bölümlere tarife süsü: kapanış bandının üstünde kesikli yol çizgisi ---- */
 .cta-bant::before { content: ""; position: absolute; left: 0; right: 0; top: 0; height: 6px; background: repeating-linear-gradient(90deg, var(--accent) 0 56px, transparent 56px 92px); }
 
+/* ---- Hareket: TEK AN — tarife tahtası açılışta dizilir ----
+   Satırlar sırayla soldan "basılır" (nokta dolgusu fiyata doğru uzar gibi); sonra örnek hesabın
+   toplamının altına yol sarısı çizgi soldan sağa çekilir. Yalnız transform + clip-path: ara karelerde
+   renk/opaklık değişmez, görünen metin her an tam kontrastlı. `backwards`: bitince kural kalkar, dinlenme
+   hâli animasyonsuz sayfayla aynı (azaltılmış harekette base.css hepsini kapatır). */
+@keyframes tarife-diz { from { transform: translateX(-1rem); clip-path: inset(0 100% 0 0); } }
+@keyframes tarife-ciz { from { transform: scaleX(0); } }
+.tarife li { animation: tarife-diz .55s cubic-bezier(.2, .7, .2, 1) backwards; animation-delay: calc(.2s + var(--sira, 0) * 90ms); }
+.tarife li:nth-child(2) { --sira: 1; }
+.tarife li:nth-child(3) { --sira: 2; }
+.tarife li:nth-child(4) { --sira: 3; }
+.tarife li:nth-child(5) { --sira: 4; }
+.tarife li:nth-child(6) { --sira: 5; }
+/* Örnek hesabın toplamı: alt çizgi text-decoration yerine çizilebilir bir şerit (aynı yer, aynı kalınlık). */
+.tarife-ornek .tutar { position: relative; text-decoration: none; }
+.tarife-ornek .tutar::after {
+  content: ""; position: absolute; left: 0; right: 0; bottom: -.04em; height: .15em;
+  background: var(--price-mark); transform-origin: left center;
+  animation: tarife-ciz .6s cubic-bezier(.6, 0, .2, 1) .9s backwards;
+}
+/* Kartta fiyat satırı imlece/odağa cevap verir: toplam hafif öne çıkar, yol çizgisi kalınlaşır. */
+.ilan .tutar { transform-origin: left bottom; transition: transform .2s ease, text-decoration-thickness .2s ease; }
+.ilan:is(:hover, :has(a:focus-visible)) .tutar { transform: scale(1.05); text-decoration-thickness: .22em; }
+@media (prefers-reduced-motion: reduce) {
+  .ilan:is(:hover, :has(a:focus-visible)) .tutar { transform: none; }
+}
+
 @media print {
   .hero::after, .cta-bant::before { display: none; }
   .ilan-eylem { display: none !important; }

@@ -274,6 +274,7 @@ h3 { font-size: var(--step-1); letter-spacing: -.01em; }
      düğme ekranın altında kalıyordu). */
   min-height: clamp(200px, 29svh, 300px); background: var(--stage-bg);
 }
+.v-sahne-kare { position: absolute; inset: 0; overflow: hidden; }
 .v-sahne-foto { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
 /* Alt kenarda koyulaşma: üst kopyanın açık harfi her fotoğrafta okunsun (işlevsel perde, süs değil). */
 .v-sahne::after {
@@ -286,12 +287,15 @@ h3 { font-size: var(--step-1); letter-spacing: -.01em; }
   position: relative; display: grid; width: fit-content; max-width: 100%; margin: 0;
   font: 700 var(--step-5)/.92 var(--font-display); letter-spacing: -.035em;
   color: var(--ink); text-decoration: none; overflow-wrap: anywhere; text-wrap: balance;
-  transform: translateY(var(--tasma));
+  /* --yukselis: açılışta adın "oturma" payı (Hareket bölümü); dinlenmede 0. */
+  transform: translateY(calc(var(--tasma) + var(--yukselis, 0px)));
 }
 .v-model-o { font-size: clamp(2.2rem, .8rem + 6vw, 6.75rem); }
 .v-model-u { font-size: clamp(1.9rem, .8rem + 4.6vw, 5.25rem); }
-.v-model-ad { grid-area: 1 / 1; clip-path: inset(calc(100% - var(--tasma)) 0 0 0); }
-.v-model-ust { color: var(--stage-ink); clip-path: inset(0 0 var(--tasma) 0); }
+/* Kesim çizgisi kutuya göre (100% - tasma - yükseliş): ad hareket ederken de renk ayrımı tam sahne
+   kenarında kalır — kenarın üstü açık, altı koyu; ara karede açık harf açık zemine düşmez. */
+.v-model-ad { grid-area: 1 / 1; clip-path: inset(calc(100% - var(--tasma) - var(--yukselis, 0px)) 0 0 0); }
+.v-model-ust { color: var(--stage-ink); clip-path: inset(0 0 calc(var(--tasma) + var(--yukselis, 0px)) 0); }
 a.v-model:hover .v-model-ad { text-decoration: underline; text-decoration-thickness: .05em; text-underline-offset: .05em; }
 /* Odak: ÇİFT halka — açık dış (outline, sahne mürekkebi) + koyu iç (box-shadow, ofset boşluğunu doldurur).
    Genel --focus açık modda grafit: koyulaşan fotoğraf/grafit sahnede ~1:1 kalıyordu. Çiftin biri her
@@ -307,7 +311,10 @@ a.v-model:hover .v-model-ad { text-decoration: underline; text-decoration-thickn
 @media screen and (max-width: 640px) {
   /* Telefonda ad iki satıra sarar: TAMAMI sahnenin içinde kalır, kenar geçişi yok, kırpma yok. */
   .v-hero { --tasma: 0em; }
-  .v-model { transform: none; }
+  .v-model { transform: translateY(var(--yukselis, 0px)); }
+  /* Ad sahnenin içinde: koyu kopya hiç görünmez, açık kopya kırpılmaz (oturma payı alt boşluktan küçük). */
+  .v-model-ad { clip-path: inset(100% 0 0 0); }
+  .v-model-ust { clip-path: none; }
   .v-sahne-ic { padding-bottom: var(--space-2); }
 }
 .v-hero-fiyat { display: flex; flex-wrap: wrap; align-items: baseline; gap: .25rem .6rem; margin: 0 0 var(--space-1); }
@@ -342,9 +349,9 @@ a.v-model:hover .v-model-ad { text-decoration: underline; text-decoration-thickn
 .v-kart:has(h3 a:focus-visible) { outline: 2px solid var(--focus); outline-offset: 6px; }
 .v-kart h3 a:focus-visible { outline: none; }
 .v-kart-foto { aspect-ratio: 4 / 3; overflow: hidden; border-radius: var(--card-radius); background: var(--stage-bg); }
-.v-kart-foto img { display: block; width: 100%; height: 100%; object-fit: cover; transition: transform .4s ease; }
-/* Tek hareket: kullanıcının imlecine cevap. */
-.v-kart:hover .v-kart-foto img { transform: scale(1.03); }
+.v-kart-foto img { display: block; width: 100%; height: 100%; object-fit: cover; transition: transform .7s cubic-bezier(.2, .7, .2, 1); }
+/* Kullanıcıya cevap: imleç ya da klavye odağı kartın üstündeyken fotoğraf çok hafif yaklaşır. */
+.v-kart:is(:hover, :has(h3 a:focus-visible)) .v-kart-foto img { transform: scale(1.025); }
 /* Fotoğrafsız ilan: grafit zemin üstünde modelin adı, Expanded — sahnenin küçük karşılığı. */
 .v-foto-yok { display: flex; align-items: flex-end; padding: var(--space-2); }
 .v-foto-yok-ad { font: 700 var(--step-3)/.95 var(--font-display); letter-spacing: -.03em; color: color-mix(in srgb, var(--stage-ink) 60%, var(--stage-bg)); overflow-wrap: anywhere; }
@@ -395,14 +402,32 @@ a.v-model:hover .v-model-ad { text-decoration: underline; text-decoration-thickn
 .v-alt-son { padding-block: var(--space-2); border-top: 1px solid color-mix(in srgb, var(--stage-ink) 18%, var(--stage-bg)); font-size: var(--step--1); }
 @media (min-width: 900px) { .v-alt-marka { grid-column: auto; } }
 
+/* =============================================================================
+   Hareket: TEK AN — sahne açılır.
+   Fotoğraf ~12 sn boyunca çok yavaş yakınlaşır (bir kez; sonra durur) ve model adı sahnenin alt kenarına
+   alttan "oturur". Ad yalnız transform ile hareket eder; renk ayrımı kenarda sabit (kesim aynı değişkenden),
+   opaklık hiç değişmez: her ara karede açık harf fotoğrafta, koyu harf sayfa zemininde.
+   --yukselis kayıtlı özellik (@property): ara değerler yumuşak; desteklemeyen tarayıcıda tek adımda
+   oturur. Dinlenme değeri 0 → animasyon koşmasa da (azaltılmış hareket) sahne bugünkü hâliyle tam.
+   ============================================================================= */
+@property --yukselis { syntax: "<length>"; inherits: true; initial-value: 0px; }
+@keyframes v-yaklas { to { transform: scale(1.06); } }
+@keyframes v-otur { from { --yukselis: .24em; } }
+@keyframes v-otur-dar { from { --yukselis: .3em; } }
+.v-sahne-foto { transform-origin: 58% 45%; animation: v-yaklas 12s cubic-bezier(.3, .1, .3, 1) forwards; }
+.v-model { animation: v-otur 1.1s cubic-bezier(.16, 1, .3, 1) .15s backwards; }
+@media screen and (max-width: 640px) {
+  .v-model { animation-name: v-otur-dar; }
+}
+
 @media (prefers-reduced-motion: reduce) {
-  .v-kart:hover .v-kart-foto img { transform: none; }
+  .v-kart:is(:hover, :has(h3 a:focus-visible)) .v-kart-foto img { transform: none; }
 }
 
 @media print {
   .v-arama, .v-kart-teklif, .v-menu { display: none !important; }
   .v-sahne { min-height: 0; background: none; }
-  .v-sahne-foto, .v-sahne::after, .v-model-ust { display: none; }
+  .v-sahne-kare, .v-sahne::after, .v-model-ust { display: none; }
   .v-model { transform: none; }
   .v-model-ad { clip-path: none; }
 }
