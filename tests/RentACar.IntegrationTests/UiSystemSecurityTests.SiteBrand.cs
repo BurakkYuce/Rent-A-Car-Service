@@ -35,7 +35,7 @@ public sealed partial class UiSystemSecurityTests
         Assert.Equal(System.Text.Json.JsonValueKind.Null, saved.GetProperty("siteVurguRengi").ValueKind);
     }
 
-    // Site teması: yalnız bilinen anahtar (büyük harf normalize), bilinmeyen → 400 siteTemasi, boş → null (tarife),
+    // Site teması: yalnız bilinen anahtar (büyük harf normalize), bilinmeyen → 400 siteTemasi, boş → null (pazar),
     // başka firmaya sızmaz.
     [Fact]
     public async Task Site_theme_round_trips_validates_and_stays_in_tenant()
@@ -82,12 +82,38 @@ public sealed partial class UiSystemSecurityTests
         var last = await Problem(await Send(admin, HttpMethod.Put, Settings, new { siteTemasi = "mavi", surum = version }),
             HttpStatusCode.BadRequest, "dogrulama", "siteTemasi");
         var text = last.GetProperty("errors").GetProperty("siteTemasi").ToString();
-        Assert.Contains("tarife", text);
+        Assert.Contains("pazar", text);
         Assert.Contains("vitrin", text);
-        Assert.Contains("kontuar", text);
+        Assert.Contains("rota", text);
+        // Eski anahtarlar kabul edilir ama geçerli değer olarak İLAN EDİLMEZ.
+        Assert.DoesNotContain("tarife", text);
+        Assert.DoesNotContain("kontuar", text);
 
         // Hiçbiri yazılmadı: ayar varsayılanda (null).
         Assert.Equal(System.Text.Json.JsonValueKind.Null,
             (await Json(await admin.C.GetAsync(Settings))).GetProperty("siteTemasi").ValueKind);
+    }
+
+    // Anahtar göçü (tarife → pazar, kontuar → rota): eski anahtarla gelen PUT REDDEDİLMEZ, yeni anahtara normalize
+    // edilip saklanır. Gerekçe: eski SPA sekmesi / önbellekteki istemci kaydederken kullanıcının seçimi kaybolmasın
+    // ve 400 almasın; sitenin ?tema= önizlemesiyle aynı kural (SiteThemeKeys.Normalize tek kaynak). Eski anahtar
+    // DB'ye hiç yazılmaz, okunurken yeni anahtar döner.
+    [Fact]
+    public async Task Legacy_site_theme_key_is_accepted_and_stored_as_new_key()
+    {
+        var e = await _kit.SetupAsync();
+        var admin = await _kit.LoginAsync(e, Who.Admin);
+        var version = (await Json(await admin.C.GetAsync(Settings))).GetProperty("surum").GetString();
+
+        foreach (var (legacy, current) in new[] { ("tarife", "pazar"), (" Kontuar ", "rota"), ("TARIFE", "pazar") })
+        {
+            var saved = await Json(await Send(admin, HttpMethod.Put, Settings, new { siteTemasi = legacy, surum = version }));
+            Assert.Equal(current, saved.GetProperty("siteTemasi").GetString());
+            version = saved.GetProperty("surum").GetString();
+            Assert.Equal(current, (await Json(await admin.C.GetAsync(Settings))).GetProperty("siteTemasi").GetString());
+        }
+
+        var rota = await Json(await Send(admin, HttpMethod.Put, Settings, new { siteTemasi = "rota", surum = version }));
+        Assert.Equal("rota", rota.GetProperty("siteTemasi").GetString());
     }
 }

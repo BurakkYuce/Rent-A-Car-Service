@@ -1,4 +1,5 @@
 using System.Text.RegularExpressions;
+using RentACar.Application.Fleet;
 using RentACar.Application.TenantSettings;
 using RentACar.IntegrationTests.Infrastructure;
 using RentACar.PublicSite;
@@ -62,15 +63,112 @@ public sealed partial class PublicSiteThemeContractTests(PostgresFixture fx)
     [Fact]
     public void Kayit_ve_ayar_anahtarlari_ayni()
     {
+        // Beklenen anahtarlar elle (oracle): kayıt ve ayar listesi ikisi de buna eşit, aynı sırada.
+        Assert.Equal(["pazar", "vitrin", "rota"], SiteThemeKeys.All);
         Assert.Equal(SiteThemeKeys.All, SiteThemes.All.Select(t => t.Key));
-        Assert.Same(SiteThemes.Tarife, SiteThemes.Resolve(null));
-        Assert.Same(SiteThemes.Tarife, SiteThemes.Resolve("olmayan"));
+        Assert.Equal("pazar", SiteThemeKeys.Default);
+        Assert.Equal("pazar", SiteThemes.Resolve(null).Key);
+        Assert.Equal("pazar", SiteThemes.Resolve("olmayan").Key);
         Assert.Same(SiteThemes.Vitrin, SiteThemes.Resolve(" VITRIN "));
         foreach (var t in SiteThemes.All)
         {
             Assert.True(File.Exists(Path.Combine(CssDir(), ThemeFile(t))), t.CssPath);
             Assert.All(t.FontPreloads, f => Assert.Contains(t.Fonts, x => x.File == f));
         }
+    }
+
+    // Anahtar göçü: eski anahtarlar KALICI olarak yeni karşılığına normalize edilir (paylaşılmış ?tema= bağlantısı,
+    // eski istemcinin PUT'u). Eski anahtar geçerli değer listesinde YOK — yeniden saklanamaz, ERP'de görünmez.
+    [Theory]
+    [InlineData("tarife", "pazar")]
+    [InlineData(" TARIFE ", "pazar")]
+    [InlineData("Tarife", "pazar")]
+    [InlineData("kontuar", "rota")]
+    [InlineData("KONTUAR", "rota")]
+    [InlineData("pazar", "pazar")]
+    [InlineData(" Rota", "rota")]
+    [InlineData("vitrin", "vitrin")]
+    public void Eski_anahtar_yeni_anahtara_normalize_edilir(string input, string expected)
+    {
+        Assert.Equal(expected, SiteThemeKeys.Normalize(input));
+        Assert.True(SiteThemes.IsKnown(input));
+        Assert.Equal(expected, SiteThemes.Resolve(input).Key);
+    }
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData("  ")]
+    [InlineData("tarife2")]
+    [InlineData("kontuar;}")]
+    [InlineData("mavi")]
+    public void Bilinmeyen_anahtar_normalize_edilmez(string? input)
+    {
+        Assert.Null(SiteThemeKeys.Normalize(input));
+        Assert.False(SiteThemes.IsKnown(input));
+        Assert.Equal("pazar", SiteThemes.Resolve(input).Key);
+    }
+
+    [Fact]
+    public void Eski_anahtarlar_gecerli_listede_yok_ve_esleme_yalniz_gecerli_anahtara_gider()
+    {
+        Assert.Equal(new Dictionary<string, string> { ["tarife"] = "pazar", ["kontuar"] = "rota" },
+            SiteThemeKeys.LegacyAliases.ToDictionary(x => x.Key, x => x.Value));
+        Assert.DoesNotContain("tarife", SiteThemeKeys.All);
+        Assert.DoesNotContain("kontuar", SiteThemeKeys.All);
+        Assert.All(SiteThemeKeys.LegacyAliases.Values, v => Assert.Contains(v, SiteThemeKeys.All));
+    }
+
+    // Slot imzaları SÖZLEŞMEDİR (README): DynamicComponent eksik/yanlış adlı parametreyi ÇALIŞMA ANINDA reddeder.
+    // Her temanın yedi slot bileşeni tam bu [Parameter] kümesini taşır — yeni tema PR'ı derlemede değil burada yakalanır.
+    private static readonly Dictionary<string, (string Name, Type Type)[]> SlotParameters = new()
+    {
+        ["Hero"] =
+        [
+            ("Marka", typeof(string)), ("Branding", typeof(FleetBranding)),
+            ("Subeler", typeof(IReadOnlyList<string>)), ("Kartlar", typeof(IReadOnlyList<FleetShowcaseCard>)),
+            ("Sehir", typeof(string)),
+        ],
+        ["Card"] = [("Kart", typeof(ListingCard)), ("Tarih", typeof(StayDates))],
+        ["Header"] = [("Branding", typeof(FleetBranding)), ("Nav", typeof(IReadOnlyList<SiteLink>))],
+        ["Footer"] =
+        [
+            ("Branding", typeof(FleetBranding)), ("Sayfalar", typeof(IReadOnlyList<SiteLink>)),
+            ("YasalSayfalar", typeof(IReadOnlyList<SiteLink>)),
+        ],
+        ["Home"] = [("Model", typeof(HomeModel))],
+        ["Fleet"] = [("Model", typeof(FleetModel))],
+        ["DetailHero"] = [("Model", typeof(DetailHeroModel))],
+    };
+
+    [Theory]
+    [MemberData(nameof(Themes))]
+    public void Tema_yedi_slotu_sozlesme_imzalariyla_tasir(string key)
+    {
+        var theme = SiteThemes.Resolve(key);
+        var slots = new Dictionary<string, Type>
+        {
+            ["Hero"] = theme.Hero, ["Card"] = theme.Card, ["Header"] = theme.Header, ["Footer"] = theme.Footer,
+            ["Home"] = theme.Home, ["Fleet"] = theme.Fleet, ["DetailHero"] = theme.DetailHero,
+        };
+        Assert.Equal(SlotParameters.Keys.Order(), slots.Keys.Order());
+        foreach (var (slot, type) in slots)
+        {
+            Assert.True(typeof(Microsoft.AspNetCore.Components.IComponent).IsAssignableFrom(type), $"{key} {slot}: bileşen değil");
+            var declared = type.GetProperties()
+                .Where(p => p.IsDefined(typeof(Microsoft.AspNetCore.Components.ParameterAttribute), inherit: true))
+                .Select(p => (p.Name, p.PropertyType))
+                .OrderBy(p => p.Name, StringComparer.Ordinal)
+                .ToList();
+            var expected = SlotParameters[slot].OrderBy(p => p.Name, StringComparer.Ordinal).ToList();
+            Assert.True(expected.SequenceEqual(declared),
+                $"{key} {slot} ({type.Name}) parametreleri: " + string.Join(", ", declared.Select(d => $"{d.Name}:{d.PropertyType.Name}")));
+        }
+
+        // Her tema KENDİ bileşenlerini taşır (başka temanın bileşenine düşmek dağıtımı test etmez).
+        Assert.Equal(7, slots.Values.Distinct().Count());
+        Assert.All(SiteThemes.All.Where(t => t != theme), other =>
+            Assert.Empty(slots.Values.Intersect([other.Hero, other.Card, other.Header, other.Footer, other.Home, other.Fleet, other.DetailHero])));
     }
 
     [Fact]

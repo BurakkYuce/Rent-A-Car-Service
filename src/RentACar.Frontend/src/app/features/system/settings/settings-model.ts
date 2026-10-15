@@ -1,4 +1,5 @@
 import type { Schema } from '@core/api/ui-tipleri';
+import { trSearchKey } from '@core/metin/tr-normalize';
 
 export type SettingsDto = Schema<'SettingsDto'>;
 export type SettingsRequest = Schema<'SettingsRequest'>;
@@ -110,11 +111,31 @@ export const PRICE_TYPES = [
 ] as const;
 
 /**
- * Halka açık site temaları (`SiteThemeKeys.All`; sunucu yalnız bunları kabul eder). Boş = varsayılan (tarife);
- * formda boş seçenek yok, yüklenen null değer "tarife" gibi gösterilir.
+ * Halka açık site temaları (`SiteThemeKeys.All`; sunucu yalnız bunları saklar). Boş = varsayılan (pazar);
+ * formda boş seçenek yok, yüklenen null değer "pazar" gibi gösterilir.
  */
-export const SITE_THEMES = ['tarife', 'vitrin', 'kontuar'] as const;
+export const SITE_THEMES = ['pazar', 'vitrin', 'rota'] as const;
 export type SiteTheme = (typeof SITE_THEMES)[number];
+
+/** Eski anahtar → yeni (`SiteThemeKeys.LegacyAliases`; sunucu da aynı eşlemeyle normalize eder). */
+const LEGACY_SITE_THEMES: Readonly<Partial<Record<string, SiteTheme>>> = {
+  tarife: 'pazar',
+  kontuar: 'rota',
+};
+
+/**
+ * Sunucudaki tema değeri → radyo seçimi: boş → varsayılan (site onu basıyor), eski anahtar → yeni karşılığı
+ * (göç öncesi okunmuş ya da elle yazılmış değer de seçili görünsün). Tanınmayan değer aynen kalır.
+ */
+export function siteThemeFormValue(value: unknown): unknown {
+  if (value === null || value === undefined || value === '') return SITE_THEMES[0];
+  if (typeof value !== 'string') return value;
+  // Anahtarlar ASCII: "TARIFE"/"VITRIN" Türkçe küçültmede ı'ya düşer; arama anahtarı onu i'ye çevirir
+  // (sunucunun ToLowerInvariant'ıyla aynı sonuç).
+  const key = trSearchKey(value);
+  if ((SITE_THEMES as readonly string[]).includes(key)) return key;
+  return LEGACY_SITE_THEMES[key] ?? value;
+}
 
 /**
  * Önizleme adresi: firmanın sitesinde `?tema=` (kalıcı değil, arama motoruna kapalı). Şema-göreli (`//host`):
@@ -161,8 +182,8 @@ export function settingsFormValue(
     out[name] = (SECRET_FIELDS as readonly string[]).includes(name) ? null : (source[name] ?? null);
   }
   for (const flag of CLEAR_FLAG_NAMES) out[flag] = false;
-  // Kayıtlı tema yoksa site varsayılanı (tarife) basıyor: radyo da onu seçili göstersin.
-  out.siteTemasi = out.siteTemasi ?? SITE_THEMES[0];
+  // Kayıtlı tema yoksa site varsayılanı (pazar) basıyor: radyo da onu seçili göstersin; eski anahtar yeni karşılığı.
+  out.siteTemasi = siteThemeFormValue(out.siteTemasi);
   return out;
 }
 

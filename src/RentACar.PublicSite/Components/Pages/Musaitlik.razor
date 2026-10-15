@@ -31,74 +31,10 @@
 </div>
 
 <div class="wrap">
-    @if (_searched)
+    @* Sonuç da tarihsiz filo da aynı Fleet slotuyla çizilir; kartlar, özet ve boş durum aşağıda (BuildList). *@
+    @if (_list is not null)
     {
-        @* ---- (a) TARİH SEÇİLMİŞ: gerçek müsaitlik + dönem toplamı ---- *@
-        @if (_results is { Count: > 0 })
-        {
-            <div class="sonuc-ozet" role="status">
-                <strong>@_results.Count araç müsait</strong>
-                <span class="muted">@RangeText, @_results[0].Gun gün. Fiyatlar gün sayısına göre hesaplandı.</span>
-            </div>
-            @if (_requestedTitle is not null && !_requestedAvailable)
-            {
-                <p class="not-kutu">@_requestedTitle bu tarihlerde müsait değil. Aşağıdaki araçlar seçtiğiniz tarihlerde boşta.</p>
-            }
-            <ul class="ilanlar">
-                @for (var i = 0; i < _results.Count; i++)
-                {
-                    var r = _results[i];
-                    <li>
-                        <ThemedCard Kart="@ListingCard.From(r, QuoteLink.Build(r.Slug, Bas, Bit, Sube, r.GunlukFiyat),
-                                              r.Slug == Ilan ? "Baktığınız araç" : null, i == 0)"
-                                    Tarih="@(new StayDates(_start!.Value, _end!.Value, r.Gun))" />
-                    </li>
-                }
-            </ul>
-        }
-        else
-        {
-            @* PR-20: sonuç yoksa bile üç çıkış yolu: tarihi değiştir (form yukarıda), tüm filoyu gör,
-               ya da doğrudan ulaş. Metin bir vaat içermez — yalnız durumu söyler. *@
-            <div class="bos-durum" role="status">
-                <h2>Bu tarihlerde müsait araç yok</h2>
-                <p>Tarihleri bir iki gün esnetmek çoğu zaman sonucu değiştirir; yukarıdaki formdan yeniden
-                    deneyebilirsiniz.</p>
-                <ul class="linkler">
-                    <li><a href="/musaitlik">Tüm filoyu gör</a></li>
-                    <li><a href="/iletisim">Bize ulaşın</a></li>
-                </ul>
-            </div>
-        }
-    }
-    else if (_fleet is { Count: > 0 })
-    {
-        @* ---- (b) TARİH YOK: misafir filoyu serbestçe geziyor ----
-           BURADA "müsait" DENMEZ: tarih olmadan hangi aracın boşta olduğu bilinemez. Kart adet
-           etiketi de "9 araç" der, "9 araç müsait" demez (bkz. ListingCard / tema Card slotu). *@
-        <div class="sonuc-ozet">
-            <strong>Filoda @_fleet.Count araç</strong>
-            <span class="muted">Günlük fiyatlar aşağıda. Tarih girerseniz o aralıkta gerçekten boşta olanları
-                ve toplam tutarı gösteririz.</span>
-        </div>
-        <ul class="ilanlar">
-            @for (var i = 0; i < _fleet.Count; i++)
-            {
-                var k = _fleet[i];
-                <li>
-                    <ThemedCard Kart="@ListingCard.From(k, QuoteLink.Build(k.Slug, Bas, Bit, Sube, k.GunlukFiyat),
-                                          k.Slug == Ilan ? "Baktığınız araç" : null, i == 0)" />
-                </li>
-            }
-        </ul>
-    }
-    else if (_fleet is { Count: 0 })
-    {
-        <div class="bos-durum">
-            <h2>Şu anda sitede yayınlanmış araç yok</h2>
-            <p>Filomuz hakkında bilgi almak için bize ulaşın.</p>
-            <ul class="linkler"><li><a href="/iletisim">İletişim bilgileri</a></li></ul>
-        </div>
+        <ThemedFleet Model="_list" />
     }
 </div>
 
@@ -129,11 +65,64 @@
     private string? _requestedTitle;
     private bool _requestedAvailable;
     private DateTimeOffset? _start, _end;
+    /// <summary>Fleet slotunun modeli (sonuç ya da tarihsiz filo); null → liste alanı boş.</summary>
+    private FleetModel? _list;
 
     private string RangeText => _start is { } s && _end is { } e
         ? $"{PriceText.ShortDate(s)} – {PriceText.ShortDate(e)}" : "";
 
     protected override async Task OnInitializedAsync()
+    {
+        await LoadAsync();
+        _list = BuildList();
+    }
+
+    /// <summary>
+    /// Sonuç listesinin temadan bağımsız verisi: kartlar (teklif bağlantısı, "Baktığınız araç" işareti, ilk kartın
+    /// önceliği), özet cümlesi ve boş durum. Sunum temanın Fleet slotunda.
+    /// </summary>
+    private FleetModel? BuildList()
+    {
+        if (_searched && _results is not null)
+        {
+            // ---- (a) TARİH SEÇİLMİŞ: gerçek müsaitlik + dönem toplamı. Gün sayısı aralığın kendisinden
+            // (BookingMath) — tüm sonuçlarda aynı.
+            var cards = _results.Select((r, i) => ListingCard.From(r, QuoteLink.Build(r.Slug, Bas, Bit, Sube, r.GunlukFiyat),
+                r.Slug == Ilan ? "Baktığınız araç" : null, i == 0)).ToList();
+            return new FleetModel(cards, FleetPlacement.Availability)
+            {
+                Tarih = _results.Count > 0 ? new StayDates(_start!.Value, _end!.Value, _results[0].Gun) : null,
+                Ozet = _results.Count > 0
+                    ? new FleetSummary($"{_results.Count} araç müsait",
+                        $"{RangeText}, {_results[0].Gun} gün. Fiyatlar gün sayısına göre hesaplandı.", Canli: true)
+                    : null,
+                Uyari = _requestedTitle is not null && !_requestedAvailable
+                    ? $"{_requestedTitle} bu tarihlerde müsait değil. Aşağıdaki araçlar seçtiğiniz tarihlerde boşta."
+                    : null,
+                // PR-20: sonuç yoksa bile üç çıkış yolu: tarihi değiştir (form yukarıda), tüm filoyu gör, ya da
+                // doğrudan ulaş. Metin bir vaat içermez — yalnız durumu söyler.
+                Bos = new FleetEmptyState("Bu tarihlerde müsait araç yok",
+                    "Tarihleri bir iki gün esnetmek çoğu zaman sonucu değiştirir; yukarıdaki formdan yeniden deneyebilirsiniz.",
+                    [new("/musaitlik", "Tüm filoyu gör"), new("/iletisim", "Bize ulaşın")], Canli: true),
+            };
+        }
+
+        if (_fleet is null) return null;
+
+        // ---- (b) TARİH YOK: misafir filoyu serbestçe geziyor. BURADA "müsait" DENMEZ: tarih olmadan hangi aracın
+        // boşta olduğu bilinemez. Kart adet etiketi de "9 araç" der, "9 araç müsait" demez (ListingCard, Card slotu).
+        var fleet = _fleet.Select((k, i) => ListingCard.From(k, QuoteLink.Build(k.Slug, Bas, Bit, Sube, k.GunlukFiyat),
+            k.Slug == Ilan ? "Baktığınız araç" : null, i == 0)).ToList();
+        return new FleetModel(fleet, FleetPlacement.Availability)
+        {
+            Ozet = new FleetSummary($"Filoda {_fleet.Count} araç",
+                "Günlük fiyatlar aşağıda. Tarih girerseniz o aralıkta gerçekten boşta olanları ve toplam tutarı gösteririz."),
+            Bos = new FleetEmptyState("Şu anda sitede yayınlanmış araç yok",
+                "Filomuz hakkında bilgi almak için bize ulaşın.", [new("/iletisim", "İletişim bilgileri")]),
+        };
+    }
+
+    private async Task LoadAsync()
     {
         _branding = await Showcase.GetBrandingAsync();
         // Kök KANONİK host'tan (istek host'u DEĞİL — SEO H-3); og:url, breadcrumb ve canonical aynı kök.

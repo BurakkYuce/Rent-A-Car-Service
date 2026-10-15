@@ -23,7 +23,7 @@ builder.Services.AddScoped<PublicTenantContext>();
 builder.Services.AddScoped<ITenantContext>(sp => sp.GetRequiredService<PublicTenantContext>());
 builder.Services.AddScoped<ICurrentUser>(sp => sp.GetRequiredService<PublicTenantContext>());
 
-// ---- Site teması (Components/Themes): istek başına bir kez çözülür (?tema= önizleme → firmanın ayarı → tarife). ----
+// ---- Site teması (Components/Themes): istek başına bir kez çözülür (?tema= önizleme → firmanın ayarı → pazar). ----
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<RentACar.PublicSite.Components.Themes.ThemeAccessor>();
 
