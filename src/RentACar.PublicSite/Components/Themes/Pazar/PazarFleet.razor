@@ -1,0 +1,70 @@
+@* Tema "pazar" — Fleet slotu. İmza SABİT (Components/Themes/README.md): Model (FleetModel).
+
+   Kalın çerçeveli kart ızgarası (base.css `.ilanlar`; genişte 3, ortada 2, telefonda 1 sütun); her kart Card
+   slotunda. Ana sayfada başlığın yanında filonun günlük fiyat aralığı yazılır — kartların kendi fiyatlarından
+   (uydurma yok). Kapsayıcıyı çağıran verir. Kart yoksa yalnız sayfanın verdiği boş durum basılır; o da yoksa
+   hiçbir şey (T2). *@
+
+@if (Model.Kartlar.Count > 0)
+{
+    @if (Model.Baslik is { Length: > 0 } title)
+    {
+        <div class="pz-bolum-bas">
+            <h2 id="@Model.BaslikId" class="bolum-baslik">@title</h2>
+            @if (Model.Yer == FleetPlacement.Home)
+            {
+                <p class="pz-bolum-not">@RangeText</p>
+            }
+        </div>
+    }
+    @if (Model.Ozet is { } summary)
+    {
+        <div class="sonuc-ozet" role="@(summary.Canli ? "status" : null)">
+            <strong>@summary.Vurgu</strong>
+            <span class="muted">@summary.Aciklama</span>
+        </div>
+    }
+    @if (Model.Uyari is { Length: > 0 } note)
+    {
+        <p class="not-kutu">@note</p>
+    }
+    <ul class="ilanlar pz-ilanlar">
+        @foreach (var card in Model.Kartlar)
+        {
+            <li>
+                <ThemedCard Kart="card" Tarih="Model.Tarih" />
+            </li>
+        }
+    </ul>
+}
+else if (Model.Bos is { } empty)
+{
+    <div class="bos-durum" role="@(empty.Canli ? "status" : null)">
+        <h2>@empty.Baslik</h2>
+        <p>@empty.Metin</p>
+        @if (empty.Linkler.Count > 0)
+        {
+            <ul class="linkler">
+                @foreach (var l in empty.Linkler) { <li><a href="@l.Href">@l.Label</a></li> }
+            </ul>
+        }
+    </div>
+}
+
+@code {
+    [Parameter, EditorRequired] public FleetModel Model { get; set; } = default!;
+
+    /// <summary>"4 model, günlük ₺1.250 ile ₺3.400 arasında" — kartların ilandaki günlük fiyatından.</summary>
+    private string RangeText
+    {
+        get
+        {
+            var min = Model.Kartlar.Min(c => c.GunlukFiyat);
+            var max = Model.Kartlar.Max(c => c.GunlukFiyat);
+            var models = $"{PriceText.Count(Model.Kartlar.Count)} model";
+            return min == max
+                ? $"{models}, günlük {PriceText.Tl(min)}"
+                : $"{models}, günlük {PriceText.Tl(min)} ile {PriceText.Tl(max)} arasında";
+        }
+    }
+}

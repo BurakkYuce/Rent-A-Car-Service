@@ -37,9 +37,11 @@ public static partial class SitePaletteKeys
         {
             [SiteThemeKeys.Pazar] =
             [
-                new("petrol", "Petrol ve yol sarısı", "#f5f6f3", "#1d2227", "#0b5d6b", "#f2c230", "#121417"),
-                new("lacivert", "Lacivert ve amber", "#f4f6f9", "#17202e", "#1f4e9c", "#f0a020", "#10151d"),
-                new("zeytin", "Zeytin ve hardal", "#f4f5f0", "#222519", "#4e6b1f", "#e0b324", "#12140f"),
+                new("domates", "Domates ve ayçiçeği", "#edf0f2", "#1b1d22", "#d42a1c", "#ffc928", "#16171a"),
+                new("kobalt", "Kobalt ve portakal", "#eef1f6", "#141a2b", "#1d4ed8", "#ff8a3d", "#11141c"),
+                new("hardal", "Hardal ve mürekkep", "#eeefeb", "#25220f", "#8a6800", "#f2b705", "#161510"),
+                new("cam", "Çam yeşili ve kraft", "#edf1ee", "#13201a", "#1d6b46", "#f0d49b", "#0f1612"),
+                new("patlican", "Patlıcan ve şeftali", "#f1eff3", "#1f1626", "#5d2a78", "#ffb38a", "#151119"),
             ],
             [SiteThemeKeys.Vitrin] =
             [

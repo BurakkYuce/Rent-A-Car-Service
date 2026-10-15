@@ -331,27 +331,28 @@ public sealed partial class PublicSiteThemeContractTests
     /// <summary>
     /// <c>?palet=</c> ve <c>?renk=</c> önizlemesi <c>?tema=</c> ile aynı desen: geçerli değer o istekte basılır ve
     /// noindex yazar; geçersiz değer yok sayılır (kayıtlı görünüm, noindex yok); 404 sayfası geçerli önizlemeyi taşır.
-    /// Beklenen renkler setlerin elle yazılmış zeminleri (#f4f6f9 tarife/lacivert, #f7f6f5 vitrin/bordo).
+    /// Beklenen renkler setlerin elle yazılmış zeminleri (#edf0f2 pazar/domates varsayılan, #eef1f6 pazar/kobalt,
+    /// #f7f6f5 vitrin/bordo).
     /// </summary>
     [Fact]
     public async Task Palet_ve_renk_onizlemesi_noindex_yazar_gecersiz_deger_yok_sayilir_404_tasir()
     {
-        var tenant = await SeedTenantAsync(null); // kayıt yok → pazar (Tarife görünümü), varsayılan set (petrol)
+        var tenant = await SeedTenantAsync(null); // kayıt yok → pazar, varsayılan set (domates)
         using var factory = new PublicSiteFactory(fx, tenant);
         var client = factory.Client();
 
-        using (var r = await client.GetAsync("/?palet=lacivert"))
+        using (var r = await client.GetAsync("/?palet=kobalt"))
         {
             var html = await r.Content.ReadAsStringAsync();
-            Assert.Contains("<style>:root{--bg:#f4f6f9;", html);
-            Assert.Contains("<meta name=\"theme-color\" content=\"#f4f6f9\" media=\"(prefers-color-scheme: light)\" />", html);
-            Assert.Contains("<meta name=\"theme-color\" content=\"#10151d\" media=\"(prefers-color-scheme: dark)\" />", html);
+            Assert.Contains("<style>:root{--bg:#eef1f6;", html);
+            Assert.Contains("<meta name=\"theme-color\" content=\"#eef1f6\" media=\"(prefers-color-scheme: light)\" />", html);
+            Assert.Contains("<meta name=\"theme-color\" content=\"#11141c\" media=\"(prefers-color-scheme: dark)\" />", html);
             Assert.Equal("noindex, follow", RobotsHeader(r));
         }
         // Başka temanın seti: önizleme parametresi biçimce geçerli (noindex) ama bu temada yok → temanın varsayılan seti.
         using (var r = await client.GetAsync("/?palet=bordo"))
         {
-            Assert.Contains("<style>:root{--bg:#f5f6f3;", await r.Content.ReadAsStringAsync());
+            Assert.Contains("<style>:root{--bg:#edf0f2;", await r.Content.ReadAsStringAsync());
             Assert.Equal("noindex, follow", RobotsHeader(r));
         }
         using (var r = await client.GetAsync("/?tema=vitrin&palet=bordo"))
@@ -370,14 +371,14 @@ public sealed partial class PublicSiteThemeContractTests
         // Geçersiz değerler yok sayılır: varsayılan görünüm, noindex YOK, ham değer sayfaya sızmaz.
         foreach (var bad in new[]
                  {
-                     "/?palet=olmayan", "/?palet=PETROL;}", "/?renk=c0392b", "/?renk=%23c0392b;}", "/?renk=red",
-                     "/?renk=%23c0392b%3C%2Fstyle%3E", "/?palet=lacivert&palet=zeytin",
+                     "/?palet=olmayan", "/?palet=KOBALT;}", "/?renk=c0392b", "/?renk=%23c0392b;}", "/?renk=red",
+                     "/?renk=%23c0392b%3C%2Fstyle%3E", "/?palet=kobalt&palet=hardal",
                  })
         {
             using var r = await client.GetAsync(bad);
             var html = await r.Content.ReadAsStringAsync();
-            Assert.Contains("<style>:root{--bg:#f5f6f3;", html);
-            Assert.Contains("--brand:#0b5d6b;", html);
+            Assert.Contains("<style>:root{--bg:#edf0f2;", html);
+            Assert.Contains("--brand:#d42a1c;", html);
             Assert.DoesNotContain("c0392b", html);
             Assert.True(RobotsHeader(r) is null, $"{bad}: {RobotsHeader(r)}");
         }
@@ -415,7 +416,7 @@ public sealed partial class PublicSiteThemeContractTests
 
         var stale = await SeedTenantAsync("pazar", "gok");
         using (var factory = new PublicSiteFactory(fx, stale))
-            Assert.Contains("<style>:root{--bg:#f5f6f3;", await factory.Client().GetStringAsync("/"));
+            Assert.Contains("<style>:root{--bg:#edf0f2;", await factory.Client().GetStringAsync("/"));
     }
 
     // Eski önizleme bağlantıları KALICI çalışır: ?tema=tarife → pazar, ?tema=kontuar → rota; yine önizleme sayılır

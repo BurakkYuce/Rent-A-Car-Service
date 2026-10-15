@@ -129,11 +129,11 @@ test('ayarlar: site teması radyo ile seçilir (kayıtsızsa pazar seçili), ön
   const writes = await settingsEndpoints(page);
   await open(page);
   const group = page.getByRole('radiogroup', { name: 'Site teması' });
-  // Görünen adlar yeni temalar gelene dek eski temanınki (anahtar pazar → "Tarife", rota → "Kontuar").
-  await expect(group.getByRole('radio', { name: /^Tarife:/ })).toBeChecked();
+  // Görünen adlar: pazar → "Pazar"; rota yeni teması gelene dek eski "Kontuar" adını taşır.
+  await expect(group.getByRole('radio', { name: /^Pazar:/ })).toBeChecked();
 
   for (const [name, key] of [
-    ['Tarife', 'pazar'],
+    ['Pazar', 'pazar'],
     ['Vitrin', 'vitrin'],
     ['Kontuar', 'rota'],
   ] as const) {

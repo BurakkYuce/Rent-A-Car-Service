@@ -18,9 +18,12 @@ Halka açık firma sitesi üç temadan birini kullanır: `pazar`, `vitrin`, `rot
   listesi (hata mesajı, ERP seçenekleri) yalnız yeni anahtarları sayar.
 - `RenameSiteThemeKeys` migration'ı kayıtlı değerleri çevirdi (NO FORCE / FORCE parantezi; Down geri çevirir).
 - Sayfa kabuğu `.page[data-tema]` çözülen KANONİK anahtarı taşır (kayıt sabitinden; test ve css içindir).
-- Geçiş dönemi: `pazar` ve `rota` kayıtları yeni temalar gelene dek eski Tarife / Kontuar bileşenlerini, css'ini
-  ve görünen adını kullanır (`SiteThemes.Tarife` / `SiteThemes.Kontuar` alanları). Yeni tema PR'ı alanı,
-  klasörü ve css'i yeniden adlandırır.
+- `pazar` kendi temasında (`SiteThemes.Pazar`, `Themes/Pazar/`, `css/tema-pazar.css`; eski Tarife dosyaları ve
+  Barlow yazı tipleri silindi). Geçiş dönemi: `rota` kaydı yeni Rota teması gelene dek eski Kontuar bileşenlerini,
+  css'ini ve görünen adını kullanır (`SiteThemes.Kontuar` alanı); o PR alanı, klasörü ve css'i yeniden adlandırır.
+- Pazar'ın kendi bileşeni `PazarPriceTag` (asılı fiyat etiketi — temanın imzası) slot değildir; Card, Hero ve
+  DetailHero kullanır. Eski tarife'nin geçici palet setleri (`petrol`, `lacivert`, `zeytin`) Pazar setleriyle
+  (`domates` varsayılan, `kobalt`, `hardal`, `cam`, `patlican`) değişti; kayıtlı eski anahtar varsayılana düşer.
 
 ## Seçim ve önizleme
 
