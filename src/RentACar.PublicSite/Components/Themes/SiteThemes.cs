@@ -98,7 +98,7 @@ public static class SiteThemes
     /// <summary>Önyükleme: ilk ekranda görünen gövde (400) ve başlık (700 Expanded) dosyaları — Türkçe metin iki
     /// alt kümeyi de indirtir. 600 (etiket, strong) önyüklenmez: ilk ekranda yalnız form etiketlerinde.</summary>
     public static readonly SiteTheme Vitrin = new(SiteThemeKeys.Vitrin, "Vitrin",
-        "Fotoğraf öne çıkar: büyük kapak görseli ve sade kartlar. Özenli fotoğraflı, üst segment filo için.",
+        "Koyu, sinematik showroom: tam genişlik fotoğraf ve yana akan filo şeridi. Özenli fotoğraflı, üst segment filo için.",
         "css/tema-vitrin.css",
         [.. ArchivoFonts.Where(f => f.Weight != "600").Select(f => f.File)],
         typeof(VitrinHero), typeof(VitrinCard), typeof(VitrinHeader), typeof(VitrinFooter),

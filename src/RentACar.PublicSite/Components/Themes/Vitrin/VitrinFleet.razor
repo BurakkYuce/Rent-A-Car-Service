@@ -1,34 +1,85 @@
 @* Tema "vitrin" — Fleet slotu. İmza SABİT (Components/Themes/README.md): Model (FleetModel).
 
-   Ortak `.ilanlar` ızgarası (tema-vitrin.css galeri duvarı aralığı); her kart Card slotunda. Yerleşim her yerde
-   (Model.Yer) aynı. Kapsayıcıyı çağıran verir. Kart yoksa yalnız sayfanın verdiği boş durum basılır; o da yoksa
-   hiçbir şey (T2). *@
+   İKİ yerleşim (Model.Yer):
+   - Home → YATAY ŞERİT. Showroom dizisi gibi yana akar: büyük 4:3 görseller, CSS scroll-snap (JS yok). Şerit
+     sayfa kenarına kadar uzanır (sağda bir sonraki araç görünür = kaydırma ipucu) ve sol kenarı içerik
+     hizasındadır. Klavye: şerit odaklanabilir bir bölge (tabindex=0, role=region + aria-label) — ok tuşlarıyla
+     kayar; kart bağlantılarına sekmeyle gelindikçe tarayıcı kartı görünüme alır. Sonda "tüm filo" bağlantısı.
+     Ana sayfada kapsayıcıyı (section) Home slotu verir ve `wrap` VERMEZ (şerit tam genişlik); başlık satırı
+     ve özet burada kendi wrap'larında basılır.
+   - Availability / Similar / NotFound → IZGARA (kapsayıcı wrap çağıranda).
+   Kart yoksa yalnız sayfanın verdiği boş durum basılır; o da yoksa hiçbir şey (T2). *@
 
 @if (Model.Kartlar.Count > 0)
 {
-    @if (Model.Baslik is { Length: > 0 } title)
+    var strip = Model.Yer == FleetPlacement.Home;
+    @if (strip)
+    {
+        <div class="wrap v-serit-bas">
+            @if (Model.Baslik is { Length: > 0 } title)
+            {
+                <h2 id="@Model.BaslikId" class="bolum-baslik">@title</h2>
+            }
+            @* Kaydırma ipucu yalnız şerit gerçekten taşacak kadar kart varken (üç ve üstü: hiçbir genişlikte
+               üç kart yan yana sığmıyor). İki kartta telefonda ikincinin görünen ucu ipucudur. *@
+            @if (Model.Kartlar.Count >= 3)
+            {
+                <p class="v-serit-ipucu">@Model.Kartlar.Count araç. Yana kaydırın.</p>
+            }
+        </div>
+    }
+    else if (Model.Baslik is { Length: > 0 } title)
     {
         <h2 id="@Model.BaslikId" class="bolum-baslik">@title</h2>
     }
-    @if (Model.Ozet is { } summary)
+
+    @if (Model.Ozet is not null || Model.Uyari is { Length: > 0 })
     {
-        <div class="sonuc-ozet" role="@(summary.Canli ? "status" : null)">
-            <strong>@summary.Vurgu</strong>
-            <span class="muted">@summary.Aciklama</span>
+        <div class="v-sonuc @(strip ? "wrap" : null)">
+            @if (Model.Ozet is { } summary)
+            {
+                <div class="sonuc-ozet" role="@(summary.Canli ? "status" : null)">
+                    <strong>@summary.Vurgu</strong>
+                    <span class="muted">@summary.Aciklama</span>
+                </div>
+            }
+            @if (Model.Uyari is { Length: > 0 } note)
+            {
+                <p class="not-kutu">@note</p>
+            }
         </div>
     }
-    @if (Model.Uyari is { Length: > 0 } note)
+
+    @if (strip)
     {
-        <p class="not-kutu">@note</p>
+        <div class="v-serit" role="region" tabindex="0" aria-label="@StripLabel">
+            <ul class="v-serit-liste">
+                @foreach (var card in Model.Kartlar)
+                {
+                    <li class="v-serit-oge">
+                        <ThemedCard Kart="card" Tarih="Model.Tarih" />
+                    </li>
+                }
+                <li class="v-serit-oge v-serit-son">
+                    <a href="/musaitlik">
+                        <span class="v-serit-son-ad">Tüm araçlar ve fiyatlar</span>
+                        <span class="v-serit-son-not">Tarih seçince müsait olanları ve toplam tutarı görün.</span>
+                    </a>
+                </li>
+            </ul>
+        </div>
     }
-    <ul class="ilanlar">
-        @foreach (var card in Model.Kartlar)
-        {
-            <li>
-                <ThemedCard Kart="card" Tarih="Model.Tarih" />
-            </li>
-        }
-    </ul>
+    else
+    {
+        <ul class="ilanlar v-izgara">
+            @foreach (var card in Model.Kartlar)
+            {
+                <li>
+                    <ThemedCard Kart="card" Tarih="Model.Tarih" />
+                </li>
+            }
+        </ul>
+    }
 }
 else if (Model.Bos is { } empty)
 {
@@ -46,4 +97,7 @@ else if (Model.Bos is { } empty)
 
 @code {
     [Parameter, EditorRequired] public FleetModel Model { get; set; } = default!;
+
+    /// <summary>Şerit bölgesinin erişilebilir adı: ne olduğu ve nasıl gezildiği.</summary>
+    private string StripLabel => $"{Model.Baslik ?? "Filo"}, {Model.Kartlar.Count} araç, yana kaydırılır";
 }

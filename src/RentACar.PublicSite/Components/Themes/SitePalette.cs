@@ -36,4 +36,14 @@ public sealed record SchemeColors(string Bg, string Surface, string Ink, string 
 /// <param name="Ad">ERP'de görünen ad.</param>
 /// <param name="Light">Açık şema (<c>prefers-color-scheme: light</c>).</param>
 /// <param name="Dark">Koyu şema.</param>
-public sealed record SitePalette(string Key, string Ad, SchemeColors Light, SchemeColors Dark);
+public sealed record SitePalette(string Key, string Ad, SchemeColors Light, SchemeColors Dark)
+{
+    /// <summary>
+    /// KOYU KİMLİK: açık şema da koyu zeminlidir (ör. Vitrin'in sinematik setleri — açık tercihli ziyaretçi de koyu
+    /// showroom görür; açık şema yalnız bir ton yumuşaktır). Varsayılan false: açık şemanın zemini mürekkepten açık.
+    /// Bayrak bir BİLDİRİMDİR, davranışı değiştirmez: palet bloğu her şemanın <c>color-scheme</c>'ini zaten zeminin
+    /// kendisinden yazar (<see cref="SitePaletteCss"/>); yapısal test şemanın bayrakla tutarlı olduğunu (yanlışlıkla
+    /// koyu açık şema yazılmadığını) doğrular.
+    /// </summary>
+    public bool DarkInLightMode { get; init; }
+}
