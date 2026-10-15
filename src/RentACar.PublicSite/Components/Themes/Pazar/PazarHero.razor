@@ -1,0 +1,93 @@
+@using RentACar.Application.Fleet
+
+@* Tema "pazar" — Hero slotu. İmza SABİT (Components/Themes/README.md): Marka, Branding, Subeler, Kartlar, Sehir.
+
+   Firma rengi TAM GENİŞLİK düz blok: kalın başlık + arama + "sormak isterseniz arayın" satırı; yanda filodan bir
+   aracın fotoğrafı ve ona asılı fiyat etiketi. Başlık ve metinler SABİT ve sistemin davranışını anlatır (T1:
+   firma adına vaat yok); marka, bölge, fiyat, iletişim TENANT'tan. Arama `/musaitlik` ile AYNI bileşen (T4).
+
+   GÖRSEL: fotoğraflı ilanların en düşük günlük fiyatlısı (fotoğraflı ilan yoksa en düşük fiyatlı, "tabela"
+   düşüşüyle). "En uygun" gibi bir üstünlük iddiası YAZILMAZ: fotoğraflı olan seçildiği için filonun en ucuzu
+   olmayabilir. İlan yoksa görsel ve etiket hiç basılmaz (T2). Kapak LCP adayı: tembel değil, yüksek öncelik. *@
+
+<section class="pz-hero" aria-labelledby="hero-baslik">
+    <div class="wrap pz-hero-ic">
+        <div class="pz-hero-metin">
+            <h1 id="hero-baslik">@(Kartlar.Count > 0 ? "Kiralık araçlar, fiyatı etiketinde." : "Araç kiralama, fiyatı baştan belli.")</h1>
+            @* Yerel arama ifadesi (SEO H-4): hizmet bölgesi aktif şubelerin il/ilçesinden (ServiceArea); veri yoksa
+               cümle hiç basılmaz (T2). *@
+            <p class="pz-hero-alt">
+                @if (!string.IsNullOrWhiteSpace(Sehir))
+                {
+                    <strong>@Sehir bölgesinde araç kiralama.</strong>@(" ")
+                }
+                @(string.IsNullOrWhiteSpace(Marka) ? "Filomuzdaki" : $"{Marka} filosundaki") her aracın günlük
+                fiyatı ilanında yazılı. Tarih seçin, toplamı hemen görün.
+            </p>
+
+            <AramaFormu Hedef="/musaitlik" Subeler="Subeler" />
+
+            @if (_contact.TelLink is not null || _contact.WaLink is not null)
+            {
+                <p class="pz-hero-ara">
+                    Sormak isterseniz
+                    @if (_contact.TelLink is not null)
+                    {
+                        @("arayın: ")<a href="@_contact.TelLink">@_contact.Phone</a>
+                        @if (_contact.WaLink is not null) { @(" ya da ") }
+                    }
+                    @if (_contact.WaLink is not null)
+                    {
+                        <a href="@_contact.WaLink" target="_blank" rel="noopener noreferrer">WhatsApp'tan yazın</a>
+                    }@(".")
+                </p>
+            }
+        </div>
+
+        @if (Featured is { } f)
+        {
+            <figure class="pz-hero-foto">
+                <div class="pz-cerceve">
+                    @if (f.CoverPhotoId is { } photo)
+                    {
+                        <img src="@($"/foto/{photo}")"
+                             srcset="@($"/foto/{photo}/thumb 400w, /foto/{photo} 1600w")"
+                             sizes="(min-width: 960px) 34rem, 100vw"
+                             width="1200" height="800" alt="@f.Baslik" fetchpriority="high" decoding="async" />
+                    }
+                    else
+                    {
+                        <span class="pz-fotosuz" aria-hidden="true">@f.Baslik</span>
+                    }
+                </div>
+                <PazarPriceTag Amount="@PriceText.Tl(f.GunlukFiyat)" Unit="/ gün"
+                               Note="@(f.KdvDahil ? "KDV dahil" : "KDV hariç")" Large="true" />
+                <figcaption>
+                    <a href="@($"/araclar/{f.Slug}")">@f.Baslik</a>@(string.IsNullOrWhiteSpace(f.YilAralik) ? null : $", {f.YilAralik} model")
+                </figcaption>
+            </figure>
+        }
+    </div>
+</section>
+
+@code {
+    /// <summary>Marka adı (boşsa "Filomuzdaki").</summary>
+    [Parameter] public string? Marka { get; set; }
+    /// <summary>Firma bilgisi (iletişim satırı için).</summary>
+    [Parameter] public FleetBranding? Branding { get; set; }
+    /// <summary>Aktif şube adları (arama formunun seçim kutusu).</summary>
+    [Parameter] public IReadOnlyList<string> Subeler { get; set; } = [];
+    /// <summary>Yayındaki ilanlar (servis sırasıyla).</summary>
+    [Parameter] public IReadOnlyList<FleetShowcaseCard> Kartlar { get; set; } = [];
+    /// <summary>Hizmet bölgesi ("Esenyurt, İstanbul"); null → bölge cümlesi basılmaz.</summary>
+    [Parameter] public string? Sehir { get; set; }
+
+    private ContactLinks _contact = ContactLinks.From(null);
+
+    /// <summary>Hero görseli: fotoğraflı ilanların en düşük günlük fiyatlısı; hiç fotoğraf yoksa en düşük fiyatlı.</summary>
+    private FleetShowcaseCard? Featured
+        => Kartlar.Where(c => c.CoverPhotoId is not null).MinBy(c => c.GunlukFiyat)
+           ?? Kartlar.MinBy(c => c.GunlukFiyat);
+
+    protected override void OnParametersSet() => _contact = ContactLinks.From(Branding, Marka);
+}

@@ -7,7 +7,12 @@ namespace RentACar.PublicSite;
 public sealed record SchemeTokens(
     Rgb Bg, Rgb BgAlt, Rgb Surface, Rgb SurfaceRaised,
     Rgb Ink, Rgb InkMuted, Rgb InkSubtle, Rgb Line, Rgb LineStrong,
-    Rgb Brand, Rgb OnBrand, Rgb BrandText, Rgb BrandSoft, Rgb Accent, Rgb AccentInk);
+    Rgb Brand, Rgb OnBrand, Rgb BrandText, Rgb BrandSoft, Rgb Accent, Rgb AccentInk)
+{
+    /// <summary>Zemin koyu mu (beyaz siyahtan çok kontrast veriyorsa). Blok bunu <c>color-scheme</c> olarak yazar —
+    /// koyu kimlikli setin açık şeması da koyudur (<see cref="SitePalette.DarkInLightMode"/>).</summary>
+    public bool IsDark => Rgb.Contrast(Bg, Rgb.White) > Rgb.Contrast(Bg, Rgb.Black);
+}
 
 /// <summary>Çözülmüş palet: iki şema + şemadan bağımsız dört sabit (<c>--day-*</c>, <c>--night-*</c>).</summary>
 public sealed record PaletteTokens(SitePalette Palette, SchemeTokens Light, SchemeTokens Dark)
@@ -73,8 +78,9 @@ public static class SitePaletteCss
     {
         Rgb? custom = Rgb.TryParse(customPrimary, out var c) ? c : null;
         var light = Scheme(palette.Light, custom, onInk: null);
-        // Dolgu üstündeki koyu yazı adayı iki şemada da açık şemanın mürekkebi (temanın "koyu yazısı").
-        var dark = Scheme(palette.Dark, custom, onInk: light.Ink);
+        // Dolgu üstündeki koyu yazı adayı iki şemada da temanın "koyu yazısı": açık şemanın mürekkebi; koyu kimlikli
+        // setlerde (açık şema da koyu) açık şemanın ZEMİNİ — orada mürekkep açık renktir.
+        var dark = Scheme(palette.Dark, custom, onInk: light.IsDark ? light.Bg : light.Ink);
         return new PaletteTokens(palette, light, dark);
     }
 
@@ -90,10 +96,17 @@ public static class SitePaletteCss
             .Append(";--day-ink:").Append(t.DayInk.Hex)
             .Append(";--night-bg:").Append(t.NightBg.Hex)
             .Append(";--night-ink:").Append(t.NightInk.Hex)
+            .Append(";color-scheme:").Append(ColorScheme(t.Light))
             .Append('}');
-        sb.Append("@media (prefers-color-scheme:dark){:root{").Append(Vars(t.Dark)).Append("}}");
+        sb.Append("@media (prefers-color-scheme:dark){:root{").Append(Vars(t.Dark))
+            .Append(";color-scheme:").Append(ColorScheme(t.Dark)).Append("}}");
         return sb.ToString();
     }
+
+    /// <summary>Şemanın <c>color-scheme</c> değeri ZEMİNDEN (form denetimleri, kaydırma çubuğu, tema css'indeki
+    /// <c>light-dark()</c> seçimi buna bakar). Tema css'i kendi bildirimini yedek olarak yazar; koyu kimlikli sette
+    /// (açık şema da koyu) doğru değer ancak buradan gelebilir — css hangi setin basıldığını bilemez.</summary>
+    public static string ColorScheme(SchemeTokens s) => s.IsDark ? "dark" : "light";
 
     private static string Vars(SchemeTokens s)
     {
@@ -133,7 +146,10 @@ public static class SitePaletteCss
         var primary = custom ?? Rgb.Parse(s.Primary);
         // Dolgu: zemin ve kartla 3:1'i tutmayan renk (açıkta sarı/beyaz, koyuda lacivert) kaydırılır.
         var brand = Adjust(primary, away, t => Rgb.Contrast(t, bg) >= UiContrast && Rgb.Contrast(t, surface) >= UiContrast);
-        var onBrand = OnColor(brand, onInk ?? ink);
+        // Temanın koyu yazısı: verilmediyse (açık şema) bu şemanın mürekkebi — koyu zeminli şemada ise mürekkep açık
+        // renktir, koyu yazı zemindir.
+        var darkText = onInk ?? (dark ? bg : ink);
+        var onBrand = OnColor(brand, darkText);
         var brandSoft = Rgb.Mix(bg, primary, dark ? 0.22 : 0.12);
         // Metin: hem sayfa/kart zemininde hem hafif ton (seçili satır, bilgi kutusu) üstünde okunur.
         var brandText = Adjust(primary, away, t => Text(t, bg, surface, brandSoft));
@@ -149,7 +165,7 @@ public static class SitePaletteCss
             accent = Rgb.Parse(s.Accent);
             accentInk = Optional(s.AccentInk) is { } given && Rgb.Contrast(given, accent) >= TextContrast
                 ? given
-                : OnColor(accent, onInk ?? ink);
+                : OnColor(accent, darkText);
         }
 
         return new SchemeTokens(bg, bgAlt, surface, surfaceRaised, ink, inkMuted, inkSubtle, line, lineStrong,

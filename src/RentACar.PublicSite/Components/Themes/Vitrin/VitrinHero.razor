@@ -2,29 +2,29 @@
 @using RentACar.PublicSite.Components.Shared
 
 @* Tema "vitrin" — Hero slotu. İmza SABİT (Components/Themes/README.md): Marka, Branding, Subeler,
-   Kartlar, Sehir. Temanın TEK cesur unsuru (tema-vitrin.css "Sahne").
+   Kartlar, Sehir. Temanın İMZASI (tema-vitrin.css "Sahne").
 
-   SAHNE: ilk FOTOĞRAFLI ilanın kapağı tam genişlik. Model adı çok büyük Expanded harfle; taban çizgisi
-   fotoğrafın alt kenarına oturur, kenarı yalnız inişli harfler geçer (kenarın altında koyu). İki renk tek
-   metinle yapılamaz: ikinci kopya `aria-hidden`, iki kopya AYNI grid hücresinde (kayma yok) ve tek değerli
-   clip-path ile kesilir (ekran okuyucu adı bir kez duyar). Telefonda ad tamamen fotoğrafın içinde.
-   Ad bağlantıdır: ilanın detayına gider.
+   SAHNE: ilk FOTOĞRAFLI ilanın kapağı tam genişlik, sinematik oranda. Model adı çok büyük Expanded harfle;
+   taban çizgisi fotoğrafın alt kenarına oturur, kenarı yalnız inişli harfler geçer (kenarın altında zemin
+   mürekkebi). İki renk tek metinle yapılamaz: ikinci kopya `aria-hidden`, iki kopya AYNI grid hücresinde (kayma
+   yok) ve tek değerli clip-path ile kesilir (ekran okuyucu adı bir kez duyar). Telefonda ad tamamen fotoğrafın
+   içinde. Ad bağlantıdır: ilanın detayına gider. Günlük fiyat sahnenin sağ alt köşesinde, sade.
 
-   FOTOĞRAF YOKSA sahne grafit zemin olur, aynı tipografi kalır (boş gri kutu yok). İlan hiç yoksa sahnede
-   firma adı durur — T2: olmayan bir aracı uydurmayız.
+   ARAMA: sahnenin alt kenarına yapışık kompakt RAY — başlık (h1) + tek satır form (geniş ekran). Telefonda ray
+   sahnenin hemen altında: "Müsait araçları göster" ilk ekranda kalır.
 
-   H1 arama panelinin başlığıdır: sayfanın ne yaptığını söyler; büyük ad bir ilan, sayfanın konusu değil.
-   Arama paneli fotoğrafın alt kenarına oturur (geniş ekranda kenarın üstüne biner). Mobilde panel sahnenin
-   hemen altında: "Müsait araçları göster" ilk ekranda kalır. *@
+   H1 rayın başlığıdır: sayfanın ne yaptığını söyler; büyük ad bir ilan, sayfanın konusu değil.
+
+   FOTOĞRAF YOKSA sahne koyu zemin olur, aynı tipografi kalır (boş gri kutu yok). İlan hiç yoksa sahnede firma adı
+   durur — T2: olmayan bir aracı uydurmayız. *@
 
 <section class="v-hero @(Lead?.CoverPhotoId is null ? "v-hero-yalin" : null)" aria-labelledby="hero-baslik">
     <div class="v-sahne">
         @if (Lead?.CoverPhotoId is { } photoId)
         {
-            @* Dekoratif değil ama adı hemen altında yazılı; alt metni tekrarlamak ekran okuyucuda aynı adı iki
-               kez okutur. LCP adayı: tembel değil, yüksek öncelikli. *@
-            @* Çerçeve fotoğrafı kırpar: açılıştaki yavaş yakınlaşma sahneden taşmasın. Sahnenin kendisi
-               kırpmaz — model adının inişli harfleri alt kenarı geçer. *@
+            @* Adı hemen altında yazılı; alt metni tekrarlamak ekran okuyucuda aynı adı iki kez okutur. LCP adayı:
+               tembel değil, yüksek öncelikli. Çerçeve fotoğrafı kırpar: açılıştaki yavaş yakınlaşma sahneden
+               taşmasın. Sahnenin kendisi kırpmaz — model adının inişli harfleri alt kenarı geçer. *@
             <div class="v-sahne-kare">
                 <img class="v-sahne-foto" src="@($"/foto/{photoId}")"
                      srcset="@($"/foto/{photoId}/thumb 400w, /foto/{photoId} 1600w")" sizes="100vw"
@@ -38,6 +38,10 @@
                     <span class="v-model-ad">@Lead.Baslik</span>
                     <span class="v-model-ad v-model-ust" aria-hidden="true">@Lead.Baslik</span>
                 </a>
+                <p class="v-sahne-fiyat">
+                    <span class="tutar">@PriceText.Tl(Lead.GunlukFiyat)</span><span class="birim">/ gün</span>
+                    <span class="kdv">@(Lead.KdvDahil ? "KDV dahil" : "KDV hariç")</span>
+                </p>
             }
             else
             {
@@ -49,27 +53,17 @@
         </div>
     </div>
 
-    <div class="wrap v-hero-alt">
-        <div class="v-hero-not">
-            @if (Lead is not null)
-            {
-                <p class="v-hero-fiyat">
-                    <span class="tutar">@PriceText.Tl(Lead.GunlukFiyat)</span><span class="birim">/ gün</span>
-                    <span class="kdv">@(Lead.KdvDahil ? "KDV dahil" : "KDV hariç")</span>
-                </p>
-            }
-            <p class="v-hero-metin">
+    <div class="v-ray">
+        <div class="wrap v-ray-ic">
+            <div class="v-ray-bas">
+                <h1 id="hero-baslik">Tarihinizi seçin, müsait araçları ve net fiyatı görün</h1>
                 @if (!string.IsNullOrWhiteSpace(Sehir))
                 {
                     @* Hizmet bölgesi firmanın kendi şube adreslerinden türer (ServiceArea) — taahhüt değil, bilgi. *@
-                    <strong>@Sehir bölgesinde araç kiralama.</strong>@(" ")
+                    <p class="v-ray-bolge">@Sehir bölgesinde araç kiralama</p>
                 }
-                @Intro
-            </p>
-        </div>
-        <div class="v-arama">
-            <h1 id="hero-baslik">Tarihinizi seçin, müsait araçları ve net fiyatı görün</h1>
-            <AramaFormu Hedef="/musaitlik" Subeler="Subeler" />
+            </div>
+            <AramaFormu Hedef="/musaitlik" Subeler="Subeler" Satir="true" />
         </div>
     </div>
 </section>
@@ -82,27 +76,19 @@
     [Parameter] public string? Sehir { get; set; }
 
     /// <summary>Sahnedeki ilan: kapak fotoğrafı olan İLK ilan (sıra firmanın vitrin sırası); hiçbirinde
-    /// fotoğraf yoksa ilk ilan (sahne grafit zemine düşer).</summary>
-    private FleetShowcaseCard? Lead => Kartlar.FirstOrDefault(c => c.CoverPhotoId is not null) ?? Kartlar.FirstOrDefault();
+    /// fotoğraf yoksa ilk ilan (sahne koyu zemine düşer). Home slotu segment kutularında bu fotoğrafı tekrar
+    /// kullanmamak için aynı kuralı çağırır.</summary>
+    private FleetShowcaseCard? Lead => LeadOf(Kartlar);
+
+    internal static FleetShowcaseCard? LeadOf(IReadOnlyList<FleetShowcaseCard> cards)
+        => cards.FirstOrDefault(c => c.CoverPhotoId is not null) ?? cards.FirstOrDefault();
 
     private string BrandName => !string.IsNullOrWhiteSpace(Marka) ? Marka!
         : !string.IsNullOrWhiteSpace(Branding?.Marka) ? Branding!.Marka! : "Araç kiralama";
 
-    /// <summary>Sabit metin, yalnız sistemin davranışını söyler (T1: teslimat/kasko gibi firma vaadi YOK).
-    /// Filo adedi tenant verisi.</summary>
-    private string Intro
-    {
-        get
-        {
-            var fleet = Kartlar.Count > 1 ? $"Filodaki {Kartlar.Count} aracın" : "Her aracın";
-            return $"{fleet} günlük fiyatı ilanında yazılı. Tarih seçince gün sayısına göre toplamı görür, "
-                 + "beğendiğiniz araç için talep bırakırsınız; ekip sizi arar.";
-        }
-    }
-
     /// <summary>Uzun model adı EN ÇOK İKİ SATIRDA tamamen görünsün diye yazı boyu kademesi. Geniş ekranda boy
-    /// panelin yanındaki alandan türer (tema-vitrin.css, cqi); eşikler oradaki bölenlerle birlikte ölçüldü —
-    /// biri değişirse öteki de ölçülür. Telefonda mevcut clamp kuralı geçerli.</summary>
+    /// sahnenin içinde fiyatın yanındaki alandan türer (tema-vitrin.css, cqi); eşikler oradaki bölenlerle birlikte
+    /// ölçüldü — biri değişirse öteki de ölçülür. Telefonda clamp kuralı geçerli.</summary>
     private static string SizeClass(string name) => name.Length switch
     {
         <= 14 => "v-model-k",
