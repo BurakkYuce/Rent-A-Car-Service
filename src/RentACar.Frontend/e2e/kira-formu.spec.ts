@@ -304,6 +304,67 @@ test('sözleşme linki: oluştur → adres kendi kökünden; yeni sürüm onay i
   expect(writes).toEqual([`POST /api/ui/v1/kiralar/${RENTAL_ID}/paylasim`]);
 });
 
+test('KABİS kartı: hatalı bildirimde uyarı + rozet; yeniden dene sunucu durumunu yazar, gerekli değil onay ister', async ({
+  page,
+}) => {
+  const writes: string[] = [];
+  const notice = (durum: string, sonHata: string | null) => ({
+    tur: 'Kiralama',
+    durum,
+    kurum: 'Emniyet',
+    olayUtc: '2026-09-22T06:00:00Z',
+    denemeSayisi: 8,
+    sonHata,
+    disReferans: durum === 'Bildirildi' ? 'KBS-77' : null,
+    elle: false,
+    gerekce: null,
+    sonDenemeUtc: '2026-09-22T07:00:00Z',
+    sonrakiDenemeUtc: null,
+    bildirimUtc: null,
+  });
+  const failed = {
+    etkin: true,
+    teslimiEngelle: false,
+    kurum: 'Emniyet',
+    bildirimler: [notice('Hata', 'zaman aşımı')],
+    uyari: 'KABİS kiralama bildirimi yapılamadı: zaman aşımı',
+  };
+  await fakeRentalApi(page, {
+    yazma: (route, request) => {
+      writes.push(`${request.method()} ${new URL(request.url()).pathname}`);
+      return route.fulfill({
+        json: { ...failed, uyari: null, bildirimler: [notice('Bildirildi', null)] },
+      });
+    },
+  });
+  await page.route(new RegExp(`/api/ui/v1/kiralar/${RENTAL_ID}/kabis$`), (route) =>
+    route.fulfill({ json: failed }),
+  );
+  await page.goto(`/app/kiralar/${RENTAL_ID}`);
+
+  const card = page.getByTestId('kabis-karti');
+  await expect(card.getByTestId('kabis-uyari')).toHaveText(/zaman aşımı/);
+  await expect(card.getByTestId('kabis-Kiralama')).toContainText('Hata');
+
+  // "Gerekli değil" gerekçe ister ve onaysız gönderilmez.
+  await card.getByRole('button', { name: 'Gerekli değil' }).click();
+  await card.getByLabel('Gerekçe').fill('Kamu kurumu sözleşmesi');
+  await card.getByRole('button', { name: 'Kaydet' }).click();
+  const approval = page.getByRole('alertdialog', {
+    name: 'Bu bildirim gerekli değil olarak kapatılsın mı?',
+  });
+  await expect(approval).toBeVisible();
+  await approval.getByRole('button', { name: 'Vazgeç' }).click();
+  expect(writes).toEqual([]);
+  await card.getByRole('button', { name: 'Vazgeç' }).click();
+
+  await card.getByRole('button', { name: 'Şimdi yeniden dene' }).click();
+  await expect(card.getByTestId('kabis-Kiralama')).toContainText('Bildirildi');
+  await expect(card.getByTestId('kabis-Kiralama')).toContainText('KBS-77');
+  await expect(card.getByTestId('kabis-uyari')).toHaveCount(0);
+  expect(writes).toEqual([`POST /api/ui/v1/kiralar/${RENTAL_ID}/kabis/Kiralama/yeniden-dene`]);
+});
+
 test('faturalı kirada ek hizmet ekle/sil 400: mesaj gösterilir, seçim silinmez', async ({
   page,
 }) => {

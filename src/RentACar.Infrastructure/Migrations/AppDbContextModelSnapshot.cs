@@ -3730,6 +3730,83 @@ namespace RentACar.Infrastructure.Migrations
                     b.ToTable("JobCalismaLoglari", (string)null);
                 });
 
+            modelBuilder.Entity("RentACar.Domain.Entities.KabisNotification", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset?>("BildirimUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("DenemeSayisi")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("DisReferans")
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<string>("Durum")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)");
+
+                    b.Property<bool>("Elle")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("Gerekce")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
+                    b.Property<Guid?>("IsaretleyenKullaniciId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("KiraId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Kurum")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)");
+
+                    b.Property<DateTimeOffset>("OlayUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTimeOffset>("OlusturmaUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTimeOffset?>("SahiplenmeBitisUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTimeOffset?>("SonDenemeUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("SonHata")
+                        .HasMaxLength(512)
+                        .HasColumnType("character varying(512)");
+
+                    b.Property<DateTimeOffset?>("SonrakiDenemeUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Tur")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("KiraId");
+
+                    b.HasIndex("TenantId", "Durum", "SonrakiDenemeUtc");
+
+                    b.HasIndex("TenantId", "KiraId", "Tur")
+                        .IsUnique();
+
+                    b.ToTable("KabisBildirimleri", (string)null);
+                });
+
             modelBuilder.Entity("RentACar.Domain.Entities.KapatmaTahsis", b =>
                 {
                     b.Property<Guid>("Id")
@@ -7382,6 +7459,24 @@ namespace RentACar.Infrastructure.Migrations
                     b.Property<int?>("IadeIslemSaatSiniri")
                         .HasColumnType("integer");
 
+                    b.Property<bool>("KabisEtkin")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("KabisKullanici")
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<string>("KabisKurum")
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)");
+
+                    b.Property<string>("KabisSifreEnc")
+                        .HasMaxLength(1024)
+                        .HasColumnType("character varying(1024)");
+
+                    b.Property<bool>("KabisTeslimiEngelle")
+                        .HasColumnType("boolean");
+
                     b.Property<bool>("KurElleGirisKilitli")
                         .HasColumnType("boolean");
 
@@ -8800,6 +8895,15 @@ namespace RentACar.Infrastructure.Migrations
                     b.HasOne("RentACar.Domain.Entities.Invoice", null)
                         .WithMany("Lines")
                         .HasForeignKey("InvoiceId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("RentACar.Domain.Entities.KabisNotification", b =>
+                {
+                    b.HasOne("RentACar.Domain.Entities.RentalContract", null)
+                        .WithMany()
+                        .HasForeignKey("KiraId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
                 });

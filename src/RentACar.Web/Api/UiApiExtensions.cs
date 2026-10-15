@@ -211,6 +211,7 @@ public static class UiApiExtensions
         v1.MapClientErrorApi(); // F3.3
         v1.MapTableLayoutApi(); // F3.5
         v1.MapRentalApi();        // F4.1
+        Kira.KabisApi.MapKabisApi(v1); // KABİS iç akışı — kira bildirim durumu, bildirilemeyenler, ayarlar
         v1.MapPanelApi();       // F4.1
         v1.MapReservationApi(); // F5.1
         v1.MapQuotationApi();      // F5.1

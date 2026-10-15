@@ -2706,6 +2706,293 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/ui/v1/kiralar/{id}/kabis': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['KabisDurumDto'];
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ui/v1/kiralar/{id}/kabis/{tur}/yeniden-dene': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          id: string;
+          tur: string;
+        };
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['KabisDurumDto'];
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ui/v1/kiralar/{id}/kabis/{tur}/gerekli-degil': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          id: string;
+          tur: string;
+        };
+        cookie?: never;
+      };
+      requestBody: {
+        content: {
+          'application/json': components['schemas']['KabisGerekceIstegi'];
+        };
+      };
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['KabisDurumDto'];
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ui/v1/kiralar/{id}/kabis/{tur}/elle-bildirildi': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          id: string;
+          tur: string;
+        };
+        cookie?: never;
+      };
+      requestBody: {
+        content: {
+          'application/json': components['schemas']['KabisElleIstegi'];
+        };
+      };
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['KabisDurumDto'];
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ui/v1/kabis/bildirilemeyenler': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['KabisSorunSatiri'][];
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ui/v1/ayarlar/kabis': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['KabisAyarDto'];
+          };
+        };
+      };
+    };
+    put: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody: {
+        content: {
+          'application/json': components['schemas']['KabisAyarIstegi'];
+        };
+      };
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['KabisAyarDto'];
+          };
+        };
+      };
+    };
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ui/v1/ayarlar/kabis/baglanti-testi': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['KabisBaglantiTestiDto'];
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/api/ui/v1/rezervasyonlar': {
     parameters: {
       query?: never;
@@ -27256,6 +27543,74 @@ export interface components {
       sonucSayisi: null | number | string;
       detay: null | string;
     };
+    KabisAyarDto: {
+      etkin: boolean;
+      kurum: string;
+      kullanici: null | string;
+      sifreTanimli: boolean;
+      teslimiEngelle: boolean;
+      surum: null | string;
+    };
+    KabisAyarIstegi: {
+      etkin: boolean;
+      kurum: null | string;
+      kullanici: null | string;
+      sifre: null | string;
+      sifreTemizle: boolean;
+      teslimiEngelle: boolean;
+      surum: null | string;
+    };
+    KabisBaglantiTestiDto: {
+      ok: boolean;
+      mesaj: string;
+    };
+    KabisBildirimDto: {
+      tur: string;
+      durum: string;
+      kurum: string;
+      /** Format: date-time */
+      olayUtc: string;
+      /** Format: int32 */
+      denemeSayisi: number | string;
+      sonHata: null | string;
+      disReferans: null | string;
+      elle: boolean;
+      gerekce: null | string;
+      /** Format: date-time */
+      sonDenemeUtc: null | string;
+      /** Format: date-time */
+      sonrakiDenemeUtc: null | string;
+      /** Format: date-time */
+      bildirimUtc: null | string;
+    };
+    KabisDurumDto: {
+      etkin: boolean;
+      teslimiEngelle: boolean;
+      kurum: string;
+      bildirimler: components['schemas']['KabisBildirimDto'][];
+      uyari: null | string;
+    };
+    KabisElleIstegi: {
+      referans: null | string;
+    };
+    KabisGerekceIstegi: {
+      gerekce: null | string;
+    };
+    KabisSorunSatiri: {
+      /** Format: uuid */
+      kiraId: string;
+      sozlesmeNo: string;
+      plaka: null | string;
+      tur: string;
+      durum: string;
+      /** Format: int32 */
+      denemeSayisi: number | string;
+      sonHata: null | string;
+      /** Format: date-time */
+      olayUtc: string;
+      /** Format: date-time */
+      sonDenemeUtc: null | string;
+    };
     KalintiProjeksiyonDto: {
       /** Format: double */
       yillikOran: number | string;
@@ -29055,6 +29410,8 @@ export interface components {
       /** Format: int32 */
       gorulmeyenRezervasyon: number | string;
       siteTalebi: null | components['schemas']['SiteTalebiOzeti'];
+      /** Format: int32 */
+      kabisBildirilemeyen: null | number | string;
     };
     PanelOzetiYaniti: {
       /** Format: date */

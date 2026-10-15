@@ -94,6 +94,8 @@ public static class DependencyInjection
         services.AddScoped<TenantSettings.TenantSettingsService>();
         services.AddScoped<Integrations.NotificationChannelService>(); // bildirim omurgası: tenant SMTP/SMS
         services.AddScoped<Notifications.CustomerNotificationService>(); // müşteriye giden bildirim (şablon + idempotent kayıt)
+        services.AddScoped<Kabis.KabisNotificationService>(); // KABİS kuyruğu (teslim/iade/iptal bildirimi; kimliksiz iç akış)
+        services.AddScoped<Kabis.KabisSettingsService>();     // KABİS ayarları (ManageUsers; şifre şifreli)
         services.AddScoped<Personnel.PersonnelService>();
         services.AddScoped<Personnel.StaffShiftService>();   // FAZ-45 — vardiya/çalışma grafiği
         services.AddScoped<Legal.LegalCaseService>();
