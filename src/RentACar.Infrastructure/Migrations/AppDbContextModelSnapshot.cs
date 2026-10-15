@@ -7447,6 +7447,10 @@ namespace RentACar.Infrastructure.Migrations
                     b.Property<int?>("SaatFarkiToleransDk")
                         .HasColumnType("integer");
 
+                    b.Property<string>("SitePaleti")
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)");
+
                     b.Property<string>("SiteTemasi")
                         .HasMaxLength(20)
                         .HasColumnType("character varying(20)");

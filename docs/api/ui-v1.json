@@ -70018,6 +70018,18 @@
               "string"
             ]
           },
+          "sitePaleti": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "sitePaletSecenekleri": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SiteThemePalettesDto"
+            }
+          },
           "donemselFaturalamaJob": {
             "type": "boolean"
           },
@@ -70367,6 +70379,12 @@
             ]
           },
           "siteTemasi": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "sitePaleti": {
             "type": [
               "null",
               "string"
@@ -70940,6 +70958,44 @@
           }
         }
       },
+      "SitePaletteOptionDto": {
+        "required": [
+          "anahtar",
+          "ad",
+          "zemin",
+          "murekkep",
+          "ana",
+          "vurgu",
+          "geceZemin"
+        ],
+        "type": "object",
+        "properties": {
+          "anahtar": {
+            "type": "string"
+          },
+          "ad": {
+            "type": "string"
+          },
+          "zemin": {
+            "type": "string"
+          },
+          "murekkep": {
+            "type": "string"
+          },
+          "ana": {
+            "type": "string"
+          },
+          "vurgu": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "geceZemin": {
+            "type": "string"
+          }
+        }
+      },
       "SiteTalebiOzeti": {
         "required": [
           "yeni",
@@ -70963,6 +71019,24 @@
               "string"
             ],
             "format": "int32"
+          }
+        }
+      },
+      "SiteThemePalettesDto": {
+        "required": [
+          "tema",
+          "paletler"
+        ],
+        "type": "object",
+        "properties": {
+          "tema": {
+            "type": "string"
+          },
+          "paletler": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SitePaletteOptionDto"
+            }
           }
         }
       },

@@ -32222,6 +32222,8 @@ export interface components {
       renkKiralanmayan?: null | string;
       siteVurguRengi?: null | string;
       siteTemasi?: null | string;
+      sitePaleti?: null | string;
+      sitePaletSecenekleri?: components['schemas']['SiteThemePalettesDto'][];
       donemselFaturalamaJob?: boolean;
       donemselOtomatikTahsilat?: boolean;
       /** Format: int32 */
@@ -32292,6 +32294,7 @@ export interface components {
       renkKiralanmayan?: null | string;
       siteVurguRengi?: null | string;
       siteTemasi?: null | string;
+      sitePaleti?: null | string;
       donemselFaturalamaJob?: boolean;
       donemselOtomatikTahsilat?: boolean;
       /** Format: int32 */
@@ -32419,11 +32422,24 @@ export interface components {
       /** Format: date-time */
       seyrusiferBitis: null | string;
     };
+    SitePaletteOptionDto: {
+      anahtar: string;
+      ad: string;
+      zemin: string;
+      murekkep: string;
+      ana: string;
+      vurgu: null | string;
+      geceZemin: string;
+    };
     SiteTalebiOzeti: {
       /** Format: int32 */
       yeni: number | string;
       /** Format: int32 */
       enEskiGun: null | number | string;
+    };
+    SiteThemePalettesDto: {
+      tema: string;
+      paletler: components['schemas']['SitePaletteOptionDto'][];
     };
     SonrakiTaksit: {
       /** Format: int32 */

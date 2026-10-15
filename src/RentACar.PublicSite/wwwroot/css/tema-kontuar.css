@@ -1,26 +1,23 @@
-/* PRIMITIVE — ham değerler. Renk literalleri YALNIZ bu ilk :root bloğunda (yapısal test kilitler). */
+/* PRIMITIVE — ham değerler. Renk literalleri YALNIZ bu ilk :root bloğunda (yapısal test kilitler).
+   Palet renkleri (zemin, mürekkep, çizgi, firma rengi, vurgu) yalnız YEDEK: asıl değerler App.razor'daki palet
+   bloğundan gelir (SitePaletteCss; varsayılan set "terminal" = bu değerler, KontuarPalettes.cs). */
 :root {
   --p-white: #ffffff;
-  --p-terminal-50: #f9fbfc;
-  --p-terminal-100: #f4f7f9;   /* terminal açığı — BrandPalette.LightPaper'dan AÇIK (firma metin tonu AA kalır) */
+  --p-terminal-100: #f4f7f9;   /* terminal açığı */
   --p-terminal-200: #e7edf2;
   --p-terminal-300: #cfd8e0;
   --p-terminal-400: #8a98a7;   /* alan/panel çerçevesi — zeminde 3:1 */
-  --p-navy-900: #16263a;       /* lacivert mürekkep */
+  --p-navy-900: #16263a;       /* lacivert mürekkep (açık) — kalkış panosu levhası da bu (iki modda) */
   --p-navy-700: #3b4d63;       /* ikincil metin — zeminde 7.9:1 */
   --p-navy-600: #52647a;       /* ipucu metni — beyazda 6.1:1 */
   --p-navy-400: #a9b8c8;
-  --p-navy-300: #c3cfdb;
-  --p-night-950: #0a131d;      /* koyu zemin — BrandPalette.DarkPaper'dan KOYU */
+  --p-night-950: #0a131d;      /* koyu zemin */
   --p-night-900: #0f1925;
-  --p-night-850: #131d2b;      /* koyu kart — BrandPalette.DarkSurface'tan koyu */
+  --p-night-850: #131d2b;      /* koyu kart */
   --p-night-800: #1a2738;
   --p-night-700: #24344a;
   --p-night-600: #3a5070;
-  --p-night-100: #e9eff5;
-  --p-board-900: #16263a;      /* kalkış panosu levhası (iki temada) */
-  --p-board-800: #1c2f47;
-  --p-board-700: #2a3f5a;
+  --p-night-100: #e9eff5;      /* koyu mürekkep — pano yazısı da bu (iki modda) */
   --p-orange-500: #ff6a13;     /* yer-ekibi turuncusu — METİN rengi olarak ASLA (açık zeminde 2.5:1) */
   --p-red-700: #b3261e;
   --p-red-300: #ff8f86;
@@ -28,9 +25,6 @@
   --p-green-300: #86d6a0;
   --p-mask-on: #000000;
   --p-mask-off: #00000000;
-  --p-shadow-1: 0 -8px 24px -18px rgb(22 38 58 / 30%);
-  --p-shadow-2: 0 1px 0 rgb(22 38 58 / 6%), 0 22px 44px -28px rgb(22 38 58 / 42%);
-  --p-ticket-drop: drop-shadow(0 16px 22px rgb(22 38 58 / 14%)) drop-shadow(0 1px 1px rgb(22 38 58 / 14%));
   --p-shadow-1-dark: 0 -8px 24px -18px rgb(0 0 0 / 70%);
   --p-shadow-2-dark: 0 1px 0 rgb(0 0 0 / 35%), 0 22px 44px -26px rgb(0 0 0 / 80%);
   --p-ticket-drop-dark: drop-shadow(0 16px 26px rgb(0 0 0 / 55%));
@@ -44,7 +38,7 @@
    koçan şube + düğme) ve filo listesi bir KALKIŞ PANOSU (lacivert levha; araç, vites, fiyat, durum
    satırları). Geri kalan sakin: kart yığını yok, gradyan süs yok, sayfa açılış animasyonu yok.
 
-   TURUNCU KURALI: turuncu yalnız EYLEM (firma renk seçmediyse birincil düğme; BrandPalette onu kağıtta 3:1
+   TURUNCU KURALI: turuncu yalnız EYLEM (firma renk seçmediyse birincil düğme; palet onu zeminde 3:1
    olacak kadar koyulaştırır) ve İŞARET (pano durum noktası, teslim noktası kenarı, "baktığınız araç",
    fiyat alt çizgisi). Metin rengi olarak ASLA; metin gereken yerde --brand-text.
 
@@ -75,7 +69,11 @@
   --brand-soft: var(--p-terminal-200);
   --accent: var(--p-orange-500);
   --accent-ink: var(--p-navy-900);
-  --focus: var(--p-navy-900);
+  --day-bg: var(--p-terminal-100);
+  --day-ink: var(--p-navy-900);
+  --night-bg: var(--p-night-950);
+  --night-ink: var(--p-night-100);
+  --focus: var(--ink);
   --danger: var(--p-red-700);
   --ok: var(--p-green-700);
 
@@ -93,8 +91,9 @@
   --space-1: .5rem; --space-2: 1rem; --space-3: 1.5rem; --space-4: 2.25rem;
   --space-5: 3.5rem; --space-6: 4.5rem; --space-7: 6rem; --space-8: 7.5rem;
   --radius-s: 4px; --radius-m: 10px; --radius-l: 16px;
-  --shadow-1: var(--p-shadow-1);
-  --shadow-2: var(--p-shadow-2);
+  /* Açık modda gölge mürekkep tonunda (palet değişince gölge de değişir). */
+  --shadow-1: 0 -8px 24px -18px color-mix(in srgb, var(--ink) 30%, transparent);
+  --shadow-2: 0 1px 0 color-mix(in srgb, var(--ink) 6%, transparent), 0 22px 44px -28px color-mix(in srgb, var(--ink) 42%, transparent);
   --measure: 66ch;
 
   --btn-bg: var(--brand);
@@ -103,26 +102,29 @@
   --card-bg: var(--surface);
   --card-radius: var(--radius-m);
   --card-border: var(--line);
-  --field-bg: var(--p-terminal-50);
+  /* Alan zemini: sayfa zemini ile kart arası (açık); koyu modda ikinci zemin. */
+  --field-bg: color-mix(in oklab, var(--bg) 50%, var(--surface));
   --field-border: var(--line-strong);
   --price-ink: var(--ink);
   --price-mark: var(--accent);
 
   /* Tema bileşenleri: kupon ve pano */
   --ticket-bg: var(--surface);
-  --ticket-drop: var(--p-ticket-drop);
+  --ticket-drop: drop-shadow(0 16px 22px color-mix(in srgb, var(--ink) 14%, transparent)) drop-shadow(0 1px 1px color-mix(in srgb, var(--ink) 14%, transparent));
   --ticket-notch: 13px;
   --mask-on: var(--p-mask-on);
   --mask-off: var(--p-mask-off);
-  --logo-plate: var(--p-terminal-100);
-  --board-bg: var(--p-board-900);
-  --board-ink: var(--p-night-100);
-  --board-muted: var(--p-navy-300);
-  --board-line: var(--p-board-700);
-  --board-row-hover: var(--p-board-800);
+  /* Logo levhası ve kalkış panosu iki modda AYNI: şemadan bağımsız --day-bg, --day-ink, --night-ink. Pano
+     açık şemanın mürekkebi üstüne koyu şemanın mürekkebiyle yazılır; ara tonlar ikisinin karışımı. */
+  --logo-plate: var(--day-bg);
+  --board-bg: var(--day-ink);
+  --board-ink: var(--night-ink);
+  --board-muted: color-mix(in oklab, var(--board-ink) 85%, var(--board-bg));
+  --board-line: color-mix(in oklab, var(--board-ink) 14%, var(--board-bg));
+  --board-row-hover: color-mix(in oklab, var(--board-ink) 5%, var(--board-bg));
 }
 
-/* SEMANTIC (koyu) — yalnız primitive'lere referans */
+/* SEMANTIC (koyu) — palet token'larının yedekleri primitive'e; bileşen token'ları semantik token'a bağlı */
 @media (prefers-color-scheme: dark) {
   :root {
     color-scheme: dark;
@@ -139,16 +141,12 @@
     --brand-text: var(--p-night-100);
     --brand-soft: var(--p-night-800);
     --accent-ink: var(--p-night-950);
-    --focus: var(--p-night-100);
     --danger: var(--p-red-300);
     --ok: var(--p-green-300);
     --shadow-1: var(--p-shadow-1-dark);
     --shadow-2: var(--p-shadow-2-dark);
-    --field-bg: var(--p-night-900);
+    --field-bg: var(--bg-alt);
     --ticket-drop: var(--p-ticket-drop-dark);
-    --logo-plate: var(--p-terminal-100);
-    --board-bg: var(--p-board-900);
-    --board-line: var(--p-board-700);
   }
 }
 

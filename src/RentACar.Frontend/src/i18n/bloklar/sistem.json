@@ -443,11 +443,20 @@
       "renkAciklama": "Boş bırakılan renk koddaki varsayılanı kullanır. Dolu ise #rrggbb biçiminde olmalıdır.",
       "siteGorunum": "Web sitesi görünümü",
       "siteGorunumAciklama": "Firmanızın halka açık web sitesinde kullanılır. Logo yukarıdaki logo bölümünden yüklenir ve sitenin başlığında ve alt bilgisinde görünür.",
-      "siteVurguIpucu": "Düğme ve vurgu rengi, #rrggbb biçiminde. Boş bırakılırsa sitenin varsayılan rengi kullanılır. Site, yazıların okunabilmesi için bu rengi gerektiğinde koyulaştırır ya da açar.",
+      "siteVurguIpucu": "İsteğe bağlı, #rrggbb biçiminde. Seçili renk setinin ana rengi yerine düğme ve vurgu rengi olur; zemin ve yazı renkleri setten gelir. Site, yazıların okunabilmesi için bu rengi gerektiğinde koyulaştırır ya da açar.",
+      "palet": {
+        "ipucu": "Seçili temanın hazır renk setleri. Zemin, yazı ve çizgi renkleri açık ve koyu görünümde okunabilir olacak şekilde ayarlıdır. Tema değişince seçim o temanın varsayılan setine döner.",
+        "varsayilan": "Varsayılan"
+      },
+      "renk": {
+        "secici": "Renk seçici",
+        "temizle": "Temizle"
+      },
       "tema": {
-        "ipucu": "Sitenin tasarımı. Logonuz ve vurgu renginiz her temada kullanılır; içerik ve fiyatlar aynı kalır.",
-        "onizleAciklama": "Önizleme bağlantısı kaydetmeden, sitenizi seçilen temayla yeni sekmede açar. Önizleme arama motorlarına kapalıdır.",
+        "ipucu": "Sitenin tasarımı. Logonuz ve renkleriniz her temada kullanılır; içerik ve fiyatlar aynı kalır.",
+        "onizleAciklama": "Önizleme bağlantısı kaydetmeden, sitenizi seçilen tema, renk seti ve ana renkle yeni sekmede açar. Önizleme arama motorlarına kapalıdır.",
         "onizle": "{{ad}} temasını önizle",
+        "onizleSecili": "Seçili görünümü önizle",
         "tarife": {
           "ad": "Tarife",
           "aciklama": "Fiyat şeffaflığı öne çıkar: günlük fiyat tahtası ve açık hesap. Bütçe ve şehir kiralaması için."
@@ -514,8 +523,9 @@
         "renkAlacakli": "Alacaklı cari",
         "renkRezAtananPlaka": "Plakası atanmış rezervasyon",
         "renkKiralanmayan": "Kiralanmayan araç",
-        "siteVurguRengi": "Site vurgu rengi",
+        "siteVurguRengi": "Kendi ana rengim",
         "siteTemasi": "Site teması",
+        "sitePaleti": "Renk seti",
         "smtpHost": "SMTP sunucusu",
         "smtpPort": "SMTP portu",
         "smtpKullanici": "SMTP kullanıcı",

@@ -59,6 +59,45 @@ public sealed class SiteBrandIdentityTests(PostgresFixture fx)
         Assert.Null((await svc.GetAsync()).SiteVurguRengi);
     }
 
+    /// <summary>Servis palet anahtarının yalnız BİÇİMİNİ doğrular (<c>^[a-z0-9-]{1,30}$</c>, kırpılır, küçük harfe
+    /// çevrilir); temaya aitlik uçta. Başka temanın anahtarı serviste kabul edilir — site onu varsayılana düşürür.</summary>
+    [Fact]
+    public async Task Palet_anahtari_bicimle_dogrulanir_normalize_edilir_ve_ziyaretciye_okunur()
+    {
+        using var host = new TestHost(fx.AppConnectionString);
+        var tenant = Guid.NewGuid();
+        using (var s = host.ScopeFor(tenant))
+        {
+            var sp = s.ServiceProvider;
+            var svc = sp.GetRequiredService<TenantSettingsService>();
+            Assert.Null((await svc.GetAsync()).SitePaleti);
+
+            await SaveAsync(sp, m => m.SitePaleti = " Gece-Mavisi ");
+            Assert.Equal("gece-mavisi", (await svc.GetAsync()).SitePaleti);
+
+            foreach (var bad in new[] { "gece mavisi", "gece_mavisi", "gök", "petrol;}", "a</style>", new string('a', 31) })
+            {
+                var ex = await Assert.ThrowsAsync<ValidationException>(() => SaveAsync(sp, m => m.SitePaleti = bad));
+                Assert.StartsWith("Site paleti", ex.Message);
+            }
+            Assert.Equal("gece-mavisi", (await svc.GetAsync()).SitePaleti);
+
+            await SaveAsync(sp, m => { m.SiteTemasi = "kontuar"; m.SitePaleti = "bordo"; }); // aitlik serviste değil
+            Assert.Equal("bordo", (await svc.GetAsync()).SitePaleti);
+        }
+
+        using (var visitor = host.ScopeFor(tenant, role: null))
+            Assert.Equal("bordo", (await visitor.ServiceProvider.GetRequiredService<FleetShowcaseService>().GetBrandingAsync()).Paleti);
+        using (var otherVisitor = host.ScopeFor(Guid.NewGuid(), role: null))
+            Assert.Null((await otherVisitor.ServiceProvider.GetRequiredService<FleetShowcaseService>().GetBrandingAsync()).Paleti);
+
+        using (var s = host.ScopeFor(tenant))
+        {
+            await SaveAsync(s.ServiceProvider, m => m.SitePaleti = "  ");
+            Assert.Null((await s.ServiceProvider.GetRequiredService<TenantSettingsService>().GetAsync()).SitePaleti);
+        }
+    }
+
     [Fact]
     public async Task Ziyaretci_bagliminda_renk_ve_logo_yalniz_kendi_firmasindan_okunur()
     {

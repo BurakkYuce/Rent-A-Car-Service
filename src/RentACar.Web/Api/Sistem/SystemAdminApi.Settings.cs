@@ -132,7 +132,8 @@ public static partial class SystemAdminApi
             RenkGecikenler = m.RenkGecikenler, RenkBugunDonecekler = m.RenkBugunDonecekler, RenkBugunCikacaklar = m.RenkBugunCikacaklar,
             RenkOpsiyonlu = m.RenkOpsiyonlu, RenkLimitBakiye = m.RenkLimitBakiye, RenkAlacakli = m.RenkAlacakli,
             RenkRezAtananPlaka = m.RenkRezAtananPlaka, RenkKiralanmayan = m.RenkKiralanmayan,
-            SiteVurguRengi = m.SiteVurguRengi, SiteTemasi = m.SiteTemasi,
+            SiteVurguRengi = m.SiteVurguRengi, SiteTemasi = m.SiteTemasi, SitePaleti = m.SitePaleti,
+            SitePaletSecenekleri = SitePaletteCatalog,
             DonemselFaturalamaJob = m.DonemselFaturalamaJob, DonemselOtomatikTahsilat = m.DonemselOtomatikTahsilat,
             MinKiraGun = m.MinKiraGun, MaxKiraGun = m.MaxKiraGun, RezOnayZorunlu = m.RezOnayZorunlu,
             SmtpHost = m.SmtpHost, SmtpPort = m.SmtpPort, SmtpKullanici = m.SmtpKullanici,
@@ -148,6 +149,14 @@ public static partial class SystemAdminApi
             Surum = version,
         };
     }
+
+    /// <summary>Palet seti kataloğu (<see cref="SitePaletteKeys"/>) — sabit, uygulama ömrünce bir kez kurulur.</summary>
+    private static readonly IReadOnlyList<SiteThemePalettesDto> SitePaletteCatalog =
+    [
+        .. SiteThemeKeys.All.Select(theme => new SiteThemePalettesDto(theme,
+            [.. SitePaletteKeys.For(theme).Select(p => new SitePaletteOptionDto(p.Key, p.Ad, p.Zemin, p.Murekkep, p.Ana,
+                p.Vurgu, p.GeceZemin))])),
+    ];
 
     private static TenantSettingsModel ToModel(SettingsRequest i) => new()
     {
@@ -166,7 +175,7 @@ public static partial class SystemAdminApi
         RenkGecikenler = i.RenkGecikenler, RenkBugunDonecekler = i.RenkBugunDonecekler, RenkBugunCikacaklar = i.RenkBugunCikacaklar,
         RenkOpsiyonlu = i.RenkOpsiyonlu, RenkLimitBakiye = i.RenkLimitBakiye, RenkAlacakli = i.RenkAlacakli,
         RenkRezAtananPlaka = i.RenkRezAtananPlaka, RenkKiralanmayan = i.RenkKiralanmayan,
-        SiteVurguRengi = i.SiteVurguRengi, SiteTemasi = i.SiteTemasi,
+        SiteVurguRengi = i.SiteVurguRengi, SiteTemasi = i.SiteTemasi, SitePaleti = i.SitePaleti,
         DonemselFaturalamaJob = i.DonemselFaturalamaJob, DonemselOtomatikTahsilat = i.DonemselOtomatikTahsilat,
         MinKiraGun = i.MinKiraGun, MaxKiraGun = i.MaxKiraGun, RezOnayZorunlu = i.RezOnayZorunlu,
         SmtpHost = i.SmtpHost, SmtpPort = i.SmtpPort, SmtpKullanici = i.SmtpKullanici, SmtpSifre = i.SmtpSifre,

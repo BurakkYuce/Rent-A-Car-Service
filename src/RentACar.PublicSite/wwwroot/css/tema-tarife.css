@@ -1,6 +1,8 @@
-/* PRIMITIVE — ham değerler. Renk literalleri YALNIZ bu ilk :root bloğunda (yapısal test kilitler). */
+/* PRIMITIVE — ham değerler. Renk literalleri YALNIZ bu ilk :root bloğunda (yapısal test kilitler).
+   Palet renkleri (zemin, mürekkep, çizgi, firma rengi, vurgu) yalnız YEDEK: asıl değerler App.razor'daki
+   palet bloğundan gelir (SitePaletteCss; varsayılan set "petrol" = bu değerler, TarifePalettes.cs). */
 :root {
-  --p-paper: #f5f6f3;       /* BrandPalette.LightPaper ile aynı */
+  --p-paper: #f5f6f3;
   --p-paper-2: #eceee9;
   --p-white: #ffffff;
   --p-asphalt: #1d2227;
@@ -11,9 +13,9 @@
   --p-road: #f2c230;        /* yol çizgisi sarısı — METİN rengi olarak ASLA (beyazda 1.7:1) */
   --p-green: #1f6b3a;
   --p-red: #b3261e;
-  --p-petrol: #0b5d6b;      /* varsayılan firma rengi (SiteThemes.Tarife.DefaultBrand) */
-  --p-night: #121417;       /* BrandPalette.DarkPaper */
-  --p-night-2: #1b1f23;     /* BrandPalette.DarkSurface */
+  --p-petrol: #0b5d6b;      /* varsayılan set ana rengi */
+  --p-night: #121417;
+  --p-night-2: #1b1f23;
   --p-night-3: #22272c;
   --p-fog: #eceeea;
   --p-fog-2: #b6bdc2;
@@ -22,8 +24,6 @@
   --p-night-line-2: #474e55;
   --p-green-light: #7fd49a;
   --p-red-light: #ff8a80;
-  --p-shadow: rgb(29 34 39 / 30%);
-  --p-shadow-soft: rgb(29 34 39 / 5%);
   --p-shadow-night: rgb(0 0 0 / 70%);
   --p-shadow-night-soft: rgb(0 0 0 / 30%);
 }
@@ -59,7 +59,11 @@
   --brand-soft: var(--p-paper-2);
   --accent: var(--p-road);
   --accent-ink: var(--p-asphalt);
-  --focus: var(--p-asphalt);
+  --day-bg: var(--p-paper);
+  --day-ink: var(--p-asphalt);
+  --night-bg: var(--p-night);
+  --night-ink: var(--p-fog);
+  --focus: var(--ink);
   --danger: var(--p-red);
   --ok: var(--p-green);
 
@@ -75,8 +79,9 @@
   --space-1: .5rem; --space-2: 1rem; --space-3: 1.5rem; --space-4: 2.5rem;
   --space-5: 4rem; --space-6: 5rem; --space-7: 6.5rem; --space-8: 8rem;
   --radius-s: 6px; --radius-m: 12px; --radius-l: 18px;
-  --shadow-1: 0 -8px 24px -18px var(--p-shadow);
-  --shadow-2: 0 1px 0 var(--p-shadow-soft), 0 10px 28px -16px var(--p-shadow);
+  /* Açık modda gölge mürekkep tonunda (palet değişince gölge de değişir). */
+  --shadow-1: 0 -8px 24px -18px color-mix(in srgb, var(--ink) 30%, transparent);
+  --shadow-2: 0 1px 0 color-mix(in srgb, var(--ink) 5%, transparent), 0 10px 28px -16px color-mix(in srgb, var(--ink) 30%, transparent);
   --measure: 68ch;
 
   --btn-bg: var(--brand);
@@ -91,7 +96,7 @@
   --price-mark: var(--accent);
 }
 
-/* SEMANTIC (koyu) — yalnız primitive'lere referans */
+/* SEMANTIC (koyu) — palet token'larının yedekleri primitive'e, diğerleri semantik token'a bağlı */
 @media (prefers-color-scheme: dark) {
   :root {
     color-scheme: dark;
@@ -104,7 +109,6 @@
     --ink-subtle: var(--p-fog-3);
     --line: var(--p-night-line);
     --line-strong: var(--p-night-line-2);
-    --focus: var(--p-fog);
     --danger: var(--p-red-light);
     --ok: var(--p-green-light);
     --accent-ink: var(--p-night);
@@ -125,7 +129,7 @@
 /* Koyu temada logo açık bir levha üstünde: logoların çoğu şeffaf zeminli KOYU yazı. Levha dolgusu
    yüksekliğe eklenir (content-box); görünür logo boyu açık temayla aynı kalır. */
 @media (prefers-color-scheme: dark) {
-  .marka img { background: var(--p-paper); padding: 4px 8px; border-radius: var(--radius-s); box-sizing: content-box; }
+  .marka img { background: var(--day-bg); padding: 4px 8px; border-radius: var(--radius-s); box-sizing: content-box; }
 }
 @media (min-width: 900px) {
   .marka img { height: 44px; max-width: 260px; }

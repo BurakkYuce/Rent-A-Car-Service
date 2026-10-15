@@ -79,6 +79,7 @@ export const SETTINGS_FIELDS = [
   ...COLOR_FIELDS,
   'siteVurguRengi',
   'siteTemasi',
+  'sitePaleti',
   'smtpHost',
   'smtpPort',
   'smtpKullanici',
@@ -116,12 +117,55 @@ export const PRICE_TYPES = [
 export const SITE_THEMES = ['tarife', 'vitrin', 'kontuar'] as const;
 export type SiteTheme = (typeof SITE_THEMES)[number];
 
+export type SitePaletteOption = Schema<'SitePaletteOptionDto'>;
+
+/** Kesin `#rrggbb` (sunucunun ve sitenin kuralı); başka her şey site önizlemesinde yok sayılır. */
+const HEX_COLOR = /^#[0-9a-fA-F]{6}$/;
+
+export function isHexColor(value: unknown): value is string {
+  return typeof value === 'string' && HEX_COLOR.test(value);
+}
+
 /**
- * Önizleme adresi: firmanın sitesinde `?tema=` (kalıcı değil, arama motoruna kapalı). Şema-göreli (`//host`):
- * ERP ile site aynı şemayla (üretimde https) yayında; mutlak http(s) adres SPA'da lint ile yasak.
+ * Temanın palet setleri (sunucu kataloğu `sitePaletSecenekleri`; ilk = varsayılan). Boş tema = varsayılan tema
+ * (tarife). Katalog henüz yüklenmediyse boş liste.
  */
-export function themePreviewUrl(host: string, theme: SiteTheme): string {
-  return `//${host}/?tema=${encodeURIComponent(theme)}`;
+export function palettesFor(
+  dto: SettingsDto | null,
+  theme: string | null | undefined,
+): readonly SitePaletteOption[] {
+  const key = theme || SITE_THEMES[0];
+  return dto?.sitePaletSecenekleri?.find((t) => t.tema === key)?.paletler ?? [];
+}
+
+/**
+ * Tema değişince palet seçimi: yeni temanın setlerinden biriyse korunur, değilse TEMİZLENİR (`null` = temanın
+ * varsayılan seti) — sunucu temaya ait olmayan seti 400 `errors.sitePaleti` ile reddeder. Katalog yoksa dokunulmaz.
+ */
+export function paletteAfterThemeChange(
+  current: unknown,
+  palettes: readonly SitePaletteOption[],
+): string | null {
+  if (typeof current !== 'string' || current === '') return null;
+  if (palettes.length === 0) return current;
+  return palettes.some((p) => p.anahtar === current) ? current : null;
+}
+
+/**
+ * Önizleme adresi: firmanın sitesinde `?tema=` + (seçiliyse) `&palet=` + (geçerliyse) `&renk=%23rrggbb` — kalıcı
+ * değil, arama motoruna kapalı. Şema-göreli (`//host`): ERP ile site aynı şemayla (üretimde https) yayında; mutlak
+ * http(s) adres SPA'da lint ile yasak. Biçimsiz renk gönderilmez (site zaten yok sayar).
+ */
+export function themePreviewUrl(
+  host: string,
+  theme: string,
+  palette?: string | null,
+  color?: unknown,
+): string {
+  let url = `//${host}/?tema=${encodeURIComponent(theme)}`;
+  if (palette) url += `&palet=${encodeURIComponent(palette)}`;
+  if (isHexColor(color)) url += `&renk=${encodeURIComponent(color)}`;
+  return url;
 }
 
 /** `SmtpEndpointGuard.AllowedPorts` (sunucu yalnız bunları kabul eder). */

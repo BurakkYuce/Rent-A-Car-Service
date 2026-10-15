@@ -90,7 +90,7 @@ test('ayarlar: kayıtlı sır yalnız işaretli kutu + onayla silinir; vazgeçin
   expect(errors).toEqual([]);
 });
 
-test('ayarlar: site vurgu rengi okunur, değiştirilince PUT gövdesinde gider; biçim hatası alanın altında', async ({
+test('ayarlar: kendi ana rengim okunur, değiştirilince PUT gövdesinde gider; biçim hatası alanın altında', async ({
   page,
 }) => {
   collectErrors(page, NETWORK_ERROR);
@@ -105,8 +105,9 @@ test('ayarlar: site vurgu rengi okunur, değiştirilince PUT gövdesinde gider; 
         : r.fulfill({ json: settings({ siteVurguRengi: '#c0392b' }) }),
   });
   await open(page);
-  const color = page.getByRole('textbox', { name: 'Site vurgu rengi' });
+  const color = page.getByRole('textbox', { name: 'Kendi ana rengim' });
   await expect(color).toHaveValue('#0b5d6b');
+  await expect(page.getByLabel('Renk seçici')).toHaveValue('#0b5d6b'); // seçici ile metin aynı değer
 
   await color.fill('kirmizi');
   await page.getByRole('button', { name: 'Ayarları kaydet' }).click();
@@ -136,7 +137,8 @@ test('ayarlar: site teması radyo ile seçilir (kayıtsızsa tarife seçili), ö
     ['Kontuar', 'kontuar'],
   ] as const) {
     const link = page.getByRole('link', { name: `${name} temasını önizle` });
-    await expect(link).toHaveAttribute('href', `//ornek.site.test/?tema=${key}`);
+    // Kendi ana renk (#0b5d6b) her temanın önizlemesine taşınır; palet temaya özgü olduğundan taşınmaz.
+    await expect(link).toHaveAttribute('href', `//ornek.site.test/?tema=${key}&renk=%230b5d6b`);
     await expect(link).toHaveAttribute('target', '_blank');
     await expect(link).toHaveAttribute('rel', 'noopener noreferrer');
   }
@@ -145,6 +147,42 @@ test('ayarlar: site teması radyo ile seçilir (kayıtsızsa tarife seçili), ö
   await page.getByRole('button', { name: 'Ayarları kaydet' }).click();
   await expect.poll(() => writes.length).toBe(1);
   expect(body(writes[0])['siteTemasi']).toBe('kontuar');
+  expect(errors).toEqual([]);
+});
+
+test('ayarlar: renk seti temanın setlerinden seçilir, tema değişince temizlenir; önizleme tema + set + rengi taşır', async ({
+  page,
+}) => {
+  const errors = collectErrors(page);
+  const writes = await settingsEndpoints(page);
+  await open(page);
+  const sets = page.getByRole('radiogroup', { name: 'Renk seti' });
+  // Kayıtsız: temanın varsayılan (ilk) seti seçili görünür; yalnız seçili temanın setleri listelenir.
+  await expect(sets.getByRole('radio')).toHaveCount(2);
+  await expect(sets.getByRole('radio', { name: /^Petrol ve yol sarısı/ })).toBeChecked();
+
+  await sets.getByRole('radio', { name: /^Lacivert ve amber/ }).check();
+  const current = page.getByRole('link', { name: 'Seçili görünümü önizle' });
+  await expect(current).toHaveAttribute(
+    'href',
+    '//ornek.site.test/?tema=tarife&palet=lacivert&renk=%230b5d6b',
+  );
+
+  // Tema değişti: eski temanın seti yeni temada yok → seçim temizlenir, yeni temanın varsayılanı seçili görünür.
+  await page
+    .getByRole('radiogroup', { name: 'Site teması' })
+    .getByRole('radio', { name: /^Vitrin:/ })
+    .check();
+  await expect(sets.getByRole('radio', { name: /^Porselen ve grafit/ })).toBeChecked();
+  await sets.getByRole('radio', { name: /^Bordo/ }).check();
+  await page.getByRole('button', { name: 'Temizle' }).click(); // kendi ana renk kaldırılır
+  await expect(current).toHaveAttribute('href', '//ornek.site.test/?tema=vitrin&palet=bordo');
+
+  await page.getByRole('button', { name: 'Ayarları kaydet' }).click();
+  await expect.poll(() => writes.length).toBe(1);
+  expect(body(writes[0])['siteTemasi']).toBe('vitrin');
+  expect(body(writes[0])['sitePaleti']).toBe('bordo');
+  expect(body(writes[0])['siteVurguRengi']).toBeNull();
   expect(errors).toEqual([]);
 });
 

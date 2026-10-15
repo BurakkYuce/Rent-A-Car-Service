@@ -2,7 +2,10 @@ import {
   SECRET_FIELDS,
   SETTINGS_FIELDS,
   type SettingsDto,
+  isHexColor,
   needsTxtRecord,
+  paletteAfterThemeChange,
+  palettesFor,
   secretsToClear,
   settingsBody,
   settingsFormValue,
@@ -34,6 +37,58 @@ describe('ayarlar modeli', () => {
       'kontuar',
     );
     expect(themePreviewUrl('kiyi.site.test', 'vitrin')).toBe('//kiyi.site.test/?tema=vitrin');
+  });
+
+  it('palet setleri temaya göre; boş tema varsayılan tema (tarife); katalog yoksa boş', () => {
+    const swatch = {
+      zemin: '#ffffff',
+      murekkep: '#000000',
+      ana: '#0b5d6b',
+      vurgu: null,
+      geceZemin: '#111111',
+    };
+    const dto = {
+      ...DTO,
+      sitePaletSecenekleri: [
+        { tema: 'tarife', paletler: [{ anahtar: 'petrol', ad: 'Petrol', ...swatch }] },
+        {
+          tema: 'vitrin',
+          paletler: [
+            { anahtar: 'grafit', ad: 'Grafit', ...swatch },
+            { anahtar: 'bordo', ad: 'Bordo', ...swatch },
+          ],
+        },
+      ],
+    } as unknown as SettingsDto;
+    expect(palettesFor(dto, 'vitrin').map((p) => p.anahtar)).toEqual(['grafit', 'bordo']);
+    expect(palettesFor(dto, null).map((p) => p.anahtar)).toEqual(['petrol']);
+    expect(palettesFor(dto, '').map((p) => p.anahtar)).toEqual(['petrol']);
+    expect(palettesFor(null, 'vitrin')).toEqual([]);
+    expect(settingsFormValue(dto).sitePaleti).toBeNull(); // kayıtsız = temanın varsayılanı (null gider)
+
+    // Tema değişince: yeni temaya aitse korunur, değilse temizlenir; katalog yoksa dokunulmaz.
+    const vitrin = palettesFor(dto, 'vitrin');
+    expect(paletteAfterThemeChange('bordo', vitrin)).toBe('bordo');
+    expect(paletteAfterThemeChange('petrol', vitrin)).toBeNull();
+    expect(paletteAfterThemeChange(null, vitrin)).toBeNull();
+    expect(paletteAfterThemeChange('', vitrin)).toBeNull();
+    expect(paletteAfterThemeChange('petrol', [])).toBe('petrol');
+  });
+
+  it('önizleme adresi tema + palet + yalnız geçerli renk (%23 ile) taşır', () => {
+    expect(themePreviewUrl('kiyi.site.test', 'vitrin', 'gece-mavisi', '#C0392B')).toBe(
+      '//kiyi.site.test/?tema=vitrin&palet=gece-mavisi&renk=%23C0392B',
+    );
+    expect(themePreviewUrl('kiyi.site.test', 'vitrin', null, 'kirmizi')).toBe(
+      '//kiyi.site.test/?tema=vitrin',
+    );
+    expect(themePreviewUrl('kiyi.site.test', 'tarife', 'lacivert', null)).toBe(
+      '//kiyi.site.test/?tema=tarife&palet=lacivert',
+    );
+    expect(isHexColor('#0b5d6b')).toBe(true);
+    for (const bad of ['0b5d6b', '#0b5d6', '#0b5d6bb', '#0b5d6g', null, 7]) {
+      expect(isHexColor(bad)).toBe(false);
+    }
   });
 
   it('form değeri sır alanlarını DAİMA boş kurar (yanıtta sır yok)', () => {
