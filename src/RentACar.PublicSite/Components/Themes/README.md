@@ -18,14 +18,18 @@ Halka açık firma sitesi üç temadan birini kullanır: `pazar`, `vitrin`, `rot
   listesi (hata mesajı, ERP seçenekleri) yalnız yeni anahtarları sayar.
 - `RenameSiteThemeKeys` migration'ı kayıtlı değerleri çevirdi (NO FORCE / FORCE parantezi; Down geri çevirir).
 - Sayfa kabuğu `.page[data-tema]` çözülen KANONİK anahtarı taşır (kayıt sabitinden; test ve css içindir).
-- Geçiş dönemi: `pazar` kaydı yeni tema gelene dek eski Tarife bileşenlerini, css'ini ve görünen adını kullanır
-  (`SiteThemes.Tarife` alanı). Yeni tema PR'ı alanı, klasörü ve css'i yeniden adlandırır. `rota` yeni temasıyla
-  geldi (`SiteThemes.Rota`, `Themes/Rota/`, `css/tema-rota.css`); eski Kontuar dosyaları silindi.
+- `pazar` yeni temasıyla geldi (`SiteThemes.Pazar`, `Themes/Pazar/`, `css/tema-pazar.css`; eski Tarife dosyaları
+  ve Barlow yazı tipleri silindi). `rota` yeni temasıyla geldi (`SiteThemes.Rota`, `Themes/Rota/`,
+  `css/tema-rota.css`); eski Kontuar dosyaları silindi.
+- Pazar'ın kendi bileşeni `PazarPriceTag` (asılı fiyat etiketi — temanın imzası) slot değildir; Card, Hero ve
+  DetailHero kullanır. Eski tarife'nin geçici palet setleri (`petrol`, `lacivert`, `zeytin`) Pazar setleriyle
+  (`domates` varsayılan, `kobalt`, `hardal`, `cam`, `patlican`) değişti; kayıtlı eski anahtar varsayılana düşer.
 
 ## Temalar
 
 | Anahtar | Ad | Kimlik | İmza anı | Yazı |
 |---|---|---|---|---|
+| `pazar` | Pazar | Yerel, samimi, yoğun ama düzenli; serin açık zemin, firma rengi tam genişlik düz bloklar (hero, kapanış bandı), kalın çerçeveli kartlar + kaydırılmış düz gölge. Hero: tam genişlik başlık, arama + "sormak isterseniz arayın", asılı etiketli fotoğraf. Telefon üst barda dolu düğme, telefonda sabit alt çubuk. "Neden <marka>?" yalnız veri ve sistem davranışı; ofis/şubeler (adres, saat, telefon, harita bağlantısı), SSS. Fotoğrafsız ilanda aracın adı tabela harfiyle. | Fiyat etiketleri açılışta bir kez sarkaç gibi sallanıp asılı durur (yalnız `rotate`, dönme noktası çivi) | Bricolage Grotesque Condensed 800 (wdth 75, opsz 36) + Onest 400–700 |
 | `rota` | Rota | Editoryal, seyrek; serin zemin, asimetrik 12 kolon. Hero: büyük başlık + dikey fotoğraf (arkasında vurgu renkli levha, altında künye) + kompakt arama. Filo: NUMARALI FİYAT LİSTESİ (`<ol>`; satır etkinken fotoğraf sağ kolonda, `:hover`/`:focus-within`, JS yok; dar/dokunmatikte satır içi küçük görsel). Koşullar üç sütun, şubeler + saat + harita bağlantısı, SSS. | Noktalı çizgiler açılışta soldan sağa çizilir (clip-path) | Literata 500 (optik boyut 12–72) + Public Sans 400–600 |
 
 ## Seçim ve önizleme

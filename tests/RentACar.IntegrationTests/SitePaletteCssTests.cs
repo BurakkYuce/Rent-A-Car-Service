@@ -123,19 +123,25 @@ public sealed partial class SitePaletteCssTests
         }
     }
 
-    /// <summary>Değişiklikten ÖNCE canlı sitenin bastığı değerler (BrandPalette çıktısı + tema css primitive'leri):
-    /// varsayılan setler görünümü korur. Rota yeni temadır: beklenen, setin elle yazılmış değerleridir.</summary>
+    /// <summary>Varsayılan setler: vitrin değişiklikten ÖNCE canlı sitenin bastığı değerleri (eski BrandPalette çıktısı +
+    /// tema css primitive'leri) korur. Rota yeni temadır: beklenen, setin elle yazılmış değerleridir. Pazar yeni tema
+    /// (eski tarife'nin yerine): zemin/mürekkep/çizgi değerleri tasarımda elle seçildi; türetilen ana renk tonları üretim
+    /// kodunu ÇAĞIRMAYAN ayrı bir hesapla bulundu ve elle doğrulanabilir — ör. açık hafif ton = zemin #edf0f2 ile
+    /// #d42a1c'nin %12 karışımı: (237−25·0.12, 240−198·0.12, 242−214·0.12) → #ead8d8; #d42a1c zeminde 4.4:1, beyazda
+    /// 5.1:1 (dolgu aynen kalır, üstünde beyaz).</summary>
     [Fact]
     public void Varsayilan_setler_bugunku_renkleri_korur()
     {
-        var tarife = SitePaletteCss.Tokens(SiteThemes.Tarife, null, null);
-        Assert.Equal("petrol", tarife.Palette.Key);
-        AssertHex(tarife.Light, bg: "#f5f6f3", bgAlt: "#eceee9", surface: "#ffffff", ink: "#1d2227", muted: "#4f575e",
-            subtle: "#636b72", line: "#dadfd8", lineStrong: "#b4bab2", accent: "#f2c230", accentInk: "#1d2227");
-        AssertBrand(tarife.Light, "#0b5d6b", "#ffffff", "#0b5d6b", "#d9e4e3");
-        AssertHex(tarife.Dark, bg: "#121417", bgAlt: "#22272c", surface: "#1b1f23", ink: "#eceeea", muted: "#b6bdc2",
-            subtle: "#9aa2a9", line: "#2c3238", lineStrong: "#474e55", accent: "#f2c230", accentInk: "#121417");
-        AssertBrand(tarife.Dark, "#2d7480", "#ffffff", "#59919a", "#102429");
+        var pazar = SitePaletteCss.Tokens(SiteThemes.Pazar, null, null);
+        Assert.Equal("domates", pazar.Palette.Key);
+        AssertHex(pazar.Light, bg: "#edf0f2", bgAlt: "#e1e5e9", surface: "#ffffff", ink: "#1b1d22", muted: "#454a53",
+            subtle: "#5a5f69", line: "#c8cdd3", lineStrong: "#8b919a", accent: "#ffc928", accentInk: "#1b1d22");
+        AssertBrand(pazar.Light, "#d42a1c", "#ffffff", "#bb2519", "#ead8d8");
+        AssertHex(pazar.Dark, bg: "#16171a", bgAlt: "#1c1d21", surface: "#1f2125", ink: "#eef0f2", muted: "#bcc1c8",
+            subtle: "#9ca2ab", line: "#32353b", lineStrong: "#50545c", accent: "#ffc928", accentInk: "#16171a");
+        AssertBrand(pazar.Dark, "#d13a28", "#ffffff", "#dd6d60", "#3f1f1d");
+        Assert.Equal(("#edf0f2", "#1b1d22", "#16171a", "#eef0f2"),
+            (pazar.DayBg.Hex, pazar.DayInk.Hex, pazar.NightBg.Hex, pazar.NightInk.Hex));
 
         var vitrin = SitePaletteCss.Tokens(SiteThemes.Vitrin, null, null);
         Assert.Equal("grafit", vitrin.Palette.Key);
@@ -183,13 +189,14 @@ public sealed partial class SitePaletteCssTests
     [Fact]
     public void Sari_ana_renk_acikta_dolguda_ve_metinde_koyulastirilir_koyuda_aynen_kalir()
     {
-        var t = SitePaletteCss.Tokens(SiteThemes.Tarife, null, "#ffd400");
-        // Sarı açık kağıtla ~1.4:1 — düğme sayfada kaybolurdu (WCAG 1.4.11) → dolgu koyulaştırıldı.
+        var t = SitePaletteCss.Tokens(SiteThemes.Pazar, null, "#ffd400");
+        // Sarı açık zeminle ~1.3:1 — düğme sayfada kaybolurdu (WCAG 1.4.11) → dolgu koyulaştırıldı.
         Assert.NotEqual("#ffd400", t.Light.Brand.Hex);
-        Assert.True(Contrast(t.Light.Brand.Hex, "#f5f6f3") >= 3.0);
-        Assert.Equal("#1d2227", t.Light.OnBrand.Hex); // temanın mürekkebi sarı üstünde 11:1
+        Assert.True(Contrast(t.Light.Brand.Hex, "#edf0f2") >= 3.0);
+        Assert.Equal("#1b1d22", t.Light.OnBrand.Hex); // temanın mürekkebi koyulaşmış sarı üstünde
+        Assert.True(Contrast("#1b1d22", t.Light.Brand.Hex) >= 4.5);
         Assert.NotEqual("#ffd400", t.Light.BrandText.Hex);
-        Assert.True(Contrast(t.Light.BrandText.Hex, "#f5f6f3") >= 4.5);
+        Assert.True(Contrast(t.Light.BrandText.Hex, "#edf0f2") >= 4.5);
         // Sarı koyu zeminde zaten okunuyor → koyu şemada dolgu ve metin aynen kalır.
         Assert.Equal("#ffd400", t.Dark.Brand.Hex);
         Assert.Equal("#ffd400", t.Dark.BrandText.Hex);
@@ -198,22 +205,22 @@ public sealed partial class SitePaletteCssTests
     [Fact]
     public void Lacivert_ana_renk_acikta_aynen_koyuda_acilir()
     {
-        var t = SitePaletteCss.Tokens(SiteThemes.Tarife, null, "#0b1f3a");
+        var t = SitePaletteCss.Tokens(SiteThemes.Pazar, null, "#0b1f3a");
         Assert.Equal("#0b1f3a", t.Light.Brand.Hex);
         Assert.Equal("#0b1f3a", t.Light.BrandText.Hex);
         Assert.Equal("#ffffff", t.Light.OnBrand.Hex);
         Assert.NotEqual("#0b1f3a", t.Dark.Brand.Hex); // koyu zeminde düğme kaybolurdu
-        Assert.True(Contrast(t.Dark.Brand.Hex, "#121417") >= 3.0);
-        Assert.True(Contrast(t.Dark.Brand.Hex, "#1b1f23") >= 3.0);
+        Assert.True(Contrast(t.Dark.Brand.Hex, "#16171a") >= 3.0);
+        Assert.True(Contrast(t.Dark.Brand.Hex, "#1f2125") >= 3.0);
     }
 
-    /// <summary>Orta gri (#808080): beyaz 3.95:1, tarife mürekkebi (#1d2227) 4.06:1 — ikisi de AA'nın altında. Elle
+    /// <summary>Orta gri (#808080): beyaz 3.95:1, pazar mürekkebi (#1b1d22) 4.27:1 — ikisi de AA'nın altında. Elle
     /// hesap: gri L=0.216 → saf siyah (0.216+0.05)/0.05 = 5.32:1 → siyah seçilmeli.</summary>
     [Fact]
     public void Orta_tonda_ne_beyaz_ne_murekkep_yeterse_saf_siyah_secilir()
     {
-        Assert.Equal("#000000", SitePaletteCss.Tokens(SiteThemes.Tarife, null, "#808080").Light.OnBrand.Hex);
-        Assert.True(Contrast("#1d2227", "#808080") < 4.5); // senaryonun kendisi: mürekkep yetmiyor
+        Assert.Equal("#000000", SitePaletteCss.Tokens(SiteThemes.Pazar, null, "#808080").Light.OnBrand.Hex);
+        Assert.True(Contrast("#1b1d22", "#808080") < 4.5); // senaryonun kendisi: mürekkep yetmiyor
     }
 
     /// <summary>Elle ayar da güvenceden geçer: beyaz kart üstünde #cccccc ipucu metni (1.6:1) ve vurgu üstünde vurgunun
@@ -260,18 +267,19 @@ public sealed partial class SitePaletteCssTests
     }
 
     [Theory]
-    [InlineData(null, "petrol")]
-    [InlineData("", "petrol")]
-    [InlineData("olmayan", "petrol")]
-    [InlineData("bordo", "petrol")]                 // vitrin'in seti → tarife'de varsayılan
-    [InlineData("petrol;}</style><script>", "petrol")]
-    [InlineData(" Lacivert ", "lacivert")]
-    [InlineData("zeytin", "zeytin")]
+    [InlineData(null, "domates")]
+    [InlineData("", "domates")]
+    [InlineData("olmayan", "domates")]
+    [InlineData("bordo", "domates")]                // vitrin'in seti → pazar'da varsayılan
+    [InlineData("petrol", "domates")]               // eski tarife'nin seti artık yok → varsayılan
+    [InlineData("domates;}</style><script>", "domates")]
+    [InlineData(" Kobalt ", "kobalt")]
+    [InlineData("patlican", "patlican")]
     public void Palet_anahtari_temanin_setlerinde_aranir_yoksa_varsayilan(string? key, string expected)
     {
-        Assert.Equal(expected, SitePaletteCss.Resolve(SiteThemes.Tarife, key).Key);
-        var css = SitePaletteCss.Build(SiteThemes.Tarife, key, null);
-        Assert.Equal(SitePaletteCss.Build(SiteThemes.Tarife, expected, null), css);
+        Assert.Equal(expected, SitePaletteCss.Resolve(SiteThemes.Pazar, key).Key);
+        var css = SitePaletteCss.Build(SiteThemes.Pazar, key, null);
+        Assert.Equal(SitePaletteCss.Build(SiteThemes.Pazar, expected, null), css);
         Assert.DoesNotContain("<", css);
     }
 

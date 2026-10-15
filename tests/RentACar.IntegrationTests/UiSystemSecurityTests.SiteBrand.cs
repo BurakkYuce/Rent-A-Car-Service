@@ -142,8 +142,8 @@ public sealed partial class UiSystemSecurityTests
 
         foreach (var (theme, bad) in new (string?, string)[]
                  {
-                     ("vitrin", "petrol"), (null, "bordo"), ("rota", "olmayan"), ("kontuar", "grafit"), ("pazar", "petrol;}"),
-                     ("pazar", "pet rol"), ("pazar", new string('a', 31)), ("pazar", "petrol</style>"),
+                     ("vitrin", "domates"), (null, "bordo"), ("rota", "olmayan"), ("kontuar", "grafit"), ("pazar", "domates;}"),
+                     ("pazar", "petrol"), ("pazar", "dom ates"), ("pazar", new string('a', 31)), ("pazar", "domates</style>"),
                  })
         {
             var p = await Problem(await Send(admin, HttpMethod.Put, Settings, new { siteTemasi = theme, sitePaleti = bad, surum = version }),
