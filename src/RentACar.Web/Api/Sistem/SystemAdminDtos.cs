@@ -42,7 +42,7 @@ public sealed class SettingsDto
     public string? RenkKiralanmayan { get; init; }
     /// <summary>Halka açık site vurgu rengi ("#rrggbb" ya da null = sitenin varsayılanı).</summary>
     public string? SiteVurguRengi { get; init; }
-    /// <summary>Halka açık site teması: <c>tarife</c> / <c>vitrin</c> / <c>kontuar</c> ya da null (= tarife).</summary>
+    /// <summary>Halka açık site teması: <c>pazar</c> / <c>vitrin</c> / <c>rota</c> ya da null (= pazar).</summary>
     public string? SiteTemasi { get; init; }
     public bool DonemselFaturalamaJob { get; init; }
     public bool DonemselOtomatikTahsilat { get; init; }
@@ -122,7 +122,8 @@ public sealed class SettingsRequest
     public string? RenkKiralanmayan { get; init; }
     /// <summary>Halka açık site vurgu rengi: "#rrggbb" ya da boş (sitenin varsayılanı). Tam değiştirme — boş gelirse silinir.</summary>
     public string? SiteVurguRengi { get; init; }
-    /// <summary>Halka açık site teması: <c>tarife</c> / <c>vitrin</c> / <c>kontuar</c> ya da boş (= tarife). Tam değiştirme.</summary>
+    /// <summary>Halka açık site teması: <c>pazar</c> / <c>vitrin</c> / <c>rota</c> ya da boş (= pazar). Tam değiştirme.
+    /// Eski anahtar (<c>tarife</c>, <c>kontuar</c>) kabul edilir ve yeni karşılığı saklanır (<c>SiteThemeKeys.Normalize</c>).</summary>
     public string? SiteTemasi { get; init; }
     public bool DonemselFaturalamaJob { get; init; }
     public bool DonemselOtomatikTahsilat { get; init; }

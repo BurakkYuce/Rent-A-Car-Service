@@ -1,12 +1,14 @@
 import {
   SECRET_FIELDS,
   SETTINGS_FIELDS,
+  SITE_THEMES,
   type SettingsDto,
   needsTxtRecord,
   secretsToClear,
   settingsBody,
   settingsFormValue,
   settingsServerValues,
+  siteThemeFormValue,
   themePreviewUrl,
 } from './settings-model';
 
@@ -28,12 +30,34 @@ const DTO = {
 } as unknown as SettingsDto;
 
 describe('ayarlar modeli', () => {
-  it('site teması: kayıtsızsa tarife seçili; kayıtlıysa aynen; önizleme adresi ?tema=', () => {
-    expect(settingsFormValue(DTO).siteTemasi).toBe('tarife');
-    expect(settingsFormValue({ ...DTO, siteTemasi: 'kontuar' } as SettingsDto).siteTemasi).toBe(
-      'kontuar',
+  it('site teması: kayıtsızsa pazar seçili; kayıtlıysa aynen; önizleme adresi ?tema=', () => {
+    expect(SITE_THEMES).toEqual(['pazar', 'vitrin', 'rota']);
+    expect(settingsFormValue(DTO).siteTemasi).toBe('pazar');
+    expect(settingsFormValue({ ...DTO, siteTemasi: 'rota' } as SettingsDto).siteTemasi).toBe(
+      'rota',
     );
     expect(themePreviewUrl('kiyi.site.test', 'vitrin')).toBe('//kiyi.site.test/?tema=vitrin');
+    expect(themePreviewUrl('kiyi.site.test', 'pazar')).toBe('//kiyi.site.test/?tema=pazar');
+  });
+
+  it('site teması: eski anahtar yeni karşılığıyla seçili görünür (tarife → pazar, kontuar → rota)', () => {
+    expect(settingsFormValue({ ...DTO, siteTemasi: 'tarife' } as SettingsDto).siteTemasi).toBe(
+      'pazar',
+    );
+    expect(settingsFormValue({ ...DTO, siteTemasi: ' Kontuar ' } as SettingsDto).siteTemasi).toBe(
+      'rota',
+    );
+    expect(siteThemeFormValue('')).toBe('pazar');
+    expect(siteThemeFormValue('VITRIN')).toBe('vitrin');
+    expect(siteThemeFormValue('TARIFE')).toBe('pazar'); // Türkçe küçültme ı üretir; anahtar yine bulunur
+    // Tanınmayan değer uydurulmaz: aynen kalır (radyo seçimsiz; sunucu kaydı reddeder).
+    expect(siteThemeFormValue('mavi')).toBe('mavi');
+    // Gövdeye yeni anahtar gider.
+    const body = settingsBody(
+      settingsFormValue({ ...DTO, siteTemasi: 'kontuar' } as SettingsDto),
+      'v7',
+    );
+    expect(body['siteTemasi']).toBe('rota');
   });
 
   it('form değeri sır alanlarını DAİMA boş kurar (yanıtta sır yok)', () => {

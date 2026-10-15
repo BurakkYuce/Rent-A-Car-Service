@@ -14,7 +14,7 @@ namespace RentACar.PublicSite.Components.Themes;
 public sealed record ThemeFont(string Family, string Weight, string File, string UnicodeRange);
 
 /// <summary>
-/// Bir site teması. Sayfalar veri mantığını PAYLAŞIR; yalnız dört SLOT temaya göre değişir
+/// Bir site teması. Sayfalar veri mantığını PAYLAŞIR; SLOTLAR temaya göre değişir
 /// (<c>&lt;DynamicComponent Type=…&gt;</c>). Parametre imzaları SABİT — bkz. Components/Themes/README.md.
 /// </summary>
 /// <param name="Key">Kalıcı anahtar (<see cref="SiteThemeKeys"/>).</param>
@@ -26,8 +26,12 @@ public sealed record ThemeFont(string Family, string Weight, string File, string
 /// <param name="Card">İlan kartı slotu bileşeni.</param>
 /// <param name="Header">Üst bar slotu bileşeni.</param>
 /// <param name="Footer">Alt bilgi slotu bileşeni.</param>
+/// <param name="Home">Ana sayfa gövdesi slotu (<see cref="HomeModel"/>).</param>
+/// <param name="Fleet">İlan koleksiyonu slotu (<see cref="FleetModel"/>).</param>
+/// <param name="DetailHero">İlan detayının üst bölümü slotu (<see cref="DetailHeroModel"/>).</param>
 public sealed record SiteTheme(string Key, string Ad, string Aciklama, string CssPath,
-    IReadOnlyList<string> FontPreloads, Type Hero, Type Card, Type Header, Type Footer)
+    IReadOnlyList<string> FontPreloads, Type Hero, Type Card, Type Header, Type Footer,
+    Type Home, Type Fleet, Type DetailHero)
 {
     /// <summary>Temanın @font-face listesi (latin + latin-ext). Boşsa tema sistem yazı tipi kullanır.</summary>
     public IReadOnlyList<ThemeFont> Fonts { get; init; } = [];
@@ -60,11 +64,14 @@ public static class SiteThemes
         new("Barlow Condensed", "600", "fonts/barlow-condensed-600-latin.woff2", Latin),
     ];
 
-    public static readonly SiteTheme Tarife = new(SiteThemeKeys.Tarife, "Tarife",
+    /// <summary>Anahtar <c>pazar</c> (eski <c>tarife</c>). Bileşenler ve görünen ad, yeni Pazar teması gelene dek
+    /// eski Tarife'nin; alan adı da o PR'da değişir.</summary>
+    public static readonly SiteTheme Tarife = new(SiteThemeKeys.Pazar, "Tarife",
         "Fiyat şeffaflığı öne çıkar: günlük fiyat tahtası ve açık hesap. Bütçe ve şehir kiralaması için.",
         "css/tema-tarife.css",
         [.. BarlowFonts.Select(f => f.File)],
-        typeof(TarifeHero), typeof(TarifeCard), typeof(TarifeHeader), typeof(TarifeFooter))
+        typeof(TarifeHero), typeof(TarifeCard), typeof(TarifeHeader), typeof(TarifeFooter),
+        typeof(TarifeHome), typeof(TarifeFleet), typeof(TarifeDetailHero))
     {
         Fonts = BarlowFonts,
     };
@@ -88,7 +95,8 @@ public static class SiteThemes
         "Fotoğraf öne çıkar: büyük kapak görseli ve sade kartlar. Özenli fotoğraflı, üst segment filo için.",
         "css/tema-vitrin.css",
         [.. ArchivoFonts.Where(f => f.Weight != "600").Select(f => f.File)],
-        typeof(VitrinHero), typeof(VitrinCard), typeof(VitrinHeader), typeof(VitrinFooter))
+        typeof(VitrinHero), typeof(VitrinCard), typeof(VitrinHeader), typeof(VitrinFooter),
+        typeof(VitrinHome), typeof(VitrinFleet), typeof(VitrinDetailHero))
     {
         Fonts = ArchivoFonts,
         ThemeColorLight = "#f7f7f5",
@@ -105,12 +113,14 @@ public static class SiteThemes
     ];
 
     /// <summary>Kontuar: havalimanı/otel teslimi. Kiralama kuponu + kalkış panosu. Varsayılan vurgu yer-ekibi
-    /// turuncusu; BrandPalette onu kağıtta 3:1 olacak kadar koyulaştırır, üstüne lacivert yazı seçer.</summary>
-    public static readonly SiteTheme Kontuar = new(SiteThemeKeys.Kontuar, "Kontuar",
+    /// turuncusu; BrandPalette onu kağıtta 3:1 olacak kadar koyulaştırır, üstüne lacivert yazı seçer.
+    /// Anahtar <c>rota</c> (eski <c>kontuar</c>); bileşenler ve ad yeni Rota teması gelene dek eski Kontuar'ın.</summary>
+    public static readonly SiteTheme Kontuar = new(SiteThemeKeys.Rota, "Kontuar",
         "Bilet ve kalkış panosu düzeni. Havalimanı ve otel teslimi yapan firmalar için.",
         "css/tema-kontuar.css",
         [.. PlexFonts.Select(f => f.File)],
-        typeof(KontuarHero), typeof(KontuarCard), typeof(KontuarHeader), typeof(KontuarFooter))
+        typeof(KontuarHero), typeof(KontuarCard), typeof(KontuarHeader), typeof(KontuarFooter),
+        typeof(KontuarHome), typeof(KontuarFleet), typeof(KontuarDetailHero))
     {
         Fonts = PlexFonts,
         DefaultBrand = "#ff6a13",
@@ -120,10 +130,11 @@ public static class SiteThemes
 
     public static readonly IReadOnlyList<SiteTheme> All = [Tarife, Vitrin, Kontuar];
 
-    /// <summary>Anahtardan tema; boş/bilinmeyen → varsayılan (tarife).</summary>
+    /// <summary>Anahtardan tema; eski anahtar yeni karşılığına (<see cref="SiteThemeKeys.LegacyAliases"/>),
+    /// boş/bilinmeyen → varsayılan (<see cref="SiteThemeKeys.Default"/>).</summary>
     public static SiteTheme Resolve(string? key)
-        => SiteThemeKeys.Normalize(key) is { } k ? All.First(t => t.Key == k) : Tarife;
+        => All.First(t => t.Key == (SiteThemeKeys.Normalize(key) ?? SiteThemeKeys.Default));
 
-    /// <summary>Önizleme parametresi geçerli bir tema adı mı (geçersiz ad yok sayılır).</summary>
+    /// <summary>Önizleme parametresi geçerli bir tema adı mı — eski anahtar da geçerli (geçersiz ad yok sayılır).</summary>
     public static bool IsKnown(string? key) => SiteThemeKeys.Normalize(key) is not null;
 }

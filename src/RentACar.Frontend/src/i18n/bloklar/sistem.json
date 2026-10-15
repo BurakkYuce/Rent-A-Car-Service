@@ -448,7 +448,7 @@
         "ipucu": "Sitenin tasarımı. Logonuz ve vurgu renginiz her temada kullanılır; içerik ve fiyatlar aynı kalır.",
         "onizleAciklama": "Önizleme bağlantısı kaydetmeden, sitenizi seçilen temayla yeni sekmede açar. Önizleme arama motorlarına kapalıdır.",
         "onizle": "{{ad}} temasını önizle",
-        "tarife": {
+        "pazar": {
           "ad": "Tarife",
           "aciklama": "Fiyat şeffaflığı öne çıkar: günlük fiyat tahtası ve açık hesap. Bütçe ve şehir kiralaması için."
         },
@@ -456,7 +456,7 @@
           "ad": "Vitrin",
           "aciklama": "Fotoğraf öne çıkar: büyük kapak görseli ve sade kartlar. Özenli fotoğraflı, üst segment filo için."
         },
-        "kontuar": {
+        "rota": {
           "ad": "Kontuar",
           "aciklama": "Bilet ve kalkış panosu düzeni. Havalimanı ve otel teslimi yapan firmalar için."
         }

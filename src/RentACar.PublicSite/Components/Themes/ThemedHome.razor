@@ -1,0 +1,20 @@
+@inject ThemeAccessor Themes
+
+@* Home slotu — ana sayfa GÖVDESİ; aktif temanın Home bileşeni çizilir. Sayfa (Pages/Home.razor) veriyi toplar,
+   SEO'yu (başlık, meta, JSON-LD) kendisi basar; tema bölümleri seçer ve sıralar.
+   Parametre sözlüğü SABİT imza: Model (HomeModel) — Components/Themes/README.md.
+   Sarmalayıcı öğe YOK: temanın bölümleri doğrudan <main>'in çocuğudur (base.css `main > .cta-bant:last-child`). *@
+@if (_type is not null)
+{
+    <DynamicComponent Type="_type" Parameters="Params" />
+}
+
+@code {
+    [Parameter, EditorRequired] public HomeModel Model { get; set; } = default!;
+
+    private Type? _type;
+
+    private Dictionary<string, object?> Params => new() { [nameof(Model)] = Model };
+
+    protected override async Task OnInitializedAsync() => _type = (await Themes.GetAsync()).Home;
+}
