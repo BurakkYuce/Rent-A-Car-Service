@@ -186,7 +186,7 @@
       "drop": "Çıkış ≠ dönüş ofisi → drop ücreti (Fiyat sekmesi).",
       "km": "Dönüş hesabında (fazla km × ücret, eksik yakıt × ücret) kullanılır.",
       "kmKayittanSonra": "Kayıttan sonra girilir.",
-      "kabis": "KABİS bildirimi entegrasyonu yok — işaretler takip içindir.",
+      "kabis": "Otomatik KABİS bildirimi açıksa durumu sayfa başındaki KABİS kartındadır; bu işaretler elle takip içindir.",
       "teslimdeGirilir": "teslimde girilir",
       "musteriBilgisi": "İletişim, kimlik ve adres bilgisi cari kartındadır.",
       "misafirSurucu": "Yalnız 2. sürücü kayıtlı cari DEĞİLKEN doldurun (ikisi birden reddedilir). Misafir sürücü ek sürücü ücreti üretmez.",
@@ -382,6 +382,40 @@
     "cakisma": {
       "alan": "Bu alan başka bir oturumda da değişti; kaydederseniz sizin değeriniz yazılır.",
       "bant": "{{sayi}} alan başka bir oturumda da değişti; işaretli alanları kontrol edip yeniden kaydedin."
+    },
+    "kabis": {
+      "baslik": "KABİS bildirimi",
+      "kayitYok": "Bu kira için henüz KABİS kaydı yok; teslimde oluşur.",
+      "teslimiEngeller": "Teslim, bildirim başarılı olmadan yapılamaz.",
+      "kurum": "Kurum: {{kurum}}",
+      "deneme": "{{sayi}} deneme",
+      "sonraki": "Sonraki deneme {{zaman}}",
+      "referans": "Referans: {{ref}}",
+      "elle": "elle",
+      "yenidenDene": "Şimdi yeniden dene",
+      "gerekliDegil": "Gerekli değil",
+      "elleBildirildi": "Portaldan bildirdim",
+      "gerekce": "Gerekçe",
+      "gerekceZorunlu": "Gerekçe zorunludur.",
+      "referansAlan": "Portal referansı (isteğe bağlı)",
+      "onayla": "Kaydet",
+      "vazgec": "Vazgeç",
+      "gerekliDegilBaslik": "Bu bildirim gerekli değil olarak kapatılsın mı?",
+      "gerekliDegilMesaj": "Kayıt yeniden denenmez ve uyarılardan düşer. Gerekçe kayda yazılır.",
+      "elleBaslik": "Bildirim portaldan elle yapıldı olarak işaretlensin mi?",
+      "elleMesaj": "Sistem bu bildirimi artık göndermez. Yalnız KABİS portalına gerçekten girdiyseniz onaylayın.",
+      "yuklenemedi": "KABİS durumu yüklenemedi.",
+      "tur": {
+        "Kiralama": "Kiralama (teslim)",
+        "Iade": "İade (dönüş)",
+        "Iptal": "İptal"
+      },
+      "durum": {
+        "Bekliyor": "Bekliyor",
+        "Bildirildi": "Bildirildi",
+        "Hata": "Hata",
+        "GerekliDegil": "Gerekli değil"
+      }
     }
   },
   "kiraFormuParite": {

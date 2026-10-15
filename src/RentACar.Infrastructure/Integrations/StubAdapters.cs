@@ -75,9 +75,28 @@ public sealed class StubPosService : IPosService
 
 public sealed class StubKabisService : IKabisService
 {
-    // KABİS bildirimi YASAL yükümlülük (1774 sayılı Kanun). Yapılandırma yokken "bildirildi" demek,
-    // bildirilmemiş kiralamayı bildirilmiş göstermek olur — cezası kiralama BAŞINA işler.
+    // KABİS bildirimi YASAL yükümlülük (1774 sayılı Kanun ek md. 3). Yapılandırma yokken "bildirildi" demek,
+    // bildirilmemiş kiralamayı bildirilmiş göstermek olur — teslimden önce bildirmemenin idari para cezası
+    // (ek md. 3/4) gizlenir. Ayrıntı: docs/entegrasyon/kabis.md.
     public Task<bool> NotifyAsync(KabisBildirim notification, CancellationToken ct = default) => Task.FromResult(false);
+
+    // Yeni akış: sahte dış referans ÜRETİLMEZ; "bağlı değil" döner → kuyruk kaydı Bekliyor kalır, deneme hakkı yanmaz.
+    public const string NotConfigured = "KABİS bağlantısı yapılandırılmadı (bağlı değil).";
+
+    private static readonly KabisSonuc None = new(KabisSonucTuru.BagliDegil, DisReferans: null, Hata: NotConfigured);
+
+    public Task<KabisSonuc> NotifyRentalAsync(KabisKimlik credentials, KabisKiralamaBildirimi notice, CancellationToken ct = default)
+        => Task.FromResult(None);
+
+    public Task<KabisSonuc> NotifyReturnAsync(KabisKimlik credentials, KabisIadeBildirimi notice, CancellationToken ct = default)
+        => Task.FromResult(None);
+
+    public Task<KabisSonuc> CancelAsync(KabisKimlik credentials, string reference, string? externalReference, string reason,
+        CancellationToken ct = default)
+        => Task.FromResult(None);
+
+    public Task<KabisSorguSonucu> QueryAsync(KabisKimlik credentials, string reference, CancellationToken ct = default)
+        => Task.FromResult(new KabisSorguSonucu(KabisSonucTuru.BagliDegil, KayitVar: false, Durum: null, Hata: NotConfigured));
 }
 
 public sealed class StubHgsService : IHgsService

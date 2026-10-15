@@ -97,6 +97,35 @@
       "basarili": "{{no}}: {{tutar}} tahsil edildi.",
       "satirDegisti": "{{no}} güncellendi; tahsilatı yeniden açın.",
       "kayitDegismis": "Kira kaydı değişmiş"
+    },
+    "kabis": {
+      "baslik": "KABİS bildirimleri",
+      "aciklama": "Kiralık Araç Bildirim Sistemi'ne bildirimi bekleyen ya da hatalı kiralar. Sorunu giderip kira ekranından yeniden deneyin ya da portaldan elle bildirip işaretleyin.",
+      "tabloEtiketi": "Bildirilemeyen KABİS kayıtları",
+      "bos": "Bildirilemeyen kira yok.",
+      "kapali": "KABİS otomatik bildirimi kapalıysa bu liste boştur (Ayarlar > KABİS).",
+      "yuklenemedi": "Liste yüklenemedi.",
+      "yenidenDene": "Yeniden dene",
+      "yukleniyor": "Yükleniyor…",
+      "sutun": {
+        "sozlesmeNo": "Sözleşme No",
+        "plaka": "Araç",
+        "tur": "Bildirim",
+        "durum": "Durum",
+        "deneme": "Deneme",
+        "olay": "Olay zamanı",
+        "sonDeneme": "Son deneme",
+        "sonHata": "Son hata"
+      },
+      "tur": {
+        "Kiralama": "Kiralama (teslim)",
+        "Iade": "İade (dönüş)",
+        "Iptal": "İptal"
+      },
+      "durum": {
+        "Bekliyor": "Bekliyor",
+        "Hata": "Hata"
+      }
     }
   }
 }

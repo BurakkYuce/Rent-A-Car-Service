@@ -35,6 +35,7 @@ import { RentalInfo } from './sekmeler/rental-info';
 import { Customer } from './sekmeler/customer';
 import { ShareBar } from './sekmeler/share-bar';
 import { Share } from './sekmeler/share';
+import { KabisStatus } from './kabis/kabis-status';
 
 /**
  * Kira sözleşmesi — TEK form: `/app/kiralar/yeni` (oluştur) ve `/app/kiralar/:id` (düzenle + operasyon),
@@ -70,6 +71,7 @@ import { Share } from './sekmeler/share';
     Return,
     ShareBar,
     Share,
+    KabisStatus,
   ],
   host: { class: 'kira-formu' },
   templateUrl: './kira-formu.html',

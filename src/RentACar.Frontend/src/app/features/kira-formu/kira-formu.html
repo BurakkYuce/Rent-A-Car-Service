@@ -74,6 +74,8 @@
         <strong>{{ 'kiraFormu.uyari' | transloco }}</strong> {{ uyari }}
       </p>
     }
+    <!-- KABİS (1774 ek md. 3): bildirim durumu rozeti + bildirilmemiş/hatalı kirada uyarı. -->
+    <rc-kf-kabis />
     @if (d.visibleDetail()?.doviz; as dv) {
       <p class="kf-not">
         {{ dv.kod }} ·
