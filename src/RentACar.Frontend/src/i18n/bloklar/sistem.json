@@ -458,16 +458,16 @@
         "onizle": "{{ad}} temasını önizle",
         "onizleSecili": "Seçili görünümü önizle",
         "pazar": {
-          "ad": "Tarife",
-          "aciklama": "Fiyat şeffaflığı öne çıkar: günlük fiyat tahtası ve açık hesap. Bütçe ve şehir kiralaması için."
+          "ad": "Pazar",
+          "aciklama": "Kalın başlıklar, asılı fiyat etiketleri ve öne çıkan telefon ile WhatsApp; yerel firma ve bütçe kiralaması için."
         },
         "vitrin": {
           "ad": "Vitrin",
           "aciklama": "Koyu, sinematik showroom: tam genişlik fotoğraf ve yana akan filo şeridi. Özenli fotoğraflı, üst segment filo için."
         },
         "rota": {
-          "ad": "Kontuar",
-          "aciklama": "Bilet ve kalkış panosu düzeni. Havalimanı ve otel teslimi yapan firmalar için."
+          "ad": "Rota",
+          "aciklama": "Editoryal ve ferah: büyük başlık, dikey fotoğraf ve numaralı fiyat listesi. Tatil bölgesinde, havalimanı ve otel teslimi yapan firmalar için."
         }
       },
       "smtp": "SMTP (e-posta gönderimi)",

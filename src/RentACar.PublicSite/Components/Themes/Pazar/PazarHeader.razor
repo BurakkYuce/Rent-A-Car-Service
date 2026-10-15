@@ -1,10 +1,11 @@
 @using RentACar.Application.Fleet
 
-@* Tema "tarife" — Header slotu. İmza SABİT (Components/Themes/README.md): Branding, Nav.
+@* Tema "pazar" — Header slotu. İmza SABİT (Components/Themes/README.md): Branding, Nav.
 
-   Firma işareti: logo yüklüyse /marka/logo (sürümlü), yoksa marka adı (BrandMark, ortak). MOBİL: tek satır,
-   yapışkan değil, menü <details> (JS yok); iletişim alt eylem çubuğunda (MainLayout). Genişte telefon ve
-   WhatsApp üst barda. *@
+   Telefon müşterisi için: numara üst barda DOLU düğme, metin olarak da görünür (`tel:` açamayan masaüstünde de
+   işe yarar); WhatsApp yanında. Telefonda numara görsel olarak gizlenir ("Ara" kalır) ama erişilebilir adda kalır
+   (görünen etiket adın parçası, WCAG 2.5.3); WhatsApp telefonda alt eylem çubuğunda (MainLayout). Menü <details>
+   (JS yok). Kanal yoksa düğmesi basılmaz (T2). *@
 
 <header class="bar">
     <div class="wrap bar-ic">
@@ -16,12 +17,11 @@
         </nav>
         @if (_contact.WaLink is not null)
         {
-            <a class="btn btn-cizgi bar-tel" href="@_contact.WaLink" target="_blank" rel="noopener noreferrer">WhatsApp</a>
+            <a class="btn btn-cizgi pz-bar-wa" href="@_contact.WaLink" target="_blank" rel="noopener noreferrer">WhatsApp</a>
         }
         @if (_contact.TelLink is not null)
         {
-            @* Numara METİN olarak da görünür: `tel:` açamayan masaüstünde de işe yarasın. *@
-            <a class="btn btn-brand bar-tel" href="@_contact.TelLink">@_contact.Phone</a>
+            <a class="btn btn-brand pz-bar-tel" href="@_contact.TelLink">Ara<span class="pz-bar-no"> @_contact.Phone</span></a>
         }
         <details class="menu">
             <summary>Menü</summary>

@@ -143,8 +143,8 @@ public sealed partial class UiSystemSecurityTests
 
         foreach (var (theme, bad) in new (string?, string)[]
                  {
-                     ("vitrin", "petrol"), (null, "bordo"), ("rota", "olmayan"), ("kontuar", "grafit"), ("pazar", "petrol;}"),
-                     ("pazar", "pet rol"), ("pazar", new string('a', 31)), ("pazar", "petrol</style>"),
+                     ("vitrin", "domates"), (null, "bordo"), ("rota", "olmayan"), ("kontuar", "grafit"), ("pazar", "domates;}"),
+                     ("pazar", "petrol"), ("pazar", "dom ates"), ("pazar", new string('a', 31)), ("pazar", "domates</style>"),
                  })
         {
             var p = await Problem(await Send(admin, HttpMethod.Put, Settings, new { siteTemasi = theme, sitePaleti = bad, surum = version }),
@@ -155,17 +155,16 @@ public sealed partial class UiSystemSecurityTests
         var last = await Problem(await Send(admin, HttpMethod.Put, Settings, new { siteTemasi = "rota", sitePaleti = "grafit", surum = version }),
             HttpStatusCode.BadRequest, "dogrulama", "sitePaleti");
         var text = last.GetProperty("errors").GetProperty("sitePaleti").ToString();
-        Assert.Contains("terminal", text);
-        Assert.Contains("pist-yesili", text);
-        Assert.Contains("gok", text);
+        foreach (var key in new[] { "deniz", "zeytin", "gece-mavisi", "kayisi", "tas" })
+            Assert.Contains(key, text);
 
         var now = await Json(await admin.C.GetAsync(Settings));
         Assert.Equal(System.Text.Json.JsonValueKind.Null, now.GetProperty("sitePaleti").ValueKind);
         Assert.Equal(System.Text.Json.JsonValueKind.Null, now.GetProperty("siteTemasi").ValueKind);
 
         // Eski tema anahtarı + o temanın seti kabul edilir (tema yeni anahtarla saklanır).
-        var saved = await Json(await Send(admin, HttpMethod.Put, Settings, new { siteTemasi = "kontuar", sitePaleti = "gok", surum = version }));
-        Assert.Equal(("rota", "gok"), (saved.GetProperty("siteTemasi").GetString(), saved.GetProperty("sitePaleti").GetString()));
+        var saved = await Json(await Send(admin, HttpMethod.Put, Settings, new { siteTemasi = "kontuar", sitePaleti = "kayisi", surum = version }));
+        Assert.Equal(("rota", "kayisi"), (saved.GetProperty("siteTemasi").GetString(), saved.GetProperty("sitePaleti").GetString()));
     }
 
     // Anahtar göçü (tarife → pazar, kontuar → rota): eski anahtarla gelen PUT REDDEDİLMEZ, yeni anahtara normalize

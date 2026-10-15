@@ -1,18 +1,16 @@
-@* Tema "tarife" (anahtar pazar) — DetailHero slotu. İmza SABİT (Components/Themes/README.md): Model (DetailHeroModel).
+@* Tema "pazar" — DetailHero slotu. İmza SABİT (Components/Themes/README.md): Model (DetailHeroModel).
 
-   İlan detayının üst bölümü; kendi kapsayıcısını (wrap) basar. PR-2'de ortak düzen AYNEN taşındı.
+   İlan detayının üst bölümü; kendi kapsayıcısını (wrap) basar. Kapak kalın çerçeveli, günlük fiyat kapağa ASILI
+   büyük etikette (PazarPriceTag). Yanda yapışkan fiyat panosu: tarife satırları (günlük + varsa haftalık/aylık;
+   sayfadan, uydurulmaz), "Teklif iste" + WhatsApp, tarih formu (/musaitlik'e `ilan` ile; sonuçta bu araç öne
+   alınır, müsait değilse açıkça söylenir).
 
-   MOBİL İLK EKRAN (SEO denetimi M-10): başlığın hemen altında günlük fiyat + "Teklif iste" satırı (yalnız dar
-   ekranda; genişte fiyat paneli yanda).
-
-   TARİFE: satırlar sayfadan (günlük/haftalık/aylık ilandan, uydurulmaz; gün başı karşılığı sayfada yuvarlanır).
-   Tarih formu /musaitlik'e `ilan` ile gider: sonuçta bu araç öne alınır, müsait değilse bu açıkça söylenir.
-
-   GÖRSEL: kapak LCP adayı → tembel DEĞİL, `fetchpriority="high"`; boyut öznitelikleri 3:2 (CLS yok). Diğer
-   fotoğraflar küçük görsel + tembel; her birinin alt metni ayrı ("… fotoğraf 2"). *@
+   MOBİL İLK EKRAN (SEO M-10): başlığın hemen altında günlük fiyat + "Teklif iste" (yalnız dar ekranda).
+   GÖRSEL: kapak LCP adayı → tembel DEĞİL, `fetchpriority="high"`, boyut öznitelikleri 3:2 (CLS yok); fotoğraf
+   yoksa aracın adı "tabela" olarak basılır. Diğer fotoğraflar küçük görsel + tembel, alt metinleri ayrı. *@
 
 <div class="wrap">
-    <div class="detay">
+    <div class="detay pz-detay">
         <header class="detay-bas">
             <h1>@Model.Ilan.Baslik</h1>
             @if (Model.MetaSatiri is { Length: > 0 } meta) { <p>@meta</p> }
@@ -26,22 +24,25 @@
         </header>
 
         <figure class="detay-kapak">
-            @if (Model.Ilan.PhotoIds.Count > 0)
-            {
-                var cover = Model.Ilan.PhotoIds[0];
-                <img src="@($"/foto/{cover}")"
-                     srcset="@($"/foto/{cover}/thumb 400w, /foto/{cover} 1600w")"
-                     sizes="(min-width: 960px) 700px, 100vw"
-                     width="1200" height="800" alt="@Model.Ilan.Baslik" fetchpriority="high" decoding="async" />
-            }
-            else
-            {
-                <div class="foto-yok kapak-bos" aria-hidden="true"></div>
-            }
+            <div class="pz-cerceve">
+                @if (Model.Ilan.PhotoIds.Count > 0)
+                {
+                    var cover = Model.Ilan.PhotoIds[0];
+                    <img src="@($"/foto/{cover}")"
+                         srcset="@($"/foto/{cover}/thumb 400w, /foto/{cover} 1600w")"
+                         sizes="(min-width: 960px) 700px, 100vw"
+                         width="1200" height="800" alt="@Model.Ilan.Baslik" fetchpriority="high" decoding="async" />
+                }
+                else
+                {
+                    <span class="pz-fotosuz" aria-hidden="true">@Model.Ilan.Baslik</span>
+                }
+            </div>
+            <PazarPriceTag Amount="@PriceText.Tl(Model.Ilan.GunlukFiyat)" Unit="/ gün" Note="@Model.KdvMetni" Large="true" />
         </figure>
 
         <aside class="panel" aria-labelledby="tarife-baslik">
-            <h2 id="tarife-baslik">Tarife</h2>
+            <h2 id="tarife-baslik">Fiyatlar</h2>
             <table class="tarife-tablo">
                 <caption class="gorunmez">@Model.Ilan.Baslik kiralama fiyatları</caption>
                 <tbody>

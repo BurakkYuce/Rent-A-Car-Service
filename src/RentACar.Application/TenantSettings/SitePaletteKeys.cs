@@ -37,9 +37,11 @@ public static partial class SitePaletteKeys
         {
             [SiteThemeKeys.Pazar] =
             [
-                new("petrol", "Petrol ve yol sarısı", "#f5f6f3", "#1d2227", "#0b5d6b", "#f2c230", "#121417"),
-                new("lacivert", "Lacivert ve amber", "#f4f6f9", "#17202e", "#1f4e9c", "#f0a020", "#10151d"),
-                new("zeytin", "Zeytin ve hardal", "#f4f5f0", "#222519", "#4e6b1f", "#e0b324", "#12140f"),
+                new("domates", "Domates ve ayçiçeği", "#edf0f2", "#1b1d22", "#d42a1c", "#ffc928", "#16171a"),
+                new("kobalt", "Kobalt ve portakal", "#eef1f6", "#141a2b", "#1d4ed8", "#ff8a3d", "#11141c"),
+                new("hardal", "Hardal ve mürekkep", "#eeefeb", "#25220f", "#8a6800", "#f2b705", "#161510"),
+                new("cam", "Çam yeşili ve kraft", "#edf1ee", "#13201a", "#1d6b46", "#f0d49b", "#0f1612"),
+                new("patlican", "Patlıcan ve şeftali", "#f1eff3", "#1f1626", "#5d2a78", "#ffb38a", "#151119"),
             ],
             [SiteThemeKeys.Vitrin] =
             [
@@ -52,9 +54,11 @@ public static partial class SitePaletteKeys
             ],
             [SiteThemeKeys.Rota] =
             [
-                new("terminal", "Terminal ve yer ekibi turuncusu", "#f4f7f9", "#16263a", "#ff6a13", "#ff6a13", "#0a131d"),
-                new("pist-yesili", "Pist yeşili ve sinyal sarısı", "#f3f7f5", "#12261f", "#0f7a55", "#f5b800", "#08140f"),
-                new("gok", "Gök mavisi ve mercan", "#f3f6fa", "#14223a", "#1f6fd1", "#ff5a4e", "#0a1220"),
+                new("deniz", "Deniz", "#f1f5f6", "#0e2a33", "#0b5e6b", "#e2b02a", "#0b171b"),
+                new("zeytin", "Zeytin", "#f2f4f1", "#1c2617", "#4d6a27", "#7fb3d5", "#10140e"),
+                new("gece-mavisi", "Gece mavisi", "#f2f4f8", "#121a2e", "#1f3f8f", "#3fbf9b", "#0b0f1a"),
+                new("kayisi", "Kayısı", "#f3f4f6", "#1d2433", "#2a3446", "#f4a259", "#12161d"),
+                new("tas", "Taş", "#f3f4f4", "#1e2326", "#4a555d", null, "#15191c"),
             ],
         };
 
