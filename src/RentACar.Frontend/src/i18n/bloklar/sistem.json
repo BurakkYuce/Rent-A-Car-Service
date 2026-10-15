@@ -458,12 +458,12 @@
         "onizle": "{{ad}} temasını önizle",
         "onizleSecili": "Seçili görünümü önizle",
         "pazar": {
-          "ad": "Tarife",
-          "aciklama": "Fiyat şeffaflığı öne çıkar: günlük fiyat tahtası ve açık hesap. Bütçe ve şehir kiralaması için."
+          "ad": "Pazar",
+          "aciklama": "Kalın başlıklar, asılı fiyat etiketleri ve öne çıkan telefon ile WhatsApp; yerel firma ve bütçe kiralaması için."
         },
         "vitrin": {
           "ad": "Vitrin",
-          "aciklama": "Fotoğraf öne çıkar: büyük kapak görseli ve sade kartlar. Özenli fotoğraflı, üst segment filo için."
+          "aciklama": "Koyu, sinematik showroom: tam genişlik fotoğraf ve yana akan filo şeridi. Özenli fotoğraflı, üst segment filo için."
         },
         "rota": {
           "ad": "Rota",

@@ -18,14 +18,18 @@ Halka açık firma sitesi üç temadan birini kullanır: `pazar`, `vitrin`, `rot
   listesi (hata mesajı, ERP seçenekleri) yalnız yeni anahtarları sayar.
 - `RenameSiteThemeKeys` migration'ı kayıtlı değerleri çevirdi (NO FORCE / FORCE parantezi; Down geri çevirir).
 - Sayfa kabuğu `.page[data-tema]` çözülen KANONİK anahtarı taşır (kayıt sabitinden; test ve css içindir).
-- Geçiş dönemi: `pazar` kaydı yeni tema gelene dek eski Tarife bileşenlerini, css'ini ve görünen adını kullanır
-  (`SiteThemes.Tarife` alanı). Yeni tema PR'ı alanı, klasörü ve css'i yeniden adlandırır. `rota` yeni temasıyla
-  geldi (`SiteThemes.Rota`, `Themes/Rota/`, `css/tema-rota.css`); eski Kontuar dosyaları silindi.
+- `pazar` yeni temasıyla geldi (`SiteThemes.Pazar`, `Themes/Pazar/`, `css/tema-pazar.css`; eski Tarife dosyaları
+  ve Barlow yazı tipleri silindi). `rota` yeni temasıyla geldi (`SiteThemes.Rota`, `Themes/Rota/`,
+  `css/tema-rota.css`); eski Kontuar dosyaları silindi.
+- Pazar'ın kendi bileşeni `PazarPriceTag` (asılı fiyat etiketi — temanın imzası) slot değildir; Card, Hero ve
+  DetailHero kullanır. Eski tarife'nin geçici palet setleri (`petrol`, `lacivert`, `zeytin`) Pazar setleriyle
+  (`domates` varsayılan, `kobalt`, `hardal`, `cam`, `patlican`) değişti; kayıtlı eski anahtar varsayılana düşer.
 
 ## Temalar
 
 | Anahtar | Ad | Kimlik | İmza anı | Yazı |
 |---|---|---|---|---|
+| `pazar` | Pazar | Yerel, samimi, yoğun ama düzenli; serin açık zemin, firma rengi tam genişlik düz bloklar (hero, kapanış bandı), kalın çerçeveli kartlar + kaydırılmış düz gölge. Hero: tam genişlik başlık, arama + "sormak isterseniz arayın", asılı etiketli fotoğraf. Telefon üst barda dolu düğme, telefonda sabit alt çubuk. "Neden <marka>?" yalnız veri ve sistem davranışı; ofis/şubeler (adres, saat, telefon, harita bağlantısı), SSS. Fotoğrafsız ilanda aracın adı tabela harfiyle. | Fiyat etiketleri açılışta bir kez sarkaç gibi sallanıp asılı durur (yalnız `rotate`, dönme noktası çivi) | Bricolage Grotesque Condensed 800 (wdth 75, opsz 36) + Onest 400–700 |
 | `rota` | Rota | Editoryal, seyrek; serin zemin, asimetrik 12 kolon. Hero: büyük başlık + dikey fotoğraf (arkasında vurgu renkli levha, altında künye) + kompakt arama. Filo: NUMARALI FİYAT LİSTESİ (`<ol>`; satır etkinken fotoğraf sağ kolonda, `:hover`/`:focus-within`, JS yok; dar/dokunmatikte satır içi küçük görsel). Koşullar üç sütun, şubeler + saat + harita bağlantısı, SSS. | Noktalı çizgiler açılışta soldan sağa çizilir (clip-path) | Literata 500 (optik boyut 12–72) + Public Sans 400–600 |
 
 ## Seçim ve önizleme
@@ -174,10 +178,26 @@ göre yalnız CSS ile değişir.
 modda logo levhası), `--day-ink` (açık şemanın mürekkebi — iki modda sabit koyu levha/pano), `--night-bg` (koyu
 şemanın zemini — sahne gölgesi), `--night-ink` (koyu şemanın mürekkebi — sabit koyu levha üstündeki yazı).
 
+Her şema bloğu ayrıca `color-scheme: light|dark` yazar — değer ZEMİNDEN (beyaz siyahtan çok kontrast veriyorsa
+koyu). Tema css'indeki `color-scheme` bildirimi yalnız yedektir: koyu kimlikli bir setin açık şeması da koyu
+olduğundan (aşağıda) doğru değer ancak bloktan gelebilir.
+
 Kontrast güvencesi (üretici, tutmayan değeri zıt uca %2 adımla kaydırır; testler bağımsız WCAG hesabıyla
 ölçer): metin 4.5:1 — ink / bg, surface, bg-alt, surface-raised; ink-muted ve ink-subtle / bg, surface, bg-alt;
 brand-text / bg, surface, brand-soft; on-brand / brand; accent-ink / accent. Dolgu 3:1 — brand / bg, surface.
-Setler için ayrıca night-ink / day-ink 4.5:1.
+Açık kimlikli setler için ayrıca night-ink / day-ink 4.5:1 (sabit koyu levha).
+
+### Koyu kimlik ve şemaya bağlı tema token'ları
+
+Bir set `DarkInLightMode = true` bildirirse açık şeması da KOYU olabilir (koyu öncelikli tema; ör. Vitrin'in
+Grafit/Gece mavisi/Bordo/Orman setleri). O sette `--day-*` "açık levha/koyu levha" anlamını taşımaz (gündüz
+zemini koyu, gündüz mürekkebi açık) — böyle setleri olan tema bu sabitleri levha için kullanmaz. Dolgu üstü koyu
+yazı adayı bu sette açık şemanın ZEMİNİDİR (mürekkep açık renk).
+
+Tema css'i hangi setin basıldığını bilemez. Şemanın koyu ya da açık olmasına göre değişmesi gereken tema
+token'ları (fotoğrafsız sahne zemini, logo levhası, alan zemini, durum renkleri) `light-dark(açıkta, koyuda)` ile
+yazılır; seçimi palet bloğunun `color-scheme`'i yapar. Durum renkleri böyle yazılabilir (`--danger:
+light-dark(var(--p-red), var(--p-red-light))`) — yapısal test light-dark'ı setin şemasına göre çözer.
 
 ### Diğer semantik token'lar (her tema HEPSİNİ tanımlar)
 
@@ -203,8 +223,9 @@ anahtarı yalnız kayıt aramasında kullanılır). CSP `style-src 'unsafe-inlin
    İLK set varsayılandır. 4–5 set hedeflenir.
 2. Set: `new SitePalette("anahtar", "Görünen ad", Light, Dark)`; anahtar `^[a-z0-9-]{1,30}$`, tema içinde
    tekil, KALICI (DB + adres). Şema: `new SchemeColors(Bg, Surface, Ink, Primary, Accent)` — hepsi küçük harf
-   `#rrggbb`. `Accent` null → vurgu ana rengi izler (firma kendi rengini seçince o da değişir). Açık şemanın
-   zemini mürekkepten açık, koyu şemanınki koyu olmalı (test). Her şema kendi `Primary`'sini taşır;
+   `#rrggbb`. `Accent` null → vurgu ana rengi izler (firma kendi rengini seçince o da değişir). Koyu şemanın
+   zemini mürekkepten koyu; açık şemanınki açık — set `DarkInLightMode = true` ile koyu kimlik bildirmedikçe
+   (bildirirse açık şema da koyu olmalı; test iki yönü de denetler). Her şema kendi `Primary`'sini taşır;
    firmanın "kendi ana rengim"i ikisini de ezer.
 3. Türetilen tonlar (ikinci zemin, yükseltilmiş yüzey, ikincil/ipucu metni, çizgiler, hafif ton, vurgu üstü
    yazı) otomatik. Elle ince ayar istenirse init özellikleri: `BgAlt SurfaceRaised InkMuted InkSubtle Line
