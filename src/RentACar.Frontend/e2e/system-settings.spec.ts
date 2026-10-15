@@ -129,13 +129,13 @@ test('ayarlar: site teması radyo ile seçilir (kayıtsızsa pazar seçili), ön
   const writes = await settingsEndpoints(page);
   await open(page);
   const group = page.getByRole('radiogroup', { name: 'Site teması' });
-  // Görünen adlar yeni temalar gelene dek eski temanınki (anahtar pazar → "Tarife", rota → "Kontuar").
+  // Görünen adlar yeni temalar gelene dek eski temanınki (anahtar pazar → "Tarife"); rota yeni temasıyla "Rota".
   await expect(group.getByRole('radio', { name: /^Tarife:/ })).toBeChecked();
 
   for (const [name, key] of [
     ['Tarife', 'pazar'],
     ['Vitrin', 'vitrin'],
-    ['Kontuar', 'rota'],
+    ['Rota', 'rota'],
   ] as const) {
     const link = page.getByRole('link', { name: `${name} temasını önizle` });
     // Kendi ana renk (#0b5d6b) her temanın önizlemesine taşınır; palet temaya özgü olduğundan taşınmaz.
@@ -144,7 +144,7 @@ test('ayarlar: site teması radyo ile seçilir (kayıtsızsa pazar seçili), ön
     await expect(link).toHaveAttribute('rel', 'noopener noreferrer');
   }
 
-  await group.getByRole('radio', { name: /^Kontuar:/ }).check();
+  await group.getByRole('radio', { name: /^Rota:/ }).check();
   await page.getByRole('button', { name: 'Ayarları kaydet' }).click();
   await expect.poll(() => writes.length).toBe(1);
   expect(body(writes[0])['siteTemasi']).toBe('rota');

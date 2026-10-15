@@ -124,8 +124,7 @@ public sealed partial class SitePaletteCssTests
     }
 
     /// <summary>Değişiklikten ÖNCE canlı sitenin bastığı değerler (BrandPalette çıktısı + tema css primitive'leri):
-    /// varsayılan setler görünümü korur. Kontuar'da dolgu üstü yazı artık temanın kendi laciverti (#16263a; tema
-    /// yorumunun niyeti) — eskiden Tarife'nin mürekkebi (#1d2227) sabit kodluydu.</summary>
+    /// varsayılan setler görünümü korur. Rota yeni temadır: beklenen, setin elle yazılmış değerleridir.</summary>
     [Fact]
     public void Varsayilan_setler_bugunku_renkleri_korur()
     {
@@ -148,20 +147,25 @@ public sealed partial class SitePaletteCssTests
             subtle: "#a3aab1", line: "#2a3036", lineStrong: "#62696f", accent: "#2d7480", accentInk: "#ffffff");
         Assert.Equal("#2d7480", vitrin.Dark.Brand.Hex);
 
-        var kontuar = SitePaletteCss.Tokens(SiteThemes.Kontuar, null, null);
-        Assert.Equal("terminal", kontuar.Palette.Key);
-        AssertHex(kontuar.Light, bg: "#f4f7f9", bgAlt: "#e7edf2", surface: "#ffffff", ink: "#16263a", muted: "#3b4d63",
-            subtle: "#52647a", line: "#cfd8e0", lineStrong: "#8a98a7", accent: "#ff6a13", accentInk: "#16263a");
-        Assert.Equal("#eb6211", kontuar.Light.Brand.Hex);     // turuncu zeminde 3:1'e koyulaştırıldı (eskisiyle aynı)
-        Assert.Equal("#ad480d", kontuar.Light.BrandText.Hex);
-        Assert.Equal("#16263a", kontuar.Light.OnBrand.Hex);
-        AssertHex(kontuar.Dark, bg: "#0a131d", bgAlt: "#0f1925", surface: "#131d2b", ink: "#e9eff5", muted: "#a9b8c8",
-            subtle: "#a9b8c8", line: "#24344a", lineStrong: "#3a5070", accent: "#ff6a13", accentInk: "#0a131d");
-        Assert.Equal("#ff6a13", kontuar.Dark.Brand.Hex);
-        Assert.Equal("#ff6a13", kontuar.Dark.BrandText.Hex);
-        Assert.Equal("#16263a", kontuar.Dark.OnBrand.Hex);
-        Assert.Equal(("#f4f7f9", "#16263a", "#0a131d", "#e9eff5"),
-            (kontuar.DayBg.Hex, kontuar.DayInk.Hex, kontuar.NightBg.Hex, kontuar.NightInk.Hex));
+        // Rota "deniz": tüm elle ayarlar güvenceyi zaten tutuyor → AYNEN basılır (beklenenler tema-rota.css yedekleri;
+        // kontrastlar elle hesaplandı: petrol zeminde 6.8:1, kartta 7.4:1, beyaz yazı 7.4:1; koyu şemada açık petrol
+        // üstünde beyaz 2.3:1 tutmaz → açık şemanın mürekkebi #0e2a33, 6.5:1).
+        var rota = SitePaletteCss.Tokens(SiteThemes.Rota, null, null);
+        Assert.Equal("deniz", rota.Palette.Key);
+        AssertHex(rota.Light, bg: "#f1f5f6", bgAlt: "#e5ecee", surface: "#ffffff", ink: "#0e2a33", muted: "#3a5560",
+            subtle: "#4d6872", line: "#d2dde0", lineStrong: "#7a9099", accent: "#e2b02a", accentInk: "#0e2a33");
+        Assert.Equal(("#0b5e6b", "#ffffff", "#0b5e6b"), (rota.Light.Brand.Hex, rota.Light.OnBrand.Hex, rota.Light.BrandText.Hex));
+        AssertHex(rota.Dark, bg: "#0b171b", bgAlt: "#0f1f24", surface: "#122429", ink: "#e4eef0", muted: "#a9bec4",
+            subtle: "#9ab1b8", line: "#24414a", lineStrong: "#557580", accent: "#e2b02a", accentInk: "#0b171b");
+        Assert.Equal(("#5cb8c4", "#0e2a33", "#5cb8c4"), (rota.Dark.Brand.Hex, rota.Dark.OnBrand.Hex, rota.Dark.BrandText.Hex));
+        Assert.Equal(("#f1f5f6", "#0e2a33", "#0b171b", "#e4eef0"),
+            (rota.DayBg.Hex, rota.DayInk.Hex, rota.NightBg.Hex, rota.NightInk.Hex));
+
+        // Rota "kayisi": açık şemada eylem rengi koyu mürekkep (kayısı vurgu — dolgu olarak açık zeminde 3:1'i
+        // tutmazdı ve kiremit tonuna koyulaşırdı); koyu şemada kayısı aynen ana renk, üstünde koyu yazı.
+        var apricot = SitePaletteCss.Tokens(SiteThemes.Rota, "kayisi", null);
+        Assert.Equal(("#2a3446", "#ffffff", "#f4a259"), (apricot.Light.Brand.Hex, apricot.Light.OnBrand.Hex, apricot.Light.Accent.Hex));
+        Assert.Equal(("#f4a259", "#1d2433"), (apricot.Dark.Brand.Hex, apricot.Dark.OnBrand.Hex));
     }
 
     private static void AssertHex(SchemeTokens s, string bg, string bgAlt, string surface, string ink, string muted,
@@ -277,9 +281,9 @@ public sealed partial class SitePaletteCssTests
     [Fact]
     public void Css_iki_semayi_tum_tokenlarla_ve_yalniz_hex_degerle_yazar()
     {
-        var css = SitePaletteCss.Build(SiteThemes.Kontuar, "gok", "#C0392B"); // büyük harf → küçük harfle yazılır
-        Assert.StartsWith(":root{--bg:#f3f6fa;", css);
-        Assert.Contains("@media (prefers-color-scheme:dark){:root{--bg:#0a1220;", css);
+        var css = SitePaletteCss.Build(SiteThemes.Rota, "zeytin", "#C0392B"); // büyük harf → küçük harfle yazılır
+        Assert.StartsWith(":root{--bg:#f2f4f1;", css);
+        Assert.Contains("@media (prefers-color-scheme:dark){:root{--bg:#10140e;", css);
         Assert.Contains("--brand:#c0392b;", css);
         foreach (var name in SitePaletteCss.SchemeTokenNames)
             Assert.Equal(2, Regex.Matches(css, Regex.Escape(name) + ":").Count);

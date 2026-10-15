@@ -18,9 +18,15 @@ Halka açık firma sitesi üç temadan birini kullanır: `pazar`, `vitrin`, `rot
   listesi (hata mesajı, ERP seçenekleri) yalnız yeni anahtarları sayar.
 - `RenameSiteThemeKeys` migration'ı kayıtlı değerleri çevirdi (NO FORCE / FORCE parantezi; Down geri çevirir).
 - Sayfa kabuğu `.page[data-tema]` çözülen KANONİK anahtarı taşır (kayıt sabitinden; test ve css içindir).
-- Geçiş dönemi: `pazar` ve `rota` kayıtları yeni temalar gelene dek eski Tarife / Kontuar bileşenlerini, css'ini
-  ve görünen adını kullanır (`SiteThemes.Tarife` / `SiteThemes.Kontuar` alanları). Yeni tema PR'ı alanı,
-  klasörü ve css'i yeniden adlandırır.
+- Geçiş dönemi: `pazar` kaydı yeni tema gelene dek eski Tarife bileşenlerini, css'ini ve görünen adını kullanır
+  (`SiteThemes.Tarife` alanı). Yeni tema PR'ı alanı, klasörü ve css'i yeniden adlandırır. `rota` yeni temasıyla
+  geldi (`SiteThemes.Rota`, `Themes/Rota/`, `css/tema-rota.css`); eski Kontuar dosyaları silindi.
+
+## Temalar
+
+| Anahtar | Ad | Kimlik | İmza anı | Yazı |
+|---|---|---|---|---|
+| `rota` | Rota | Editoryal, seyrek; serin zemin, asimetrik 12 kolon. Hero: büyük başlık + dikey fotoğraf (arkasında vurgu renkli levha, altında künye) + kompakt arama. Filo: NUMARALI FİYAT LİSTESİ (`<ol>`; satır etkinken fotoğraf sağ kolonda, `:hover`/`:focus-within`, JS yok; dar/dokunmatikte satır içi küçük görsel). Koşullar üç sütun, şubeler + saat + harita bağlantısı, SSS. | Noktalı çizgiler açılışta soldan sağa çizilir (clip-path) | Literata 500 (optik boyut 12–72) + Public Sans 400–600 |
 
 ## Seçim ve önizleme
 
