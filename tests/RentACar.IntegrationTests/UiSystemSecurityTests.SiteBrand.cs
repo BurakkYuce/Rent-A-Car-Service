@@ -96,7 +96,7 @@ public sealed partial class UiSystemSecurityTests
 
     // Site palet seti: aynı istekteki temanın setlerinden biri (büyük harf/boşluk normalize), katalog GET'te gelir,
     // başka firmaya sızmaz, boş → null (temanın varsayılanı). Beklenen anahtarlar elle yazıldı (vitrin: grafit,
-    // gece-mavisi, bordo).
+    // gece-mavisi, bordo, orman, sampanya).
     [Fact]
     public async Task Site_palette_round_trips_with_catalog_and_stays_in_tenant()
     {
@@ -107,11 +107,12 @@ public sealed partial class UiSystemSecurityTests
         var catalog = first.GetProperty("sitePaletSecenekleri").EnumerateArray()
             .ToDictionary(t => t.GetProperty("tema").GetString()!,
                 t => t.GetProperty("paletler").EnumerateArray().Select(p => p.GetProperty("anahtar").GetString()).ToList());
-        Assert.Equal(["grafit", "gece-mavisi", "bordo"], catalog["vitrin"]);
+        Assert.Equal(["grafit", "gece-mavisi", "bordo", "orman", "sampanya"], catalog["vitrin"]);
         Assert.Equal(["pazar", "vitrin", "rota"], catalog.Keys);
         var bordo = first.GetProperty("sitePaletSecenekleri").EnumerateArray().Single(t => t.GetProperty("tema").GetString() == "vitrin")
             .GetProperty("paletler").EnumerateArray().Single(p => p.GetProperty("anahtar").GetString() == "bordo");
-        Assert.Equal("#7b1e2e", bordo.GetProperty("ana").GetString());
+        Assert.Equal("#e6b8b0", bordo.GetProperty("ana").GetString());
+        Assert.Equal("#2a161b", bordo.GetProperty("zemin").GetString()); // koyu kimlik: açık şemanın zemini de koyu
         Assert.Equal(System.Text.Json.JsonValueKind.Null, bordo.GetProperty("vurgu").ValueKind); // vitrin: vurgu ana rengi izler
 
         var version = first.GetProperty("surum").GetString();
@@ -142,8 +143,8 @@ public sealed partial class UiSystemSecurityTests
 
         foreach (var (theme, bad) in new (string?, string)[]
                  {
-                     ("vitrin", "petrol"), (null, "bordo"), ("rota", "olmayan"), ("kontuar", "grafit"), ("pazar", "petrol;}"),
-                     ("pazar", "pet rol"), ("pazar", new string('a', 31)), ("pazar", "petrol</style>"),
+                     ("vitrin", "domates"), (null, "bordo"), ("rota", "olmayan"), ("kontuar", "grafit"), ("pazar", "domates;}"),
+                     ("pazar", "petrol"), ("pazar", "dom ates"), ("pazar", new string('a', 31)), ("pazar", "domates</style>"),
                  })
         {
             var p = await Problem(await Send(admin, HttpMethod.Put, Settings, new { siteTemasi = theme, sitePaleti = bad, surum = version }),

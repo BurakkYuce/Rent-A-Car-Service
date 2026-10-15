@@ -15,7 +15,8 @@ namespace RentACar.IntegrationTests;
 /// satır içi betik yok (CSP script-src 'self').
 ///
 /// <para>BAĞIMSIZ ORACLE: marka adı, renk ve beklenen metinler testte elle yazılır. Beklenen kontrast
-/// yazı rengi (#1d2227) sarı (#ffd400) için elle hesaplanmıştır: beyaz 1.4:1, mürekkep 11:1.</para>
+/// yazı rengi varsayılan temanın (pazar, domates seti) mürekkebi #1b1d22: koyu şemada sarı (#ffd400) dolgu aynen
+/// kalır ve üstünde beyaz 1.4:1, mürekkep ~12:1 verir.</para>
 /// </summary>
 [Collection("postgres")]
 public sealed class PublicSiteDesignTests(PostgresFixture fx)
@@ -73,7 +74,7 @@ public sealed class PublicSiteDesignTests(PostgresFixture fx)
         var html = await factory.Client().GetStringAsync("/");
 
         Assert.Contains("--brand:#ffd400", html);       // dolgu: firmanın rengi aynen
-        Assert.Contains("--on-brand:#1d2227", html);    // sarı üstünde koyu yazı
+        Assert.Contains("--on-brand:#1b1d22", html);    // sarı üstünde koyu yazı
         Assert.DoesNotContain("--brand-text:#ffd400;", html[..html.IndexOf("@media", StringComparison.Ordinal)]); // açık temada metin tonu koyulaştırıldı
     }
 

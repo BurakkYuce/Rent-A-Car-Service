@@ -1,0 +1,205 @@
+@using System.Globalization
+@using RentACar.Application.Common
+@using RentACar.Domain.Entities
+
+@* Tema "pazar" — Home slotu. İmza SABİT (Components/Themes/README.md): Model (HomeModel).
+
+   Sıra (yoğun ama düzenli; telefon/WhatsApp müşterisi ve ilk kez kiralayan için):
+     1. Hero — firma rengi düz blok: başlık, arama, "sormak isterseniz arayın", asılı fiyat etiketli fotoğraf
+     2. Filo — kalın çerçeveli kartlar, her birinde asılı fiyat etiketi (ilan yoksa bölüm yok, T2)
+     3. "Neden <marka>?" — en çok üç somut madde, YALNIZ veriden ya da sistemin davranışından (T1: kasko, teslimat,
+        depozito gibi firma taahhütleri YAZILMAZ; bunlar firmanın kendi koşullar sayfasında — varsa bağlantı)
+     4. Üç adımda kiralama (ortak BolumNasilCalisir — ilk kez kiralayan için süreç)
+     5. Ofis / şubeler — adres, çalışma saati, telefon, "Haritada aç" (şube verisi yoksa firma adresi; o da yoksa yok)
+     6. SSS (görünen adet = FAQPage adedi, SEO L-4)
+     7. Kapanış bandı (Ara / WhatsApp)
+   Yorum bölümü YOK: yorum verisi sistemde yok (T2) — uydurma ya da boş yer tutucu basılmaz.
+   Sarmalayıcı öğe YOK: bölümler doğrudan <main>'in çocuğu (base.css `main > .cta-bant:last-child`). *@
+
+<ThemedHero Marka="@Model.Marka" Branding="Model.Branding" Subeler="Model.SubeAdlari" Kartlar="Model.Kartlar" Sehir="@Model.Sehir" />
+
+@if (Model.Filo.Kartlar.Count > 0)
+{
+    <section class="bolum pz-filo" id="filo" aria-labelledby="@Model.Filo.BaslikId">
+        <div class="wrap">
+            <ThemedFleet Model="Model.Filo" />
+        </div>
+    </section>
+}
+
+@if (Reasons.Count >= 2)
+{
+    <section class="bolum pz-neden" aria-labelledby="neden-baslik">
+        <div class="wrap">
+            <h2 id="neden-baslik" class="bolum-baslik">@(string.IsNullOrWhiteSpace(Model.Marka) ? "Neden biz?" : $"Neden {Model.Marka}?")</h2>
+            <ul class="pz-nedenler">
+                @foreach (var reason in Reasons)
+                {
+                    <li>
+                        <h3>@reason.Title</h3>
+                        <p>@reason.Text</p>
+                        @if (reason.LinkHref is not null)
+                        {
+                            <p><a href="@reason.LinkHref" target="@(reason.External ? "_blank" : null)"
+                                  rel="@(reason.External ? "noopener noreferrer" : null)">@reason.LinkText</a></p>
+                        }
+                    </li>
+                }
+            </ul>
+            @if (Model.KosulSayfasi is { Length: > 0 } terms)
+            {
+                <p class="linkler"><a href="@terms">Kiralama koşullarımızın tamamı</a></p>
+            }
+        </div>
+    </section>
+}
+
+<BolumNasilCalisir />
+
+@if (Offices.Count > 0)
+{
+    <section class="bolum pz-ofis" id="ofis" aria-labelledby="ofis-baslik">
+        <div class="wrap">
+            <h2 id="ofis-baslik" class="bolum-baslik">@(Offices.Count == 1 ? "Ofisimiz" : "Şubelerimiz")</h2>
+            <ul class="pz-ofisler">
+                @foreach (var office in Offices)
+                {
+                    <li>
+                        <h3>@office.Name</h3>
+                        @if (office.Address is not null) { <p class="pz-ofis-adres">@office.Address</p> }
+                        @if (office.Hours.Count > 0)
+                        {
+                            <p class="pz-ofis-saat">
+                                <span class="pz-ofis-etiket">Çalışma saatleri</span>
+                                @foreach (var line in office.Hours) { <span>@line</span> }
+                            </p>
+                        }
+                        @if (office.TelLink is not null || office.MapLink is not null)
+                        {
+                            <p class="pz-ofis-eylem">
+                                @if (office.TelLink is not null) { <a class="btn btn-cizgi" href="@office.TelLink">@office.Phone</a> }
+                                @if (office.MapLink is not null)
+                                {
+                                    @* Dış bağlantı: kullanıcının kendi harita uygulamasında açılır (gömme YOK — CSP). *@
+                                    <a class="btn btn-cizgi" href="@office.MapLink" target="_blank" rel="noopener noreferrer">Haritada aç</a>
+                                }
+                            </p>
+                        }
+                    </li>
+                }
+            </ul>
+        </div>
+    </section>
+}
+
+@* Görünen soru adedi = FAQPage JSON-LD adedi (SEO L-4): Model.SssAdet değiştirilmez. *@
+<BolumSss Sorular="Model.Sss" Adet="Model.SssAdet" />
+
+<BolumCta Telefon="@Model.Branding?.Tel" WhatsApp="@Model.Branding?.WhatsApp" />
+
+@code {
+    /// <summary>Ofis bloğunda en fazla kaç şube (fazlası iletişim sayfasında/şube adlarıyla aramada).</summary>
+    private const int MaxOffices = 3;
+    private static readonly CultureInfo Tr = CultureInfo.GetCultureInfo("tr-TR");
+
+    [Parameter, EditorRequired] public HomeModel Model { get; set; } = default!;
+
+    private sealed record Reason(string Title, string Text, string? LinkHref = null, string? LinkText = null,
+        bool External = false);
+
+    private sealed record Office(string Name, string? Address, IReadOnlyList<string> Hours, string? Phone,
+        string? TelLink, string? MapLink);
+
+    private IReadOnlyList<Reason> Reasons { get; set; } = [];
+    private IReadOnlyList<Office> Offices { get; set; } = [];
+
+    protected override void OnParametersSet()
+    {
+        Reasons = BuildReasons();
+        Offices = BuildOffices();
+    }
+
+    /// <summary>"Neden …?" maddeleri: ilki sistemin davranışı (ilan fiyatı sözleşmeye aynen geçer — her firmada
+    /// doğru), diğerleri YALNIZ veri varsa (filo adedi, iletişim kanalı).</summary>
+    private List<Reason> BuildReasons()
+    {
+        var list = new List<Reason>
+        {
+            new("Fiyat baştan belli",
+                "Her aracın günlük fiyatı ve KDV durumu ilanında yazılı; ilandaki fiyat sözleşmenize aynen geçer."),
+        };
+        if (Model.Kartlar.Count > 0)
+        {
+            var vehicles = Model.Kartlar.Sum(c => Math.Max(c.Adet, 1));
+            list.Add(new($"{PriceText.Count(Model.Kartlar.Count)} model, {PriceText.Count(vehicles)} araç",
+                "Tarih seçtiğinizde yalnız o günlerde boşta olan araçlar listelenir."));
+        }
+        var contact = ContactLinks.From(Model.Branding);
+        if (contact.TelLink is not null)
+            list.Add(new("Telefonla ya da WhatsApp'tan",
+                contact.WaLink is null ? "Karar vermeden önce arayıp sorabilirsiniz." : "Karar vermeden önce arayıp ya da yazıp sorabilirsiniz.",
+                contact.TelLink, contact.Phone));
+        else if (contact.WaLink is not null)
+            list.Add(new("WhatsApp'tan sorun", "Karar vermeden önce yazıp sorabilirsiniz.",
+                contact.WaLink, "WhatsApp'tan yazın", External: true));
+        return list;
+    }
+
+    /// <summary>Aktif şubeler (site sırası, sonra ad); adres, saat ya da telefonu olmayan şube basılmaz. Şube verisi
+    /// yoksa firmanın genel adresi tek satır olarak; o da yoksa liste boş (bölüm yok, T2).</summary>
+    private List<Office> BuildOffices()
+    {
+        var list = Model.Subeler
+            .OrderBy(b => b.WebSira ?? int.MaxValue)
+            .ThenBy(b => b.Ad, StringComparer.Create(Tr, ignoreCase: true))
+            .Select(b => new Office(
+                string.IsNullOrWhiteSpace(b.WebIsim) ? b.Ad : b.WebIsim!.Trim(),
+                AddressOf(b),
+                HoursOf(b),
+                Empty(b.Telefon),
+                PhoneLink.Tel(b.Telefon),
+                MapOf(b)))
+            .Where(o => o.Address is not null || o.Hours.Count > 0 || o.TelLink is not null)
+            .Take(MaxOffices)
+            .ToList();
+        if (list.Count == 0 && Empty(Model.Branding?.Adres) is { } address)
+            list.Add(new Office("Adresimiz", address, [], null, null, MapQuery(address)));
+        return list;
+    }
+
+    private static string? Empty(string? s) => string.IsNullOrWhiteSpace(s) ? null : s.Trim();
+
+    /// <summary>"Atatürk Cd. No 5, Esenyurt/İstanbul" — il/ilçe adreste zaten geçiyorsa tekrar eklenmez.</summary>
+    private static string? AddressOf(Branch b)
+    {
+        var street = Empty(b.Adres);
+        var area = (Empty(b.Ilce), Empty(b.Il)) switch
+        {
+            ({ } d, { } c) => $"{d}/{c}",
+            ({ } d, null) => d,
+            (null, { } c) => c,
+            _ => null,
+        };
+        if (street is null) return area;
+        if (area is null || Tr.CompareInfo.IndexOf(street, Empty(b.Il) ?? area, CompareOptions.IgnoreCase) >= 0) return street;
+        return $"{street}, {area}";
+    }
+
+    /// <summary>Çalışma saati: kısa alan ("09:00-18:00"), yoksa haftalık metin (gün başına satır).</summary>
+    private static IReadOnlyList<string> HoursOf(Branch b)
+        => (Empty(b.CalismaSaatleri) ?? Empty(b.HaftalikCalismaSaatleri)) is { } text
+            ? [.. text.Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)]
+            : [];
+
+    /// <summary>Konum varsa koordinatla (kesin nokta), yoksa adres metniyle harita araması.</summary>
+    private static string? MapOf(Branch b)
+    {
+        if (b.Enlem is { } lat && b.Boylam is { } lng)
+            return "https://www.google.com/maps/search/?api=1&query="
+                   + Uri.EscapeDataString(string.Create(CultureInfo.InvariantCulture, $"{lat},{lng}"));
+        return AddressOf(b) is { } address && Empty(b.Adres) is not null ? MapQuery(address) : null;
+    }
+
+    private static string MapQuery(string address)
+        => "https://www.google.com/maps/search/?api=1&query=" + Uri.EscapeDataString(address);
+}
