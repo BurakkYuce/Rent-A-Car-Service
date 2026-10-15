@@ -12,8 +12,10 @@
    çerez şeridi TEMADAN BAĞIMSIZ (ortak davranış, base.css).
 
    MOBİL: iletişim (Ara / WhatsApp) ekranın altındaki sabit çubukta; kanal yoksa çubuk basılmaz (T2).
-   `data-slot` sarmalayıcıları `display: contents` (base.css) — temanın yapışkan barı bozulmaz. *@
-<div class="page @(_altbar ? "altbar-acik" : null)">
+   `data-slot` sarmalayıcıları `display: contents` (base.css) — temanın yapışkan barı bozulmaz.
+   `data-tema`: çözülen temanın KANONİK anahtarı (eski `?tema=tarife` → "pazar"); kayıt sabitinden, kullanıcı
+   girdisi basılmaz. Testler ve tema css'i buna bakabilir. *@
+<div class="page @(_altbar ? "altbar-acik" : null)" data-tema="@_theme?.Key">
     <a class="gorunmez atla" href="#icerik">İçeriğe geç</a>
     <div data-slot="header">
         @if (_theme is not null)

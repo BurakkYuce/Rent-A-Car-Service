@@ -1,6 +1,7 @@
 import {
   SECRET_FIELDS,
   SETTINGS_FIELDS,
+  SITE_THEMES,
   type SettingsDto,
   isHexColor,
   needsTxtRecord,
@@ -10,6 +11,7 @@ import {
   settingsBody,
   settingsFormValue,
   settingsServerValues,
+  siteThemeFormValue,
   themePreviewUrl,
 } from './settings-model';
 
@@ -31,15 +33,37 @@ const DTO = {
 } as unknown as SettingsDto;
 
 describe('ayarlar modeli', () => {
-  it('site teması: kayıtsızsa tarife seçili; kayıtlıysa aynen; önizleme adresi ?tema=', () => {
-    expect(settingsFormValue(DTO).siteTemasi).toBe('tarife');
-    expect(settingsFormValue({ ...DTO, siteTemasi: 'kontuar' } as SettingsDto).siteTemasi).toBe(
-      'kontuar',
+  it('site teması: kayıtsızsa pazar seçili; kayıtlıysa aynen; önizleme adresi ?tema=', () => {
+    expect(SITE_THEMES).toEqual(['pazar', 'vitrin', 'rota']);
+    expect(settingsFormValue(DTO).siteTemasi).toBe('pazar');
+    expect(settingsFormValue({ ...DTO, siteTemasi: 'rota' } as SettingsDto).siteTemasi).toBe(
+      'rota',
     );
     expect(themePreviewUrl('kiyi.site.test', 'vitrin')).toBe('//kiyi.site.test/?tema=vitrin');
+    expect(themePreviewUrl('kiyi.site.test', 'pazar')).toBe('//kiyi.site.test/?tema=pazar');
   });
 
-  it('palet setleri temaya göre; boş tema varsayılan tema (tarife); katalog yoksa boş', () => {
+  it('site teması: eski anahtar yeni karşılığıyla seçili görünür (tarife → pazar, kontuar → rota)', () => {
+    expect(settingsFormValue({ ...DTO, siteTemasi: 'tarife' } as SettingsDto).siteTemasi).toBe(
+      'pazar',
+    );
+    expect(settingsFormValue({ ...DTO, siteTemasi: ' Kontuar ' } as SettingsDto).siteTemasi).toBe(
+      'rota',
+    );
+    expect(siteThemeFormValue('')).toBe('pazar');
+    expect(siteThemeFormValue('VITRIN')).toBe('vitrin');
+    expect(siteThemeFormValue('TARIFE')).toBe('pazar'); // Türkçe küçültme ı üretir; anahtar yine bulunur
+    // Tanınmayan değer uydurulmaz: aynen kalır (radyo seçimsiz; sunucu kaydı reddeder).
+    expect(siteThemeFormValue('mavi')).toBe('mavi');
+    // Gövdeye yeni anahtar gider.
+    const body = settingsBody(
+      settingsFormValue({ ...DTO, siteTemasi: 'kontuar' } as SettingsDto),
+      'v7',
+    );
+    expect(body['siteTemasi']).toBe('rota');
+  });
+
+  it('palet setleri temaya göre; boş tema varsayılan tema (pazar); katalog yoksa boş', () => {
     const swatch = {
       zemin: '#ffffff',
       murekkep: '#000000',
@@ -50,7 +74,7 @@ describe('ayarlar modeli', () => {
     const dto = {
       ...DTO,
       sitePaletSecenekleri: [
-        { tema: 'tarife', paletler: [{ anahtar: 'petrol', ad: 'Petrol', ...swatch }] },
+        { tema: 'pazar', paletler: [{ anahtar: 'petrol', ad: 'Petrol', ...swatch }] },
         {
           tema: 'vitrin',
           paletler: [
@@ -82,8 +106,8 @@ describe('ayarlar modeli', () => {
     expect(themePreviewUrl('kiyi.site.test', 'vitrin', null, 'kirmizi')).toBe(
       '//kiyi.site.test/?tema=vitrin',
     );
-    expect(themePreviewUrl('kiyi.site.test', 'tarife', 'lacivert', null)).toBe(
-      '//kiyi.site.test/?tema=tarife&palet=lacivert',
+    expect(themePreviewUrl('kiyi.site.test', 'pazar', 'lacivert', null)).toBe(
+      '//kiyi.site.test/?tema=pazar&palet=lacivert',
     );
     expect(isHexColor('#0b5d6b')).toBe(true);
     for (const bad of ['0b5d6b', '#0b5d6', '#0b5d6bb', '#0b5d6g', null, 7]) {

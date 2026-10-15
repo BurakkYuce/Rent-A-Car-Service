@@ -35,7 +35,7 @@ public sealed partial class UiSystemSecurityTests
         Assert.Equal(System.Text.Json.JsonValueKind.Null, saved.GetProperty("siteVurguRengi").ValueKind);
     }
 
-    // Site teması: yalnız bilinen anahtar (büyük harf normalize), bilinmeyen → 400 siteTemasi, boş → null (tarife),
+    // Site teması: yalnız bilinen anahtar (büyük harf normalize), bilinmeyen → 400 siteTemasi, boş → null (pazar),
     // başka firmaya sızmaz.
     [Fact]
     public async Task Site_theme_round_trips_validates_and_stays_in_tenant()
@@ -82,9 +82,12 @@ public sealed partial class UiSystemSecurityTests
         var last = await Problem(await Send(admin, HttpMethod.Put, Settings, new { siteTemasi = "mavi", surum = version }),
             HttpStatusCode.BadRequest, "dogrulama", "siteTemasi");
         var text = last.GetProperty("errors").GetProperty("siteTemasi").ToString();
-        Assert.Contains("tarife", text);
+        Assert.Contains("pazar", text);
         Assert.Contains("vitrin", text);
-        Assert.Contains("kontuar", text);
+        Assert.Contains("rota", text);
+        // Eski anahtarlar kabul edilir ama geçerli değer olarak İLAN EDİLMEZ.
+        Assert.DoesNotContain("tarife", text);
+        Assert.DoesNotContain("kontuar", text);
 
         // Hiçbiri yazılmadı: ayar varsayılanda (null).
         Assert.Equal(System.Text.Json.JsonValueKind.Null,
@@ -105,7 +108,7 @@ public sealed partial class UiSystemSecurityTests
             .ToDictionary(t => t.GetProperty("tema").GetString()!,
                 t => t.GetProperty("paletler").EnumerateArray().Select(p => p.GetProperty("anahtar").GetString()).ToList());
         Assert.Equal(["grafit", "gece-mavisi", "bordo"], catalog["vitrin"]);
-        Assert.Equal(["tarife", "vitrin", "kontuar"], catalog.Keys);
+        Assert.Equal(["pazar", "vitrin", "rota"], catalog.Keys);
         var bordo = first.GetProperty("sitePaletSecenekleri").EnumerateArray().Single(t => t.GetProperty("tema").GetString() == "vitrin")
             .GetProperty("paletler").EnumerateArray().Single(p => p.GetProperty("anahtar").GetString() == "bordo");
         Assert.Equal("#7b1e2e", bordo.GetProperty("ana").GetString());
@@ -127,8 +130,9 @@ public sealed partial class UiSystemSecurityTests
         Assert.Equal(System.Text.Json.JsonValueKind.Null, saved.GetProperty("sitePaleti").ValueKind);
     }
 
-    // Temaya ait olmayan (başka temanın seti; tema boşsa varsayılan tema tarife), bilinmeyen, biçimsiz ya da kolon
+    // Temaya ait olmayan (başka temanın seti; tema boşsa varsayılan tema pazar), bilinmeyen, biçimsiz ya da kolon
     // sınırını aşan palet: 400 + YALNIZ errors.sitePaleti; mesaj temanın geçerli setlerini sayar; kayıt değişmez.
+    // Eski tema anahtarı (kontuar → rota) aitlikte de yeni karşılığıyla değerlendirilir.
     [Fact]
     public async Task Invalid_or_foreign_site_palette_is_bound_to_sitePaleti_field()
     {
@@ -138,8 +142,8 @@ public sealed partial class UiSystemSecurityTests
 
         foreach (var (theme, bad) in new (string?, string)[]
                  {
-                     ("vitrin", "petrol"), (null, "bordo"), ("kontuar", "olmayan"), ("tarife", "petrol;}"),
-                     ("tarife", "pet rol"), ("tarife", new string('a', 31)), ("tarife", "petrol</style>"),
+                     ("vitrin", "petrol"), (null, "bordo"), ("rota", "olmayan"), ("kontuar", "grafit"), ("pazar", "petrol;}"),
+                     ("pazar", "pet rol"), ("pazar", new string('a', 31)), ("pazar", "petrol</style>"),
                  })
         {
             var p = await Problem(await Send(admin, HttpMethod.Put, Settings, new { siteTemasi = theme, sitePaleti = bad, surum = version }),
@@ -147,7 +151,7 @@ public sealed partial class UiSystemSecurityTests
             Assert.Equal(["sitePaleti"], p.GetProperty("errors").EnumerateObject().Select(x => x.Name).ToList());
         }
 
-        var last = await Problem(await Send(admin, HttpMethod.Put, Settings, new { siteTemasi = "kontuar", sitePaleti = "grafit", surum = version }),
+        var last = await Problem(await Send(admin, HttpMethod.Put, Settings, new { siteTemasi = "rota", sitePaleti = "grafit", surum = version }),
             HttpStatusCode.BadRequest, "dogrulama", "sitePaleti");
         var text = last.GetProperty("errors").GetProperty("sitePaleti").ToString();
         Assert.Contains("terminal", text);
@@ -157,5 +161,32 @@ public sealed partial class UiSystemSecurityTests
         var now = await Json(await admin.C.GetAsync(Settings));
         Assert.Equal(System.Text.Json.JsonValueKind.Null, now.GetProperty("sitePaleti").ValueKind);
         Assert.Equal(System.Text.Json.JsonValueKind.Null, now.GetProperty("siteTemasi").ValueKind);
+
+        // Eski tema anahtarı + o temanın seti kabul edilir (tema yeni anahtarla saklanır).
+        var saved = await Json(await Send(admin, HttpMethod.Put, Settings, new { siteTemasi = "kontuar", sitePaleti = "gok", surum = version }));
+        Assert.Equal(("rota", "gok"), (saved.GetProperty("siteTemasi").GetString(), saved.GetProperty("sitePaleti").GetString()));
+    }
+
+    // Anahtar göçü (tarife → pazar, kontuar → rota): eski anahtarla gelen PUT REDDEDİLMEZ, yeni anahtara normalize
+    // edilip saklanır. Gerekçe: eski SPA sekmesi / önbellekteki istemci kaydederken kullanıcının seçimi kaybolmasın
+    // ve 400 almasın; sitenin ?tema= önizlemesiyle aynı kural (SiteThemeKeys.Normalize tek kaynak). Eski anahtar
+    // DB'ye hiç yazılmaz, okunurken yeni anahtar döner.
+    [Fact]
+    public async Task Legacy_site_theme_key_is_accepted_and_stored_as_new_key()
+    {
+        var e = await _kit.SetupAsync();
+        var admin = await _kit.LoginAsync(e, Who.Admin);
+        var version = (await Json(await admin.C.GetAsync(Settings))).GetProperty("surum").GetString();
+
+        foreach (var (legacy, current) in new[] { ("tarife", "pazar"), (" Kontuar ", "rota"), ("TARIFE", "pazar") })
+        {
+            var saved = await Json(await Send(admin, HttpMethod.Put, Settings, new { siteTemasi = legacy, surum = version }));
+            Assert.Equal(current, saved.GetProperty("siteTemasi").GetString());
+            version = saved.GetProperty("surum").GetString();
+            Assert.Equal(current, (await Json(await admin.C.GetAsync(Settings))).GetProperty("siteTemasi").GetString());
+        }
+
+        var rota = await Json(await Send(admin, HttpMethod.Put, Settings, new { siteTemasi = "rota", surum = version }));
+        Assert.Equal("rota", rota.GetProperty("siteTemasi").GetString());
     }
 }

@@ -1,0 +1,19 @@
+@inject ThemeAccessor Themes
+
+@* Fleet slotu — ilan koleksiyonunun sunumu (ızgara/liste/şerit); aktif temanın Fleet bileşeni çizilir.
+   Kartları, özet metnini ve boş durumu sayfa kurar; tema yalnız sunar. Kapsayıcıyı (wrap, section) çağıran verir.
+   Parametre sözlüğü SABİT imza: Model (FleetModel) — Components/Themes/README.md. *@
+@if (_type is not null)
+{
+    <DynamicComponent Type="_type" Parameters="Params" />
+}
+
+@code {
+    [Parameter, EditorRequired] public FleetModel Model { get; set; } = default!;
+
+    private Type? _type;
+
+    private Dictionary<string, object?> Params => new() { [nameof(Model)] = Model };
+
+    protected override async Task OnInitializedAsync() => _type = (await Themes.GetAsync()).Fleet;
+}

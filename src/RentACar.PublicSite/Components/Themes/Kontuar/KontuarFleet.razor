@@ -1,0 +1,49 @@
+@* Tema "kontuar" (anahtar rota) — Fleet slotu. İmza SABİT (Components/Themes/README.md): Model (FleetModel).
+
+   Ortak `.ilanlar` listesi bu temada tek sütunlu lacivert kalkış panosu (tema-kontuar.css); her satır Card
+   slotunda. Yerleşim her yerde (Model.Yer) aynı. Kapsayıcıyı çağıran verir. Kart yoksa yalnız sayfanın verdiği
+   boş durum basılır; o da yoksa hiçbir şey (T2). *@
+
+@if (Model.Kartlar.Count > 0)
+{
+    @if (Model.Baslik is { Length: > 0 } title)
+    {
+        <h2 id="@Model.BaslikId" class="bolum-baslik">@title</h2>
+    }
+    @if (Model.Ozet is { } summary)
+    {
+        <div class="sonuc-ozet" role="@(summary.Canli ? "status" : null)">
+            <strong>@summary.Vurgu</strong>
+            <span class="muted">@summary.Aciklama</span>
+        </div>
+    }
+    @if (Model.Uyari is { Length: > 0 } note)
+    {
+        <p class="not-kutu">@note</p>
+    }
+    <ul class="ilanlar">
+        @foreach (var card in Model.Kartlar)
+        {
+            <li>
+                <ThemedCard Kart="card" Tarih="Model.Tarih" />
+            </li>
+        }
+    </ul>
+}
+else if (Model.Bos is { } empty)
+{
+    <div class="bos-durum" role="@(empty.Canli ? "status" : null)">
+        <h2>@empty.Baslik</h2>
+        <p>@empty.Metin</p>
+        @if (empty.Linkler.Count > 0)
+        {
+            <ul class="linkler">
+                @foreach (var l in empty.Linkler) { <li><a href="@l.Href">@l.Label</a></li> }
+            </ul>
+        }
+    </div>
+}
+
+@code {
+    [Parameter, EditorRequired] public FleetModel Model { get; set; } = default!;
+}

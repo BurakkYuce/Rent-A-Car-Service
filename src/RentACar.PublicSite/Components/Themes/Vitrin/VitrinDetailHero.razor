@@ -1,0 +1,91 @@
+@* Tema "vitrin" — DetailHero slotu. İmza SABİT (Components/Themes/README.md): Model (DetailHeroModel).
+
+   İlan detayının üst bölümü; kendi kapsayıcısını (wrap) basar. PR-2'de ortak düzen AYNEN taşındı.
+
+   MOBİL İLK EKRAN (SEO denetimi M-10): başlığın hemen altında günlük fiyat + "Teklif iste" satırı (yalnız dar
+   ekranda; genişte fiyat paneli yanda).
+
+   TARİFE: satırlar sayfadan (günlük/haftalık/aylık ilandan, uydurulmaz; gün başı karşılığı sayfada yuvarlanır).
+   Tarih formu /musaitlik'e `ilan` ile gider: sonuçta bu araç öne alınır, müsait değilse bu açıkça söylenir.
+
+   GÖRSEL: kapak LCP adayı → tembel DEĞİL, `fetchpriority="high"`; boyut öznitelikleri 3:2 (CLS yok). Diğer
+   fotoğraflar küçük görsel + tembel; her birinin alt metni ayrı ("… fotoğraf 2"). *@
+
+<div class="wrap">
+    <div class="detay">
+        <header class="detay-bas">
+            <h1>@Model.Ilan.Baslik</h1>
+            @if (Model.MetaSatiri is { Length: > 0 } meta) { <p>@meta</p> }
+            <div class="detay-hizli">
+                <p class="fis-toplam">
+                    <span class="tutar">@PriceText.Tl(Model.Ilan.GunlukFiyat)</span><span class="birim">/ gün</span>
+                    <span class="kdv">@Model.KdvMetni</span>
+                </p>
+                <a class="btn btn-brand" href="@Model.TeklifLinki">Teklif iste</a>
+            </div>
+        </header>
+
+        <figure class="detay-kapak">
+            @if (Model.Ilan.PhotoIds.Count > 0)
+            {
+                var cover = Model.Ilan.PhotoIds[0];
+                <img src="@($"/foto/{cover}")"
+                     srcset="@($"/foto/{cover}/thumb 400w, /foto/{cover} 1600w")"
+                     sizes="(min-width: 960px) 700px, 100vw"
+                     width="1200" height="800" alt="@Model.Ilan.Baslik" fetchpriority="high" decoding="async" />
+            }
+            else
+            {
+                <div class="foto-yok kapak-bos" aria-hidden="true"></div>
+            }
+        </figure>
+
+        <aside class="panel" aria-labelledby="tarife-baslik">
+            <h2 id="tarife-baslik">Tarife</h2>
+            <table class="tarife-tablo">
+                <caption class="gorunmez">@Model.Ilan.Baslik kiralama fiyatları</caption>
+                <tbody>
+                    @foreach (var rate in Model.Tarife)
+                    {
+                        <tr>
+                            <th scope="row">@rate.Etiket</th>
+                            <td><strong>@PriceText.Tl(rate.Tutar)</strong><small>@(rate.GunBasi is { } perDay ? $"gün başı {PriceText.Tl(perDay)}" : Model.KdvMetni)</small></td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+            <div class="panel-eylem">
+                <a class="btn btn-brand btn-genis" href="@Model.TeklifLinki">Teklif iste</a>
+                @if (Model.WaLinki is not null)
+                {
+                    <a class="btn btn-cizgi btn-genis" href="@Model.WaLinki" target="_blank" rel="noopener noreferrer">WhatsApp'tan sorun</a>
+                }
+            </div>
+            <AramaFormu Hedef="/musaitlik" Ilan="@Model.Ilan.Slug" Subeler="Model.SubeAdlari"
+                        ButonMetni="Tarihlerime göre fiyatı gör" AriaLabel="Bu araç için tarih seç" />
+            @* Sistemin davranışı, firma taahhüdü DEĞİL: talep bir lead kaydıdır (PublicBookingRequest). *@
+            <p class="panel-not">Teklif istemek ücretsizdir ve sizi bağlamaz; talebiniz bir rezervasyon
+                değil, ekibin size dönmesi için bir kayıttır.</p>
+        </aside>
+
+        @if (Model.Ilan.PhotoIds.Count > 1)
+        {
+            <ul class="galeri" aria-label="Diğer fotoğraflar">
+                @for (var i = 1; i < Model.Ilan.PhotoIds.Count; i++)
+                {
+                    var id = Model.Ilan.PhotoIds[i];
+                    <li>
+                        <a href="@($"/foto/{id}")">
+                            <img src="@($"/foto/{id}/thumb")" alt="@($"{Model.Ilan.Baslik}, fotoğraf {i + 1}")"
+                                 width="400" height="267" loading="lazy" decoding="async" />
+                        </a>
+                    </li>
+                }
+            </ul>
+        }
+    </div>
+</div>
+
+@code {
+    [Parameter, EditorRequired] public DetailHeroModel Model { get; set; } = default!;
+}

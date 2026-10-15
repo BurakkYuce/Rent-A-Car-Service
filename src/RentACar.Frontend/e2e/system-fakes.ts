@@ -58,7 +58,7 @@ export const settings = (extra: Record<string, unknown> = {}) => ({
   sitePaleti: null,
   sitePaletSecenekleri: [
     {
-      tema: 'tarife',
+      tema: 'pazar',
       paletler: [
         {
           anahtar: 'petrol',
@@ -104,7 +104,7 @@ export const settings = (extra: Record<string, unknown> = {}) => ({
       ],
     },
     {
-      tema: 'kontuar',
+      tema: 'rota',
       paletler: [
         {
           anahtar: 'terminal',

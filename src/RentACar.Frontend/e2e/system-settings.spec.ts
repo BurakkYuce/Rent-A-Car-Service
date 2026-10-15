@@ -122,19 +122,20 @@ test('ayarlar: kendi ana rengim okunur, değiştirilince PUT gövdesinde gider; 
   await expect(color).toHaveValue('#c0392b'); // sunucunun normalize ettiği değer
 });
 
-test('ayarlar: site teması radyo ile seçilir (kayıtsızsa tarife seçili), önizleme bağlantıları yeni sekmede', async ({
+test('ayarlar: site teması radyo ile seçilir (kayıtsızsa pazar seçili), önizleme bağlantıları yeni sekmede', async ({
   page,
 }) => {
   const errors = collectErrors(page);
   const writes = await settingsEndpoints(page);
   await open(page);
   const group = page.getByRole('radiogroup', { name: 'Site teması' });
+  // Görünen adlar yeni temalar gelene dek eski temanınki (anahtar pazar → "Tarife", rota → "Kontuar").
   await expect(group.getByRole('radio', { name: /^Tarife:/ })).toBeChecked();
 
   for (const [name, key] of [
-    ['Tarife', 'tarife'],
+    ['Tarife', 'pazar'],
     ['Vitrin', 'vitrin'],
-    ['Kontuar', 'kontuar'],
+    ['Kontuar', 'rota'],
   ] as const) {
     const link = page.getByRole('link', { name: `${name} temasını önizle` });
     // Kendi ana renk (#0b5d6b) her temanın önizlemesine taşınır; palet temaya özgü olduğundan taşınmaz.
@@ -146,7 +147,7 @@ test('ayarlar: site teması radyo ile seçilir (kayıtsızsa tarife seçili), ö
   await group.getByRole('radio', { name: /^Kontuar:/ }).check();
   await page.getByRole('button', { name: 'Ayarları kaydet' }).click();
   await expect.poll(() => writes.length).toBe(1);
-  expect(body(writes[0])['siteTemasi']).toBe('kontuar');
+  expect(body(writes[0])['siteTemasi']).toBe('rota');
   expect(errors).toEqual([]);
 });
 
@@ -165,7 +166,7 @@ test('ayarlar: renk seti temanın setlerinden seçilir, tema değişince temizle
   const current = page.getByRole('link', { name: 'Seçili görünümü önizle' });
   await expect(current).toHaveAttribute(
     'href',
-    '//ornek.site.test/?tema=tarife&palet=lacivert&renk=%230b5d6b',
+    '//ornek.site.test/?tema=pazar&palet=lacivert&renk=%230b5d6b',
   );
 
   // Tema değişti: eski temanın seti yeni temada yok → seçim temizlenir, yeni temanın varsayılanı seçili görünür.

@@ -35,7 +35,7 @@ public static partial class SitePaletteKeys
     public static readonly IReadOnlyDictionary<string, IReadOnlyList<SitePaletteOption>> ByTheme =
         new Dictionary<string, IReadOnlyList<SitePaletteOption>>(StringComparer.Ordinal)
         {
-            [SiteThemeKeys.Tarife] =
+            [SiteThemeKeys.Pazar] =
             [
                 new("petrol", "Petrol ve yol sarısı", "#f5f6f3", "#1d2227", "#0b5d6b", "#f2c230", "#121417"),
                 new("lacivert", "Lacivert ve amber", "#f4f6f9", "#17202e", "#1f4e9c", "#f0a020", "#10151d"),
@@ -47,7 +47,7 @@ public static partial class SitePaletteKeys
                 new("gece-mavisi", "Gece mavisi", "#f5f6f8", "#1c2433", "#23407a", null, "#0e131c"),
                 new("bordo", "Bordo", "#f7f6f5", "#2a2526", "#7b1e2e", null, "#161213"),
             ],
-            [SiteThemeKeys.Kontuar] =
+            [SiteThemeKeys.Rota] =
             [
                 new("terminal", "Terminal ve yer ekibi turuncusu", "#f4f7f9", "#16263a", "#ff6a13", "#ff6a13", "#0a131d"),
                 new("pist-yesili", "Pist yeşili ve sinyal sarısı", "#f3f7f5", "#12261f", "#0f7a55", "#f5b800", "#08140f"),

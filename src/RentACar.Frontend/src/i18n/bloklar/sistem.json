@@ -457,7 +457,7 @@
         "onizleAciklama": "Önizleme bağlantısı kaydetmeden, sitenizi seçilen tema, renk seti ve ana renkle yeni sekmede açar. Önizleme arama motorlarına kapalıdır.",
         "onizle": "{{ad}} temasını önizle",
         "onizleSecili": "Seçili görünümü önizle",
-        "tarife": {
+        "pazar": {
           "ad": "Tarife",
           "aciklama": "Fiyat şeffaflığı öne çıkar: günlük fiyat tahtası ve açık hesap. Bütçe ve şehir kiralaması için."
         },
@@ -465,7 +465,7 @@
           "ad": "Vitrin",
           "aciklama": "Fotoğraf öne çıkar: büyük kapak görseli ve sade kartlar. Özenli fotoğraflı, üst segment filo için."
         },
-        "kontuar": {
+        "rota": {
           "ad": "Kontuar",
           "aciklama": "Bilet ve kalkış panosu düzeni. Havalimanı ve otel teslimi yapan firmalar için."
         }
