@@ -6759,6 +6759,220 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/ui/v1/hgs/gecisler': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: {
+      parameters: {
+        query?: {
+          plaka?: string;
+          bas?: string;
+          bit?: string;
+          durum?: string;
+          kiraId?: string;
+          iceAktarimId?: string;
+          sayfa?: number | string;
+          boyut?: number | string;
+          sirala?: string;
+        };
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['SayfaOfHgsCrossingRow'];
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ui/v1/hgs/ice-aktar/onizle': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody: {
+        content: {
+          'multipart/form-data': {
+            dosya?: components['schemas']['IFormFile'];
+          } & {
+            eslesme?: string;
+          };
+        };
+      };
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['HgsImportResultDto'];
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ui/v1/hgs/ice-aktar': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody: {
+        content: {
+          'multipart/form-data': {
+            dosya?: components['schemas']['IFormFile'];
+          } & {
+            eslesme?: string;
+          };
+        };
+      };
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['HgsImportResultDto'];
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ui/v1/hgs/gecisler/yansit': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody: {
+        content: {
+          'application/json': components['schemas']['HgsReflectRequest'];
+        };
+      };
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['HgsReflectResultDto'];
+          };
+        };
+        /** @description Conflict */
+        409: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/problem+json': components['schemas']['MukerrerProblemi'];
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ui/v1/hgs/gecisler/yeniden-eslestir': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['HgsRematchResult'];
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/api/ui/v1/giderler': {
     parameters: {
       query?: never;
@@ -26750,12 +26964,121 @@ export interface components {
       reddet: boolean;
       kapat: boolean;
     };
+    HgsCrossingRow: {
+      /** Format: uuid */
+      id: string;
+      plaka: string;
+      /** Format: uuid */
+      vehicleId: null | string;
+      /** Format: date-time */
+      gecisZamani: string;
+      /** Format: date-time */
+      girisZamani: null | string;
+      girisIstasyonu: null | string;
+      cikisIstasyonu: null | string;
+      /** Format: double */
+      tutar: number | string;
+      durum: string;
+      /** Format: uuid */
+      kiraId: null | string;
+      sozlesmeNo: null | string;
+      /** Format: uuid */
+      cariId: null | string;
+      cariAd: null | string;
+      /** Format: double */
+      hizmetOrani: null | number | string;
+      /** Format: double */
+      yansitilanTutar: null | number | string;
+      /** Format: date-time */
+      yansitmaZamani: null | string;
+      etiketNo: null | string;
+      aracSinifi: null | string;
+      dosyaAdi: null | string;
+    };
+    HgsFieldDto: {
+      kod: string;
+      etiket: string;
+      zorunlu: boolean;
+      baslik: null | string;
+    };
     HgsGecisDto: {
       /** Format: date-time */
       zaman: string;
       gecis: string;
       /** Format: double */
       tutar: number | string;
+      /** Format: uuid */
+      id: string;
+      plaka: string;
+      durum: string;
+      /** Format: double */
+      yansitilanTutar: null | number | string;
+    };
+    HgsImportResultDto: {
+      basliklar: string[];
+      alanlar: components['schemas']['HgsFieldDto'][];
+      /** Format: int32 */
+      toplam: number | string;
+      /** Format: int32 */
+      eslesen: number | string;
+      /** Format: int32 */
+      kiraDisi: number | string;
+      /** Format: int32 */
+      belirsiz: number | string;
+      /** Format: int32 */
+      aracBulunamadi: number | string;
+      /** Format: int32 */
+      mukerrer: number | string;
+      /** Format: int32 */
+      hatali: number | string;
+      /** Format: int32 */
+      eklenen: number | string;
+      /** Format: double */
+      eslesenTutar: number | string;
+      /** Format: double */
+      kiraDisiTutar: number | string;
+      uyarilar: string[];
+      satirlar: components['schemas']['HgsImportRowDto'][];
+      /** Format: uuid */
+      iceAktarimId: null | string;
+    };
+    HgsImportRowDto: {
+      /** Format: int32 */
+      satirNo: number | string;
+      plaka: null | string;
+      /** Format: date-time */
+      gecisZamani: null | string;
+      girisIstasyonu: null | string;
+      cikisIstasyonu: null | string;
+      /** Format: double */
+      tutar: null | number | string;
+      durum: string;
+      /** Format: uuid */
+      kiraId: null | string;
+      sozlesmeNo: null | string;
+      aracBulunamadi: boolean;
+      mesaj: null | string;
+    };
+    HgsReflectRequest: {
+      ids: null | string[];
+      /** Format: double */
+      hizmetOrani: null | number | string;
+    };
+    HgsReflectResultDto: {
+      /** Format: int32 */
+      yansitilan: number | string;
+      /** Format: int32 */
+      zatenYansitilmis: number | string;
+      /** Format: int32 */
+      uygunsuz: number | string;
+      /** Format: double */
+      toplamGecis: number | string;
+      /** Format: double */
+      yansitilanTutar: number | string;
+    };
+    HgsRematchResult: {
+      /** Format: int32 */
+      degisen: number | string;
     };
     /** Format: binary */
     IFormFile: string;
@@ -31281,6 +31604,17 @@ export interface components {
     };
     SayfaOfHasarDto: {
       kayitlar: components['schemas']['HasarDto'][];
+      /** Format: int32 */
+      toplam: number | string;
+      /** Format: int32 */
+      sayfaNo: number | string;
+      /** Format: int32 */
+      boyut: number | string;
+      /** Format: int32 */
+      toplamSayfa?: number | string;
+    };
+    SayfaOfHgsCrossingRow: {
+      kayitlar: components['schemas']['HgsCrossingRow'][];
       /** Format: int32 */
       toplam: number | string;
       /** Format: int32 */

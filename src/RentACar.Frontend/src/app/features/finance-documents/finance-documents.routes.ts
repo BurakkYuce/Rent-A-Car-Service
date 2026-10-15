@@ -14,7 +14,9 @@ import { anyPermissionGuard } from '@features/vehicles/vehicle-guards';
  * - ceza okuma OperationsWrite ∨ FinanceWrite ∨ ViewReports (kayıt OperationsWrite, yansıt/öde FinanceWrite, iptal
  *   OperationsDelete);
  * - gider okuma FinanceWrite ∨ ViewReports (yazma FinanceWrite); gelen e-fatura FinanceWrite;
- * - satış okuma FinanceWrite ∨ ViewReports ∨ OperationsWrite (satış FinanceWrite).
+ * - satış okuma FinanceWrite ∨ ViewReports ∨ OperationsWrite (satış FinanceWrite);
+ * - HGS geçişleri okuma OperationsWrite ∨ FinanceWrite ∨ ViewReports (ceza ile aynı; yansıt FinanceWrite), dosyadan
+ *   içe aktar OperationsWrite ∨ FinanceWrite (+ şube kısıtsız — sunucu zorlar).
  * Statik yollar (`detay-listesi`) `:id`'den önce.
  */
 export const FINANCE_DOCUMENT_ROUTES: Routes = withTranslationBlock('finans-belge', [
@@ -54,6 +56,18 @@ export const FINANCE_DOCUMENT_ROUTES: Routes = withTranslationBlock('finans-belg
     canMatch: [anyPermissionGuard('OperationsWrite', 'FinanceWrite', 'ViewReports')],
     loadComponent: () => import('./penalties/penalty-list').then((m) => m.PenaltyList),
     canDeactivate: [unsavedChangesGuard],
+  },
+  {
+    path: 'hgs',
+    title: 'HGS Geçişleri — RentACar',
+    canMatch: [anyPermissionGuard('OperationsWrite', 'FinanceWrite', 'ViewReports')],
+    loadComponent: () => import('./hgs/hgs-list').then((m) => m.HgsList),
+  },
+  {
+    path: 'hgs/ice-aktar',
+    title: 'HGS İçe Aktar — RentACar',
+    canMatch: [anyPermissionGuard('OperationsWrite', 'FinanceWrite')],
+    loadComponent: () => import('./hgs/hgs-import').then((m) => m.HgsImport),
   },
   {
     path: 'giderler',

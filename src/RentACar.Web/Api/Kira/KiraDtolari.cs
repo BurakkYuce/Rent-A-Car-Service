@@ -277,7 +277,11 @@ public sealed record KiraFaturaDto(
 
 public sealed record KiraCezaDto(Guid Id, string No, string CezaTuru, decimal Tutar, decimal Kalan, string Durum, DateTimeOffset TebligTarihi);
 
-public sealed record HgsGecisDto(DateTimeOffset Zaman, string Gecis, decimal Tutar);
+/// <summary>Kiraya bağlanmış (içe aktarılmış) HGS geçişi. <paramref name="Gecis"/>: "giriş → çıkış" istasyon metni;
+/// <paramref name="Durum"/>: Eslesti | Yansitildi (kiraya bağlı geçiş başka durumda olamaz); <paramref name="YansitilanTutar"/>
+/// yalnız yansıtılmışsa (hizmet oranı dahil, müşteriye borçlanan).</summary>
+public sealed record HgsGecisDto(
+    DateTimeOffset Zaman, string Gecis, decimal Tutar, Guid Id, string Plaka, string Durum, decimal? YansitilanTutar);
 
 public sealed record KiraCezaHgsYaniti(IReadOnlyList<KiraCezaDto> Cezalar, IReadOnlyList<HgsGecisDto> HgsGecisleri);
 

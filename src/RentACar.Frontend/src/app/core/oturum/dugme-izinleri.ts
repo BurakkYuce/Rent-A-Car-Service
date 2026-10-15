@@ -100,6 +100,8 @@ export const DUGME_IZINLERI = {
     izinler: ['ManageUsers', 'OperationsDelete'],
     uc: 'POST /api/ui/v1/tarife-aktar/kanal-sil',
   },
+  /** HGS geçişleri "Müşteriye yansıt" — defter yazar (Borç Cari / Alacak Gelir). */
+  hgsYansit: { izinler: ['FinanceWrite'], uc: 'POST /api/ui/v1/hgs/gecisler/yansit' },
 } as const satisfies Readonly<Record<string, DugmeIzni>>;
 
 export type ButtonName = keyof typeof DUGME_IZINLERI;

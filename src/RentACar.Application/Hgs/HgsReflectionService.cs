@@ -17,6 +17,10 @@ public sealed record HgsReflectionResult(int GecisSayisi, decimal ToplamGecis, d
 /// oranıyla (örn. 1.03 = +%3) çarpıp cari'ye yansıtır (Borç Cari / Alacak Gelir, dengeli).
 /// Gerçek HGS API'si Faz 3'te stub'ın arkasına gelir; stub boş döner → no-op.
 /// Para yazar → FinanceWrite guard (denetim O7-HGS: guard'sızdı, Operator cari borçlandırabiliyordu).
+/// <para><b>UYARI (2026-10, dosyadan içe aktarım):</b> içe aktarılmış geçişler (<c>HgsGecisleri</c>) bu yoldan
+/// YANSITILMAZ — <see cref="HgsCrossingService.ReflectAsync"/> geçiş başına <c>SourceId</c> ile yazar. Bu sınıf dönem
+/// MD5'iyle yazdığı için aynı geçişi o yolla da borçlandırmak İKİ KEZ borç demektir; HGS API aşamasında gelen geçişler
+/// <c>HgsGecisleri</c>'ne yazılmalı ve bu sınıf emekliye ayrılmalı (bugün hiçbir uca bağlı değil, stub boş döner).</para>
 /// </summary>
 public sealed class HgsReflectionService(
     IHgsService hgs, ILedgerPoster ledger, IPeriodLockGuard periodLock, ICurrentUser currentUser)

@@ -384,14 +384,14 @@ public sealed class UiSecimMenuTests(WebFixture fx)
             e.GetProperty("sahip").GetString()));
         // F4.6: 3, F5.4: +8, F6.4: +14 (Araçlar 12 + Tanımlar 2), F7.3: +6 (Cariler & CRM), F10.3: +25 (Raporlar), F9.3: +15 (Servis & Sigorta 3, Fiyat & Tarife 11, Vade Panosu),
         // F8.3: +17 (Finans), F11.3: +39 (Tanımlar 24 + Sistem 9 + grupsuz 4 + Blog/Gelen Talepler 2; Web Sitesi grubu
-        // modül kapalı → gizli) = 127
-        Assert.Equal(127, items.Count(e => e.GetProperty("sahip").GetString() == "spa"));
+        // modül kapalı → gizli) = 127, 2026-10: +1 (Finans / HGS Geçişleri) = 128
+        Assert.Equal(128, items.Count(e => e.GetProperty("sahip").GetString() == "spa"));
         Assert.DoesNotContain(items, e => e.GetProperty("rota").GetString() is "/markalar" or "/ayarlar" or "/bildirimler" or "/gelen-talepler" or "/blog-yonetim");
         Assert.All(items.Where(e => e.GetProperty("grup").GetString() is "Tanımlar" or "Sistem"),
             e => Assert.Equal("spa", e.GetProperty("sahip").GetString()));
         Assert.DoesNotContain(items, e => e.GetProperty("rota").GetString() is "/cariler" or "/crm" or "/anketler" or "/sikayetler" or "/assistans" or "/hukuk");
         Assert.DoesNotContain(items, e => e.GetProperty("rota").GetString() is "/kasa" or "/faturalar" or "/kurlar" or "/cezalar" or "/giderler" or "/satislar" or "/donem-kapanis");
-        Assert.Equal(17, items.Count(e => e.GetProperty("grup").GetString() == "Finans" && e.GetProperty("sahip").GetString() == "spa"));
+        Assert.Equal(18, items.Count(e => e.GetProperty("grup").GetString() == "Finans" && e.GetProperty("sahip").GetString() == "spa"));
         Assert.DoesNotContain(items, e => e.GetProperty("rota").GetString()!.StartsWith("/raporlar/", StringComparison.Ordinal));
         Assert.DoesNotContain(items, e => e.GetProperty("rota").GetString() is "/servisler" or "/servis-tanimlari" or "/regulasyon"
             or "/vade" or "/tarifeler" or "/tarife-matris" or "/tarife-gruplari" or "/tarife-aktar" or "/sigorta-urunleri"
@@ -409,7 +409,7 @@ public sealed class UiSecimMenuTests(WebFixture fx)
         foreach (var r in new[] { "/app/panel", "/app/kiralar/yeni", "/app/rezervasyonlar/yeni", "/app/rezervasyonlar", "/app/musaitlik", "/app/takvim", "/app/araclar", "/app/arac-durum", "/app/baf", "/app/segmentler", "/app/kiralar", "/app/cariler", "/app/sikayetler", "/app/vade", "/app/servisler", "/app/tarifeler", "/app/fiyat-hesapla", "/app/dokumanlar", "/app/markalar", "/app/lokasyonlar", "/app/bildirimler" })
             Assert.Contains(r, op);
         // Kabul testi: rota kapısı "OperationsWrite VEYA …" olan sayfalar operatörün menüsünde (açabildiği sayfa görünür).
-        foreach (var r in new[] { "/app/kurlar", "/app/cezalar", "/app/satislar", "/app/raporlar/personel-calisma", "/app/raporlar/km-detay", "/app/raporlar/periyodik-servis" })
+        foreach (var r in new[] { "/app/kurlar", "/app/cezalar", "/app/hgs", "/app/satislar", "/app/raporlar/personel-calisma", "/app/raporlar/km-detay", "/app/raporlar/periyodik-servis" })
             Assert.Contains(r, op);
         foreach (var r in new[] { "/app/araclar/detayli", "/app/musteri-taksit", "/vehicles", "/app/crm", "/crm", "/maliyet-hesapla", "/app/maliyet-hesapla", "/app/maliyet-teklifleri", "/tarife-aktar", "/app/tarife-aktar", "/vade", "/servisler", "/kasa", "/kurlar", "/app/kasa", "/app/faturalar", "/app/raporlar/gunluk", "/app/raporlar/gelir-gider", "/app/ayarlar", "/app/subeler", "/app/personel", "/app/belge-sablonlari", "/app/ice-aktar" })
             Assert.DoesNotContain(r, op);
@@ -443,8 +443,8 @@ public sealed class UiSecimMenuTests(WebFixture fx)
         Assert.Contains("/app/web-sitesi", admin);        // F11.3: Web Sitesi grubu spa
         Assert.Contains("/app/site-icerik", admin);
         Assert.Equal(2, body.GetProperty("ogeler").EnumerateArray().Count(e => e.GetProperty("rota").GetString() == "/app/gelen-talepler"));
-        // Modül açık: 127 + Web Sitesi grubu 4 = 131 spa öğe.
-        Assert.Equal(131, body.GetProperty("ogeler").EnumerateArray().Count(e => e.GetProperty("sahip").GetString() == "spa"));
+        // Modül açık: 128 + Web Sitesi grubu 4 = 132 spa öğe.
+        Assert.Equal(132, body.GetProperty("ogeler").EnumerateArray().Count(e => e.GetProperty("sahip").GetString() == "spa"));
         Assert.Equal(0, body.GetProperty("rozetler").GetProperty("yeni-talep").GetInt32());
     }
 }

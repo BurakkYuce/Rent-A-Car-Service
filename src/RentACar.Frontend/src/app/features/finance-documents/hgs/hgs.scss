@@ -1,0 +1,62 @@
+// HGS geçişleri ekranları: sayfa iskeleti, bölüm, düz tablo ve düğmeler GLOBAL düzen katmanından
+// (`src/styles/_duzen.scss`); burada yalnız bu ekranlara özgü düzen. Global sınıf yeniden tanımlanmaz.
+
+.not {
+  margin: 0;
+  color: var(--rc-metin-ikincil);
+  font-size: var(--rc-yazi-xs);
+}
+
+.filtre {
+  display: flex;
+  flex-direction: column;
+  gap: var(--rc-bosluk-3);
+  min-width: 0;
+}
+
+.filtre__eylemler,
+.satir-form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--rc-bosluk-2);
+  align-items: flex-end;
+}
+
+.filtre__eylemler {
+  justify-content: flex-end;
+}
+
+.liste-tablo {
+  --rc-tablo-en-fazla-yukseklik: calc(100vh - 18rem);
+}
+
+.ozet-serit {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 9rem), 1fr));
+  gap: var(--rc-bosluk-3);
+  margin: 0;
+
+  dt {
+    color: var(--rc-metin-ikincil);
+    font-size: var(--rc-yazi-xs);
+  }
+
+  dd {
+    margin: 0;
+    font-weight: var(--rc-agirlik-kalin);
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+.eslesme-izgara {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 14rem), 1fr));
+  gap: var(--rc-bosluk-3);
+}
+
+.yansitma {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--rc-bosluk-3);
+  align-items: flex-end;
+}

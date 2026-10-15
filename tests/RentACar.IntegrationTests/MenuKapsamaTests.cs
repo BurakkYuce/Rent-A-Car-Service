@@ -90,14 +90,15 @@ public sealed class MenuKapsamaTests
         var app = Path.Combine(RepoRoot(), "src/RentACar.Frontend/src/app/features");
         var text = File.ReadAllText(Path.Combine(app, "finance/finance.routes.ts"))
             + File.ReadAllText(Path.Combine(app, "finance-documents/finance-documents.routes.ts"));
+        // Menü DIŞI bilinçli alt akış: HGS dosyadan içe aktar (HGS Geçişleri ekranının birincil düğmesinden açılır).
         var paths = Regex.Matches(text, @"path: '(?<p>[a-z-/:]+)',")
             .Select(m => m.Groups["p"].Value)
-            .Where(p => !p.Contains(':'))
+            .Where(p => !p.Contains(':') && p != "hgs/ice-aktar")
             .ToList();
         Assert.Equal(new[]
             {
                 "cari-virman", "cezalar", "depozito", "donem-kapanis", "faturalar", "faturalar/detay-listesi",
-                "finans/bakiye-duzeltme", "finans/nakit-islem", "gelen-efatura", "giderler", "kasa", "kurlar",
+                "finans/bakiye-duzeltme", "finans/nakit-islem", "gelen-efatura", "giderler", "hgs", "kasa", "kurlar",
                 "otomatik-tahsilat", "satislar", "tek-cari-toplu", "toplu-gider", "toplu-tahsilat",
             },
             paths.OrderBy(p => p, StringComparer.Ordinal));

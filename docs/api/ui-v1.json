@@ -7385,6 +7385,256 @@
         }
       }
     },
+    "/api/ui/v1/hgs/gecisler": {
+      "get": {
+        "tags": [
+          "HGS"
+        ],
+        "parameters": [
+          {
+            "name": "plaka",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "bas",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          },
+          {
+            "name": "bit",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          },
+          {
+            "name": "durum",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "kiraId",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "iceAktarimId",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "sayfa",
+            "in": "query",
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32"
+            }
+          },
+          {
+            "name": "boyut",
+            "in": "query",
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32"
+            }
+          },
+          {
+            "name": "sirala",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SayfaOfHgsCrossingRow"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/ui/v1/hgs/ice-aktar/onizle": {
+      "post": {
+        "tags": [
+          "HGS"
+        ],
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "allOf": [
+                  {
+                    "type": "object",
+                    "properties": {
+                      "dosya": {
+                        "$ref": "#/components/schemas/IFormFile"
+                      }
+                    }
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "eslesme": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HgsImportResultDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/ui/v1/hgs/ice-aktar": {
+      "post": {
+        "tags": [
+          "HGS"
+        ],
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "allOf": [
+                  {
+                    "type": "object",
+                    "properties": {
+                      "dosya": {
+                        "$ref": "#/components/schemas/IFormFile"
+                      }
+                    }
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "eslesme": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HgsImportResultDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/ui/v1/hgs/gecisler/yansit": {
+      "post": {
+        "tags": [
+          "HGS"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/HgsReflectRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HgsReflectResultDto"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/problem\u002Bjson": {
+                "schema": {
+                  "$ref": "#/components/schemas/MukerrerProblemi"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/ui/v1/hgs/gecisler/yeniden-eslestir": {
+      "post": {
+        "tags": [
+          "HGS"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HgsRematchResult"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/ui/v1/giderler": {
       "get": {
         "tags": [
@@ -45122,11 +45372,184 @@
           }
         }
       },
+      "HgsCrossingRow": {
+        "required": [
+          "id",
+          "plaka",
+          "vehicleId",
+          "gecisZamani",
+          "girisZamani",
+          "girisIstasyonu",
+          "cikisIstasyonu",
+          "tutar",
+          "durum",
+          "kiraId",
+          "sozlesmeNo",
+          "cariId",
+          "cariAd",
+          "hizmetOrani",
+          "yansitilanTutar",
+          "yansitmaZamani",
+          "etiketNo",
+          "aracSinifi",
+          "dosyaAdi"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "plaka": {
+            "type": "string"
+          },
+          "vehicleId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
+          "gecisZamani": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "girisZamani": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "girisIstasyonu": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "cikisIstasyonu": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "tutar": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "durum": {
+            "type": "string"
+          },
+          "kiraId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
+          "sozlesmeNo": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "cariId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
+          "cariAd": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "hizmetOrani": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "null",
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "yansitilanTutar": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "null",
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "yansitmaZamani": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "etiketNo": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "aracSinifi": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "dosyaAdi": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
+      "HgsFieldDto": {
+        "required": [
+          "kod",
+          "etiket",
+          "zorunlu",
+          "baslik"
+        ],
+        "type": "object",
+        "properties": {
+          "kod": {
+            "type": "string"
+          },
+          "etiket": {
+            "type": "string"
+          },
+          "zorunlu": {
+            "type": "boolean"
+          },
+          "baslik": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
       "HgsGecisDto": {
         "required": [
           "zaman",
           "gecis",
-          "tutar"
+          "tutar",
+          "id",
+          "plaka",
+          "durum",
+          "yansitilanTutar"
         ],
         "type": "object",
         "properties": {
@@ -45144,6 +45567,339 @@
               "string"
             ],
             "format": "double"
+          },
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "plaka": {
+            "type": "string"
+          },
+          "durum": {
+            "type": "string"
+          },
+          "yansitilanTutar": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "null",
+              "number",
+              "string"
+            ],
+            "format": "double"
+          }
+        }
+      },
+      "HgsImportResultDto": {
+        "required": [
+          "basliklar",
+          "alanlar",
+          "toplam",
+          "eslesen",
+          "kiraDisi",
+          "belirsiz",
+          "aracBulunamadi",
+          "mukerrer",
+          "hatali",
+          "eklenen",
+          "eslesenTutar",
+          "kiraDisiTutar",
+          "uyarilar",
+          "satirlar",
+          "iceAktarimId"
+        ],
+        "type": "object",
+        "properties": {
+          "basliklar": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "alanlar": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/HgsFieldDto"
+            }
+          },
+          "toplam": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "eslesen": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "kiraDisi": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "belirsiz": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "aracBulunamadi": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "mukerrer": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "hatali": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "eklenen": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "eslesenTutar": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "kiraDisiTutar": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "uyarilar": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "satirlar": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/HgsImportRowDto"
+            }
+          },
+          "iceAktarimId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          }
+        }
+      },
+      "HgsImportRowDto": {
+        "required": [
+          "satirNo",
+          "plaka",
+          "gecisZamani",
+          "girisIstasyonu",
+          "cikisIstasyonu",
+          "tutar",
+          "durum",
+          "kiraId",
+          "sozlesmeNo",
+          "aracBulunamadi",
+          "mesaj"
+        ],
+        "type": "object",
+        "properties": {
+          "satirNo": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "plaka": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "gecisZamani": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "girisIstasyonu": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "cikisIstasyonu": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "tutar": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "null",
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "durum": {
+            "type": "string"
+          },
+          "kiraId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
+          "sozlesmeNo": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "aracBulunamadi": {
+            "type": "boolean"
+          },
+          "mesaj": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
+      "HgsReflectRequest": {
+        "required": [
+          "ids",
+          "hizmetOrani"
+        ],
+        "type": "object",
+        "properties": {
+          "ids": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          "hizmetOrani": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "null",
+              "number",
+              "string"
+            ],
+            "format": "double"
+          }
+        }
+      },
+      "HgsReflectResultDto": {
+        "required": [
+          "yansitilan",
+          "zatenYansitilmis",
+          "uygunsuz",
+          "toplamGecis",
+          "yansitilanTutar"
+        ],
+        "type": "object",
+        "properties": {
+          "yansitilan": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "zatenYansitilmis": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "uygunsuz": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "toplamGecis": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "yansitilanTutar": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double"
+          }
+        }
+      },
+      "HgsRematchResult": {
+        "required": [
+          "degisen"
+        ],
+        "type": "object",
+        "properties": {
+          "degisen": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
           }
         }
       },
@@ -65744,6 +66500,55 @@
           }
         }
       },
+      "SayfaOfHgsCrossingRow": {
+        "required": [
+          "kayitlar",
+          "toplam",
+          "sayfaNo",
+          "boyut"
+        ],
+        "type": "object",
+        "properties": {
+          "kayitlar": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/HgsCrossingRow"
+            }
+          },
+          "toplam": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "sayfaNo": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "boyut": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "toplamSayfa": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          }
+        }
+      },
       "SayfaOfIncomingInvoiceRow": {
         "required": [
           "kayitlar",
@@ -74463,6 +75268,9 @@
     },
     {
       "name": "Ceza"
+    },
+    {
+      "name": "HGS"
     },
     {
       "name": "Gider"

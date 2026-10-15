@@ -140,6 +140,7 @@ public static class DependencyInjection
         services.AddScoped<PenaltyService>();
         services.AddScoped<PenaltyTypeService>();
         services.AddScoped<HgsReflectionService>();
+        services.AddScoped<HgsCrossingService>(); // HGS dosyadan içe aktarım + kiraya eşleştirme + yansıtma
         services.AddScoped<VehicleSaleService>();
         services.AddScoped<FiloKiralamalar.FleetRentalService>(); // roadmap L1
         services.AddScoped<AracSiparisleri.VehicleOrderService>(); // roadmap L3

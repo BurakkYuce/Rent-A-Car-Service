@@ -21,6 +21,12 @@ const LABELS: Readonly<Record<string, string>> = {
   Beklemede: 'Beklemede',
   Odendi: 'Ödendi',
   Yansitildi: 'Yansıtıldı',
+  // HGS geçişi / içe aktarım satırı
+  Eslesti: 'Kiraya eşleşti',
+  KiraDisi: 'Kira dışı',
+  Belirsiz: 'Belirsiz',
+  Mukerrer: 'Mükerrer',
+  Hatali: 'Hatalı',
   // Ödeme yöntemleri / hesap türleri
   Nakit: 'Nakit',
   Kasa: 'Kasa',

@@ -403,20 +403,30 @@ public static class RentalApi
     }
 
     private static async Task<Results<Ok<KiraCezaHgsYaniti>, ProblemHttpResult>> PenaltiesAndHgs(
-        Guid id, RentalService kiralar, PenaltyService cezalar, VehicleService araclar, IHgsService hgs, CancellationToken ct)
+        Guid id, RentalService kiralar, PenaltyService cezalar, RentACar.Application.Hgs.HgsCrossingService hgs,
+        CancellationToken ct)
     {
         var c = await ComprehensiveAsync(kiralar, id, ct);
         if (c is null) return NotFoundProblem();
         var list = (await cezalar.ListByRentalAsync(id, ct))
             .Select(p => new KiraCezaDto(p.Id, p.No, p.CezaTuru, p.Tutar, p.Kalan, p.Durum.ToString(), p.TebligTarihi)).ToList();
-        // HGS: kira dönemi (gerçek dönüş varsa o) — KiraForm ile aynı; plaka görünür araç listesinden.
-        var plate = (await araclar.ListAsync(ct)).FirstOrDefault(v => v.Id == c.VehicleId)?.Plaka;
-        IReadOnlyList<HgsGecisDto> passages = [];
-        if (!string.IsNullOrWhiteSpace(plate))
-            passages = (await hgs.GetCrossingsAsync(plate, c.BasTar, c.GercekDonusTar ?? c.BitTar, ct))
-                .Select(g => new HgsGecisDto(g.Zaman, g.Gecis, g.Tutar)).ToList();
+        // HGS: içe aktarılmış ve BU kiraya eşleşmiş geçişler (kapsam kapısından SONRA; eşleşme kuralı tek yerde —
+        // HgsCrossingMatcher). Eskiden IHgsService stub'ından plaka + dönemle çekiliyordu (stub boş döner).
+        var passages = (await hgs.ListByRentalAsync(id, ct))
+            .OrderBy(g => g.GecisZamani)
+            .Select(g => new HgsGecisDto(g.GecisZamani, StationText(g.GirisIstasyonu, g.CikisIstasyonu), g.Tutar,
+                g.Id, g.Plaka, g.Durum.ToString(), g.YansitilanTutar))
+            .ToList();
         return TypedResults.Ok(new KiraCezaHgsYaniti(list, passages));
     }
+
+    private static string StationText(string? entry, string? exit) => (entry, exit) switch
+    {
+        (null, null) => "—",
+        ({ } a, null) => a,
+        (null, { } b) => b,
+        ({ } a, { } b) => $"{a} → {b}",
+    };
 
     private static async Task<Results<Ok<IReadOnlyList<KiraDisHizmetDto>>, ProblemHttpResult>> OutsourcedServices(
         Guid id, RentalService kiralar, OutsourcedServiceService disHizmetler, CancellationToken ct)

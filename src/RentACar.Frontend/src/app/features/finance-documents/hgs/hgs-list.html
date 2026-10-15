@@ -1,0 +1,130 @@
+<rc-sayfa-bandi [baslik]="'finansBelge.hgs.baslik' | transloco" ikon="car">
+  <ng-container eylemler>
+    <a class="rc-dugme" routerLink="/cezalar">{{ 'finansBelge.ceza.baslik' | transloco }}</a>
+    @if (canImport()) {
+      <button type="button" class="rc-dugme" [disabled]="busy()" (click)="rematch()">
+        <rc-ikon ad="refresh" [boyut]="14" />
+        {{ 'finansBelge.hgs.eslestir' | transloco }}
+      </button>
+    }
+  </ng-container>
+  <ng-container birincil>
+    @if (canImport()) {
+      <a class="rc-dugme rc-dugme--birincil" routerLink="/hgs/ice-aktar">
+        <rc-ikon ad="file-text" [boyut]="14" />
+        {{ 'finansBelge.hgs.iceAktar' | transloco }}
+      </a>
+    }
+  </ng-container>
+</rc-sayfa-bandi>
+<div class="rc-sayfa">
+  <p class="not">{{ 'finansBelge.hgs.aciklama' | transloco }}</p>
+
+  <form
+    class="rc-bolum filtre"
+    [formGroup]="filterForm"
+    [attr.aria-label]="'finansBelge.filtre' | transloco"
+    (ngSubmit)="filter()"
+  >
+    <div class="rc-filtre-izgara">
+      <rc-alan [etiket]="'finansBelge.plaka' | transloco">
+        <rc-metin-girdisi formControlName="plaka" [azamiUzunluk]="16" />
+      </rc-alan>
+      <rc-alan [etiket]="'finansBelge.tarihBas' | transloco">
+        <rc-tarih-secici formControlName="bas" />
+      </rc-alan>
+      <rc-alan [etiket]="'finansBelge.tarihBit' | transloco">
+        <rc-tarih-secici formControlName="bit" />
+      </rc-alan>
+      <rc-alan [etiket]="'finansBelge.durum' | transloco">
+        <rc-secim
+          formControlName="durum"
+          [secenekler]="statusOptions"
+          [bosEtiket]="'finansBelge.tumu' | transloco"
+        />
+      </rc-alan>
+    </div>
+    <div class="filtre__eylemler">
+      @if (scopedFilter()) {
+        <span class="rc-rozet rc-rozet--bilgi">{{
+          'finansBelge.hgs.kapsamliSuzgec' | transloco
+        }}</span>
+      }
+      <button type="submit" class="rc-dugme rc-dugme--kucuk">
+        <rc-ikon ad="filter" [boyut]="14" />
+        {{ 'finansBelge.filtrele' | transloco }}
+      </button>
+      @if (query.etkinFiltreSayisi() > 0) {
+        <button type="button" class="rc-dugme rc-dugme--hayalet rc-dugme--kucuk" (click)="clear()">
+          {{ 'finansBelge.temizle' | transloco }}
+        </button>
+      }
+    </div>
+  </form>
+
+  @if (canReflect()) {
+    <section class="rc-bolum" aria-labelledby="rc-hgs-yansit">
+      <h2 id="rc-hgs-yansit">{{ 'finansBelge.hgs.yansitBolum' | transloco }}</h2>
+      <p class="not">{{ 'finansBelge.hgs.yansitAciklama' | transloco }}</p>
+      <form class="yansitma" [formGroup]="rateForm" (ngSubmit)="reflect()">
+        <rc-alan
+          [etiket]="'finansBelge.hgs.hizmetOrani' | transloco"
+          [ipucu]="'finansBelge.hgs.hizmetOraniIpucu' | transloco"
+        >
+          <rc-sayi-girdisi formControlName="hizmetOrani" kesir="4" />
+        </rc-alan>
+        <button
+          type="submit"
+          class="rc-dugme rc-dugme--birincil"
+          [disabled]="busy() || selection().length === 0"
+        >
+          <rc-ikon ad="check" [boyut]="14" />
+          {{ 'finansBelge.hgs.yansit' | transloco: { adet: selection().length } }}
+        </button>
+      </form>
+      @if (lastResult(); as r) {
+        <p class="not" role="status">
+          {{
+            'finansBelge.hgs.sonuc'
+              | transloco
+                : {
+                    yansitilan: r.yansitilan,
+                    zaten: r.zatenYansitilmis,
+                    uygunsuz: r.uygunsuz,
+                  }
+          }}
+        </p>
+      }
+    </section>
+  }
+
+  <rc-tablo
+    class="liste-tablo"
+    tabloKodu="hgs.liste"
+    [etiket]="'finansBelge.hgs.tabloEtiketi' | transloco"
+    [sutunlar]="columns"
+    [kaynak]="store.list.durum()"
+    [satirKimligi]="rowId"
+    [sirala]="query.sorgu().sirala"
+    [secilebilir]="canReflect()"
+    [(secim)]="selection"
+    (siralaDegisti)="query.degistir({ sirala: $event })"
+    (sayfaDegisti)="query.degistir({ sayfa: $event })"
+    (boyutDegisti)="query.degistir({ boyut: $event })"
+    (yenidenDene)="store.list.yenile()"
+  >
+    <ng-template rcTabloHucre="plaka" [rcTabloHucreSutunlar]="columns" let-satir>
+      <rc-plaka boyut="sm" [plaka]="satir.plaka" />
+    </ng-template>
+    <ng-template rcTabloHucre="durum" [rcTabloHucreSutunlar]="columns" let-satir>
+      <span class="rc-rozet">{{ statusLabel(satir.durum) }}</span>
+    </ng-template>
+    <ng-template rcTabloHucre="sozlesmeNo" [rcTabloHucreSutunlar]="columns" let-satir>
+      @if (satir.kiraId && satir.sozlesmeNo) {
+        <a [routerLink]="['/kiralar', satir.kiraId]">{{ satir.sozlesmeNo }}</a>
+      } @else {
+        —
+      }
+    </ng-template>
+  </rc-tablo>
+</div>
