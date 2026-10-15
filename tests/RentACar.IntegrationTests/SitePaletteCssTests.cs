@@ -94,13 +94,50 @@ public sealed partial class SitePaletteCssTests
         Assert.Equal(palette, t.Palette.Key);
         AssertScheme(t.Light, $"{theme}/{palette} açık");
         AssertScheme(t.Dark, $"{theme}/{palette} koyu");
-        // Şemadan bağımsız sabitler: koyu levha (gündüz mürekkebi) üstünde gece mürekkebi okunur (kontuar panosu).
-        Assert.True(Contrast(t.NightInk.Hex, t.DayInk.Hex) >= 4.5, $"{theme}/{palette}: night-ink/day-ink");
         Assert.True(Contrast(t.DayInk.Hex, t.DayBg.Hex) >= 4.5, $"{theme}/{palette}: day-ink/day-bg");
         Assert.True(Contrast(t.NightInk.Hex, t.NightBg.Hex) >= 4.5, $"{theme}/{palette}: night-ink/night-bg");
-        // Açık şema açık, koyu şema koyu (tema css'inin color-scheme bildirimiyle tutarlı).
-        Assert.True(Lum(t.Light.Bg.Hex) > Lum(t.Light.Ink.Hex), $"{theme}/{palette}: açık şemanın zemini mürekkepten açık");
+        // Koyu şema daima koyu. Açık şema açık — set KOYU KİMLİK bildirmediyse (DarkInLightMode): bayrak yanlışlıkla
+        // koyu yazılmış bir açık şemayı yakalar, bilinçli olanı belgeler.
         Assert.True(Lum(t.Dark.Bg.Hex) < Lum(t.Dark.Ink.Hex), $"{theme}/{palette}: koyu şemanın zemini mürekkepten koyu");
+        if (t.Palette.DarkInLightMode)
+            Assert.True(Lum(t.Light.Bg.Hex) < Lum(t.Light.Ink.Hex), $"{theme}/{palette}: koyu kimlikli setin açık şeması koyu");
+        else
+        {
+            Assert.True(Lum(t.Light.Bg.Hex) > Lum(t.Light.Ink.Hex), $"{theme}/{palette}: açık şemanın zemini mürekkepten açık");
+            // Şemadan bağımsız sabitler: koyu levha (gündüz mürekkebi) üstünde gece mürekkebi okunur (kontuar panosu).
+            // Koyu kimlikli sette gündüz mürekkebi açık renktir — "koyu levha" tanımı orada yok, kullanılmaz.
+            Assert.True(Contrast(t.NightInk.Hex, t.DayInk.Hex) >= 4.5, $"{theme}/{palette}: night-ink/day-ink");
+        }
+
+        // Palet bloğu her şemanın color-scheme'ini ZEMİNDEN yazar (form denetimleri, light-dark() seçimi). Beklenen
+        // değer bağımsız: zeminin göreli parlaklığı mürekkebinkinden küçükse koyu.
+        var css = SitePaletteCss.Css(t);
+        var lightBlock = css[..css.IndexOf("@media", StringComparison.Ordinal)];
+        var darkBlock = css[css.IndexOf("@media", StringComparison.Ordinal)..];
+        // ";color-scheme:" — medya sorgusundaki "prefers-color-scheme:dark" ile karışmasın.
+        Assert.Contains($";color-scheme:{(Lum(t.Light.Bg.Hex) < Lum(t.Light.Ink.Hex) ? "dark" : "light")}", lightBlock);
+        Assert.Contains(";color-scheme:dark", darkBlock);
+    }
+
+    /// <summary>Koyu kimlikli set (açık şema da koyu): ana renk dolgusunun üstündeki koyu yazı adayı açık şemanın
+    /// ZEMİNİDİR (mürekkep açık renk). Elle hesap: platin #d6cfc2 L≈0.62; grafit #1c1f23 L≈0.013 → (0.67)/(0.063) ≈
+    /// 10.7:1 ≥ beyazın 1.55:1'i → iki şemada da dolgu üstü yazı #1c1f23. Saf siyaha (#000000) düşülmez.</summary>
+    [Fact]
+    public void Koyu_kimlikli_sette_dolgu_ustu_yazi_acik_semanin_zemini()
+    {
+        var grafit = SitePaletteCss.Tokens(SiteThemes.Vitrin, "grafit", null);
+        Assert.True(grafit.Palette.DarkInLightMode);
+        Assert.Equal(("#d6cfc2", "#1c1f23"), (grafit.Light.Brand.Hex, grafit.Light.OnBrand.Hex));
+        Assert.Equal(("#d6cfc2", "#1c1f23"), (grafit.Dark.Brand.Hex, grafit.Dark.OnBrand.Hex));
+        Assert.True(Contrast("#1c1f23", "#d6cfc2") >= 4.5);
+        var css = SitePaletteCss.Css(grafit);
+        Assert.Equal(2, Regex.Matches(css, ";color-scheme:dark").Count);
+        Assert.DoesNotContain(";color-scheme:light", css);
+
+        // Açık kimlikli set (Şampanya): açık şema açık, bildirimi light.
+        var sampanya = SitePaletteCss.Css(SitePaletteCss.Tokens(SiteThemes.Vitrin, "sampanya", null));
+        Assert.StartsWith(":root{--bg:#efede8;", sampanya);
+        Assert.Contains("color-scheme:light}", sampanya);
     }
 
     /// <summary>Firmanın kendi ana rengi: 216 renk × her temanın her seti × iki şema. Her renkte AA değişmezleri tutar;
@@ -138,15 +175,18 @@ public sealed partial class SitePaletteCssTests
             subtle: "#9aa2a9", line: "#2c3238", lineStrong: "#474e55", accent: "#f2c230", accentInk: "#121417");
         AssertBrand(tarife.Dark, "#2d7480", "#ffffff", "#59919a", "#102429");
 
+        // Vitrin yeniden yazıldı (koyu öncelikli): varsayılan set "grafit" iki şemada da koyu. Setin kendi verdiği
+        // değerler (zemin, kart, mürekkep, ana renk, alan çerçevesi) AA'yı zaten tuttuğu için AYNEN basılır — beklenen
+        // değerler VitrinPalettes.cs'teki elle yazılmış renkler.
         var vitrin = SitePaletteCss.Tokens(SiteThemes.Vitrin, null, null);
         Assert.Equal("grafit", vitrin.Palette.Key);
-        AssertHex(vitrin.Light, bg: "#f7f7f5", bgAlt: "#eeefec", surface: "#ffffff", ink: "#2a3036", muted: "#50575e",
-            subtle: "#62696f", line: "#c5cbd1", lineStrong: "#858d95", accent: "#0b5d6b", accentInk: "#ffffff");
-        Assert.Equal("#0b5d6b", vitrin.Light.Brand.Hex);
-        Assert.Equal("#0b5d6b", vitrin.Light.BrandText.Hex);
-        AssertHex(vitrin.Dark, bg: "#14171a", bgAlt: "#1b1f23", surface: "#1b1f23", ink: "#eef0f1", muted: "#c9ced3",
-            subtle: "#a3aab1", line: "#2a3036", lineStrong: "#62696f", accent: "#2d7480", accentInk: "#ffffff");
-        Assert.Equal("#2d7480", vitrin.Dark.Brand.Hex);
+        Assert.Equal(("#1c1f23", "#24282d", "#f1efea", "#74787d", "#d6cfc2", "#d6cfc2"),
+            (vitrin.Light.Bg.Hex, vitrin.Light.Surface.Hex, vitrin.Light.Ink.Hex, vitrin.Light.LineStrong.Hex,
+                vitrin.Light.Brand.Hex, vitrin.Light.BrandText.Hex));
+        Assert.Equal(("#121417", "#1a1d21", "#ecebe6", "#6a6e73", "#d6cfc2", "#d6cfc2"),
+            (vitrin.Dark.Bg.Hex, vitrin.Dark.Surface.Hex, vitrin.Dark.Ink.Hex, vitrin.Dark.LineStrong.Hex,
+                vitrin.Dark.Brand.Hex, vitrin.Dark.BrandText.Hex));
+        Assert.Equal(vitrin.Light.Brand, vitrin.Light.Accent); // tek kroma: vurgu ana rengi izler
 
         var kontuar = SitePaletteCss.Tokens(SiteThemes.Kontuar, null, null);
         Assert.Equal("terminal", kontuar.Palette.Key);
@@ -288,6 +328,8 @@ public sealed partial class SitePaletteCssTests
         var declarations = CssDeclaration().Matches(css);
         Assert.Equal(2 * SitePaletteCss.SchemeTokenNames.Count + SitePaletteCss.FixedTokenNames.Count, declarations.Count);
         Assert.All(declarations, d => Assert.Matches("^#[0-9a-f]{6}$", d.Groups[2].Value));
+        // Token dışındaki TEK bildirim: şemanın color-scheme'i (sabit anahtar sözcük, girdi değil).
+        Assert.Equal(["light", "dark"], Regex.Matches(css, ";color-scheme:([a-z]+)").Select(m => m.Groups[1].Value));
     }
 
     [Fact]

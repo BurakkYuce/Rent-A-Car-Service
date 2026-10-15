@@ -43,9 +43,12 @@ public static partial class SitePaletteKeys
             ],
             [SiteThemeKeys.Vitrin] =
             [
-                new("grafit", "Porselen ve grafit", "#f7f7f5", "#2a3036", "#0b5d6b", null, "#14171a"),
-                new("gece-mavisi", "Gece mavisi", "#f5f6f8", "#1c2433", "#23407a", null, "#0e131c"),
-                new("bordo", "Bordo", "#f7f6f5", "#2a2526", "#7b1e2e", null, "#161213"),
+                // Koyu öncelikli: ilk dört setin açık şeması da koyu (Zemin = açık şemanın zemini, burada koyu).
+                new("grafit", "Grafit", "#1c1f23", "#f1efea", "#d6cfc2", null, "#121417"),
+                new("gece-mavisi", "Gece mavisi", "#172030", "#eef2f8", "#b9cbe6", null, "#0e1520"),
+                new("bordo", "Bordo", "#2a161b", "#f6ecec", "#e6b8b0", null, "#1b0e12"),
+                new("orman", "Orman", "#17221d", "#edf2ee", "#c5d4b5", null, "#0e1612"),
+                new("sampanya", "Şampanya, açık zemin", "#efede8", "#1d1c1a", "#6e5a36", null, "#191714"),
             ],
             [SiteThemeKeys.Rota] =
             [

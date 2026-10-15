@@ -13,11 +13,15 @@ namespace RentACar.Application.Fleet;
 /// PR-14 vitrin kartı — artık SINIF (VehicleGroup) değil İLAN (<see cref="WebIlan"/>) bazlı.
 /// <paramref name="Adet"/>: Σ(VitrinAdet ?? 1) — YALNIZ gösterim, rezervasyon kapasitesi DEĞİL.
 /// <paramref name="GuncellemeUtc"/>: ilanın ya da özelliklerinin en son değiştiği an — sitemap <c>lastmod</c>.
+/// <paramref name="Ozellikler"/> KART çipleridir (başlıkta geçen değerler ayıklanmış); <paramref name="TumOzellikler"/>
+/// sitede görünür özelliklerin TAMAMI (ayıklanmamış) — sınıflandırma için (ör. yakıt "Hibrit" başlıkta da geçtiği
+/// için çiplerde yoktur ama aracın bir özelliğidir). null → yalnız çipler bilinir.
 /// </summary>
 public sealed record FleetShowcaseCard(
     Guid IlanId, string Slug, string Baslik, string? YilAralik, Guid? CoverPhotoId,
     decimal GunlukFiyat, bool KdvDahil, int Adet,
-    IReadOnlyList<OzellikGoster> Ozellikler, DateTimeOffset? GuncellemeUtc = null);
+    IReadOnlyList<OzellikGoster> Ozellikler, DateTimeOffset? GuncellemeUtc = null,
+    IReadOnlyList<OzellikGoster>? TumOzellikler = null);
 
 /// <summary>Sitede gösterilen teknik özellik (yalnız <c>Gorunur</c> olanlar taşınır).</summary>
 public sealed record OzellikGoster(string Etiket, string Deger);
@@ -168,7 +172,7 @@ public sealed class FleetShowcaseService(
                 y.Detay.Ilan.Id, y.Detay.Ilan.Slug, y.Detay.Ilan.Baslik, VehicleSignature.YearRange(y.Araclar),
                 meta.Count > 0 ? meta[0].Id : null,
                 y.Detay.Ilan.GunlukFiyat, y.Detay.Ilan.KdvDahil, Count(y.Araclar),
-                CardChips(y.Detay, y.Detay.Ilan.Baslik), LastModified(y.Detay)));
+                CardChips(y.Detay, y.Detay.Ilan.Baslik), LastModified(y.Detay), Visible(y.Detay)));
         }
         return cards;
     }

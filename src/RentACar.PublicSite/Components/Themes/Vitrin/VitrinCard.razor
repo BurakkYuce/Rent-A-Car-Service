@@ -2,14 +2,15 @@
 
 @* Tema "vitrin" — Card slotu. İmza SABİT (Components/Themes/README.md): Kart, Tarih.
 
-   Görsel ağırlıklı: 4:3 fotoğraf, çerçevesiz, gölgesiz; ad ve fiyat görselin altında sade. Kart zemini
-   YOK (--card-bg saydam): ızgara bir galeri duvarı gibi okunur, gölgeli kart yığını gibi değil.
+   Fotoğraf önde: 4:3 görsel, çerçevesiz, gölgesiz; ad ve fiyat görselin ALTINDA sade. Kart zemini YOK
+   (--card-bg saydam): şerit de ızgara da bir showroom dizisi gibi okunur, kutu yığını gibi değil. Aynı kart
+   ana sayfadaki yatay şeritte (büyük) ve müsaitlik ızgarasında basılır; boyu kapsayıcıdan gelir.
 
-   İKİ mod: (a) tarih SEÇİLMİŞ (Kart.Gun/Toplam dolu): "3 gün × ₺1.250" hesabı + toplam + müsait adet;
+   İKİ mod: (a) tarih SEÇİLMİŞ (Kart.Gun/Toplam dolu): "3 gün × ₺1.250" + toplam + müsait adet;
    (b) tarih YOK: günlük fiyat + toplam araç adedi ("müsait" DENMEZ — tarihsiz bilinemez, T1).
 
-   Etkileşim: ad bağlantısı ::after ile kartın tamamını kaplar; "Teklif iste" onun üstünde ayrı hedef.
-   İç içe <a> yok. Fotoğraf yoksa grafit zemin üstünde model adı (boş gri kutu değil). *@
+   Etkileşim: ad bağlantısı ::after ile kartın tamamını kaplar; "Teklif iste" onun üstünde ayrı hedef. İç içe
+   <a> yok. FOTOĞRAF YOKSA koyu sahne zemini üstünde büyük model adı (boş gri kutu değil). *@
 
 <article class="v-kart">
     @if (!string.IsNullOrWhiteSpace(Kart.Isaret))
@@ -19,8 +20,10 @@
     <div class="v-kart-foto @(Kart.CoverPhotoId is null ? "v-foto-yok" : null)">
         @if (Kart.CoverPhotoId is { } photoId)
         {
-            @* Küçük görsel (400 px). Tembel; yalnız ilk ekrandaki ilk kart (Oncelikli) hemen iner (LCP). *@
-            <img src="@($"/foto/{photoId}/thumb")" alt="@Kart.Baslik" width="400" height="300"
+            @* Kart şeritte ~38vw'ye kadar büyür: küçük görsel (400 px) iki katlı ekranda bulanık kalırdı, büyük
+               sürüm srcset ile seçilir. Tembel; yalnız ilk ekrandaki ilk kart (Oncelikli) hemen iner (LCP). *@
+            <img src="@($"/foto/{photoId}/thumb")" srcset="@($"/foto/{photoId}/thumb 400w, /foto/{photoId} 1600w")"
+                 sizes="(min-width: 720px) 38vw, 80vw" alt="@Kart.Baslik" width="400" height="300"
                  loading="@(Kart.Oncelikli ? "eager" : "lazy")" fetchpriority="@(Kart.Oncelikli ? "high" : null)" decoding="async" />
         }
         else

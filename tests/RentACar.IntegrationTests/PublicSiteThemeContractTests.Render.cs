@@ -43,13 +43,35 @@ public sealed partial class PublicSiteThemeContractTests
         return map;
     }
 
-    private static string ResolveHex(Dictionary<string, string> map, string token)
+    /// <summary>Token'ı hex'e çözer: <c>var(--x)</c> zinciri ve <c>light-dark(a, b)</c> — ikincisinde seçim
+    /// <paramref name="darkScheme"/> ile (palet bloğunun o şemaya yazdığı color-scheme; css hangi setin basıldığını
+    /// bilemez, koyu kimlikli setin açık şeması da koyudur). light-dark görülür ama şema verilmezse test düşer.</summary>
+    private static string ResolveHex(Dictionary<string, string> map, string token, bool? darkScheme = null)
     {
         var v = map[token];
-        for (var i = 0; i < 10 && v.StartsWith("var(", StringComparison.Ordinal); i++)
-            v = map[v[4..v.IndexOf(')')].Trim()];
+        for (var i = 0; i < 10; i++)
+        {
+            if (v.StartsWith("light-dark(", StringComparison.Ordinal))
+            {
+                Assert.True(darkScheme is not null, $"{token}: light-dark() şema bilgisi olmadan çözülemez");
+                var args = v["light-dark(".Length..v.LastIndexOf(')')];
+                var comma = args.IndexOf("),", StringComparison.Ordinal) + 1;
+                v = (darkScheme!.Value ? args[(comma + 1)..] : args[..comma]).Trim();
+            }
+            else if (v.StartsWith("var(", StringComparison.Ordinal))
+                v = map[v[4..v.IndexOf(')')].Trim()];
+            else break;
+        }
         Assert.Matches("^#[0-9a-fA-F]{6}$", v);
         return v;
+    }
+
+    [Fact]
+    public void Cozumleyici_light_dark_secimini_semaya_gore_yapar()
+    {
+        var map = Tokens(":root{--p-a:#111111;--p-b:#eeeeee;}:root{--x:light-dark(var(--p-a), var(--p-b));--y:var(--x);}", dark: false);
+        Assert.Equal("#111111", ResolveHex(map, "--y", darkScheme: false));
+        Assert.Equal("#eeeeee", ResolveHex(map, "--y", darkScheme: true));
     }
 
     private static double Lum(string hex)
@@ -118,10 +140,12 @@ public sealed partial class PublicSiteThemeContractTests
             foreach (var (dark, scheme) in new[] { (false, t.Light), (true, t.Dark) })
             {
                 var map = Tokens(css, dark);
+                // Şemanın koyuluğu bağımsız hesapla (zemin mürekkepten koyu mu) — light-dark() seçimini belirler.
+                var darkScheme = Lum(scheme.Bg.Hex) < Lum(scheme.Ink.Hex);
                 foreach (var status in new[] { "--danger", "--ok" })
                 foreach (var ground in new[] { scheme.Bg, scheme.Surface })
                 {
-                    var c = Contrast(ResolveHex(map, status), ground.Hex);
+                    var c = Contrast(ResolveHex(map, status, darkScheme), ground.Hex);
                     Assert.True(c >= 4.5, $"{key}/{palette.Key} {(dark ? "koyu" : "açık")}: {status}/{ground.Hex} = {c:0.00}");
                 }
             }
@@ -331,7 +355,8 @@ public sealed partial class PublicSiteThemeContractTests
     /// <summary>
     /// <c>?palet=</c> ve <c>?renk=</c> önizlemesi <c>?tema=</c> ile aynı desen: geçerli değer o istekte basılır ve
     /// noindex yazar; geçersiz değer yok sayılır (kayıtlı görünüm, noindex yok); 404 sayfası geçerli önizlemeyi taşır.
-    /// Beklenen renkler setlerin elle yazılmış zeminleri (#f4f6f9 tarife/lacivert, #f7f6f5 vitrin/bordo).
+    /// Beklenen renkler setlerin elle yazılmış zeminleri (#f4f6f9 tarife/lacivert, #2a161b vitrin/bordo — koyu kimlik,
+    /// #efede8 vitrin/sampanya).
     /// </summary>
     [Fact]
     public async Task Palet_ve_renk_onizlemesi_noindex_yazar_gecersiz_deger_yok_sayilir_404_tasir()
@@ -358,7 +383,8 @@ public sealed partial class PublicSiteThemeContractTests
         {
             var html = await r.Content.ReadAsStringAsync();
             Assert.Matches(@"css/tema-vitrin\.[a-z0-9]+\.css", html);
-            Assert.Contains("<style>:root{--bg:#f7f6f5;", html);
+            Assert.Contains("<style>:root{--bg:#2a161b;", html); // vitrin koyu öncelikli: bordo'nun açık şeması da koyu
+            Assert.Contains("<meta name=\"theme-color\" content=\"#2a161b\" media=\"(prefers-color-scheme: light)\" />", html);
         }
         // Özel ana renk: yalnız KESİN #rrggbb (adreste %23); küçük harfle, Rgb'den yeniden yazılarak basılır.
         using (var r = await client.GetAsync("/?renk=%23C0392B"))
@@ -383,12 +409,13 @@ public sealed partial class PublicSiteThemeContractTests
         }
 
         // 404 sayfası geçerli tema + palet + renk'i taşır (diğer parametreler düşer); durum 404 kalır.
-        using (var r = await client.GetAsync("/yok/boyle/bir/adres?tema=vitrin&palet=bordo&renk=%23c0392b&x=1"))
+        // Vitrin'in açık zeminli seti (Şampanya, #efede8): #c0392b o zeminde ve kartta 3:1'i tutar → aynen basılır.
+        using (var r = await client.GetAsync("/yok/boyle/bir/adres?tema=vitrin&palet=sampanya&renk=%23c0392b&x=1"))
         {
             var html = await r.Content.ReadAsStringAsync();
             Assert.Equal(HttpStatusCode.NotFound, r.StatusCode);
             Assert.Matches(@"css/tema-vitrin\.[a-z0-9]+\.css", html);
-            Assert.Contains("<style>:root{--bg:#f7f6f5;", html);
+            Assert.Contains("<style>:root{--bg:#efede8;", html);
             Assert.Contains("--brand:#c0392b;", html);
             Assert.Equal("noindex, follow", RobotsHeader(r));
         }
