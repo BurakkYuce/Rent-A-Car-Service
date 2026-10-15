@@ -399,21 +399,21 @@ public sealed partial class PublicSiteThemeContractTests
     [Fact]
     public async Task Kayitli_set_ve_ozel_renk_basilir_temaya_ait_olmayan_set_varsayilana_duser()
     {
-        var tenant = await SeedTenantAsync("rota", "gok", "#c0392b");
+        var tenant = await SeedTenantAsync("rota", "kayisi", "#c0392b");
         using (var factory = new PublicSiteFactory(fx, tenant))
         {
             var client = factory.Client();
             var html = await client.GetStringAsync("/");
-            Assert.Matches(@"css/tema-kontuar\.[a-z0-9]+\.css", html);
-            Assert.Contains("<style>:root{--bg:#f3f6fa;", html);
+            Assert.Matches(@"css/tema-rota\.[a-z0-9]+\.css", html);
+            Assert.Contains("<style>:root{--bg:#f3f4f6;", html);
             Assert.Contains("--brand:#c0392b;", html); // #c0392b zeminde 3:1'i tutuyor → aynen
-            using var r = await client.GetAsync("/?palet=terminal&renk=%230b1f3a");
+            using var r = await client.GetAsync("/?palet=deniz&renk=%230b1f3a");
             var preview = await r.Content.ReadAsStringAsync();
-            Assert.Contains("<style>:root{--bg:#f4f7f9;", preview);
+            Assert.Contains("<style>:root{--bg:#f1f5f6;", preview);
             Assert.Contains("--brand:#0b1f3a;", preview);
         }
 
-        var stale = await SeedTenantAsync("pazar", "gok");
+        var stale = await SeedTenantAsync("pazar", "kayisi");
         using (var factory = new PublicSiteFactory(fx, stale))
             Assert.Contains("<style>:root{--bg:#f5f6f3;", await factory.Client().GetStringAsync("/"));
     }

@@ -1,0 +1,77 @@
+@using RentACar.Application.Fleet
+
+@* Tema "rota" — Card slotu. İmza SABİT (Components/Themes/README.md): Kart, Tarih.
+
+   Kart değil, FİYAT LİSTESİ SATIRI (Fleet slotunun <ol>'u içinde): üst satır "Araç ......... ₺1.450 / gün" —
+   ad ile fiyat arası noktalı çizgi (süs, aria-hidden; açılışta soldan sağa çizilir); alt satır yıl/vites/yakıt,
+   KDV ve durum, "Teklif iste". Fiyat metni ve hesap PriceText'ten; tema hesap yapmaz (Kart.Toplam sayfadan).
+
+   İKİ mod (T1): tarih SEÇİLMİŞSE (Kart.Gun/Toplam dolu) dönem toplamı + "3 gün" + "3 × ₺1.500" + "müsait"
+   adedi; tarih YOKSA günlük fiyat + "/ gün" — "müsait" DENMEZ, tarihsiz bilinemez (filoda birden çok araç varsa
+   yalnız adet söylenir).
+
+   Etkileşim: ad bağlantısı ::after ile satırı kaplar; "Teklif iste" üstte ayrı hedef (44 px). İç içe <a> yok.
+   Fotoğraf satırın kendi öğesi: genişte ve imleçli cihazda listenin sağındaki kolona taşınır ve satır etkinken
+   görünür; dar/dokunmatik ekranda satırın içinde küçük görsel. Ad başlıkta yazılı → görsel süs (alt=""). *@
+<article class="rt-satir @(Kart.Isaret is not null ? "rt-satir-isaretli" : null)">
+    <div class="rt-satir-ust">
+        <h3 class="rt-ad"><a href="@Kart.DetayLinki">@Kart.Baslik</a></h3>
+        <span class="rt-nokta" aria-hidden="true"></span>
+        <p class="rt-fiyat">
+            @if (Kart.Gun is { } days && Kart.Toplam is { } total)
+            {
+                <span class="rt-tutar">@PriceText.Tl(total)</span><span class="rt-birim"> / @days gün</span>
+            }
+            else
+            {
+                <span class="rt-tutar">@PriceText.Tl(Kart.GunlukFiyat)</span><span class="rt-birim"> / gün</span>
+            }
+        </p>
+    </div>
+    <div class="rt-satir-alt">
+        @if (!string.IsNullOrWhiteSpace(Kart.Isaret)) { <p class="rt-isaret">@Kart.Isaret</p> }
+        @if (Meta is { Length: > 0 } meta) { <p class="rt-ozellik">@meta</p> }
+        <p class="rt-hesap">@Calculation</p>
+        @if (StatusText is { } status) { <p class="rt-durum">@status</p> }
+        <a class="rt-teklif" href="@Kart.TeklifLinki">Teklif iste<span class="gorunmez">: @Kart.Baslik</span></a>
+    </div>
+    @if (Kart.CoverPhotoId is { } photoId)
+    {
+        @* Küçük görsel (400 px) — iki yerleşimde de yeterli. Tembel; yalnız ilk ekrandaki ilk satır (Oncelikli) hemen iner. *@
+        <div class="rt-foto">
+            <img src="@($"/foto/{photoId}/thumb")" alt="" width="400" height="267"
+                 loading="@(Kart.Oncelikli ? "eager" : "lazy")" fetchpriority="@(Kart.Oncelikli ? "high" : null)" decoding="async" />
+        </div>
+    }
+</article>
+
+@code {
+    /// <summary>Kartın tüm verisi (fiyat, hesap, teklif bağlantısı, işaret, öncelik).</summary>
+    [Parameter, EditorRequired] public ListingCard Kart { get; set; } = default!;
+    /// <summary>Seçilen aralık; null → tarihsiz gezinti. Satır hesabı Kart.Gun/Toplam'dan (tek kaynak).</summary>
+    [Parameter] public StayDates? Tarih { get; set; }
+
+    private string VatText => Kart.KdvDahil ? "KDV dahil" : "KDV hariç";
+
+    /// <summary>"3 × ₺1.500, KDV dahil" (tarihli) ya da "KDV dahil" (tarihsiz).</summary>
+    private string Calculation => Kart.Gun is { } days && Kart.Toplam is not null
+        ? $"{days} × {PriceText.Tl(Kart.GunlukFiyat)}, {VatText}"
+        : VatText;
+
+    /// <summary>"Müsait" YALNIZ tarih seçiliyse (kirada olanlar düşülmüştür); tarihsizde yalnız birden çok araç varsa adet.</summary>
+    private string? StatusText => Kart.Gun is null
+        ? (Kart.Adet > 1 ? $"Filoda {Kart.Adet} araç" : null)
+        : (Kart.Adet > 1 ? $"{Kart.Adet} araç müsait" : "Müsait");
+
+    /// <summary>"2023 model, Manuel, Dizel" — yalnız ilanda "sitede görünsün" olan vites/yakıt (T2).</summary>
+    private string Meta => string.Join(", ", new[]
+    {
+        string.IsNullOrWhiteSpace(Kart.YilAralik) ? null : $"{Kart.YilAralik} model",
+        Feature("Vites"),
+        Feature("Yakıt"),
+    }.Where(x => x is not null));
+
+    private string? Feature(string label)
+        => Kart.Ozellikler.FirstOrDefault(o => string.Equals(o.Etiket, label, StringComparison.OrdinalIgnoreCase))
+            ?.Deger is { Length: > 0 } v ? v : null;
+}

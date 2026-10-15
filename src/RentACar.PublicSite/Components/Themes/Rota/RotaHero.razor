@@ -1,0 +1,75 @@
+@using RentACar.Application.Fleet
+
+@* Tema "rota" — Hero slotu. İmza SABİT (Components/Themes/README.md): Marka, Branding, Subeler, Kartlar, Sehir.
+
+   DÜZEN (≥960 px, 12 kolonlu editoryal ızgara): solda büyük başlık + alt metin (1–7), altında kompakt arama
+   (1–8); sağda DİKEY fotoğraf (9–12) ve altında künye satırı: araç adı, noktalı çizgi, günlük fiyat — filo
+   listesinin dilinin ilk görünüşü (imza anı burada da çizilir). Fotoğraf yoksa (T2) başlık ve arama tek
+   kolon kalır; boş gri kutu basılmaz.
+
+   GÖRSEL: ayrı bir "site görseli" alanı YOK — olmayan alanı uydurmak yerine yayındaki ilk ilanın gerçek kapağı
+   kullanılır (Home.razor'daki paylaşım görseliyle aynı kural). Kapak 3:2; dikey kırpım CSS'te (object-fit).
+   Kırpım kutunun YÜKSEKLİĞİNİ doldurur: `sizes` kutunun genişliğinin ~1,5 katını ister ki küçük görsel
+   büyütülüp bulanıklaşmasın. LCP adayı → tembel DEĞİL, `fetchpriority="high"`.
+
+   ARAMA: ORTAK <AramaFormu> (T4 — alan adları/doğrulama tek kaynak, GET /musaitlik, JS yok), tek satır.
+   Başlık, alt metin ve not SABİT (T1: sitenin ne yaptığını anlatır, firma vaadi değil); hizmet bölgesi
+   VERİYE BAĞLI (T2). MOBİL sıra: başlık → alt metin (ikinci cümle gizli) → arama → fotoğraf; "Müsait araçları
+   göster" 390×844'te ilk ekranda kalır. *@
+<section class="rt-hero @(Cover is not null ? "rt-hero-fotolu" : null)" aria-labelledby="hero-baslik">
+    <div class="wrap rt-hero-izgara">
+        <div class="rt-hero-metin">
+            <h1 id="hero-baslik">Yola çıkmadan önce aracı ve fiyatı görün.</h1>
+            <p class="rt-hero-alt">
+                @if (!string.IsNullOrWhiteSpace(Sehir))
+                {
+                    <strong>@Sehir bölgesinde araç kiralama.</strong>@(" ")
+                }
+                @(string.IsNullOrWhiteSpace(Marka) ? "Filomuzdaki" : $"{Marka} filosundaki")
+                her aracın günlük fiyatı ilanında yazılı.
+                <span class="rt-hero-alt-uzun">Alış ve iade tarihini girin; o aralıkta müsait araçları ve
+                    toplam tutarı gösterelim.</span>
+            </p>
+        </div>
+
+        <div class="rt-hero-arama">
+            <AramaFormu Hedef="/musaitlik" Subeler="Subeler" Satir="true" />
+            @* Sistemin davranışı, firma taahhüdü DEĞİL (T1): talep bir lead kaydıdır (PublicBookingRequest). *@
+            <p class="rt-hero-not">Kayıt gerekmez. Talep bırakmak ücretsizdir, ekip sizi arar.</p>
+        </div>
+
+        @if (Cover is { CoverPhotoId: { } photoId } c)
+        {
+            <figure class="rt-hero-foto">
+                <img src="@($"/foto/{photoId}")"
+                     srcset="@($"/foto/{photoId}/thumb 400w, /foto/{photoId} 1600w")"
+                     sizes="(min-width: 960px) 720px, 150vw"
+                     width="1200" height="800" alt="@c.Baslik" fetchpriority="high" decoding="async" />
+                <figcaption>
+                    <a class="rt-kunye" href="@($"/araclar/{c.Slug}")">
+                        <span class="rt-kunye-ad">@c.Baslik</span>
+                        <span class="rt-nokta" aria-hidden="true"></span>
+                        <span class="rt-kunye-fiyat">@PriceText.Tl(c.GunlukFiyat)<small> / gün</small></span>
+                    </a>
+                    <span class="rt-kunye-not">Fotoğraftaki araç. Günlük fiyat, @(c.KdvDahil ? "KDV dahil" : "KDV hariç").</span>
+                </figcaption>
+            </figure>
+        }
+    </div>
+</section>
+
+@code {
+    /// <summary>Marka adı (boşsa "Filomuzdaki").</summary>
+    [Parameter] public string? Marka { get; set; }
+    /// <summary>Firma bilgisi. Bu tema kullanmıyor; imza gereği alınır.</summary>
+    [Parameter] public FleetBranding? Branding { get; set; }
+    /// <summary>Aktif şube adları (arama formunun seçim kutusu).</summary>
+    [Parameter] public IReadOnlyList<string> Subeler { get; set; } = [];
+    /// <summary>Yayındaki ilanlar (dikey fotoğraf: kapağı olan ilk ilan).</summary>
+    [Parameter] public IReadOnlyList<FleetShowcaseCard> Kartlar { get; set; } = [];
+    /// <summary>Hizmet bölgesi ("Esenyurt, İstanbul"); null → bölge cümlesi basılmaz.</summary>
+    [Parameter] public string? Sehir { get; set; }
+
+    /// <summary>Hero fotoğrafının ilanı: servis sırasıyla kapağı olan İLK ilan; yoksa null (fotoğrafsız düzen).</summary>
+    private FleetShowcaseCard? Cover => Kartlar.FirstOrDefault(k => k.CoverPhotoId is not null);
+}

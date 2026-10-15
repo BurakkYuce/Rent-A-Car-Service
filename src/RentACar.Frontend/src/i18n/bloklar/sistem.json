@@ -466,8 +466,8 @@
           "aciklama": "Fotoğraf öne çıkar: büyük kapak görseli ve sade kartlar. Özenli fotoğraflı, üst segment filo için."
         },
         "rota": {
-          "ad": "Kontuar",
-          "aciklama": "Bilet ve kalkış panosu düzeni. Havalimanı ve otel teslimi yapan firmalar için."
+          "ad": "Rota",
+          "aciklama": "Editoryal ve ferah: büyük başlık, dikey fotoğraf ve numaralı fiyat listesi. Tatil bölgesinde, havalimanı ve otel teslimi yapan firmalar için."
         }
       },
       "smtp": "SMTP (e-posta gönderimi)",
