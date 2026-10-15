@@ -160,8 +160,6 @@ strong, b { font-weight: 650; }
 
 /* Form: kalın çerçeveli tezgâh kartı + düz gölge. */
 .arama { border: var(--frame-w) solid var(--frame); border-radius: var(--radius-m); box-shadow: var(--hard-shadow); padding: var(--space-2); }
-/* Tarih alanlarının doğal genişliği dar ekranda sütunu aşmasın (kalın çerçeve iç alanı daraltır). */
-.arama-tarihler { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .alan { color: var(--ink-muted); font-weight: 600; }
 .alan input, .alan select, .alan textarea { border-width: 2px; font-weight: 400; min-width: 0; }
 .alan input[type="date"] { padding-inline: .55rem; }
@@ -326,6 +324,12 @@ strong, b { font-weight: 650; }
   100% { rotate: var(--sapma); }
 }
 .pz-etiket { animation: pz-asil 1.5s cubic-bezier(.25, .6, .3, 1) backwards; animation-delay: calc(.2s + var(--sira, 0) * 90ms); }
+/* Salınımın ilk vuruşlarında etiket kartın sağ kenarını ~24 px aşar; telefonda kart ekran kenarına 16 px
+   olduğundan sayfa ~2 sn yana kayabiliyordu. Etiketlerin TÜM yerleşimlerinin (hero, filo, müsaitlik, detay,
+   benzer ilanlar, 404) görünüm alanı genişliğindeki ortak atası `main`: yalnız YATAY ekseni kırp (`clip` kaydırma
+   kabı kurmaz; yapışkan öğeler ve dikey taşma — ip ve çivi — etkilenmez). Görünen hiçbir şey değişmez: kırpılan
+   kısım zaten ekranın dışındaydı. Yapısal test: dönen anahtar kare varsa `main` yatayda kırpar. */
+main { overflow-x: clip; }
 .pz-ilanlar > li:nth-child(2n) .pz-etiket { --sapma: 3deg; }
 .pz-ilanlar > li:nth-child(3n) .pz-etiket { --sapma: -2deg; }
 .pz-ilanlar > li:nth-child(2) .pz-etiket { --sira: 1; }
