@@ -6441,6 +6441,84 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/ui/v1/faturalar/{id}/e-belge/gonder': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['EDocumentDto'];
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ui/v1/faturalar/{id}/e-belge/iptal': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody: {
+        content: {
+          'application/json': components['schemas']['EDocumentCancelRequest'];
+        };
+      };
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['EDocumentDto'];
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/api/ui/v1/faturalar/manuel': {
     parameters: {
       query?: never;
@@ -25823,6 +25901,30 @@ export interface components {
       /** Format: int32 */
       ileri: number | string;
     };
+    EDocumentCancelRequest: {
+      gerekce: null | string;
+    };
+    EDocumentDto: {
+      durum: null | string;
+      tur: null | string;
+      profil: null | string;
+      faturaTipi: null | string;
+      ettn: null | string;
+      /** Format: date-time */
+      gonderimTarihi: null | string;
+      /** Format: int32 */
+      denemeSayisi: number | string;
+      /** Format: date-time */
+      sonrakiDeneme: null | string;
+      mesaj: null | string;
+      entegratorBagli: boolean;
+      gonderilebilir: boolean;
+      iptalEdilebilir: boolean;
+    };
+    EInvoiceIntegratorOptionDto: {
+      anahtar: string;
+      ad: string;
+    };
     EkHizmetAracPivotDto: {
       kolonlar: string[];
       satirlar: components['schemas']['EkHizmetAracPivotSatir'][];
@@ -27137,6 +27239,7 @@ export interface components {
       eFaturaEttn: null | string;
       pdfAdresi: string;
       satirlar: components['schemas']['InvoiceLineDto'][];
+      eBelge: components['schemas']['EDocumentDto'];
     };
     InvoiceLineDto: {
       /** Format: uuid */
@@ -27223,6 +27326,8 @@ export interface components {
       eFaturaEttn: null | string;
       /** Format: uuid */
       kaynakFaturaId: null | string;
+      eBelgeDurum: null | string;
+      eBelgeMesaj: null | string;
     };
     InvoicePeriodSummary: {
       /** Format: int32 */
@@ -32190,8 +32295,18 @@ export interface components {
       firmaEmail?: null | string;
       firmaMobilTel?: null | string;
       firmaMarka?: null | string;
+      firmaIl?: null | string;
+      firmaIlce?: null | string;
       eFaturaKullanici?: null | string;
       eFaturaSifreTanimli?: boolean;
+      eFaturaEntegrator?: null | string;
+      eFaturaGondericiEtiket?: null | string;
+      eFaturaPostaKutusuEtiket?: null | string;
+      eFaturaCanliOrtam?: boolean;
+      eFaturaSenaryo?: null | string;
+      eFaturaBagli?: boolean;
+      eFaturaDurumMesaji?: null | string;
+      eFaturaEntegratorSecenekleri?: components['schemas']['EInvoiceIntegratorOptionDto'][];
       smsBaslik?: null | string;
       smsApiKeyTanimli?: boolean;
       posMerchantId?: null | string;
@@ -32259,8 +32374,15 @@ export interface components {
       firmaEmail?: null | string;
       firmaMobilTel?: null | string;
       firmaMarka?: null | string;
+      firmaIl?: null | string;
+      firmaIlce?: null | string;
       eFaturaKullanici?: null | string;
       eFaturaSifre?: null | string;
+      eFaturaEntegrator?: null | string;
+      eFaturaGondericiEtiket?: null | string;
+      eFaturaPostaKutusuEtiket?: null | string;
+      eFaturaCanliOrtam?: boolean;
+      eFaturaSenaryo?: null | string;
       smsBaslik?: null | string;
       smsApiKey?: null | string;
       posMerchantId?: null | string;

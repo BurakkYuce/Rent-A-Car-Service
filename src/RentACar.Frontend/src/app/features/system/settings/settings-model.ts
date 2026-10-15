@@ -56,8 +56,15 @@ export const SETTINGS_FIELDS = [
   'firmaTel',
   'firmaMobilTel',
   'firmaEmail',
+  'firmaIl',
+  'firmaIlce',
+  'eFaturaEntegrator',
   'eFaturaKullanici',
   'eFaturaSifre',
+  'eFaturaGondericiEtiket',
+  'eFaturaPostaKutusuEtiket',
+  'eFaturaSenaryo',
+  'eFaturaCanliOrtam',
   'smsBaslik',
   'smsApiKey',
   'posMerchantId',
@@ -100,7 +107,29 @@ const REQUIRED_BOOLEANS: readonly SettingsField[] = [
   'kurElleGirisKilitli',
   'donemselFaturalamaJob',
   'donemselOtomatikTahsilat',
+  'eFaturaCanliOrtam',
 ];
+
+/** e-Fatura senaryoları (`EInvoiceReadiness.Scenarios`); boş = TEMELFATURA. e-Arşiv alıcıda senaryo otomatik. */
+export const EINVOICE_SCENARIOS = ['TEMELFATURA', 'TICARIFATURA'] as const;
+
+export type EInvoiceIntegratorOption = Schema<'EInvoiceIntegratorOptionDto'>;
+
+/**
+ * Entegratör seçenekleri: sunucuda kayıtlı adaptörler + (listede yoksa) kayıtlı değer — adaptör sonradan kaldırılmış
+ * olsa da seçim formdan sessizce düşmesin; sunucu değişmeyen değeri geri kabul eder, durum satırı "bağlı değil" der.
+ */
+export function integratorOptions(
+  dto: SettingsDto | null,
+): readonly { deger: string; etiket: string }[] {
+  const list = (dto?.eFaturaEntegratorSecenekleri ?? []).map((o) => ({
+    deger: o.anahtar,
+    etiket: o.ad,
+  }));
+  const stored = dto?.eFaturaEntegrator;
+  if (stored && !list.some((o) => o.deger === stored)) list.push({ deger: stored, etiket: stored });
+  return list;
+}
 
 /** `FiyatTuruSecenek.Hepsi` (sunucu listesi; sıra canlı parite sırası). */
 export const PRICE_TYPES = [
