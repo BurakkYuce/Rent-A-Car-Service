@@ -160,9 +160,8 @@ h2 { letter-spacing: -.012em; }
 .sayfa-ust h1 { font-size: var(--step-4); }
 .giris { color: var(--ink-muted); }
 
-/* Tarih alanının iç genişliği (takvim simgesi dahil) dar ekranda 1fr sütunu taşırıyordu: sütun 0'a inebilsin. */
-.arama-tarihler { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-.alan input[type="date"] { min-width: 0; font-variant-numeric: tabular-nums; }
+/* Tarih alanının sütunu ve alt sınırı base.css'te (`.arama-tarihler`, `.alan`); burada yalnız rakam hizası. */
+.alan input[type="date"] { font-variant-numeric: tabular-nums; }
 
 /* ---- Noktalı çizgi (tema dili): ad ile fiyat arasında, taban çizgisine oturur. Süs — aria-hidden. ---- */
 .rt-nokta,
@@ -411,8 +410,6 @@ h2 { letter-spacing: -.012em; }
 /* 404 rakamı: base'in çizgi tonu her sette 3:1'i tutmuyor (türetilen çizgi) — ipucu metni tonu her sette AA. */
 .hata-kod { font-weight: 500; color: var(--ink-subtle); }
 .kanallar li { border-top-width: 1px; }
-/* Uzun e-posta adresi 320 px'te satırı taşırıyordu (serif geniş): adres içinden de bölünebilsin. */
-.buyuk-baglanti { overflow-wrap: anywhere; }
 
 /* ---- İlan detayı: başlık + kapak + galeri (sol), kutusuz tarife sütunu (sağ, yapışkan) ---- */
 .rt-detay { padding-top: var(--space-2); }
