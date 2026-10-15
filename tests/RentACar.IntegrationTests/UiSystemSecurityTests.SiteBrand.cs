@@ -94,6 +94,79 @@ public sealed partial class UiSystemSecurityTests
             (await Json(await admin.C.GetAsync(Settings))).GetProperty("siteTemasi").ValueKind);
     }
 
+    // Site palet seti: aynı istekteki temanın setlerinden biri (büyük harf/boşluk normalize), katalog GET'te gelir,
+    // başka firmaya sızmaz, boş → null (temanın varsayılanı). Beklenen anahtarlar elle yazıldı (vitrin: grafit,
+    // gece-mavisi, bordo).
+    [Fact]
+    public async Task Site_palette_round_trips_with_catalog_and_stays_in_tenant()
+    {
+        var e = await _kit.SetupAsync();
+        var admin = await _kit.LoginAsync(e, Who.Admin);
+        var first = await Json(await admin.C.GetAsync(Settings));
+        Assert.Equal(System.Text.Json.JsonValueKind.Null, first.GetProperty("sitePaleti").ValueKind);
+        var catalog = first.GetProperty("sitePaletSecenekleri").EnumerateArray()
+            .ToDictionary(t => t.GetProperty("tema").GetString()!,
+                t => t.GetProperty("paletler").EnumerateArray().Select(p => p.GetProperty("anahtar").GetString()).ToList());
+        Assert.Equal(["grafit", "gece-mavisi", "bordo"], catalog["vitrin"]);
+        Assert.Equal(["pazar", "vitrin", "rota"], catalog.Keys);
+        var bordo = first.GetProperty("sitePaletSecenekleri").EnumerateArray().Single(t => t.GetProperty("tema").GetString() == "vitrin")
+            .GetProperty("paletler").EnumerateArray().Single(p => p.GetProperty("anahtar").GetString() == "bordo");
+        Assert.Equal("#7b1e2e", bordo.GetProperty("ana").GetString());
+        Assert.Equal(System.Text.Json.JsonValueKind.Null, bordo.GetProperty("vurgu").ValueKind); // vitrin: vurgu ana rengi izler
+
+        var version = first.GetProperty("surum").GetString();
+        var saved = await Json(await Send(admin, HttpMethod.Put, Settings,
+            new { siteTemasi = "vitrin", sitePaleti = " Gece-Mavisi ", surum = version }));
+        Assert.Equal("gece-mavisi", saved.GetProperty("sitePaleti").GetString());
+        Assert.Equal("gece-mavisi", (await Json(await admin.C.GetAsync(Settings))).GetProperty("sitePaleti").GetString());
+        version = saved.GetProperty("surum").GetString();
+
+        var other = await _kit.SetupAsync();
+        var otherAdmin = await _kit.LoginAsync(other, Who.Admin);
+        Assert.Equal(System.Text.Json.JsonValueKind.Null,
+            (await Json(await otherAdmin.C.GetAsync(Settings))).GetProperty("sitePaleti").ValueKind);
+
+        saved = await Json(await Send(admin, HttpMethod.Put, Settings, new { siteTemasi = "vitrin", sitePaleti = "", surum = version }));
+        Assert.Equal(System.Text.Json.JsonValueKind.Null, saved.GetProperty("sitePaleti").ValueKind);
+    }
+
+    // Temaya ait olmayan (başka temanın seti; tema boşsa varsayılan tema pazar), bilinmeyen, biçimsiz ya da kolon
+    // sınırını aşan palet: 400 + YALNIZ errors.sitePaleti; mesaj temanın geçerli setlerini sayar; kayıt değişmez.
+    // Eski tema anahtarı (kontuar → rota) aitlikte de yeni karşılığıyla değerlendirilir.
+    [Fact]
+    public async Task Invalid_or_foreign_site_palette_is_bound_to_sitePaleti_field()
+    {
+        var e = await _kit.SetupAsync();
+        var admin = await _kit.LoginAsync(e, Who.Admin);
+        var version = (await Json(await admin.C.GetAsync(Settings))).GetProperty("surum").GetString();
+
+        foreach (var (theme, bad) in new (string?, string)[]
+                 {
+                     ("vitrin", "petrol"), (null, "bordo"), ("rota", "olmayan"), ("kontuar", "grafit"), ("pazar", "petrol;}"),
+                     ("pazar", "pet rol"), ("pazar", new string('a', 31)), ("pazar", "petrol</style>"),
+                 })
+        {
+            var p = await Problem(await Send(admin, HttpMethod.Put, Settings, new { siteTemasi = theme, sitePaleti = bad, surum = version }),
+                HttpStatusCode.BadRequest, "dogrulama", "sitePaleti");
+            Assert.Equal(["sitePaleti"], p.GetProperty("errors").EnumerateObject().Select(x => x.Name).ToList());
+        }
+
+        var last = await Problem(await Send(admin, HttpMethod.Put, Settings, new { siteTemasi = "rota", sitePaleti = "grafit", surum = version }),
+            HttpStatusCode.BadRequest, "dogrulama", "sitePaleti");
+        var text = last.GetProperty("errors").GetProperty("sitePaleti").ToString();
+        Assert.Contains("terminal", text);
+        Assert.Contains("pist-yesili", text);
+        Assert.Contains("gok", text);
+
+        var now = await Json(await admin.C.GetAsync(Settings));
+        Assert.Equal(System.Text.Json.JsonValueKind.Null, now.GetProperty("sitePaleti").ValueKind);
+        Assert.Equal(System.Text.Json.JsonValueKind.Null, now.GetProperty("siteTemasi").ValueKind);
+
+        // Eski tema anahtarı + o temanın seti kabul edilir (tema yeni anahtarla saklanır).
+        var saved = await Json(await Send(admin, HttpMethod.Put, Settings, new { siteTemasi = "kontuar", sitePaleti = "gok", surum = version }));
+        Assert.Equal(("rota", "gok"), (saved.GetProperty("siteTemasi").GetString(), saved.GetProperty("sitePaleti").GetString()));
+    }
+
     // Anahtar göçü (tarife → pazar, kontuar → rota): eski anahtarla gelen PUT REDDEDİLMEZ, yeni anahtara normalize
     // edilip saklanır. Gerekçe: eski SPA sekmesi / önbellekteki istemci kaydederken kullanıcının seçimi kaybolmasın
     // ve 400 almasın; sitenin ?tema= önizlemesiyle aynı kural (SiteThemeKeys.Normalize tek kaynak). Eski anahtar

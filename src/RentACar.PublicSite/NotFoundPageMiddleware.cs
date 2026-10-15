@@ -56,15 +56,9 @@ public sealed class NotFoundPageMiddleware(RequestDelegate next, IServiceScopeFa
         ctx.Items[ItemKey] = true;
         ctx.RequestServices = scope.ServiceProvider;
         ctx.Request.Path = Path;
-        // Sorgu atılır; YALNIZ tema önizlemesi (?tema=) taşınır: önizlenen sitede kırık bir bağlantı
-        // 404 sayfasını da aynı temayla göstermeli (ThemeAccessor sorgudan okur, geçersiz ad yok sayılır).
-        var preview = originalQuery.HasValue
-            && Microsoft.AspNetCore.WebUtilities.QueryHelpers.ParseQuery(originalQuery.Value)
-                .TryGetValue(Components.Themes.ThemeAccessor.QueryKey, out var theme)
-            && Components.Themes.SiteThemes.IsKnown(theme.ToString())
-                ? QueryString.Create(Components.Themes.ThemeAccessor.QueryKey, theme.ToString())
-                : QueryString.Empty;
-        ctx.Request.QueryString = preview;
+        // Sorgu atılır; YALNIZ geçerli görünüm önizlemesi (?tema= / ?palet= / ?renk=) taşınır: önizlenen sitede
+        // kırık bir bağlantı 404 sayfasını da aynı görünümle göstermeli (ThemeAccessor sorgudan okur).
+        ctx.Request.QueryString = SitePreview.ToQuery(SitePreview.Parse(originalQuery));
         ctx.SetEndpoint(null);
         ctx.Request.RouteValues = new RouteValueDictionary();
         // İlk turdaki Blazor render'ının yazdığı başlık ikinci turda Headers.Add ile yeniden eklenir →

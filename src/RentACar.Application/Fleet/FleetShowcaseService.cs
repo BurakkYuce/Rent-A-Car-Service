@@ -54,7 +54,10 @@ public sealed record FleetBranding(string? Marka, string? Adres, string? Tel, st
     string? LogoSurum = null,
     /// <summary>Site teması anahtarı (<c>TenantSettings.SiteTemasi</c>, ham DB değeri) — site kendi kaydıyla
     /// çözer; bilinmeyen/boş → varsayılan tema. Ham değer HİÇBİR yere basılmaz.</summary>
-    string? Tema = null);
+    string? Tema = null,
+    /// <summary>Site palet seti anahtarı (<c>TenantSettings.SitePaleti</c>, ham DB değeri) — site temanın kendi
+    /// setleri arasında arar; bulunamazsa/boşsa temanın varsayılan seti. Ham değer HİÇBİR yere basılmaz.</summary>
+    string? Paleti = null);
 
 /// <summary>Halka açık sitede basılan firma logosu (PNG baytları + önbellek sürümü).</summary>
 public sealed record PublicLogo(byte[] Bytes, string Surum);

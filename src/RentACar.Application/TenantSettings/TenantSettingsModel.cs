@@ -78,6 +78,9 @@ public sealed class TenantSettingsModel
     /// <summary>Halka açık site teması (<see cref="SiteThemeKeys"/>; null = varsayılan tema).</summary>
     public string? SiteTemasi { get; set; }
 
+    /// <summary>Halka açık site palet seti (<see cref="SitePaletteKeys"/>; null = temanın varsayılan seti).</summary>
+    public string? SitePaleti { get; set; }
+
     // PR-2: public-site — yalnız GÖRÜNTÜLEME (SaveAsync bunları yazmaz; OpenPublicSiteAsync yazar).
     public bool PublicSiteEnabled { get; set; }
     public string? PublicSiteHost { get; set; }

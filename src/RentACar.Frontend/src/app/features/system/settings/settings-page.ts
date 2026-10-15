@@ -9,7 +9,7 @@ import {
   inject,
   signal,
 } from '@angular/core';
-import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { TranslocoPipe } from '@jsverse/transloco';
 import { map } from 'rxjs';
@@ -44,6 +44,8 @@ import {
   type SecretField,
   type SettingsDto,
   type SiteTheme,
+  paletteAfterThemeChange,
+  palettesFor,
   secretsToClear,
   settingsBody,
   settingsFormValue,
@@ -51,6 +53,8 @@ import {
   themePreviewUrl,
 } from './settings-model';
 import { SettingsActions } from './settings-actions';
+import { SiteColorInput } from './site-color-input';
+import { SitePalettePicker } from './site-palette-picker';
 
 const ROOT = '/api/ui/v1/ayarlar' as const;
 type VehicleGroupPage = Schema<'SayfaOfVehicleGroupDto'>;
@@ -104,6 +108,8 @@ const MAX_LENGTH: Readonly<Partial<Record<string, number>>> = {
     Selection,
     RadioGroup,
     SettingsActions,
+    SitePalettePicker,
+    SiteColorInput,
   ],
   styleUrl: '../system.scss',
   templateUrl: './settings-page.html',
@@ -149,8 +155,40 @@ export class SettingsPage {
     return this.t(`sistem.ayarlar.tema.${key}.ad`);
   }
 
+  /** Formun canlı değeri (kaydedilmemiş seçim dahil): palet listesi ve önizleme bağlantıları bundan türer. */
+  private readonly formValue = toSignal(this.form.valueChanges, {
+    initialValue: this.form.getRawValue(),
+  });
+  private readonly selectedTheme = computed(() => {
+    const theme = this.formValue()['siteTemasi'];
+    return typeof theme === 'string' && theme !== '' ? theme : SITE_THEMES[0];
+  });
+
+  /** Seçili temanın palet setleri (ilk = varsayılan); tema değişince liste değişir. */
+  protected readonly palettes = computed(() => palettesFor(this.dto(), this.selectedTheme()));
+
+  /** Özel ana renk yokken renk seçicinin gösterdiği renk: seçili setin (yoksa varsayılan setin) ana rengi. */
+  protected readonly paletteDefaultColor = computed(() => {
+    const list = this.palettes();
+    const key = this.formValue()['sitePaleti'];
+    return (list.find((p) => p.anahtar === key) ?? list[0])?.ana ?? null;
+  });
+
+  /** "Seçili görünümü önizle": formdaki tema + palet + kendi ana renk (kaydetmeden). */
+  protected currentPreviewUrl(host: string): string {
+    const v = this.formValue();
+    const palette = v['sitePaleti'];
+    return themePreviewUrl(
+      host,
+      this.selectedTheme(),
+      typeof palette === 'string' ? palette : null,
+      v['siteVurguRengi'],
+    );
+  }
+
+  /** Tema önizlemesi: o tema + (geçerliyse) kendi ana renk; palet temaya özgü olduğundan taşınmaz. */
   protected previewUrl(host: string, key: SiteTheme): string {
-    return themePreviewUrl(host, key);
+    return themePreviewUrl(host, key, null, this.formValue()['siteVurguRengi']);
   }
 
   protected readonly priceTypes: readonly SecenekOgesi<string>[] = PRICE_TYPES.map((p) => ({
@@ -181,6 +219,18 @@ export class SettingsPage {
 
   constructor() {
     pageLeaveGuard(() => this.hasUnsavedChanges());
+    // Tema değişince yeni temaya ait olmayan palet seçimi temizlenir (null = temanın varsayılan seti); aksi halde
+    // sunucu kaydı 400 errors.sitePaleti ile reddederdi.
+    this.form.controls['siteTemasi'].valueChanges
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe((theme) => {
+        const control = this.form.controls['sitePaleti'];
+        const next = paletteAfterThemeChange(
+          control.value,
+          palettesFor(this.dto(), typeof theme === 'string' ? theme : null),
+        );
+        if (next !== control.value) control.setValue(next);
+      });
     this.load();
     this.api
       .get<VehicleGroupPage>('/api/ui/v1/arac-gruplari', {

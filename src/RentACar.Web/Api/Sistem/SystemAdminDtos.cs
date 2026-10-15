@@ -44,6 +44,10 @@ public sealed class SettingsDto
     public string? SiteVurguRengi { get; init; }
     /// <summary>Halka açık site teması: <c>pazar</c> / <c>vitrin</c> / <c>rota</c> ya da null (= pazar).</summary>
     public string? SiteTemasi { get; init; }
+    /// <summary>Halka açık site palet seti (seçili temanın setlerinden biri) ya da null (= temanın varsayılan seti).</summary>
+    public string? SitePaleti { get; init; }
+    /// <summary>Her temanın seçilebilir palet setleri (ilk = varsayılan) — seçim kartları için; salt okunur katalog.</summary>
+    public IReadOnlyList<SiteThemePalettesDto> SitePaletSecenekleri { get; init; } = [];
     public bool DonemselFaturalamaJob { get; init; }
     public bool DonemselOtomatikTahsilat { get; init; }
     public int? MinKiraGun { get; init; }
@@ -73,6 +77,13 @@ public sealed class SettingsDto
 public sealed record DomainDto(string Host, string Tur, string Durum, string? DogrulamaKaydi, string? DogrulamaDegeri);
 
 public sealed record WhatsAppDeliveryDto(DateOnly Gun, string Tur, string Alici, bool Basarili, string? HataMesaji, DateTimeOffset OlusturmaUtc);
+
+/// <summary>Bir temanın palet setleri (<c>SitePaletteKeys</c>); <c>Paletler[0]</c> varsayılan.</summary>
+public sealed record SiteThemePalettesDto(string Tema, IReadOnlyList<SitePaletteOptionDto> Paletler);
+
+/// <summary>Palet seti kartı: ad + renk çipleri ("#rrggbb"; <c>Vurgu</c> null = ana rengi izler).</summary>
+public sealed record SitePaletteOptionDto(string Anahtar, string Ad, string Zemin, string Murekkep, string Ana,
+    string? Vurgu, string GeceZemin);
 
 /// <summary>
 /// Firma ayarları PUT gövdesi (tam değiştirme). SIR alanları YALNIZ YAZMA içindir: boş/null gelirse mevcut değer
@@ -125,6 +136,9 @@ public sealed class SettingsRequest
     /// <summary>Halka açık site teması: <c>pazar</c> / <c>vitrin</c> / <c>rota</c> ya da boş (= pazar). Tam değiştirme.
     /// Eski anahtar (<c>tarife</c>, <c>kontuar</c>) kabul edilir ve yeni karşılığı saklanır (<c>SiteThemeKeys.Normalize</c>).</summary>
     public string? SiteTemasi { get; init; }
+    /// <summary>Halka açık site palet seti: AYNI istekteki temanın (<c>siteTemasi</c>; boş = tarife) setlerinden biri ya
+    /// da boş (= temanın varsayılan seti). Biçimsiz ya da temaya ait olmayan anahtar 400 <c>errors.sitePaleti</c>.</summary>
+    public string? SitePaleti { get; init; }
     public bool DonemselFaturalamaJob { get; init; }
     public bool DonemselOtomatikTahsilat { get; init; }
     public int? MinKiraGun { get; init; }

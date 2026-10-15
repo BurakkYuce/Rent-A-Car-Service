@@ -9,8 +9,8 @@
    (yapısal test: PublicSiteThemeContractTests). Temaya özgü slot stilleri (üst bar, alt bilgi, hero,
    ilan kartı) tema dosyasında.
 
-   Firma vurgu rengi: App.razor tema css'inden SONRA BrandPalette çıktısını basar; --brand, --brand-ink
-   (BrandPalette'in --on-brand'i üzerinden), --brand-text, --brand-soft her temada firmanın rengidir.
+   Palet: App.razor tema css'inden SONRA SitePaletteCss çıktısını basar; zemin, yüzey, mürekkep, çizgi,
+   firma rengi (--brand, --on-brand → --brand-ink, --brand-text, --brand-soft) ve vurgu paletten gelir.
 
    `screen and` KURALI: dar ekran sorguları `screen and (max-width …)` yazılır — çıplak `max-width`
    yazdırmada da tetiklenir ve A4 çıktı mobil düzene düşer.
@@ -76,7 +76,7 @@ img { max-width: 100%; height: auto; }
 .bos-durum { padding: var(--space-4) 0; color: var(--ink-muted); }
 .linkler { display: flex; flex-wrap: wrap; gap: var(--space-1) var(--space-3); margin: var(--space-2) 0 0; padding: 0; list-style: none; }
 
-/* ---- Düğmeler: birincil = firma rengi (yazı rengi BrandPalette'ten), ikincil = çizgili. 44px hedef. ---- */
+/* ---- Düğmeler: birincil = firma rengi (yazı rengi paletten), ikincil = çizgili. 44px hedef. ---- */
 .btn {
   display: inline-flex; align-items: center; justify-content: center; gap: .5em;
   min-height: 46px; padding: .55rem 1.15rem;

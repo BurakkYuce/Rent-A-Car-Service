@@ -47,13 +47,10 @@ public sealed class NoIndexHeaderMiddleware(RequestDelegate next)
         if (p.Equals("/musaitlik", StringComparison.OrdinalIgnoreCase) && query.HasValue && query.Value != "?")
             return "noindex, follow";
 
-        // Tema önizlemesi (?tema=<geçerli ad>): firmanın yayındaki görünümü DEĞİL, geçici bir önizleme —
-        // arama motoruna kapalı. Kanonik adres sorgusuz olduğu için değişmez. Geçersiz ad önizleme değildir
-        // (sayfa kayıtlı temayla basılır), karar da değişmez.
-        if (query.HasValue
-            && Microsoft.AspNetCore.WebUtilities.QueryHelpers.ParseQuery(query.Value)
-                .TryGetValue(Components.Themes.ThemeAccessor.QueryKey, out var theme)
-            && Components.Themes.SiteThemes.IsKnown(theme.ToString()))
+        // Görünüm önizlemesi (?tema= / ?palet= / ?renk= — en az biri GEÇERLİ): firmanın yayındaki görünümü
+        // DEĞİL, geçici bir önizleme — arama motoruna kapalı. Kanonik adres sorgusuz olduğu için değişmez.
+        // Geçersiz değer önizleme değildir (sayfa kayıtlı görünümle basılır), karar da değişmez.
+        if (SitePreview.Parse(query).Any)
             return "noindex, follow";
 
         return null;

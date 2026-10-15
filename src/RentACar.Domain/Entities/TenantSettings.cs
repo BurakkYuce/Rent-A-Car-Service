@@ -187,7 +187,7 @@ public class TenantSettings : ITenantOwned, IAuditable
     /// Halka açık sitenin (RentACar.PublicSite) vurgu rengi, "#rrggbb" ya da null. NULL = sitenin kendi
     /// varsayılan rengi. Değer olduğu gibi basılmaz: site, açık ve koyu temada okunabilir kalması için
     /// rengi kontrast kuralına göre koyulaştırır/açıklaştırır ve üstündeki yazı rengini kendisi seçer
-    /// (<c>BrandPalette</c>).
+    /// (<c>SitePaletteCss</c>). Doluysa seçili palet setinin ana rengini ezer.
     /// </summary>
     public string? SiteVurguRengi { get; set; }
 
@@ -197,6 +197,14 @@ public class TenantSettings : ITenantOwned, IAuditable
     /// varsayılana düşer.
     /// </summary>
     public string? SiteTemasi { get; set; }
+
+    /// <summary>
+    /// Halka açık sitenin renk paleti: seçili temanın hazır palet setlerinden birinin anahtarı ya da null (= temanın
+    /// varsayılan seti). Biçim <c>^[a-z0-9-]{1,30}$</c> (servis doğrular); temaya aitliği uç doğrular
+    /// (<c>SitePaletteKeys</c>). Site, temaya ait olmayan değeri varsayılan sete düşürür — tema değişince eski
+    /// palet kendiliğinden geçersizleşir. <see cref="SiteVurguRengi"/> doluysa setin ana rengini ezer.
+    /// </summary>
+    public string? SitePaleti { get; set; }
 
     /// <summary>
     /// Angular geçişi F1.2 — bu firma yeni arayüzün (<c>/app</c> + <c>/api/ui/v1</c>) PİLOTUNDA mı.

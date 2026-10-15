@@ -36,12 +36,12 @@ public sealed record SiteTheme(string Key, string Ad, string Aciklama, string Cs
     /// <summary>Temanın @font-face listesi (latin + latin-ext). Boşsa tema sistem yazı tipi kullanır.</summary>
     public IReadOnlyList<ThemeFont> Fonts { get; init; } = [];
 
-    /// <summary>Firma renk seçmediyse BrandPalette'e verilen varsayılan vurgu ("#rrggbb").</summary>
-    public string DefaultBrand { get; init; } = RentACar.PublicSite.BrandPalette.DefaultColor;
+    /// <summary>Hazır renk setleri (en az bir). İLK set varsayılan: firma set seçmediyse ya da kayıtlı set bu temaya
+    /// ait değilse o basılır. Tarayıcı çubuğu rengi (<c>theme-color</c>) de setin zemininden gelir.</summary>
+    public required IReadOnlyList<SitePalette> Palettes { get; init; }
 
-    /// <summary>Tarayıcı çubuğu rengi (açık / koyu) — tema zeminiyle aynı.</summary>
-    public string ThemeColorLight { get; init; } = "#f5f6f3";
-    public string ThemeColorDark { get; init; } = "#121417";
+    /// <summary>Varsayılan set (<see cref="Palettes"/>'in ilki).</summary>
+    public SitePalette DefaultPalette => Palettes[0];
 }
 
 /// <summary>Tema kaydı — tek kaynak. Yeni tema: klasör <c>Components/Themes/&lt;Ad&gt;/</c> + css + buraya kayıt +
@@ -74,6 +74,7 @@ public static class SiteThemes
         typeof(TarifeHome), typeof(TarifeFleet), typeof(TarifeDetailHero))
     {
         Fonts = BarlowFonts,
+        Palettes = TarifePalettes.All,
     };
 
     /// <summary>Archivo — gövde 400/600 normal genişlik, başlık/fiyat 700 Expanded (wdth 125). Google Fonts'un
@@ -99,8 +100,7 @@ public static class SiteThemes
         typeof(VitrinHome), typeof(VitrinFleet), typeof(VitrinDetailHero))
     {
         Fonts = ArchivoFonts,
-        ThemeColorLight = "#f7f7f5",
-        ThemeColorDark = "#14171a",
+        Palettes = VitrinPalettes.All,
     };
 
     /// <summary>IBM Plex Sans (değişken ağırlık 400–600, tek dosya) + IBM Plex Sans Condensed 600. OFL-IBMPlex.txt.</summary>
@@ -112,8 +112,8 @@ public static class SiteThemes
         new("IBM Plex Sans Condensed", "600", "fonts/ibm-plex-sans-condensed-600-latin.woff2", Latin),
     ];
 
-    /// <summary>Kontuar: havalimanı/otel teslimi. Kiralama kuponu + kalkış panosu. Varsayılan vurgu yer-ekibi
-    /// turuncusu; BrandPalette onu kağıtta 3:1 olacak kadar koyulaştırır, üstüne lacivert yazı seçer.
+    /// <summary>Kontuar: havalimanı/otel teslimi. Kiralama kuponu + kalkış panosu. Varsayılan ana renk yer-ekibi
+    /// turuncusu; SitePaletteCss onu zeminde 3:1 olacak kadar koyulaştırır, üstüne lacivert yazı seçer.
     /// Anahtar <c>rota</c> (eski <c>kontuar</c>); bileşenler ve ad yeni Rota teması gelene dek eski Kontuar'ın.</summary>
     public static readonly SiteTheme Kontuar = new(SiteThemeKeys.Rota, "Kontuar",
         "Bilet ve kalkış panosu düzeni. Havalimanı ve otel teslimi yapan firmalar için.",
@@ -123,9 +123,7 @@ public static class SiteThemes
         typeof(KontuarHome), typeof(KontuarFleet), typeof(KontuarDetailHero))
     {
         Fonts = PlexFonts,
-        DefaultBrand = "#ff6a13",
-        ThemeColorLight = "#f4f7f9",
-        ThemeColorDark = "#0a131d",
+        Palettes = KontuarPalettes.All,
     };
 
     public static readonly IReadOnlyList<SiteTheme> All = [Tarife, Vitrin, Kontuar];

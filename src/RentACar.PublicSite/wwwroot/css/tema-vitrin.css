@@ -2,7 +2,7 @@
    Tema: VİTRİN — iyi fotoğrafı olan, üst segment filo.
 
    KİMLİK: galeri/showroom. Porselen zemin, grafit mürekkep, krom çizgi; sitedeki TEK kroma firma
-   rengidir (BrandPalette --brand*). Yazı Archivo: gövde normal genişlik, başlık ve fiyat Expanded
+   rengidir (palet bloğu --brand*). Yazı Archivo: gövde normal genişlik, başlık ve fiyat Expanded
    (wdth 125, statik örnek) — araç rozetlerinin geniş harfi. @font-face App.razor'da (SiteThemes.Vitrin.Fonts).
 
    TEK CESUR UNSUR: ana sayfada ilk fotoğraflı ilanın kapağı tam genişlik SAHNE; model adı çok büyük
@@ -16,21 +16,19 @@
    ikinci :root semantik + bileşen; koyu tema yalnız semantikleri primitive'lere yeniden bağlar.
    ============================================================================= */
 
-/* PRIMITIVE */
+/* PRIMITIVE — palet renkleri yalnız YEDEK: asıl değerler App.razor'daki palet bloğundan gelir (SitePaletteCss;
+   varsayılan set "grafit" = bu değerler, VitrinPalettes.cs). */
 :root {
   --p-porcelain: #f7f7f5;      /* sayfa zemini */
   --p-porcelain-deep: #eeefec; /* ikinci zemin (bant) */
   --p-white: #ffffff;
-  --p-chrome-100: #e4e7e9;     /* ince çizgi (yüzey içi) */
   --p-chrome-300: #c5cbd1;     /* krom: çizgi, ayraç — METİN rengi DEĞİL (porselende 1.6:1) */
   --p-chrome-500: #858d95;     /* alan/panel kenarı (UI 3:1) */
   --p-graphite-400: #62696f;   /* ipucu metni — beyazda 5.6:1 */
   --p-graphite-500: #50575e;   /* ikincil metin — porselende 7.1:1 */
-  --p-graphite-600: #394048;   /* koyu temada fotoğrafsız sahne — zemin 900'den belirgin açık */
   --p-graphite-700: #2a3036;   /* grafit mürekkep — porselende 12.6:1 */
-  --p-graphite-800: #20252a;
-  --p-graphite-850: #1b1f23;   /* koyu yüzey = BrandPalette.DarkSurface (firma metin tonu buna göre) */
-  --p-graphite-900: #14171a;   /* koyu zemin — BrandPalette.DarkPaper'a yakın */
+  --p-graphite-850: #1b1f23;   /* koyu yüzey */
+  --p-graphite-900: #14171a;   /* koyu zemin */
   --p-mist-50: #eef0f1;        /* koyu temada mürekkep */
   --p-mist-200: #c9ced3;       /* koyu temada ikincil metin */
   --p-mist-300: #a3aab1;       /* koyu temada ipucu */
@@ -38,7 +36,7 @@
   --p-signal-red-light: #f2b8b5;
   --p-signal-green: #1f6b3a;
   --p-signal-green-light: #7fd49a;
-  --p-brand-default: #0b5d6b;  /* BrandPalette.DefaultColor — BrandPalette çıktısı zaten ezer */
+  --p-brand-default: #0b5d6b;  /* varsayılan set ana rengi */
   --p-brand-soft: #e3ebea;
 }
 
@@ -53,24 +51,30 @@
   --ink-muted: var(--p-graphite-500);
   --ink-subtle: var(--p-graphite-400);
   --line: var(--p-chrome-300);
-  --line-soft: var(--p-chrome-100);
+  /* İnce çizgi (yüzey içi): çizginin yüzeye karışmış hali. */
+  --line-soft: color-mix(in srgb, var(--line) 47%, var(--surface));
   --line-strong: var(--p-chrome-500);
   --brand: var(--p-brand-default);
   --on-brand: var(--p-white);
   --brand-ink: var(--on-brand);
   --brand-text: var(--p-brand-default);
   --brand-soft: var(--p-brand-soft);
-  /* Tek kroma firma rengidir: vurgu da odur. */
+  /* Tek kroma ana renktir: vurgu da odur (paletlerde Accent boş → palet bloğu da ana rengi basar). */
   --accent: var(--brand);
   --accent-ink: var(--brand-ink);
-  --focus: var(--p-graphite-700);
+  --day-bg: var(--p-porcelain);
+  --day-ink: var(--p-graphite-700);
+  --night-bg: var(--p-graphite-900);
+  --night-ink: var(--p-mist-50);
+  --focus: var(--ink);
   --danger: var(--p-signal-red);
   --ok: var(--p-signal-green);
-  /* Sahne (hero), kapanış bandı, alt bilgi: iki temada da koyu — fotoğrafa benzesin. */
-  --stage-bg: var(--p-graphite-700);
-  --stage-bg-bare: var(--p-graphite-700);
-  --stage-ink: var(--p-porcelain);
-  --stage-shade: var(--p-graphite-900);
+  /* Sahne (hero), kapanış bandı, alt bilgi: iki temada da koyu — fotoğrafa benzesin. Açık modda mürekkep
+     levhası üstünde zemin rengi yazı (ikisi paletin AA çifti); gölge iki modda koyu şemanın zemini. */
+  --stage-bg: var(--ink);
+  --stage-bg-bare: var(--ink);
+  --stage-ink: var(--bg);
+  --stage-shade: var(--night-bg);
 
   --font-display: "Archivo Expanded", "Archivo Expanded Fallback", "Arial Black", sans-serif;
   --font-body: "Archivo", "Archivo Fallback", system-ui, sans-serif;
@@ -108,8 +112,8 @@
   --price-mark: transparent;
 }
 
-/* SEMANTIC (koyu) — yalnız primitive'lere referans. Yüzeyler BrandPalette'in ölçtüğü koyu zeminlerle
-   aynı ya da onlar arasında: firma metin tonu (4.5:1) her yüzeyde geçer. */
+/* SEMANTIC (koyu) — palet token'larının yedekleri primitive'e; bileşen token'ları semantik token'a bağlı.
+   Firma metin tonu (4.5:1) her yüzeyde geçer: palet bloğu onu bu zeminlere göre seçer. */
 @media (prefers-color-scheme: dark) {
   :root {
     color-scheme: dark;
@@ -121,14 +125,14 @@
     --ink-muted: var(--p-mist-200);
     --ink-subtle: var(--p-mist-300);
     --line: var(--p-graphite-700);
-    --line-soft: var(--p-graphite-800);
+    --line-soft: color-mix(in srgb, var(--line) 35%, var(--surface));
     --line-strong: var(--p-graphite-400);
-    --focus: var(--p-mist-50);
     --danger: var(--p-signal-red-light);
     --ok: var(--p-signal-green-light);
-    --stage-bg: var(--p-graphite-800);
-    --stage-bg-bare: var(--p-graphite-600);
-    --stage-ink: var(--p-mist-50);
+    /* Sahne yüzeyden bir ton açık; fotoğrafsız sahne zeminden belirgin açık (kalın çizgiye doğru). */
+    --stage-bg: color-mix(in srgb, var(--line) 35%, var(--surface));
+    --stage-bg-bare: color-mix(in oklab, var(--line-strong) 53%, var(--bg));
+    --stage-ink: var(--ink);
     --shadow-2: 0 24px 48px -28px color-mix(in srgb, var(--stage-shade) 90%, transparent);
   }
 }
@@ -248,7 +252,7 @@ h3 { font-size: var(--step-1); letter-spacing: -.01em; }
 .v-menu-liste a:hover { background: var(--bg-alt); }
 @media (prefers-color-scheme: dark) {
   /* Logoların çoğu şeffaf zeminli KOYU yazı: koyu barda açık bir levhaya oturur. */
-  .v-marka img { background: var(--p-porcelain); padding: 4px 8px; border-radius: var(--radius-s); box-sizing: content-box; }
+  .v-marka img { background: var(--day-bg); padding: 4px 8px; border-radius: var(--radius-s); box-sizing: content-box; }
 }
 @media (min-width: 900px) {
   .v-bar { position: sticky; top: 0; z-index: 20; }
@@ -402,7 +406,7 @@ a.v-model:hover .v-model-ad { text-decoration: underline; text-decoration-thickn
 .v-alt-marka { grid-column: 1 / -1; }
 .v-alt-marka .v-marka { color: var(--stage-ink); }
 /* Alt bilgi iki temada da grafit: koyu yazılı logolar açık levhaya oturur. */
-.v-alt-marka .v-marka img { height: 40px; max-width: 220px; background: var(--p-porcelain); padding: 4px 8px; border-radius: var(--radius-s); box-sizing: content-box; }
+.v-alt-marka .v-marka img { height: 40px; max-width: 220px; background: var(--day-bg); padding: 4px 8px; border-radius: var(--radius-s); box-sizing: content-box; }
 .v-alt-marka .marka-ad { font-size: var(--step-3); }
 .v-alt-marka p { margin: var(--space-1) 0 0; max-width: 40ch; }
 .v-alt-baslik { margin: 0 0 var(--space-1); font-weight: 600; color: var(--stage-ink); }

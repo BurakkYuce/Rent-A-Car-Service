@@ -107,6 +107,7 @@ public sealed class TenantSettingsService(
             RenkKiralanmayan = s.RenkKiralanmayan,
             SiteVurguRengi = s.SiteVurguRengi,
             SiteTemasi = s.SiteTemasi,
+            SitePaleti = s.SitePaleti,
             DonemselFaturalamaJob = s.DonemselFaturalamaJob,
             DonemselOtomatikTahsilat = s.DonemselOtomatikTahsilat,
             MinKiraGun = s.MinKiraGun,
@@ -288,7 +289,7 @@ public sealed class TenantSettingsService(
             s.RenkRezAtananPlaka = Renk(m.RenkRezAtananPlaka, "RenkRezAtananPlaka");
             s.RenkKiralanmayan = Renk(m.RenkKiralanmayan, "RenkKiralanmayan");
             // Halka açık site vurgu rengi — aynı kesin biçim kuralı. Site değeri ayrıca kontrast için
-            // uyarlar (BrandPalette); burada yalnız biçim doğrulanır.
+            // uyarlar (SitePaletteCss); burada yalnız biçim doğrulanır.
             s.SiteVurguRengi = Renk(m.SiteVurguRengi, "Site vurgu rengi");
             // Site teması: yalnız bilinen anahtar ya da boş (= varsayılan). Bilinmeyen değer sitede zaten
             // varsayılana düşerdi, ama saklamak ayarlar ekranında olmayan bir seçimi "kayıtlı" gösterirdi.
@@ -296,6 +297,13 @@ public sealed class TenantSettingsService(
                 : SiteThemeKeys.Normalize(m.SiteTemasi)
                   ?? throw new ValidationException("Site teması geçersiz. Geçerli değerler: "
                                                    + string.Join(", ", SiteThemeKeys.All) + ".");
+            // Site palet seti: servis yalnız BİÇİMİ doğrular (anahtar sitede ve sorgu parametresinde kullanılıyor).
+            // Seçili temaya aitliği uç doğrular (SitePaletteKeys) — site temaya ait olmayan anahtarı zaten
+            // varsayılan sete düşürür, tema değişince eski palet kendiliğinden geçersizleşir.
+            s.SitePaleti = string.IsNullOrWhiteSpace(m.SitePaleti) ? null
+                : SitePaletteKeys.Normalize(m.SitePaleti)
+                  ?? throw new ValidationException("Site paleti geçersiz: yalnız küçük harf (a-z), rakam ve tire, "
+                                                   + $"en çok {SitePaletteKeys.MaxLength} karakter.");
             s.DonemselFaturalamaJob = m.DonemselFaturalamaJob;
             s.DonemselOtomatikTahsilat = m.DonemselOtomatikTahsilat;
             s.MinKiraGun = m.MinKiraGun;
