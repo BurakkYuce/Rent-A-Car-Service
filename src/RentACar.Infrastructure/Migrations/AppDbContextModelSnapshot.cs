@@ -2381,6 +2381,86 @@ namespace RentACar.Infrastructure.Migrations
                     b.ToTable("DropTanimlari", (string)null);
                 });
 
+            modelBuilder.Entity("RentACar.Domain.Entities.EDocument", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("DenemeSayisi")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("Durum")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("EntegratorDurum")
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<string>("EntegratorRef")
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<Guid>("Ettn")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("FaturaTipi")
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)");
+
+                    b.Property<DateTimeOffset?>("GonderimUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("InvoiceId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset?>("KilitBitisUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Profil")
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)");
+
+                    b.Property<DateTimeOffset?>("SonDenemeUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("SonMesaj")
+                        .HasMaxLength(512)
+                        .HasColumnType("character varying(512)");
+
+                    b.Property<DateTimeOffset?>("SonrakiDenemeUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid");
+
+                    b.Property<int?>("Tur")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTimeOffset?>("UpdatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("XmlOzet")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("InvoiceId");
+
+                    b.HasIndex("TenantId", "Ettn")
+                        .IsUnique();
+
+                    b.HasIndex("TenantId", "InvoiceId")
+                        .IsUnique();
+
+                    b.HasIndex("TenantId", "Durum", "SonrakiDenemeUtc");
+
+                    b.ToTable("EBelgeler", (string)null);
+                });
+
             modelBuilder.Entity("RentACar.Domain.Entities.EkHizmetTanim", b =>
                 {
                     b.Property<Guid>("Id")
@@ -7335,9 +7415,28 @@ namespace RentACar.Infrastructure.Migrations
                     b.Property<bool?>("DropMesafeYokIseSifir")
                         .HasColumnType("boolean");
 
+                    b.Property<bool>("EFaturaCanliOrtam")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("EFaturaEntegrator")
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.Property<string>("EFaturaGondericiEtiket")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
                     b.Property<string>("EFaturaKullanici")
                         .HasMaxLength(128)
                         .HasColumnType("character varying(128)");
+
+                    b.Property<string>("EFaturaPostaKutusuEtiket")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
+                    b.Property<string>("EFaturaSenaryo")
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)");
 
                     b.Property<string>("EFaturaSifreEnc")
                         .HasMaxLength(1024)
@@ -7354,6 +7453,14 @@ namespace RentACar.Infrastructure.Migrations
                     b.Property<string>("FirmaEmail")
                         .HasMaxLength(128)
                         .HasColumnType("character varying(128)");
+
+                    b.Property<string>("FirmaIl")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<string>("FirmaIlce")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
 
                     b.Property<string>("FirmaMarka")
                         .HasMaxLength(128)
@@ -8768,6 +8875,15 @@ namespace RentACar.Infrastructure.Migrations
                         .HasForeignKey("TenantId", "SubeId")
                         .HasPrincipalKey("TenantId", "Id")
                         .OnDelete(DeleteBehavior.Restrict);
+                });
+
+            modelBuilder.Entity("RentACar.Domain.Entities.EDocument", b =>
+                {
+                    b.HasOne("RentACar.Domain.Entities.Invoice", null)
+                        .WithMany()
+                        .HasForeignKey("InvoiceId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("RentACar.Domain.Entities.Expense", b =>

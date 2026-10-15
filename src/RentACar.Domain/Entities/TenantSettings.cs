@@ -23,9 +23,31 @@ public class TenantSettings : ITenantOwned, IAuditable
     public string? FirmaMobilTel { get; set; }   // 2. telefon (sözleşme başlığı MOBİL TEL)
     public string? FirmaMarka { get; set; }       // ticari marka / kısa ad (sözleşme sağ üst; yoksa Ünvan)
 
+    /// <summary>Firma ili (e-belge adres zorunluluğu: UBL-TR <c>CityName</c>).</summary>
+    public string? FirmaIl { get; set; }
+    /// <summary>Firma ilçesi (e-belge adres zorunluluğu: UBL-TR <c>CitySubdivisionName</c>).</summary>
+    public string? FirmaIlce { get; set; }
+
     // Entegrasyon kimlikleri — gizli-olmayan düz metin; sır (*Enc) ŞİFRELİ cipher.
     public string? EFaturaKullanici { get; set; }
+    /// <summary>e-Fatura entegratörünün şifresi ya da API anahtarı (ŞİFRELİ cipher; API'den hiç dönmez).</summary>
     public string? EFaturaSifreEnc { get; set; }
+
+    /// <summary>
+    /// e-Fatura/e-Arşiv entegratörü — uygulamada KAYITLI bir adaptörün anahtarı ya da null (= bağlı değil).
+    /// Yalnız kayıtlı adaptör anahtarı yazılabilir (servis reddeder); adaptör sonradan kaldırılırsa gönderim
+    /// işi belgeleri "bağlı değil" sebebiyle Taslak'ta bırakır.
+    /// </summary>
+    public string? EFaturaEntegrator { get; set; }
+    /// <summary>Gönderici birim etiketi (GB alias, <c>urn:mail:…</c>) — boşsa entegratörün varsayılanı.</summary>
+    public string? EFaturaGondericiEtiket { get; set; }
+    /// <summary>Posta kutusu etiketi (PK alias, <c>urn:mail:…</c>) — gelen faturalar için; boşsa varsayılan.</summary>
+    public string? EFaturaPostaKutusuEtiket { get; set; }
+    /// <summary>true = entegratörün CANLI ortamı; false (varsayılan) = TEST ortamı. Canlıya geçiş bilinçli seçimdir.</summary>
+    public bool EFaturaCanliOrtam { get; set; }
+    /// <summary>e-Fatura senaryosu: <c>TEMELFATURA</c> (varsayılan, null) ya da <c>TICARIFATURA</c>. e-Arşiv alıcıda
+    /// senaryo her zaman <c>EARSIVFATURA</c>'dır.</summary>
+    public string? EFaturaSenaryo { get; set; }
     public string? SmsBaslik { get; set; }
     public string? SmsApiKeyEnc { get; set; }
     public string? PosMerchantId { get; set; }

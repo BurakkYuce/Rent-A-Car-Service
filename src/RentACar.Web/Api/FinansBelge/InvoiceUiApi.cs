@@ -44,6 +44,9 @@ public static partial class InvoiceUiApi
             .Produces<UiError.MukerrerProblemi>(StatusCodes.Status409Conflict, "application/problem+json");
         write.MapPost("/toplu", CreateBatch);
         g.MapPost("/{id:guid}/iade", CreateRefund).RequirePermission(Permission.FinanceReverse);
+        // e-Belge: kuyruğa al (FinanceWrite) / iptal (FinanceReverse). Gönderimin kendisi gönderim işinde.
+        g.MapPost("/{id:guid}/e-belge/gonder", QueueEDocument).RequirePermission(Permission.FinanceWrite);
+        g.MapPost("/{id:guid}/e-belge/iptal", CancelEDocument).RequirePermission(Permission.FinanceReverse);
         return g;
     }
 
@@ -108,16 +111,25 @@ public static partial class InvoiceUiApi
         var branches = await InvoiceBranchesAsync(db, rows.Select(r => r.Fatura).ToList(), ct);
         var visible = rows.Where(r => InScope(user, branches[r.Fatura.Id])).ToList();
         var names = await F5Shared.CustomersAsync(dbf, visible.Select(r => r.Fatura.CariId), ct);
-        return visible.Select(r => new InvoiceListRow(
-            r.Fatura.Id, r.Fatura.No, r.Fatura.Tarih, r.Fatura.VadeTarihi, r.Fatura.Durum.ToString(), r.Fatura.IadeMi,
-            r.Fatura.ManuelMi, r.Fatura.CariId, F5Shared.CustomerName(names, r.Fatura.CariId),
-            r.Fatura.RentalId ?? r.Fatura.KaynakKiraId, r.SozlesmeNo, r.Plaka, r.Ofis,
-            r.Fatura.NetTutar, r.Fatura.KdvTutar, r.Fatura.GenelToplam, r.Fatura.Currency, r.Fatura.Kur,
-            r.Fatura.EFaturaGonderildi, r.Fatura.EFaturaEttn, r.Fatura.KaynakFaturaId)).ToList();
+        var visibleIds = visible.Select(r => r.Fatura.Id).ToList();
+        var edocs = await db.EDocuments.AsNoTracking().Where(d => visibleIds.Contains(d.InvoiceId))
+            .Select(d => new { d.InvoiceId, d.Durum, d.SonMesaj }).ToDictionaryAsync(d => d.InvoiceId, ct);
+        return visible.Select(r =>
+        {
+            var e = edocs.GetValueOrDefault(r.Fatura.Id);
+            return new InvoiceListRow(
+                r.Fatura.Id, r.Fatura.No, r.Fatura.Tarih, r.Fatura.VadeTarihi, r.Fatura.Durum.ToString(), r.Fatura.IadeMi,
+                r.Fatura.ManuelMi, r.Fatura.CariId, F5Shared.CustomerName(names, r.Fatura.CariId),
+                r.Fatura.RentalId ?? r.Fatura.KaynakKiraId, r.SozlesmeNo, r.Plaka, r.Ofis,
+                r.Fatura.NetTutar, r.Fatura.KdvTutar, r.Fatura.GenelToplam, r.Fatura.Currency, r.Fatura.Kur,
+                r.Fatura.EFaturaGonderildi, r.Fatura.EFaturaEttn, r.Fatura.KaynakFaturaId,
+                e?.Durum.ToString(), e?.SonMesaj);
+        }).ToList();
     }
 
     private static async Task<Results<Ok<InvoiceDetail>, ProblemHttpResult>> Detail(
-        Guid id, InvoiceService invoices, ICurrentUser user, IDbContextFactory<AppDbContext> dbf, CancellationToken ct)
+        Guid id, InvoiceService invoices, ICurrentUser user, IDbContextFactory<AppDbContext> dbf,
+        Application.EInvoicing.EDocumentService edocs, CancellationToken ct)
     {
         var inv = await invoices.GetAsync(id, ct);
         if (inv is null) return F5Shared.NotFound("Fatura bulunamadı.");
@@ -135,7 +147,8 @@ public static partial class InvoiceUiApi
             inv.IslemSube, inv.EvrakNo, inv.FaturaOzelKod, inv.OdemeTuru, inv.GonderimSekli, inv.KdvSifirSebep,
             inv.EFaturaGonderildi, inv.EFaturaEttn, $"/faturalar/{inv.Id}/pdf",
             inv.Lines.Select(l => new InvoiceLineDto(l.Id, l.Aciklama, l.Miktar, l.BirimNetFiyat, l.KdvOrani,
-                l.SatirNet, l.SatirKdv, l.SatirToplam)).ToList()));
+                l.SatirNet, l.SatirKdv, l.SatirToplam)).ToList(),
+            await EDocumentOfAsync(inv, edocs, ct)));
     }
 
     private static readonly SortFieldMap<InvoiceLineListRow> LineSort = SortFieldMap<InvoiceLineListRow>

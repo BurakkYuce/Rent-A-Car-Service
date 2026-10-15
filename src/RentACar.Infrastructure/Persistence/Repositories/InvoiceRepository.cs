@@ -281,6 +281,7 @@ public sealed class InvoiceRepository(IDbContextFactory<AppDbContext> factory) :
 
             db.Invoices.Add(invoice);          // satırlar cascade
             db.AccountLedgerEntries.AddRange(entries);
+            await EDocumentQueue.AddForNewInvoiceAsync(db, invoice, DateTimeOffset.UtcNow, ct); // aynı TX: fatura ↔ e-belge kaydı
 
             try
             {
@@ -373,6 +374,7 @@ public sealed class InvoiceRepository(IDbContextFactory<AppDbContext> factory) :
 
             db.Invoices.Add(invoice);
             db.AccountLedgerEntries.AddRange(entries);
+            await EDocumentQueue.AddForNewInvoiceAsync(db, invoice, DateTimeOffset.UtcNow, ct); // aynı TX
 
             try
             {

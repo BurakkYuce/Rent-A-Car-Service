@@ -15,8 +15,22 @@ public sealed class SettingsDto
     public string? FirmaEmail { get; init; }
     public string? FirmaMobilTel { get; init; }
     public string? FirmaMarka { get; init; }
+    public string? FirmaIl { get; init; }
+    public string? FirmaIlce { get; init; }
     public string? EFaturaKullanici { get; init; }
     public bool EFaturaSifreTanimli { get; init; }
+    /// <summary>Seçili entegratör adaptörünün anahtarı (null = seçilmedi).</summary>
+    public string? EFaturaEntegrator { get; init; }
+    public string? EFaturaGondericiEtiket { get; init; }
+    public string? EFaturaPostaKutusuEtiket { get; init; }
+    public bool EFaturaCanliOrtam { get; init; }
+    public string? EFaturaSenaryo { get; init; }
+    /// <summary>e-Belge bağlantısı hazır mı (ayar + kayıtlı adaptör + çözülebilen sır). Ağa çıkılmaz.</summary>
+    public bool EFaturaBagli { get; init; }
+    /// <summary>Bağlı değilse sebebi ("e-Fatura gönderilmedi: entegratör bağlı değil (…)").</summary>
+    public string? EFaturaDurumMesaji { get; init; }
+    /// <summary>Bu sürümde kayıtlı entegratör adaptörleri (boş = hiçbiri; kimlik bilgisi gelince eklenir).</summary>
+    public IReadOnlyList<EInvoiceIntegratorOptionDto> EFaturaEntegratorSecenekleri { get; init; } = [];
     public string? SmsBaslik { get; init; }
     public bool SmsApiKeyTanimli { get; init; }
     public string? PosMerchantId { get; init; }
@@ -73,6 +87,9 @@ public sealed class SettingsDto
     public string? Surum { get; init; }
 }
 
+/// <summary>Kayıtlı bir e-belge entegratör adaptörü (ayar ekranı seçeneği).</summary>
+public sealed record EInvoiceIntegratorOptionDto(string Anahtar, string Ad);
+
 /// <summary>Alan adı. Bekleyen özel alan adında DNS'e eklenecek TXT kaydının adı (<c>DogrulamaKaydi</c>) ve değeri.</summary>
 public sealed record DomainDto(string Host, string Tur, string Durum, string? DogrulamaKaydi, string? DogrulamaDegeri);
 
@@ -99,8 +116,21 @@ public sealed class SettingsRequest
     public string? FirmaEmail { get; init; }
     public string? FirmaMobilTel { get; init; }
     public string? FirmaMarka { get; init; }
+    public string? FirmaIl { get; init; }
+    public string? FirmaIlce { get; init; }
     public string? EFaturaKullanici { get; init; }
+    /// <summary>e-Fatura entegratör şifresi ya da API anahtarı — YALNIZ YAZMA (boş = mevcut korunur).</summary>
     public string? EFaturaSifre { get; init; }
+    /// <summary>Kayıtlı entegratör adaptörünün anahtarı ya da boş (= bağlı değil). Kayıtlı olmayan anahtar 400.</summary>
+    public string? EFaturaEntegrator { get; init; }
+    /// <summary>Gönderici birim etiketi (<c>urn:mail:…</c>) ya da boş.</summary>
+    public string? EFaturaGondericiEtiket { get; init; }
+    /// <summary>Posta kutusu etiketi (<c>urn:mail:…</c>) ya da boş.</summary>
+    public string? EFaturaPostaKutusuEtiket { get; init; }
+    /// <summary>true = canlı ortam; false = test.</summary>
+    public bool EFaturaCanliOrtam { get; init; }
+    /// <summary>TEMELFATURA ya da TICARIFATURA (boş = TEMELFATURA).</summary>
+    public string? EFaturaSenaryo { get; init; }
     public string? SmsBaslik { get; init; }
     public string? SmsApiKey { get; init; }
     public string? PosMerchantId { get; init; }

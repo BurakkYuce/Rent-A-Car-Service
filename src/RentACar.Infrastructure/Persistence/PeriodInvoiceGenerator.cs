@@ -142,8 +142,7 @@ public static class PeriodInvoiceGenerator
                 Tarih = now, NetTutar = net, KdvTutar = vat, GenelToplam = net + vat,
                 Currency = "TRY", Kur = 1m
             };
-            // NOT: e-Fatura stub'ı job yolunda çağrılmaz (kimliksiz bağlam; stub zaten no-op) —
-            // gerçek GİB entegrasyonu geldiğinde job faturaları ayrı gönderim kuyruğuna alınmalı.
+            // e-Belge: job faturası da manuel yolla AYNI kuyruğa girer (aşağıda, faturayla aynı transaction'da).
             invoice.No = await DocumentNoGenerator.InvoiceAsync(db, tenantId, ct, now: now);
             invoice.Lines.Add(new InvoiceLine
             {
@@ -161,6 +160,7 @@ public static class PeriodInvoiceGenerator
 
             db.Invoices.Add(invoice);
             db.AccountLedgerEntries.AddRange(entries);
+            await EDocumentQueue.AddForNewInvoiceAsync(db, invoice, now, ct); // TenantId faturadan (açık damga)
 
             // Oto-tahsilat (ayar açıksa): manuel B3 ile AYNI deterministik anahtar + AYNI defter kümesi.
             var collectionWritten = false;

@@ -132,6 +132,10 @@ public static class DependencyInjection
         services.AddScoped<CashService>();
         services.AddScoped<Finance.DepositService>(); // roadmap I3
         services.AddScoped<InvoiceService>();
+        // e-Belge (kimliksiz altyapı): kayıtlı entegratör adaptörleri (bu sürümde YOK → her tenant "bağlı değil")
+        // + kullanıcı eylemleri (kuyruğa al / iptal). Gönderimin kendisi Web'deki gönderim işinde.
+        services.AddSingleton<EInvoicing.EInvoiceIntegratorCatalog>();
+        services.AddScoped<EInvoicing.EDocumentService>();
         services.AddScoped<RentACar.Application.GelenEFaturalar.IncomingEInvoiceService>();
         services.AddScoped<ExpenseService>();
         services.AddScoped<RegulationService>();

@@ -12,9 +12,22 @@ public sealed class TenantSettingsModel
     public string? FirmaEmail { get; set; }
     public string? FirmaMobilTel { get; set; }
     public string? FirmaMarka { get; set; }
+    /// <summary>Firma il/ilçe — e-belge adresinde zorunlu (UBL-TR).</summary>
+    public string? FirmaIl { get; set; }
+    public string? FirmaIlce { get; set; }
 
     public string? EFaturaKullanici { get; set; }
     public string? EFaturaSifre { get; set; }
+    /// <summary>Kayıtlı entegratör adaptörünün anahtarı (null = bağlı değil).</summary>
+    public string? EFaturaEntegrator { get; set; }
+    /// <summary>Gönderici birim etiketi (GB, <c>urn:mail:…</c>).</summary>
+    public string? EFaturaGondericiEtiket { get; set; }
+    /// <summary>Posta kutusu etiketi (PK, <c>urn:mail:…</c>).</summary>
+    public string? EFaturaPostaKutusuEtiket { get; set; }
+    /// <summary>true = canlı ortam, false = test (varsayılan).</summary>
+    public bool EFaturaCanliOrtam { get; set; }
+    /// <summary>TEMELFATURA (null) | TICARIFATURA.</summary>
+    public string? EFaturaSenaryo { get; set; }
     public string? SmsBaslik { get; set; }
     public string? SmsApiKey { get; set; }
     public string? PosMerchantId { get; set; }
