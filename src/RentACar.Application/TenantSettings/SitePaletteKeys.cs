@@ -51,9 +51,11 @@ public static partial class SitePaletteKeys
             ],
             [SiteThemeKeys.Rota] =
             [
-                new("terminal", "Terminal ve yer ekibi turuncusu", "#f4f7f9", "#16263a", "#ff6a13", "#ff6a13", "#0a131d"),
-                new("pist-yesili", "Pist yeşili ve sinyal sarısı", "#f3f7f5", "#12261f", "#0f7a55", "#f5b800", "#08140f"),
-                new("gok", "Gök mavisi ve mercan", "#f3f6fa", "#14223a", "#1f6fd1", "#ff5a4e", "#0a1220"),
+                new("deniz", "Deniz", "#f1f5f6", "#0e2a33", "#0b5e6b", "#e2b02a", "#0b171b"),
+                new("zeytin", "Zeytin", "#f2f4f1", "#1c2617", "#4d6a27", "#7fb3d5", "#10140e"),
+                new("gece-mavisi", "Gece mavisi", "#f2f4f8", "#121a2e", "#1f3f8f", "#3fbf9b", "#0b0f1a"),
+                new("kayisi", "Kayısı", "#f3f4f6", "#1d2433", "#2a3446", "#f4a259", "#12161d"),
+                new("tas", "Taş", "#f3f4f4", "#1e2326", "#4a555d", null, "#15191c"),
             ],
         };
 

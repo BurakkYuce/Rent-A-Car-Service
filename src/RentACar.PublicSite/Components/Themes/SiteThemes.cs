@@ -1,6 +1,6 @@
 using RentACar.Application.TenantSettings;
-using RentACar.PublicSite.Components.Themes.Kontuar;
 using RentACar.PublicSite.Components.Themes.Pazar;
+using RentACar.PublicSite.Components.Themes.Rota;
 using RentACar.PublicSite.Components.Themes.Vitrin;
 
 namespace RentACar.PublicSite.Components.Themes;
@@ -108,30 +108,35 @@ public static class SiteThemes
         Palettes = VitrinPalettes.All,
     };
 
-    /// <summary>IBM Plex Sans (değişken ağırlık 400–600, tek dosya) + IBM Plex Sans Condensed 600. OFL-IBMPlex.txt.</summary>
-    private static readonly IReadOnlyList<ThemeFont> PlexFonts =
+    /// <summary>Literata (başlık, fiyat: ağırlık 500'de sabit, optik boyut ekseni 12–72 korunur — büyük başlıkta
+    /// ince, liste satırında sağlam çizer) + Public Sans (gövde, değişken ağırlık 400–600). Google Fonts'un değişken
+    /// dosyalarından fonttools instancer + alt küme: dört dosya toplam ~103 KB. Literata'nın @font-face ağırlığı
+    /// "400 700" bildirilir: dosya tek ağırlık olduğu halde 600 isteyen ortak kurallarda (base.css) tarayıcı
+    /// sahte kalın ÜRETMEZ, aynı dosyayı kullanır. ₺ (U+20BA) iki ailede de var (latin-ext). OFL-Literata.txt,
+    /// OFL-PublicSans.txt.</summary>
+    private static readonly IReadOnlyList<ThemeFont> RotaFonts =
     [
-        new("IBM Plex Sans", "400 600", "fonts/ibm-plex-sans-latin-ext.woff2", LatinExt),
-        new("IBM Plex Sans", "400 600", "fonts/ibm-plex-sans-latin.woff2", Latin),
-        new("IBM Plex Sans Condensed", "600", "fonts/ibm-plex-sans-condensed-600-latin-ext.woff2", LatinExt),
-        new("IBM Plex Sans Condensed", "600", "fonts/ibm-plex-sans-condensed-600-latin.woff2", Latin),
+        new("Literata", "400 700", "fonts/literata-latin-ext.woff2", LatinExt),
+        new("Literata", "400 700", "fonts/literata-latin.woff2", Latin),
+        new("Public Sans", "400 600", "fonts/public-sans-latin-ext.woff2", LatinExt),
+        new("Public Sans", "400 600", "fonts/public-sans-latin.woff2", Latin),
     ];
 
-    /// <summary>Kontuar: havalimanı/otel teslimi. Kiralama kuponu + kalkış panosu. Varsayılan ana renk yer-ekibi
-    /// turuncusu; SitePaletteCss onu zeminde 3:1 olacak kadar koyulaştırır, üstüne lacivert yazı seçer.
-    /// Anahtar <c>rota</c> (eski <c>kontuar</c>); bileşenler ve ad yeni Rota teması gelene dek eski Kontuar'ın.</summary>
-    public static readonly SiteTheme Kontuar = new(SiteThemeKeys.Rota, "Kontuar",
-        "Bilet ve kalkış panosu düzeni. Havalimanı ve otel teslimi yapan firmalar için.",
-        "css/tema-kontuar.css",
-        [.. PlexFonts.Select(f => f.File)],
-        typeof(KontuarHero), typeof(KontuarCard), typeof(KontuarHeader), typeof(KontuarFooter),
-        typeof(KontuarHome), typeof(KontuarFleet), typeof(KontuarDetailHero))
+    /// <summary>Rota (eski <c>kontuar</c>'ın yerine; anahtar <c>rota</c>): tatil bölgesi, havalimanı/otel teslimi,
+    /// turist ve aylık kiralayan. Editoryal ızgara, dikey fotoğraf, numaralı fiyat listesi. Önyükleme: dört dosya da
+    /// ilk ekranda (Türkçe metin iki alt kümeyi de indirtir; başlık ve gövde birlikte görünür).</summary>
+    public static readonly SiteTheme Rota = new(SiteThemeKeys.Rota, "Rota",
+        "Editoryal ve ferah: büyük başlık, dikey fotoğraf ve numaralı fiyat listesi. Tatil bölgesinde, havalimanı ve otel teslimi yapan firmalar için.",
+        "css/tema-rota.css",
+        [.. RotaFonts.Select(f => f.File)],
+        typeof(RotaHero), typeof(RotaCard), typeof(RotaHeader), typeof(RotaFooter),
+        typeof(RotaHome), typeof(RotaFleet), typeof(RotaDetailHero))
     {
-        Fonts = PlexFonts,
-        Palettes = KontuarPalettes.All,
+        Fonts = RotaFonts,
+        Palettes = RotaPalettes.All,
     };
 
-    public static readonly IReadOnlyList<SiteTheme> All = [Pazar, Vitrin, Kontuar];
+    public static readonly IReadOnlyList<SiteTheme> All = [Pazar, Vitrin, Rota];
 
     /// <summary>Anahtardan tema; eski anahtar yeni karşılığına (<see cref="SiteThemeKeys.LegacyAliases"/>),
     /// boş/bilinmeyen → varsayılan (<see cref="SiteThemeKeys.Default"/>).</summary>
