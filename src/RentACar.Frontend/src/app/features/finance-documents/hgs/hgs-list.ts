@@ -325,6 +325,7 @@ export class HgsList {
         tur: 'sayi',
         genislik: 80,
       },
+      { kod: 'eslesmeNotu', baslik: h('not'), deger: (r) => r.eslesmeNotu ?? '', genislik: 240 },
       { kod: 'etiketNo', baslik: h('etiket'), deger: (r) => r.etiketNo ?? '—', genislik: 120 },
       {
         kod: 'dosyaAdi',

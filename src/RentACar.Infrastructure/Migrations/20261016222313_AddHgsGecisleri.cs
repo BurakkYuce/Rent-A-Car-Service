@@ -29,6 +29,7 @@ namespace RentACar.Infrastructure.Migrations
                     Durum = table.Column<int>(type: "integer", nullable: false),
                     VehicleId = table.Column<Guid>(type: "uuid", nullable: true),
                     RentalId = table.Column<Guid>(type: "uuid", nullable: true),
+                    EslesmeNotu = table.Column<string>(type: "character varying(256)", maxLength: 256, nullable: true),
                     HizmetOrani = table.Column<decimal>(type: "numeric(9,4)", nullable: true),
                     YansitilanTutar = table.Column<decimal>(type: "numeric(19,4)", nullable: true),
                     YansitmaZamani = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: true),

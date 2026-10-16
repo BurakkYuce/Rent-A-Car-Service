@@ -49,6 +49,12 @@ public class HgsCrossing : ITenantOwned, IAuditable
     public Guid? VehicleId { get; set; }
     public Guid? RentalId { get; set; }
 
+    /// <summary>
+    /// Durumun gerekçesi (Belirsiz/KiraDisi'de): "olası mükerrer", "birden çok kira", "kira teslim edilmemiş",
+    /// "plaka filoda yok". İçe aktarma ve yeniden eşleştirme her seferinde yeniden yazar.
+    /// </summary>
+    public string? EslesmeNotu { get; set; }
+
     // ---- yansıtma (yalnız Durum = Yansitildi iken dolu) ----
     public decimal? HizmetOrani { get; set; }
     public decimal? YansitilanTutar { get; set; }

@@ -44,7 +44,8 @@ public sealed class HgsImportTests(PostgresFixture fx)
     internal sealed record World(Guid Tenant, Guid CustomerA, Guid CustomerB, Guid V1, Guid V2, Guid R1, Guid R2, Guid R3);
 
     /// <summary>
-    /// V1 (34 HGS 01, SubeA): R1 = müşteri A, D 00:00 → D 12:00 (kapandı); R2 = müşteri B, D+2 10:00 → AÇIK.
+    /// V1 (34 HGS 01, SubeA): R1 = müşteri A, D 00:00 → D 12:00 (kapandı); R2 = müşteri B, D+2 10:00 → AÇIK ve TESLİM
+    /// EDİLMİŞ (çıkış KM 1000 — teslim edilmemiş açık kira Belirsiz üretir, #391 L3).
     /// V2 (06 HGS 02, SubeB): R3 = müşteri B, D-1 08:00 → D-1 20:00 (kapandı). İptal kira (gürültü) V1'de D+1.
     /// </summary>
     internal static async Task<World> SetUpAsync(TestHost host, Guid? tenantId = null)
@@ -68,7 +69,7 @@ public sealed class HgsImportTests(PostgresFixture fx)
         var r2 = new RentalContract
         {
             SozlesmeNo = "KS-HGS-2", MusteriId = b, VehicleId = v1, Durum = RentalStatus.Kirada, CikisOfisi = "SubeA",
-            BasTar = At(2, 10), BitTar = At(3, 10), CreatedAtUtc = At(2, 10),
+            BasTar = At(2, 10), BitTar = At(3, 10), CreatedAtUtc = At(2, 10), CikisKm = 1000, CikisYakit = 4,
         };
         var r3 = new RentalContract
         {

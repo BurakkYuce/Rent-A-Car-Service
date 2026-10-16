@@ -30,7 +30,8 @@ public sealed record ImportError(string Label, string Message);
 /// <summary>
 /// Ayrıştırma seçenekleri (varsayılan = eski davranış, mevcut içe aktarmalar etkilenmez).
 /// <para><see cref="InvariantCells"/>: xlsx hücresi TİPİNE göre kültürden bağımsız metne çevrilir — tarih
-/// <c>yyyy-MM-dd HH:mm:ss</c>, saat <c>HH:mm:ss</c>, tam sayı <c>1250</c>, kesirli sayı en az 4 ondalıkla
+/// <c>yyyy-MM-dd HH:mm:ss</c> (saat 00:00:00 ise yalnız <c>yyyy-MM-dd</c> — saatsiz sayılır), saat <c>HH:mm:ss</c>,
+/// tam sayı <c>1250</c>, kesirli sayı en az 4 ondalıkla
 /// (<c>47.2500</c>; "tek ayraç + 3 hane" belirsizlik kuralına hiç takılmaz). Varsayılan yol <c>GetString()</c>
 /// sunucu kültürüne göre biçimler ("15.10.2026 08:30:00" / "10/15/2026 8:30:00 AM") — HGS gibi tarih-saat ve tutar
 /// taşıyan dosyalarda bu tahmin edilemez.</para>
@@ -293,7 +294,12 @@ public sealed class ImportService(VehicleService vehicles, CustomerService custo
         var value = cell.Value;
         return value.Type switch
         {
-            XLDataType.DateTime => value.GetDateTime().ToString("yyyy-MM-dd HH:mm:ss", inv),
+            // Saat bileşeni 0 olan tarih hücresi SAATSİZ metne çevrilir (#391 M2): Excel'de "tarih" biçimli hücre ile
+            // tam gece yarısı ayırt edilemez; saatsiz değer okuyucunun "saat yok" reddine düşer (ya da ayrı saat
+            // sütunuyla birleşir) — 00:00 sessizce kabul edilmez.
+            XLDataType.DateTime => value.GetDateTime() is var dt && dt.TimeOfDay == TimeSpan.Zero
+                ? dt.ToString("yyyy-MM-dd", inv)
+                : dt.ToString("yyyy-MM-dd HH:mm:ss", inv),
             XLDataType.TimeSpan => value.GetTimeSpan() is var ts && ts >= TimeSpan.Zero && ts < TimeSpan.FromDays(1)
                 ? ts.ToString(@"hh\:mm\:ss", inv)
                 : cell.GetString(),

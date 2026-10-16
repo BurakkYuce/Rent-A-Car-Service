@@ -2,6 +2,7 @@ using System.Globalization;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage;
 using Npgsql;
+using RentACar.Application.Authorization;
 using RentACar.Application.Common;
 using RentACar.Application.Hgs;
 using RentACar.Domain.Entities;
@@ -44,38 +45,38 @@ public sealed class HgsCrossingRepository(IDbContextFactory<AppDbContext> factor
         var rows = await db.Rentals.AsNoTracking()
             .Where(r => ids.Contains(r.VehicleId) && r.Durum != RentalStatus.Iptal && r.BasTar <= to
                         && (r.GercekDonusTar == null || r.GercekDonusTar > from))
-            .Select(r => new { r.Id, r.VehicleId, r.MusteriId, r.SozlesmeNo, r.BasTar, r.BitTar, r.GercekDonusTar, r.Durum })
             .ToListAsync(ct);
-        return rows
-            .Select(r => new HgsRentalWindow(r.Id, r.VehicleId, r.MusteriId, r.SozlesmeNo, r.BasTar,
-                r.GercekDonusTar ?? (r.Durum == RentalStatus.Kirada ? null : r.BitTar)))
-            .Where(w => w.End is null || w.End > from)
-            .ToList();
+        return rows.Select(WindowOf).Where(w => w.End is null || w.End > from).ToList();
     }
 
+    /// <summary>Kira → pencere (TEK kural). Açık kirada çıkış KM yoksa teslim edilmemiş (#391 L3 → Belirsiz).</summary>
     private static HgsRentalWindow WindowOf(RentalContract r)
         => new(r.Id, r.VehicleId, r.MusteriId, r.SozlesmeNo, r.BasTar,
-            r.GercekDonusTar ?? (r.Durum == RentalStatus.Kirada ? null : r.BitTar));
+            r.GercekDonusTar ?? (r.Durum == RentalStatus.Kirada ? null : r.BitTar),
+            Delivered: r.Durum != RentalStatus.Kirada || r.CikisKm is not null);
 
-    public async Task<IReadOnlySet<string>> ExistingKeysAsync(
+    public async Task<IReadOnlyList<HgsCrossingRef>> ExistingAsync(
         IReadOnlyCollection<string> plates, DateTimeOffset from, DateTimeOffset to, CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
-        return await KeysAsync(db, plates, from, to, ct);
+        return await RefsAsync(db, plates, from, to, ct);
     }
 
-    private static async Task<HashSet<string>> KeysAsync(
-        AppDbContext db, IReadOnlyCollection<string> plates, DateTimeOffset from, DateTimeOffset to, CancellationToken ct)
+    private static async Task<List<HgsCrossingRef>> RefsAsync(
+        AppDbContext db, IEnumerable<string> plates, DateTimeOffset from, DateTimeOffset to, CancellationToken ct)
     {
         var list = plates.Distinct().ToList();
-        if (list.Count == 0) return new HashSet<string>(StringComparer.Ordinal);
-        var rows = await db.HgsGecisleri.AsNoTracking()
+        if (list.Count == 0) return [];
+        return await db.HgsGecisleri.AsNoTracking()
             .Where(c => list.Contains(c.Plaka) && c.GecisZamani >= from && c.GecisZamani <= to)
-            .Select(c => new { c.Plaka, c.GecisZamani, c.IstasyonAnahtari, c.Tutar })
+            .Select(c => new HgsCrossingRef(c.Id, c.Plaka, c.GecisZamani, c.Tutar, c.IstasyonAnahtari, c.CreatedAtUtc, c.Durum))
             .ToListAsync(ct);
-        return rows.Select(c => HgsResolution.NaturalKey(c.Plaka, c.GecisZamani, c.IstasyonAnahtari, c.Tutar))
-            .ToHashSet(StringComparer.Ordinal);
     }
+
+    private static Task<List<HgsCrossingRef>> RefsAroundAsync(AppDbContext db, IReadOnlyCollection<HgsCrossing> rows, CancellationToken ct)
+        => RefsAsync(db, rows.Select(r => r.Plaka),
+            rows.Min(r => r.GecisZamani) - HgsResolution.NearDuplicateWindow,
+            rows.Max(r => r.GecisZamani) + HgsResolution.NearDuplicateWindow, ct);
 
     public async Task<IReadOnlySet<string>> InsertAsync(IReadOnlyList<HgsCrossing> rows, CancellationToken ct = default)
     {
@@ -85,15 +86,25 @@ public sealed class HgsCrossingRepository(IDbContextFactory<AppDbContext> factor
             await using var db = await _factory.CreateDbContextAsync(ct);
             await using var tx = await db.Database.BeginTransactionAsync(ct);
             await LockAsync(db, ct);
-            // Önizlemeden bu yana başka bir yükleme aynı geçişleri eklemiş olabilir: kilit ALTINDA yeniden ele.
-            var existing = await KeysAsync(db, rows.Select(r => r.Plaka).ToList(),
-                rows.Min(r => r.GecisZamani), rows.Max(r => r.GecisZamani), ct);
+            // Önizlemeden bu yana başka bir yükleme aynı geçişleri (ya da biçimi farklı kopyalarını) eklemiş olabilir:
+            // tam mükerrer ve olası mükerrer kararı kilit ALTINDA yeniden verilir (#391 M1).
+            var existing = await RefsAroundAsync(db, rows, ct);
+            var keys = existing.Select(e => HgsResolution.NaturalKey(e.Plate, e.At, e.StationKey, e.Amount))
+                .ToHashSet(StringComparer.Ordinal);
+            var near = new HgsNearDuplicateIndex(existing);
             var skipped = new HashSet<string>(StringComparer.Ordinal);
-            foreach (var r in rows)
+            foreach (var r in rows.OrderBy(r => r.GecisZamani).ThenBy(r => r.IstasyonAnahtari, StringComparer.Ordinal))
             {
                 var key = HgsResolution.NaturalKey(r);
-                if (existing.Contains(key)) skipped.Add(key);
-                else db.HgsGecisleri.Add(r);
+                if (!keys.Add(key)) { skipped.Add(key); continue; }
+                var me = HgsCrossingRef.Of(r);
+                if (r.Durum != HgsCrossingStatus.Yansitildi && near.IsSecondary(me))
+                {
+                    r.Durum = HgsCrossingStatus.Belirsiz;
+                    r.EslesmeNotu = HgsResolution.NearDuplicateNote;
+                }
+                near.Add(HgsCrossingRef.Of(r));
+                db.HgsGecisleri.Add(r);
             }
             try
             {
@@ -151,16 +162,22 @@ public sealed class HgsCrossingRepository(IDbContextFactory<AppDbContext> factor
                 ? Enumerable.Empty<HgsRentalWindow>().ToLookup(w => w.VehicleId)
                 : (await WindowsAsync(db, vehicleIds, open.Min(c => c.GecisZamani), open.Max(c => c.GecisZamani), ct))
                     .ToLookup(w => w.VehicleId);
+            // Olası mükerrer: yansıtılmış komşular DAHİL tüm geçişler (yansıtılmış bir kopyası olan satır asla
+            // yeniden "Eslesti" olmaz — #391 M1).
+            var near = new HgsNearDuplicateIndex(await RefsAroundAsync(db, open, ct));
             var now = DateTimeOffset.UtcNow;
             var changed = 0;
             foreach (var c in open)
             {
                 var (vehicleId, match) = HgsResolution.Resolve(c.Plaka, c.GecisZamani, vehicles, windows);
+                match = HgsResolution.WithNearDuplicate(match, near.IsSecondary(HgsCrossingRef.Of(c)));
                 var rentalId = match.Rental?.RentalId;
-                if (c.VehicleId == vehicleId && c.RentalId == rentalId && c.Durum == match.Status) continue;
+                if (c.VehicleId == vehicleId && c.RentalId == rentalId && c.Durum == match.Status
+                    && c.EslesmeNotu == match.Note) continue;
                 c.VehicleId = vehicleId;
                 c.RentalId = rentalId;
                 c.Durum = match.Status;
+                c.EslesmeNotu = match.Note;
                 c.UpdatedAtUtc = now;
                 changed++;
             }
@@ -171,21 +188,35 @@ public sealed class HgsCrossingRepository(IDbContextFactory<AppDbContext> factor
     }
 
     public async Task<HgsReflectResult> ReflectAsync(
-        IReadOnlyCollection<Guid> ids, Func<HgsCrossing, HgsRentalWindow, HgsReflectionPlan> plan,
-        CancellationToken ct = default)
+        IReadOnlyCollection<Guid> ids, BranchScope.BranchFilter scope,
+        Func<HgsCrossing, HgsRentalWindow, HgsReflectionPlan> plan, CancellationToken ct = default)
     {
         var idArray = ids.Distinct().ToArray();
         return await PgRetry.RunAsync(async () =>
         {
             await using var db = await _factory.CreateDbContextAsync(ct);
             await using var tx = await db.Database.BeginTransactionAsync(ct);
-            await LockAsync(db, ct); // danışma → satır (içe aktarma/yeniden eşleştirmeyle aynı sıra)
-            var rows = await db.HgsGecisleri
+            await LockAsync(db, ct); // danışma → geçiş satırları → kira satırları (içe aktarma/yeniden eşleştirmeyle aynı sıra)
+            // Öncelik sırası (kayıt anı, an, istasyon): olası mükerrer kümesinden yalnız asıl üye borçlanabilsin.
+            var rows = (await db.HgsGecisleri
                 .FromSqlRaw("SELECT * FROM \"HgsGecisleri\" WHERE \"Id\" = ANY({0}) FOR UPDATE", idArray)
-                .OrderBy(c => c.GecisZamani).ThenBy(c => c.Id)
-                .ToListAsync(ct);
-            var rentalIds = rows.Where(c => c.RentalId is not null).Select(c => c.RentalId!.Value).Distinct().ToList();
-            var rentals = await db.Rentals.AsNoTracking().Where(r => rentalIds.Contains(r.Id)).ToDictionaryAsync(r => r.Id, ct);
+                .ToListAsync(ct))
+                .OrderBy(HgsCrossingRef.Of, Comparer<HgsCrossingRef>.Create(HgsResolution.Precedence))
+                .ToList();
+            var rentalIds = rows.Where(c => c.RentalId is not null).Select(c => c.RentalId!.Value).Distinct().ToArray();
+            // #391 M3: kiralar FOR SHARE — iptal/dönüş (satırı FOR UPDATE kilitler, sonra yansıtılmış HGS'yi okur) bu
+            // işlem bitene dek bekler; tersi sırada yansıtma güncel (iptal/dönmüş) kirayı görür.
+            var rentals = rentalIds.Length == 0
+                ? new Dictionary<Guid, RentalContract>()
+                : (await db.Rentals.FromSqlRaw("SELECT * FROM \"Rentals\" WHERE \"Id\" = ANY({0}) FOR SHARE", rentalIds)
+                    .AsNoTracking().ToListAsync(ct)).ToDictionary(r => r.Id);
+            // Şube kapsamı KİLİT ALTINDA (uç kapsamı kilitten önce denetledi; arada yeniden eşleştirme geçişi başka
+            // şubenin kirasına taşımış olabilir) — kapsam durumdan ÖNCE, tek satır bile dışarıdaysa tüm istek red.
+            foreach (var r in rentals.Values)
+                if (!BranchScope.InScope(scope, r.CikisSubeId, r.CikisOfisi))
+                    throw new NoPermissionException("Bu kayıt şube kapsamınız dışında.");
+            var near = rows.Count == 0 ? new HgsNearDuplicateIndex([]) : new HgsNearDuplicateIndex(await RefsAroundAsync(db, rows, ct));
+            var reflectedNow = new HashSet<Guid>();
 
             int reflected = 0, already = 0, unfit = idArray.Length - rows.Count; // bulunamayan (başka kiracı/yok) = uygunsuz
             decimal crossingTotal = 0m, reflectedTotal = 0m;
@@ -194,8 +225,8 @@ public sealed class HgsCrossingRepository(IDbContextFactory<AppDbContext> factor
             foreach (var c in rows)
             {
                 if (c.Durum == HgsCrossingStatus.Yansitildi) { already++; continue; }
-                // Kilit altında GÜNCEL kira ile yeniden doğrula: kira iptal edildiyse, aracı değiştiyse ya da dönüş
-                // anı düzeltilip geçiş artık aralıkta değilse müşteri borçlandırılmaz (yeniden eşleştirme gerekir).
+                // Kilit altında GÜNCEL kira ile yeniden doğrula: kira iptal edildiyse, aracı değiştiyse, teslim
+                // edilmemişse ya da dönüş anı düzeltilip geçiş artık aralıkta değilse müşteri borçlandırılmaz.
                 if (c.Durum != HgsCrossingStatus.Eslesti || c.RentalId is not { } rid
                     || !rentals.TryGetValue(rid, out var rental) || rental.Durum == RentalStatus.Iptal
                     || rental.VehicleId != c.VehicleId)
@@ -205,6 +236,12 @@ public sealed class HgsCrossingRepository(IDbContextFactory<AppDbContext> factor
                 }
                 var window = WindowOf(rental);
                 if (HgsCrossingMatcher.Match(c.GecisZamani, [window]).Status != HgsCrossingStatus.Eslesti)
+                {
+                    unfit++;
+                    continue;
+                }
+                // Olası mükerrer: kümede yansıtılmış (önceden ya da bu istekte) ya da önce gelen bir kopya varsa borç yok.
+                if (near.IsSecondary(HgsCrossingRef.Of(c), d => reflectedNow.Contains(d.Id)))
                 {
                     unfit++;
                     continue;
@@ -221,6 +258,7 @@ public sealed class HgsCrossingRepository(IDbContextFactory<AppDbContext> factor
                 c.YansitilanCariId = window.CustomerId;
                 c.UpdatedAtUtc = now;
                 entries.AddRange(p.Entries);
+                reflectedNow.Add(c.Id);
                 reflected++;
                 crossingTotal += c.Tutar;
                 reflectedTotal += p.Amount;

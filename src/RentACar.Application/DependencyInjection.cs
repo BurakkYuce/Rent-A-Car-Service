@@ -139,8 +139,9 @@ public static class DependencyInjection
         services.AddScoped<Notifications.InAppNotificationService>(); // roadmap G6: bildirim merkezi agrega
         services.AddScoped<PenaltyService>();
         services.AddScoped<PenaltyTypeService>();
-        services.AddScoped<HgsReflectionService>();
-        services.AddScoped<HgsCrossingService>(); // HGS dosyadan içe aktarım + kiraya eşleştirme + yansıtma
+        // HGS dosyadan içe aktarım + kiraya eşleştirme + yansıtma. Eski dönem-MD5'li HgsReflectionService #391 L1 ile
+        // silindi: aynı geçişi ikinci bir SourceId ile borçlandırabilirdi.
+        services.AddScoped<HgsCrossingService>();
         services.AddScoped<VehicleSaleService>();
         services.AddScoped<FiloKiralamalar.FleetRentalService>(); // roadmap L1
         services.AddScoped<AracSiparisleri.VehicleOrderService>(); // roadmap L3

@@ -55,15 +55,23 @@ public static class HgsValueParser
                 $"'{raw.Trim()}' belirsiz: binlik ayraç mı ondalık mı anlaşılamıyor. Kuruşu ekleyin (1.250,00) ya da ayraçsız yazın (1250).");
         if (dot >= 0 && comma >= 0)
         {
-            var thousands = dot > comma ? "," : ".";
-            t = t.Replace(thousands, string.Empty).Replace(',', '.');
+            // Son ayraç ondalık; diğeri YALNIZ tam kısımda binlik olabilir ve gruplama 3'lü olmalı.
+            var decimalSeparator = dot > comma ? '.' : ',';
+            var thousands = dot > comma ? ',' : '.';
+            var cut = Math.Max(dot, comma);
+            var whole = t[..cut];
+            if (whole.Contains(decimalSeparator) || !ValidGrouping(whole, thousands))
+                throw Malformed(raw);
+            t = whole.Replace(thousands.ToString(), string.Empty) + "." + t[(cut + 1)..];
         }
-        else if (comma >= 0)
+        else if (separators > 1)
         {
-            if (separators > 1) t = t.Replace(",", string.Empty); // "1,250,000" → binlik
-            else t = t.Replace(',', '.');
+            // Tek tür ayraç birden çok kez → yalnız binlik ("1.250.000"); gruplama 3'lü değilse red ("1.25.0").
+            var thousands = comma >= 0 ? ',' : '.';
+            if (!ValidGrouping(t, thousands)) throw Malformed(raw);
+            t = t.Replace(thousands.ToString(), string.Empty);
         }
-        else if (separators > 1) t = t.Replace(".", string.Empty); // "1.250.000" → binlik
+        else if (comma >= 0) t = t.Replace(',', '.');
         if (!decimal.TryParse(t, NumberStyles.AllowLeadingSign | NumberStyles.AllowDecimalPoint, Inv, out var v))
             throw new ValidationException($"'{raw.Trim()}' tutar olarak okunamadı.");
         if (v <= 0m) throw new ValidationException("Tutar sıfırdan büyük olmalı.");
@@ -71,6 +79,18 @@ public static class HgsValueParser
         if (decimal.Round(v, 2) != v) throw new ValidationException($"'{raw.Trim()}' kuruştan küçük hane içeriyor.");
         return decimal.Round(v, 2);
     }
+
+    /// <summary>Binlik gruplama: ilk grup 1–3 rakam, sonrakiler TAM 3 rakam ("1.250.000" geçerli; "1,250,50",
+    /// "12,50", "1.2.3" değil — adversarial #391 L2: bozuk gruplama sessizce binlik sayılıyordu).</summary>
+    private static bool ValidGrouping(string whole, char separator)
+    {
+        var groups = whole.TrimStart('-', '+').Split(separator);
+        if (groups[0].Length is < 1 or > 3 || !groups[0].All(char.IsAsciiDigit)) return false;
+        return groups.Skip(1).All(g => g.Length == 3 && g.All(char.IsAsciiDigit));
+    }
+
+    private static ValidationException Malformed(string raw)
+        => new($"'{raw.Trim()}' tutar olarak okunamadı (binlik ayraç gruplaması hatalı).");
 
     private static readonly string[] DateTimeFormats =
     [

@@ -26994,6 +26994,7 @@ export interface components {
       etiketNo: null | string;
       aracSinifi: null | string;
       dosyaAdi: null | string;
+      eslesmeNotu: null | string;
     };
     HgsFieldDto: {
       kod: string;
@@ -27025,6 +27026,8 @@ export interface components {
       kiraDisi: number | string;
       /** Format: int32 */
       belirsiz: number | string;
+      /** Format: int32 */
+      olasiMukerrer: number | string;
       /** Format: int32 */
       aracBulunamadi: number | string;
       /** Format: int32 */

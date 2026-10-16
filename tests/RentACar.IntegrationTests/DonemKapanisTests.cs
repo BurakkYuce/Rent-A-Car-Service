@@ -5,7 +5,6 @@ using RentACar.Application.Customers;
 using RentACar.Application.Expenses;
 using RentACar.Application.Finance;
 using RentACar.Application.Hgs;
-using RentACar.Application.Integrations;
 using RentACar.Application.Penalties;
 using RentACar.Application.Periods;
 using RentACar.Application.VehicleSales;
@@ -85,10 +84,10 @@ public sealed class DonemKapanisTests(PostgresFixture fx)
         await Assert.ThrowsAsync<ValidationException>(() => sp.GetRequiredService<InvoiceService>().CreateFromRentalAsync(rId));
         await Assert.ThrowsAsync<ValidationException>(() => sp.GetRequiredService<PenaltyService>().ReflectAsync(pId));
 
-        var hgs = new HgsReflectionService(
-            new FakeHgs([new TollCrossing(Open, "Köprü", 100m)]),
-            sp.GetRequiredService<ILedgerPoster>(), sp.GetRequiredService<IPeriodLockGuard>(), sp.GetRequiredService<RentACar.Domain.Common.ICurrentUser>());
-        await Assert.ThrowsAsync<ValidationException>(() => hgs.ReflectAsync(account1, "34DK01", Open, Open.AddDays(1)));
+        // HGS yansıtma (geçiş başına; #391): dönem kilidi istek doğrulamasından sonra, depodan ÖNCE reddeder.
+        var hgsRefused = await Assert.ThrowsAsync<ValidationException>(
+            () => sp.GetRequiredService<HgsCrossingService>().ReflectAsync([Guid.NewGuid()], 1.03m));
+        Assert.Contains("KAPALI", hgsRefused.Message);
 
         // Kilidi kaldır → bugün-tarihli postlama yeniden serbest.
         await sp.GetRequiredService<PeriodLockService>().UnlockAsync();
@@ -112,12 +111,6 @@ public sealed class DonemKapanisTests(PostgresFixture fx)
 
         await Assert.ThrowsAsync<ValidationException>(() => sales.CreateAsync(Sale(Closed))); // kapalı → red
         Assert.NotEqual(Guid.Empty, await sales.CreateAsync(Sale(Open)));                     // açık → serbest
-    }
-
-    private sealed class FakeHgs(IReadOnlyList<TollCrossing> crossings) : IHgsService
-    {
-        public Task<IReadOnlyList<TollCrossing>> GetCrossingsAsync(string plate, DateTimeOffset from, DateTimeOffset to, CancellationToken ct = default)
-            => Task.FromResult(crossings);
     }
 
     [Fact]

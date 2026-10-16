@@ -2,10 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using RentACar.Application.Common;
 using RentACar.Application.Finance;
-using RentACar.Application.Hgs;
-using RentACar.Application.Integrations;
 using RentACar.Application.Penalties;
-using RentACar.Application.Periods;
 using RentACar.Domain.Entities;
 using RentACar.Domain.Enums;
 using RentACar.Infrastructure.Persistence;
@@ -16,14 +13,6 @@ namespace RentACar.IntegrationTests;
 [Collection("postgres")]
 public sealed class PenaltyTests(PostgresFixture fx)
 {
-    /// <summary>Sabit geçiş listesi döndüren test double (HGS port'u).</summary>
-    private sealed class FakeHgsService(IReadOnlyList<TollCrossing> crossings) : IHgsService
-    {
-        public Task<IReadOnlyList<TollCrossing>> GetCrossingsAsync(
-            string plate, DateTimeOffset from, DateTimeOffset to, CancellationToken ct = default)
-            => Task.FromResult(crossings);
-    }
-
     [Fact]
     public async Task Create_computes_vade_and_gapless_no()
     {
@@ -111,98 +100,8 @@ public sealed class PenaltyTests(PostgresFixture fx)
         await Assert.ThrowsAsync<ValidationException>(() => svc.ReflectAsync(paid)); // Odendi → yansıtılamaz
     }
 
-    [Fact]
-    public async Task Hgs_reflection_posts_balanced_with_service_margin()
-    {
-        using var host = new TestHost(fx.AppConnectionString);
-        using var scope = host.ScopeFor(Guid.NewGuid());
-        var poster = scope.ServiceProvider.GetRequiredService<ILedgerPoster>();
-        var cash = scope.ServiceProvider.GetRequiredService<CashService>();
-        var account = Guid.NewGuid();
-
-        var t = new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero);
-        var fake = new FakeHgsService([
-            new TollCrossing(t, "Köprü", 100m),
-            new TollCrossing(t.AddHours(1), "OGS", 50m)
-        ]);
-        var hgs = new HgsReflectionService(fake, poster, scope.ServiceProvider.GetRequiredService<IPeriodLockGuard>(), scope.ServiceProvider.GetRequiredService<RentACar.Domain.Common.ICurrentUser>());
-
-        // toplam 150 * 1.03 = 154.50 → cari borçlanır.
-        var result = await hgs.ReflectAsync(account, "34ABC34", t, t.AddDays(1));
-        Assert.Equal(2, result.GecisSayisi);
-        Assert.Equal(150m, result.ToplamGecis);
-        Assert.Equal(154.50m, result.YansitilanTutar);
-        Assert.Equal(154.50m, await cash.GetAccountBalanceAsync(account));
-
-        var factory = scope.ServiceProvider.GetRequiredService<IDbContextFactory<AppDbContext>>();
-        await using var db = await factory.CreateDbContextAsync();
-        var entries = await db.AccountLedgerEntries.AsNoTracking().Where(e => e.SourceType == "Hgs").ToListAsync();
-        Assert.Equal(2, entries.Count);
-        Assert.Equal(
-            entries.Where(e => e.Direction == LedgerDirection.Debit).Sum(e => e.Amount.AmountInBase),
-            entries.Where(e => e.Direction == LedgerDirection.Credit).Sum(e => e.Amount.AmountInBase));
-    }
-
-    [Fact]
-    public async Task Hgs_reflection_is_idempotent_on_retry()
-    {
-        using var host = new TestHost(fx.AppConnectionString);
-        using var scope = host.ScopeFor(Guid.NewGuid());
-        var poster = scope.ServiceProvider.GetRequiredService<ILedgerPoster>();
-        var cash = scope.ServiceProvider.GetRequiredService<CashService>();
-        var account = Guid.NewGuid();
-
-        var t = new DateTimeOffset(2026, 2, 1, 0, 0, 0, TimeSpan.Zero);
-        var fake = new FakeHgsService([new TollCrossing(t, "Köprü", 100m)]);
-        var hgs = new HgsReflectionService(fake, poster, scope.ServiceProvider.GetRequiredService<IPeriodLockGuard>(), scope.ServiceProvider.GetRequiredService<RentACar.Domain.Common.ICurrentUser>());
-
-        // Aynı (cari, plaka, dönem) iki kez yansıt → DETERMİNİSTİK SourceId → ikinci no-op.
-        await hgs.ReflectAsync(account, "34ABC34", t, t.AddDays(1));
-        await hgs.ReflectAsync(account, "34ABC34", t, t.AddDays(1));
-
-        // 103.00 yalnız BİR kez borçlanmalı (çift faturalama yok).
-        Assert.Equal(103m, await cash.GetAccountBalanceAsync(account));
-
-        var factory = scope.ServiceProvider.GetRequiredService<IDbContextFactory<AppDbContext>>();
-        await using var db = await factory.CreateDbContextAsync();
-        Assert.Equal(2, await db.AccountLedgerEntries.AsNoTracking().Where(e => e.SourceType == "Hgs").CountAsync());
-    }
-
-    [Fact]
-    public async Task Hgs_reflection_different_period_posts_again()
-    {
-        using var host = new TestHost(fx.AppConnectionString);
-        using var scope = host.ScopeFor(Guid.NewGuid());
-        var poster = scope.ServiceProvider.GetRequiredService<ILedgerPoster>();
-        var cash = scope.ServiceProvider.GetRequiredService<CashService>();
-        var account = Guid.NewGuid();
-
-        var t1 = new DateTimeOffset(2026, 2, 1, 0, 0, 0, TimeSpan.Zero);
-        var t2 = new DateTimeOffset(2026, 3, 1, 0, 0, 0, TimeSpan.Zero);
-        var hgs = new HgsReflectionService(new FakeHgsService([new TollCrossing(t1, "Köprü", 100m)]), poster, scope.ServiceProvider.GetRequiredService<IPeriodLockGuard>(), scope.ServiceProvider.GetRequiredService<RentACar.Domain.Common.ICurrentUser>());
-
-        await hgs.ReflectAsync(account, "34ABC34", t1, t1.AddDays(1)); // Şubat dönemi
-        await hgs.ReflectAsync(account, "34ABC34", t2, t2.AddDays(1)); // Mart dönemi → ayrı
-
-        Assert.Equal(206m, await cash.GetAccountBalanceAsync(account)); // 103 + 103, meşru iki dönem
-    }
-
-    [Fact]
-    public async Task Hgs_reflection_with_no_crossings_is_noop()
-    {
-        using var host = new TestHost(fx.AppConnectionString);
-        using var scope = host.ScopeFor(Guid.NewGuid());
-        var poster = scope.ServiceProvider.GetRequiredService<ILedgerPoster>();
-        var hgs = new HgsReflectionService(new FakeHgsService([]), poster, scope.ServiceProvider.GetRequiredService<IPeriodLockGuard>(), scope.ServiceProvider.GetRequiredService<RentACar.Domain.Common.ICurrentUser>());
-
-        var result = await hgs.ReflectAsync(Guid.NewGuid(), "34XYZ34", DateTimeOffset.UnixEpoch, DateTimeOffset.UnixEpoch);
-        Assert.Equal(0, result.GecisSayisi);
-        Assert.Equal(0m, result.YansitilanTutar);
-
-        var factory = scope.ServiceProvider.GetRequiredService<IDbContextFactory<AppDbContext>>();
-        await using var db = await factory.CreateDbContextAsync();
-        Assert.Empty(await db.AccountLedgerEntries.AsNoTracking().Where(e => e.SourceType == "Hgs").ToListAsync());
-    }
+    // HGS yansıtma testleri (dönem-MD5'li HgsReflectionService) #391 L1 ile servisle birlikte kaldırıldı; geçiş başına
+    // yansıtma (dengeli defter, hizmet oranı, idempotency, eşzamanlılık) HgsImportTests + HgsAdversarialProbeTests'te.
 
     [Fact]
     public async Task Penalty_is_tenant_isolated()

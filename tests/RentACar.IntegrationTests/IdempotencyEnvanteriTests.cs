@@ -1089,30 +1089,54 @@ public sealed class IdempotencyEnvanteriTests(PostgresFixture fx)
         Assert.Equal(500m, await Account(sp, account));                           // ELLE: 1000 × 0,5
     }
 
-    private sealed class HgsFake(IReadOnlyList<TollCrossing> passages) : IHgsService
+    // E31 (HgsReflectionService, dönem-MD5 anahtarı) #391 L1 ile servisle birlikte KALDIRILDI — yerini E38/E39 aldı.
+
+    private static IReadOnlyList<HgsRawRow> HgsRows(string csv)
     {
-        public Task<IReadOnlyList<TollCrossing>> GetCrossingsAsync(string plate, DateTimeOffset from, DateTimeOffset to, CancellationToken ct = default)
-            => Task.FromResult(passages);
+        var parsed = RentACar.Web.Import.ImportService.ParseWithHeaders(
+            new MemoryStream(System.Text.Encoding.UTF8.GetBytes(csv)), "gecisler.csv",
+            new RentACar.Web.Import.ImportParseOptions(InvariantCells: true, Windows1254Fallback: true));
+        var (_, keys) = RentACar.Web.Import.HgsImportColumns.Resolve(parsed.Headers, null);
+        return RentACar.Web.Import.HgsImportColumns.Extract(parsed.Rows, keys);
     }
 
     [Fact]
-    public async Task E31_Hgs_yansitma_ikinci_istek_sessiz_deterministik_anahtar()
+    public async Task E38_Hgs_ayni_dosya_ikinci_kez_eklenen_sifir_tek_kayit()
     {
         using var host = new TestHost(fx.AppConnectionString);
-        using var scope = host.ScopeFor(Guid.NewGuid());
+        var w = await HgsImportTests.SetUpAsync(host);
+        using var scope = host.ScopeFor(w.Tenant);
+        var hgs = scope.ServiceProvider.GetRequiredService<HgsCrossingService>();
+
+        var first = await hgs.ImportAsync(HgsRows(HgsImportTests.ReferenceCsv()), "a.csv");
+        var second = await hgs.ImportAsync(HgsRows(HgsImportTests.ReferenceCsv()), "a.csv");
+
+        Assert.Equal(9, first.Eklenen);                                       // ELLE: 12 satır − 2 hatalı − 1 dosya içi tekrar
+        Assert.Equal(0, second.Eklenen);                                      // sessiz değil: sayı döner
+        Assert.Equal(10, second.Mukerrer);                                    // 9 kayıtlı + 1 dosya içi
+        Assert.Equal(9, await Say(scope.ServiceProvider, db => db.HgsGecisleri));
+    }
+
+    [Fact]
+    public async Task E39_Hgs_yansitma_ikinci_istek_yeni_para_yazmaz()
+    {
+        using var host = new TestHost(fx.AppConnectionString);
+        var w = await HgsImportTests.SetUpAsync(host);
+        using var scope = host.ScopeFor(w.Tenant);
         var sp = scope.ServiceProvider;
-        var account = Guid.NewGuid();
-        var t = new DateTimeOffset(2026, 2, 1, 0, 0, 0, TimeSpan.Zero);
-        var hgs = new HgsReflectionService(new HgsFake([new TollCrossing(t, "Köprü", 100m)]),
-            sp.GetRequiredService<ILedgerPoster>(), sp.GetRequiredService<IPeriodLockGuard>(), sp.GetRequiredService<ICurrentUser>());
+        var hgs = sp.GetRequiredService<HgsCrossingService>();
+        await hgs.ImportAsync(HgsRows(HgsImportTests.ReferenceCsv()), "a.csv");
+        var r1Rows = (await hgs.ListAsync(new HgsCrossingFilter { RentalId = w.R1 })).Select(c => c.Id).ToList();
 
-        var r1 = await hgs.ReflectAsync(account, "34ID33", t, t.AddDays(1));
-        var r2 = await hgs.ReflectAsync(account, "34ID33", t, t.AddDays(1));
+        var r1 = await hgs.ReflectAsync(r1Rows, 1.03m);
+        var r2 = await hgs.ReflectAsync(r1Rows, 1.03m);
 
-        Assert.Equal(103m, r1.YansitilanTutar);
-        Assert.Equal(103m, r2.YansitilanTutar);                              // sessiz: aynı sonuç, ikinci yazım yok
-        Assert.Equal(103m, await Account(sp, account));                            // ELLE: 100 × 1,03 (tek)
-        Assert.Equal(2, await LedgerLine(sp, "Hgs"));
+        Assert.Equal(1078.93m, r1.YansitilanTutar);                           // ELLE: 52,50×1,03=54,08 + 995×1,03=1.024,85
+        Assert.Equal(0, r2.Yansitilan);
+        Assert.Equal(2, r2.ZatenYansitilmis);
+        Assert.Equal(1078.93m, await Account(sp, w.CustomerA));                // tek borç
+        Assert.Equal(4, await LedgerLine(sp, "Hgs"));                        // 2 geçiş × 2 bacak
+        await BalanceCheckAsync(sp);
     }
 
     [Fact]
@@ -1618,25 +1642,8 @@ public sealed class IdempotencyEnvanteriTests(PostgresFixture fx)
         await BalanceCheckAsync(sp);
     }
 
-    [Fact]
-    public async Task M5_Hgs_ayni_donem_farkli_tutar_409_sessiz_degil()
-    {
-        using var host = new TestHost(fx.AppConnectionString);
-        using var scope = host.ScopeFor(Guid.NewGuid());
-        var sp = scope.ServiceProvider;
-        var account = Guid.NewGuid();
-        var t = new DateTimeOffset(2026, 2, 1, 0, 0, 0, TimeSpan.Zero);
-        HgsReflectionService Hgs(decimal amount) => new(new HgsFake([new TollCrossing(t, "Köprü", amount)]),
-            sp.GetRequiredService<ILedgerPoster>(), sp.GetRequiredService<IPeriodLockGuard>(), sp.GetRequiredService<ICurrentUser>());
-
-        await Hgs(100m).ReflectAsync(account, "34ID50", t, t.AddDays(1));
-        // Aynı (cari, plaka, dönem) → aynı deterministik anahtar; geçiş tutarı değişmişse eskiden sessizce
-        // yutuluyordu (fark hiç borçlandırılmıyordu, sonuç "yansıtıldı 206" diyordu).
-        await Assert.ThrowsAsync<DuplicateOperationException>(() => Hgs(200m).ReflectAsync(account, "34ID50", t, t.AddDays(1)));
-        await Hgs(100m).ReflectAsync(account, "34ID50", t, t.AddDays(1));   // aynı → sessiz
-
-        Assert.Equal(103m, await Account(sp, account));                          // ELLE: 100 × 1,03 (tek)
-    }
+    // M5 (dönem-MD5 HGS anahtarında farklı tutar → 409) #391 L1 ile servisle birlikte kaldırıldı: geçiş başına
+    // SourceId'de "aynı anahtar, farklı tutar" durumu oluşamaz (tutar geçişin kendisinde, yansıtılmış satır değişmez).
 
     [Fact]
     public async Task M6_Depozito_irat_ayni_anahtar_baska_kira_atfi_409()

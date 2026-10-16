@@ -407,7 +407,11 @@ public sealed class BookingRepository(IDbContextFactory<AppDbContext> factory) :
             var context = contextual
                 ? new KiraKilitBaglami(
                     await db.RentalAddOns.Where(a => a.RentalId == id).SumAsync(a => a.Toplam, ct),
-                    await RentalLocks.HasOpenInvoiceAsync(db, id, ct))
+                    await RentalLocks.HasOpenInvoiceAsync(db, id, ct),
+                    // #391 M3: yansıtılmış HGS geçişi — iptal ve geçişten önceki dönüş bunu görür (satır kilidi altında).
+                    await db.HgsGecisleri.AsNoTracking()
+                        .Where(c => c.RentalId == id && c.Durum == HgsCrossingStatus.Yansitildi)
+                        .MaxAsync(c => (DateTimeOffset?)c.GecisZamani, ct))
                 : new KiraKilitBaglami(0m, false);
             applyRental(r, context);
 

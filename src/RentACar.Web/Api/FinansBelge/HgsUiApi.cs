@@ -116,7 +116,7 @@ public static class HgsUiApi
                 c.Durum.ToString(), c.RentalId,
                 c.RentalId is { } r && rentals.TryGetValue(r, out var x) ? x.SozlesmeNo : null,
                 customer, customer is { } id ? F5Shared.CustomerName(names, id) : null,
-                c.HizmetOrani, c.YansitilanTutar, c.YansitmaZamani, c.EtiketNo, c.AracSinifi, c.DosyaAdi);
+                c.HizmetOrani, c.YansitilanTutar, c.YansitmaZamani, c.EtiketNo, c.AracSinifi, c.DosyaAdi, c.EslesmeNotu);
         }).ToList();
     }
 
@@ -174,14 +174,15 @@ public static class HgsUiApi
         var missing = HgsImportColumns.Fields.Any(fd => fd.Zorunlu && !keys.ContainsKey(fd.Kod));
         if (missing && write) HgsImportColumns.RequireMandatory(keys);
         if (missing)
-            return TypedResults.Ok(new HgsImportResultDto(headers, fields, parsed.Rows.Count, 0, 0, 0, 0, 0, 0, 0, 0m, 0m,
+            return TypedResults.Ok(new HgsImportResultDto(headers, fields, parsed.Rows.Count, 0, 0, 0, 0, 0, 0, 0, 0, 0m, 0m,
                 ["Zorunlu alanlar (plaka, geçiş zamanı, tutar) için dosyadaki sütunu seçin."], [], null));
 
         var raw = HgsImportColumns.Extract(parsed.Rows, keys);
         var outcome = write ? await svc.ImportAsync(raw, name, ct) : await svc.PreviewAsync(raw, ct);
         return TypedResults.Ok(new HgsImportResultDto(
-            headers, fields, outcome.Toplam, outcome.Eslesen, outcome.KiraDisi, outcome.Belirsiz, outcome.AracBulunamadi,
-            outcome.Mukerrer, outcome.Hatali, outcome.Eklenen, outcome.EslesenTutar, outcome.KiraDisiTutar, outcome.Uyarilar,
+            headers, fields, outcome.Toplam, outcome.Eslesen, outcome.KiraDisi, outcome.Belirsiz, outcome.OlasiMukerrer,
+            outcome.AracBulunamadi, outcome.Mukerrer, outcome.Hatali, outcome.Eklenen, outcome.EslesenTutar,
+            outcome.KiraDisiTutar, outcome.Uyarilar,
             outcome.Satirlar.Select(r => new HgsImportRowDto(r.SatirNo, r.Plaka, r.GecisZamani, r.GirisIstasyonu,
                 r.CikisIstasyonu, r.Tutar, r.Durum.ToString(), r.RentalId, r.SozlesmeNo, r.AracBulunamadi, r.Hata)).ToList(),
             outcome.IceAktarimId));

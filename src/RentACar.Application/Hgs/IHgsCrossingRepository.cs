@@ -1,3 +1,4 @@
+using RentACar.Application.Authorization;
 using RentACar.Domain.Entities;
 
 namespace RentACar.Application.Hgs;
@@ -17,13 +18,14 @@ public interface IHgsCrossingRepository
     Task<IReadOnlyList<HgsRentalWindow>> ListRentalWindowsAsync(
         IReadOnlyCollection<Guid> vehicleIds, DateTimeOffset from, DateTimeOffset to, CancellationToken ct = default);
 
-    /// <summary>Plakalar + zaman aralığındaki mevcut geçişlerin doğal anahtarları (önizleme "mükerrer" sayısı).</summary>
-    Task<IReadOnlySet<string>> ExistingKeysAsync(
+    /// <summary>Plakalar + [from, to] aralığındaki mevcut geçişlerin özetleri (tam mükerrer ve olası mükerrer kararı).</summary>
+    Task<IReadOnlyList<HgsCrossingRef>> ExistingAsync(
         IReadOnlyCollection<string> plates, DateTimeOffset from, DateTimeOffset to, CancellationToken ct = default);
 
     /// <summary>
-    /// Kilit altında mevcutları yeniden eler ve yenileri ekler. Dönen: kilit altında "zaten var" çıkan satırların
-    /// doğal anahtarları (önizlemeden sonra başka bir yükleme aynı geçişleri eklemiş olabilir).
+    /// Kilit altında mevcutları yeniden eler (tam mükerrer) ve olası mükerrer kararını YENİDEN verir (satırın
+    /// <c>Durum</c>/<c>EslesmeNotu</c>'su yerinde güncellenir); yenileri ekler. Dönen: kilit altında "zaten var"
+    /// çıkan satırların doğal anahtarları.
     /// </summary>
     Task<IReadOnlySet<string>> InsertAsync(IReadOnlyList<HgsCrossing> rows, CancellationToken ct = default);
 
@@ -31,14 +33,17 @@ public interface IHgsCrossingRepository
 
     Task<IReadOnlyList<HgsCrossing>> FindManyAsync(IReadOnlyCollection<Guid> ids, CancellationToken ct = default);
 
-    /// <summary>Yansıtılmamış geçişleri güncel araç/kira verisine göre yeniden eşleştirir; değişen satır sayısı.</summary>
+    /// <summary>Yansıtılmamış geçişleri güncel araç/kira verisine ve olası mükerrer kuralına göre yeniden eşleştirir;
+    /// değişen satır sayısı.</summary>
     Task<int> RematchAsync(CancellationToken ct = default);
 
     /// <summary>
-    /// Kilit + satır kilidi (FOR UPDATE) altında: yalnız HÂLÂ eşleşmiş ve kirası hâlâ geçiş anını kapsayan satırlar
-    /// için <paramref name="plan"/> çağrılır; defter kümesi ve satır durumu AYNI transaction'da yazılır.
+    /// Kilit + satır kilidi (geçişler FOR UPDATE, kiraları FOR SHARE) altında: yalnız HÂLÂ eşleşmiş, kirası hâlâ geçiş
+    /// anını kapsayan, olası mükerrer kümesinin ikincil üyesi olmayan satırlar için <paramref name="plan"/> çağrılır;
+    /// defter kümesi ve satır durumu AYNI transaction'da yazılır. Kiranın şubesi <paramref name="scope"/> dışındaysa
+    /// (kapsam kontrolünden sonra değişmiş) tüm istek reddedilir.
     /// </summary>
     Task<HgsReflectResult> ReflectAsync(
-        IReadOnlyCollection<Guid> ids, Func<HgsCrossing, HgsRentalWindow, HgsReflectionPlan> plan,
-        CancellationToken ct = default);
+        IReadOnlyCollection<Guid> ids, BranchScope.BranchFilter scope,
+        Func<HgsCrossing, HgsRentalWindow, HgsReflectionPlan> plan, CancellationToken ct = default);
 }

@@ -4,7 +4,6 @@ using RentACar.Application.Common;
 using RentACar.Application.Expenses;
 using RentACar.Application.Finance;
 using RentACar.Application.Hgs;
-using RentACar.Application.Integrations;
 using RentACar.Application.Penalties;
 using RentACar.Application.Periods;
 using RentACar.Application.Regulation;
@@ -166,35 +165,21 @@ public sealed class ParaYetkiMatrisiTests(PostgresFixture fx)
         Assert.Equal(0, await db.AccountLedgerEntries.AsNoTracking().CountAsync());
     }
 
-    // ---- O7-HGS FIX — HgsReflectionService artık FinanceWrite guard'lı ----
-    // Denetim bulgusu: servis ICurrentUser almıyor ve PermissionGuard çağırmıyordu → Operator (FinanceWrite
-    // YOK) HGS yansıtmasıyla cari borçlandırabiliyordu. Guard eklendi; bu test reddi + defterin BOŞ kaldığını
-    // ampirik doğrular.
+    // ---- O7-HGS — HGS yansıtması FinanceWrite ister ----
+    // Denetim bulgusu (eski dönem-MD5 servisinde): guard yoktu → Operator (FinanceWrite YOK) cari borçlandırabiliyordu.
+    // Eski servis #391 L1 ile silindi; aynı kilit HGS'yi deftere yazan TEK yolda (HgsCrossingService) duruyor:
+    // operatör reddedilir, defter BOŞ kalır.
     [Fact]
     public async Task Hgs_yansitma_Operator_reddedilir_defter_bos()
     {
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid(), Guid.NewGuid(), "op", UserRole.Operator);
-        var sp = scope.ServiceProvider;
-        var t = new DateTimeOffset(2026, 5, 1, 0, 0, 0, TimeSpan.Zero);
-        var hgs = new HgsReflectionService(
-            new FixedHgs([new TollCrossing(t, "Köprü", 100m)]),
-            sp.GetRequiredService<ILedgerPoster>(),
-            sp.GetRequiredService<IPeriodLockGuard>(),
-            sp.GetRequiredService<RentACar.Domain.Common.ICurrentUser>());
-        var account = Guid.NewGuid();
 
         var ex = await Assert.ThrowsAsync<NoPermissionException>(
-            () => hgs.ReflectAsync(account, "34 OP 01", t, t.AddDays(1)));
+            () => Svc<HgsCrossingService>(scope).ReflectAsync([Guid.NewGuid()], 1.03m));
         Assert.Contains("yetkiniz yok", ex.Message);
-        Assert.Equal(0m, await Svc<CashService>(scope).GetAccountBalanceAsync(account)); // defter BOŞ kaldı
-    }
-
-    /// <summary>Sabit geçiş listesi döndüren HGS test double'ı.</summary>
-    private sealed class FixedHgs(IReadOnlyList<TollCrossing> crossings) : IHgsService
-    {
-        public Task<IReadOnlyList<TollCrossing>> GetCrossingsAsync(
-            string plate, DateTimeOffset from, DateTimeOffset to, CancellationToken ct = default)
-            => Task.FromResult(crossings);
+        var factory = Svc<IDbContextFactory<AppDbContext>>(scope);
+        await using var db = await factory.CreateDbContextAsync();
+        Assert.Equal(0, await db.AccountLedgerEntries.AsNoTracking().CountAsync()); // defter BOŞ kaldı
     }
 }

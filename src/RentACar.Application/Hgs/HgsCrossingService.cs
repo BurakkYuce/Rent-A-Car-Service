@@ -17,10 +17,12 @@ namespace RentACar.Application.Hgs;
 /// <item><b>Yetki:</b> içe aktarma ve yeniden eşleştirme OperationsWrite ∨ FinanceWrite + şube KISITSIZ kullanıcı (HGS
 /// dökümü kiracı genelidir; şubeye bağlı kullanıcı başka şubelerin kiralarını önizlemede görmesin). Yansıtma (defter
 /// yazar) FinanceWrite.</item>
-/// <item><b>Yansıtma</b> mevcut HGS desenini izler (<see cref="HgsReflectionService"/>, ceza yansıtma): Borç Cari /
-/// Alacak Gelir, TRY, <c>SourceType = "Hgs"</c>; tutar = geçiş × hizmet oranı, SATIR başına 2 haneye yuvarlanır.
-/// Fark: <c>SourceId</c> dönem MD5'i değil GEÇİŞİN kimliğidir — bir geçiş en fazla bir kez borçlandırılabilir
-/// (defterdeki kısmi unique index), dönem çakışmasıyla çift borçlandırma yapısal olarak imkânsızdır.</item>
+/// <item><b>Yansıtma</b> mevcut HGS/ceza yansıtma desenini izler: Borç Cari / Alacak Gelir, TRY, <c>SourceType =
+/// "Hgs"</c>; tutar = geçiş × hizmet oranı, SATIR başına 2 haneye yuvarlanır. <c>SourceId</c> GEÇİŞİN kimliğidir —
+/// bir geçiş en fazla bir kez borçlandırılabilir (defterdeki kısmi unique index). Eski dönem-MD5'li
+/// <c>HgsReflectionService</c> #391 adversarial L1 ile silindi (aynı geçişi ikinci yoldan borçlandırabilirdi).</item>
+/// <item><b>Olası mükerrer</b> (#391 M1): aynı plaka + aynı tutar + 60 sn içindeki ikinci satır (farklı biçimli
+/// döküm) Belirsiz kalır; içe aktarma, yeniden eşleştirme ve yansıtma (kilit altında) aynı kuralı uygular.</item>
 /// </list>
 /// </summary>
 public sealed class HgsCrossingService(
@@ -97,12 +99,18 @@ public sealed class HgsCrossingService(
             }
         }
 
+        // (1b) Saatsiz döküm ENGELLEYİCİ (#391 M2): saat sütunu yokken her satır 00:00 ise saat bilgisi kaybolmuştur;
+        // gece yarısı varsaymak yanlış müşteriyi borçlandırır → satırların hepsi hatalı (yalnız uyarı yetmez).
         var warnings = new List<string>();
         if (parsed.Count >= 2 && rows.All(r => string.IsNullOrWhiteSpace(r.GecisSaati))
             && parsed.All(p => TimeZoneInfo.ConvertTime(p.At, PeriodLock.Zone).TimeOfDay == TimeSpan.Zero))
-            warnings.Add("Tüm geçiş zamanları 00:00 — dosyada saat bilgisi ayrı bir sütunda olabilir; saat sütununu eşleyin.");
+        {
+            warnings.Add(MidnightWarning);
+            foreach (var p in parsed) results.Add(Row(p, HgsImportRowStatus.Hatali, null, false, MidnightWarning));
+            parsed.Clear();
+        }
 
-        // (2) dosya içi tekrar
+        // (2) dosya içi tam tekrar
         var seen = new HashSet<string>(StringComparer.Ordinal);
         var fresh = new List<ParsedRow>(parsed.Count);
         foreach (var p in parsed)
@@ -111,65 +119,75 @@ public sealed class HgsCrossingService(
             else results.Add(Row(p, HgsImportRowStatus.Mukerrer, null, false, "Dosyada aynı geçiş birden çok kez var."));
         }
 
-        // (3) DB'de zaten olanlar + araç/kira çözümü
-        var dbDuplicates = new HashSet<string>(StringComparer.Ordinal);
-        var classified = new List<(ParsedRow Row, Guid? VehicleId, HgsMatch Match)>(fresh.Count);
+        // (3) DB'de zaten olanlar + olası mükerrer + araç/kira çözümü. Satırlar öncelik sırasıyla (an, istasyon)
+        // işlenir: kümenin ilki asıl, sonrakiler ikincil (Belirsiz) — yeniden eşleştirme aynı sırayı kullanır.
+        var classified = new List<(ParsedRow Row, Guid Id, Guid? VehicleId, HgsMatch Match)>(fresh.Count);
         if (fresh.Count > 0)
         {
             var from = fresh.Min(p => p.At);
             var to = fresh.Max(p => p.At);
-            var existing = await _repository.ExistingKeysAsync(fresh.Select(p => p.Plate).Distinct().ToList(), from, to, ct);
+            var existing = await _repository.ExistingAsync(fresh.Select(p => p.Plate).Distinct().ToList(),
+                from - HgsResolution.NearDuplicateWindow, to + HgsResolution.NearDuplicateWindow, ct);
+            var existingKeys = existing.Select(e => HgsResolution.NaturalKey(e.Plate, e.At, e.StationKey, e.Amount))
+                .ToHashSet(StringComparer.Ordinal);
+            var near = new HgsNearDuplicateIndex(existing);
             var vehicles = HgsResolution.VehicleIndex(await _repository.ListVehiclesAsync(ct));
             var vehicleIds = fresh.Select(p => vehicles.GetValueOrDefault(p.Plate)).OfType<Guid>().Distinct().ToList();
             var windows = (await _repository.ListRentalWindowsAsync(vehicleIds, from, to, ct)).ToLookup(w => w.VehicleId);
-            foreach (var p in fresh)
+            foreach (var p in fresh.OrderBy(p => p.At).ThenBy(p => p.StationKey, StringComparer.Ordinal))
             {
-                if (existing.Contains(p.Key))
+                if (existingKeys.Contains(p.Key))
                 {
-                    dbDuplicates.Add(p.Key);
                     results.Add(Row(p, HgsImportRowStatus.Mukerrer, null, false, "Bu geçiş daha önce içe aktarılmış."));
                     continue;
                 }
+                var me = new HgsCrossingRef(Guid.NewGuid(), p.Plate, p.At, p.Amount, p.StationKey, now, HgsCrossingStatus.KiraDisi);
                 var (vehicleId, match) = HgsResolution.Resolve(p.Plate, p.At, vehicles, windows);
-                classified.Add((p, vehicleId, match));
+                match = HgsResolution.WithNearDuplicate(match, near.IsSecondary(me));
+                near.Add(me with { Status = match.Status });
+                classified.Add((p, me.Id, vehicleId, match));
             }
         }
 
-        // (4) yaz (onaylı adım)
+        // (4) yaz (onaylı adım). Depo kilit altında tam mükerrer ve olası mükerrer kararını yeniden verir; varlığın
+        // Durum/EslesmeNotu'su gerekirse yerinde güncellenir — sonuç satırları varlığın SON hâlinden kurulur.
         Guid? batch = null;
         var lateDuplicates = (IReadOnlySet<string>)new HashSet<string>(StringComparer.Ordinal);
+        var entities = new Dictionary<Guid, HgsCrossing>();
         if (write && classified.Count > 0)
         {
             batch = Guid.NewGuid();
             var name = HgsValueParser.Text(fileName, 256, "Dosya adı");
-            var entities = classified.Select(x => new HgsCrossing
+            foreach (var x in classified)
             {
-                Plaka = x.Row.Plate, EtiketNo = x.Row.Tag, AracSinifi = x.Row.VehicleClass,
-                GirisIstasyonu = x.Row.Entry, CikisIstasyonu = x.Row.Exit, IstasyonAnahtari = x.Row.StationKey,
-                GirisZamani = x.Row.EntryAt, GecisZamani = x.Row.At, Tutar = x.Row.Amount,
-                Durum = x.Match.Status, VehicleId = x.VehicleId, RentalId = x.Match.Rental?.RentalId,
-                IceAktarimId = batch.Value, Kaynak = "Dosya", DosyaAdi = name,
-                CreatedAtUtc = now, UpdatedAtUtc = now,
-            }).ToList();
-            lateDuplicates = await _repository.InsertAsync(entities, ct);
+                entities[x.Id] = new HgsCrossing
+                {
+                    Id = x.Id, Plaka = x.Row.Plate, EtiketNo = x.Row.Tag, AracSinifi = x.Row.VehicleClass,
+                    GirisIstasyonu = x.Row.Entry, CikisIstasyonu = x.Row.Exit, IstasyonAnahtari = x.Row.StationKey,
+                    GirisZamani = x.Row.EntryAt, GecisZamani = x.Row.At, Tutar = x.Row.Amount,
+                    Durum = x.Match.Status, EslesmeNotu = x.Match.Note, VehicleId = x.VehicleId,
+                    RentalId = x.Match.Rental?.RentalId,
+                    IceAktarimId = batch.Value, Kaynak = "Dosya", DosyaAdi = name,
+                    CreatedAtUtc = now, UpdatedAtUtc = now,
+                };
+            }
+            lateDuplicates = await _repository.InsertAsync(entities.Values.ToList(), ct);
         }
 
-        foreach (var (p, vehicleId, match) in classified)
+        foreach (var (p, id, vehicleId, match) in classified)
         {
             if (lateDuplicates.Contains(p.Key))
             {
                 results.Add(Row(p, HgsImportRowStatus.Mukerrer, null, false, "Bu geçiş daha önce içe aktarılmış."));
                 continue;
             }
-            var status = match.Status switch
+            var (state, note) = entities.TryGetValue(id, out var e) ? (e.Durum, e.EslesmeNotu) : (match.Status, match.Note);
+            var status = state switch
             {
                 HgsCrossingStatus.Eslesti => HgsImportRowStatus.Eslesti,
                 HgsCrossingStatus.Belirsiz => HgsImportRowStatus.Belirsiz,
                 _ => HgsImportRowStatus.KiraDisi,
             };
-            var note = status == HgsImportRowStatus.Belirsiz
-                ? "Birden çok kira bu anı kapsıyor; kira kayıtlarını düzeltip yeniden eşleştirin."
-                : vehicleId is null ? "Plaka filoda bulunamadı (firma gideri)." : null;
             results.Add(Row(p, status, match.Rental, vehicleId is null, note));
         }
 
@@ -185,6 +203,7 @@ public sealed class HgsCrossingService(
             Eslesen: counted.Count(r => r.Durum == HgsImportRowStatus.Eslesti),
             KiraDisi: counted.Count(r => r.Durum == HgsImportRowStatus.KiraDisi),
             Belirsiz: counted.Count(r => r.Durum == HgsImportRowStatus.Belirsiz),
+            OlasiMukerrer: counted.Count(r => r.Durum == HgsImportRowStatus.Belirsiz && r.Hata == HgsResolution.NearDuplicateNote),
             AracBulunamadi: counted.Count(r => r.AracBulunamadi),
             Mukerrer: results.Count(r => r.Durum == HgsImportRowStatus.Mukerrer),
             Hatali: results.Count(r => r.Durum == HgsImportRowStatus.Hatali),
@@ -195,6 +214,9 @@ public sealed class HgsCrossingService(
             Satirlar: shown,
             IceAktarimId: added > 0 ? batch : null);
     }
+
+    public const string MidnightWarning =
+        "Tüm geçiş zamanları 00:00 — dosyada saat bilgisi yok ya da ayrı bir sütunda; saat sütununu eşleyin. Satırlar içe aktarılmadı.";
 
     private static HgsImportRow Row(ParsedRow p, HgsImportRowStatus status, HgsRentalWindow? rental, bool noVehicle, string? note)
         => new(p.SatirNo, p.Plate, p.At, p.Entry, p.Exit, p.Amount, status, rental?.RentalId, rental?.SozlesmeNo, noVehicle, note);
@@ -221,8 +243,9 @@ public sealed class HgsCrossingService(
 
     /// <summary>
     /// Seçili geçişleri kiranın müşterisine yansıtır. Yalnız kilit altında HÂLÂ <see cref="HgsCrossingStatus.Eslesti"/>
-    /// olan ve kirası geçiş anını HÂLÂ kapsayan satırlar borçlandırılır; zaten yansıtılmış satır sessizce atlanır
-    /// (tekrar gönderim yeni para yazmaz), kira dışı / belirsiz / kirası değişmiş satır "uygunsuz" sayılır.
+    /// olan, kirası (FOR SHARE ile kilitli GÜNCEL hâli) geçiş anını HÂLÂ kapsayan ve olası mükerrer kümesinin ikincil
+    /// üyesi olmayan satırlar borçlandırılır; zaten yansıtılmış satır sessizce atlanır (tekrar gönderim yeni para
+    /// yazmaz), diğerleri "uygunsuz" sayılır. Şube kapsamı kilit altında yeniden denetlenir (#391 M3).
     /// </summary>
     public async Task<HgsReflectResult> ReflectAsync(
         IReadOnlyCollection<Guid> ids, decimal serviceRate, CancellationToken ct = default)
@@ -240,7 +263,7 @@ public sealed class HgsCrossingService(
         var now = DateTimeOffset.UtcNow;
         await _periodLock.EnsureOpenAsync(now, ct); // dönem kilidi: yansıtma bugün tarihli postlanır
 
-        return await _repository.ReflectAsync(distinct, (c, rental) =>
+        return await _repository.ReflectAsync(distinct, BranchScope.EffectiveFilter(_currentUser), (c, rental) =>
         {
             // SATIR bazında yuvarlama (para kalemi kuralı): toplamı çarpıp tek yuvarlamak satırların toplamıyla
             // kuruş farkı üretirdi — cari ekstresindeki satırlar borçla birebir toplanmalı.

@@ -45392,7 +45392,8 @@
           "yansitmaZamani",
           "etiketNo",
           "aracSinifi",
-          "dosyaAdi"
+          "dosyaAdi",
+          "eslesmeNotu"
         ],
         "type": "object",
         "properties": {
@@ -45512,6 +45513,12 @@
               "null",
               "string"
             ]
+          },
+          "eslesmeNotu": {
+            "type": [
+              "null",
+              "string"
+            ]
           }
         }
       },
@@ -45597,6 +45604,7 @@
           "eslesen",
           "kiraDisi",
           "belirsiz",
+          "olasiMukerrer",
           "aracBulunamadi",
           "mukerrer",
           "hatali",
@@ -45646,6 +45654,14 @@
             "format": "int32"
           },
           "belirsiz": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "olasiMukerrer": {
             "pattern": "^-?(?:0|[1-9]\\d*)$",
             "type": [
               "integer",

@@ -27,6 +27,7 @@ internal sealed class HgsCrossingConfig : IEntityTypeConfiguration<HgsCrossing>
         e.Property(x => x.HizmetOrani).HasColumnType("numeric(9,4)");
         e.Property(x => x.YansitilanTutar).HasColumnType("numeric(19,4)");
         e.Property(x => x.Durum).HasConversion<int>();
+        e.Property(x => x.EslesmeNotu).HasMaxLength(256);
         e.Property(x => x.Kaynak).IsRequired().HasMaxLength(16);
         e.Property(x => x.DosyaAdi).HasMaxLength(256);
         e.HasIndex(x => new { x.TenantId, x.Plaka, x.GecisZamani, x.IstasyonAnahtari, x.Tutar })
