@@ -28,7 +28,8 @@ public sealed class RentalService(
     RentACar.Application.Finance.ICashRepository cashRepository,
     RentACar.Application.Locations.ILocationRepository locationRepository,
     ReservationSourceRuleService sourceRule,
-    RentACar.Application.Vehicles.IVehicleRepository vehicleRepository)
+    RentACar.Application.Vehicles.IVehicleRepository vehicleRepository,
+    RentACar.Application.Kabis.KabisNotificationService kabis)
 {
     private readonly IBookingRepository _repository = repository;
     private readonly ICurrentUser _currentUser = currentUser;
@@ -582,19 +583,46 @@ public sealed class RentalService(
     {
         PermissionGuard.Require(_currentUser, Permission.OperationsWrite); // adversarial H1
         FuelRange(pickupFuel, "Çıkış"); // F4.1 L6
-        return await Inv(_repository.UpdateRentalWithVehicleAsync(id, c =>
+        var now = DateTimeOffset.UtcNow;
+
+        // KABİS (1774 ek md. 3): kapı açıksa kuyruk kaydı teslimle AYNI transaction'da yazılır. "Teslimi engelle"
+        // ayarında bildirim teslimden ÖNCE senkron yapılır; başarılı değilse teslim reddedilir. Ön koşullar bildirimden
+        // ÖNCE denetlenir — geçersiz bir teslim için karşı sisteme bildirim gitmesin.
+        var gate = await kabis.GateAsync(ct);
+        if (gate is { Etkin: true, TeslimiEngelle: true })
         {
-            BranchScope.RequireInScope(_currentUser, c.CikisSubeId, c.CikisOfisi); // adversarial M3
-            if (c.Durum != RentalStatus.Kirada)
-                throw new ValidationException("Yalnız aktif (Kirada) sözleşmede teslim yapılır.");
-            if (c.CikisKm is not null)
-                throw new ValidationException("Araç zaten teslim edilmiş.");
-            if (pickupKm < 0)
-                throw new ValidationException("Çıkış KM negatif olamaz.");
+            var current = await _repository.FindRentalAsync(id, ct);
+            if (current is null) return false;
+            DeliveryGuard(current, pickupKm);
+            var notice = await kabis.ReportBeforeDeliveryAsync(id, gate, now, ct);
+            if (notice.Durum is not (KabisNoticeStatus.Bildirildi or KabisNoticeStatus.GerekliDegil))
+                throw new ValidationException(
+                    ("KABİS bildirimi yapılamadı; firma ayarı gereği teslim engellendi. " + notice.SonHata).Trim(), "kabis");
+        }
+
+        var delivered = await Inv(_repository.UpdateRentalWithVehicleAsync(id, c =>
+        {
+            DeliveryGuard(c, pickupKm);
             c.CikisKm = pickupKm;
             c.CikisYakit = pickupFuel;
-            c.UpdatedAtUtc = DateTimeOffset.UtcNow;
-        }, v => { v.Km = Math.Max(v.Km, pickupKm); v.Durum = VehicleStatus.Kirada; }, ct: ct)); // araç çıktı → Kirada
+            c.UpdatedAtUtc = now;
+        }, v => { v.Km = Math.Max(v.Km, pickupKm); v.Durum = VehicleStatus.Kirada; }, // araç çıktı → Kirada
+            kabis: RentACar.Application.Kabis.KabisNotificationService.DeliveryOutbox(gate, now), ct: ct));
+        // Commit SONRASI bir kez dener (en iyi çaba; hata teslimi bozmaz, iş yeniden dener).
+        if (delivered && gate.Etkin) await kabis.TrySendAsync(id, KabisNoticeType.Kiralama, ct);
+        return delivered;
+    }
+
+    /// <summary>Teslim ön koşulları — hem KABİS ön bildiriminden önce hem satır kilidi altında aynı kural.</summary>
+    private void DeliveryGuard(RentalContract c, int pickupKm)
+    {
+        BranchScope.RequireInScope(_currentUser, c.CikisSubeId, c.CikisOfisi); // adversarial M3
+        if (c.Durum != RentalStatus.Kirada)
+            throw new ValidationException("Yalnız aktif (Kirada) sözleşmede teslim yapılır.");
+        if (c.CikisKm is not null)
+            throw new ValidationException("Araç zaten teslim edilmiş.");
+        if (pickupKm < 0)
+            throw new ValidationException("Çıkış KM negatif olamaz.");
     }
 
     /// <summary>
@@ -624,7 +652,9 @@ public sealed class RentalService(
         // kira satır kilidi ALTINDA okunur (k.EkHizmetToplam) — önceden TX DIŞINDA okunuyordu ve eşzamanlı ek
         // hizmet eklemesi GenelToplam'dan sessizce düşüyordu (24 yarışın 23'ünde tutarsızlık).
         // Araç odometresi (Vehicle.Km) kira ile AYNI transaction'da güncellenir — km-bazlı bakım panosunu besler.
-        return await Inv(_repository.UpdateRentalWithVehicleAsync(id, (c, k) =>
+        // KABİS: kapı açıksa İade kuyruk kaydı dönüşle AYNI transaction'da (yalnız kiralama kaydı olan kirada).
+        var gate = await kabis.GateAsync(ct);
+        var returned = await Inv(_repository.UpdateRentalWithVehicleAsync(id, (c, k) =>
         {
             BranchScope.RequireInScope(_currentUser, c.CikisSubeId, c.CikisOfisi); // adversarial M3
             if (c.Durum != RentalStatus.Kirada)
@@ -669,7 +699,10 @@ public sealed class RentalService(
         }, v => { v.Km = Math.Max(v.Km, returnKm); v.Durum = VehicleStatus.Musait; },
         // FAZ 2.5: dönüş odometresi km zaman-serisine AYNI transaction'da düşer (karnede "dönem km").
         kmLog: c => new VehicleKmLog { VehicleId = c.VehicleId, Tarih = actualReturn, Km = returnKm, Kaynak = KmLogSource.Donus },
+        kabis: RentACar.Application.Kabis.KabisNotificationService.ReturnOutbox(gate, actualReturn),
         ct: ct)); // odometre monoton ileri; araç döndü → Musait (boşta)
+        if (returned && gate.Etkin) await kabis.TrySendAsync(id, KabisNoticeType.Iade, ct);
+        return returned;
     }
 
     /// <summary>
@@ -740,7 +773,7 @@ public sealed class RentalService(
         PermissionGuard.Require(_currentUser, Permission.OperationsDelete); // inceltme: sözleşme iptali ayrı izin
         // F4.1 adversarial M3: fatura/tahsilat kontrolü kira-fatura kilidi + satır kilidi ALTINDA (fatura
         // kesimi aynı advisory kilidi alır ve kilit altında "kira iptal mi" diye bakar → yarış yok).
-        return await Inv(_repository.UpdateRentalWithVehicleAsync(id, (c, k) =>
+        var cancelled = await Inv(_repository.UpdateRentalWithVehicleAsync(id, (c, k) =>
         {
             BranchScope.RequireInScope(_currentUser, c.CikisSubeId, c.CikisOfisi); // adversarial M3
             if (c.Durum != RentalStatus.Kirada)
@@ -756,5 +789,9 @@ public sealed class RentalService(
             c.Durum = RentalStatus.Iptal;
             c.UpdatedAtUtc = DateTimeOffset.UtcNow;
         }, v => v.Durum = VehicleStatus.Musait, ct: ct)); // iptal → araç serbest (boşta)
+        // KABİS: bildirilmemiş kiralama "gerekli değil" olur, bildirilmişse iptal bildirimi kuyruğa girer. En iyi çaba —
+        // iş uzlaştırması aynı kuralı periyodik koşar, iptal yanıtı bildirim arızasıyla bozulmaz.
+        if (cancelled) await kabis.OnRentalCancelledAsync(id, ct);
+        return cancelled;
     }
 }

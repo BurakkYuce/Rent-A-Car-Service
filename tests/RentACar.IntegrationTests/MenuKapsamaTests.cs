@@ -57,7 +57,8 @@ public sealed class MenuKapsamaTests
     /// F11.3: tanım ve sistem SPA rota dosyalarındaki her parametresiz ekran menüde spa öğesi olarak var. Genel tanım
     /// ekranları tek eşlemden (<c>definition-paths.ts</c> <c>DEFINITION_PATHS</c>) üretilir. Menü DIŞI bilinçli
     /// alt akışlar: ilan sihirbazının ilk adımı (<c>web-sitesi/arac-ekle</c>, İlanlar ekranından açılır), genel arama
-    /// (<c>ara</c>, üst çubuk arama kutusu) ve kendi parolası (<c>profil/sifre-degistir</c>, kullanıcı menüsü).
+    /// (<c>ara</c>, üst çubuk arama kutusu), kendi parolası (<c>profil/sifre-degistir</c>, kullanıcı menüsü) ve KABİS
+    /// ayarları (<c>kabis-ayarlari</c>, Ayarlar ekranının entegrasyon bölümündeki bağlantıdan açılır).
     /// </summary>
     [Fact]
     public void F11_SPA_routes_are_all_in_menu()
@@ -68,12 +69,12 @@ public sealed class MenuKapsamaTests
         var definitionPaths = File.ReadAllText(Path.Combine(app, "definitions/definition-paths.ts"));
         var mapBlock = definitionPaths[definitionPaths.IndexOf("DEFINITION_PATHS", StringComparison.Ordinal)..];
         mapBlock = mapBlock[..mapBlock.IndexOf("};", StringComparison.Ordinal)];
-        string[] outsideMenu = ["web-sitesi/arac-ekle", "ara", "profil/sifre-degistir"];
+        string[] outsideMenu = ["web-sitesi/arac-ekle", "ara", "profil/sifre-degistir", "kabis-ayarlari"];
         var paths = Regex.Matches(routes, @"path: '(?<p>[a-z-/:]+)',").Select(m => m.Groups["p"].Value)
             .Concat(Regex.Matches(mapBlock, @"^\s*\w+: '(?<p>[a-z-]+)',", RegexOptions.Multiline).Select(m => m.Groups["p"].Value))
             .Where(p => !p.Contains(':') && !outsideMenu.Contains(p))
             .ToList();
-        Assert.Equal(41, paths.Count); // 47 sayfa − 3 kimlikli − 3 menü dışı alt akış
+        Assert.Equal(41, paths.Count); // 48 sayfa − 3 kimlikli − 4 menü dışı alt akış
         var menu = MenuRegistry.Items.Where(o => o.Sahip == MenuRegistry.Spa).Select(o => o.Rota).ToHashSet(StringComparer.Ordinal);
         var missing = paths.Where(p => !menu.Contains("/app/" + p)).ToList();
         Assert.True(missing.Count == 0, "Menüde spa öğesi olmayan F11 ekranı: " + string.Join(", ", missing));

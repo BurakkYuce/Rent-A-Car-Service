@@ -115,6 +115,22 @@
       "matris": "Rol-izin matrisi",
       "matrisAciklama": "Sabit taban (salt okunur). Kullanıcı bazlı istisnalar Kullanıcılar ekranındadır."
     },
+    "kabis": {
+      "baslik": "KABİS Ayarları",
+      "aciklama": "Kiralık Araç Bildirim Sistemi (1774 sayılı Kanun ek madde 3): teslimde kiralayan ve araç bilgisi kolluğa anlık bildirilir. Açıkken her teslim ve dönüş bir bildirim kaydı oluşturur; kira ekranı ve panel bildirilemeyen kiraları gösterir.",
+      "etkin": "Teslim ve dönüşte otomatik KABİS bildirimi yap",
+      "kurum": "Kurum",
+      "emniyet": "Emniyet (EGM)",
+      "jandarma": "Jandarma (JGK)",
+      "kullanici": "KABİS kullanıcı adı",
+      "sifre": "KABİS şifresi",
+      "sifreIpucu": "Şifre yalnız yazılır, hiçbir yanıtta gösterilmez. Kullanıcı ya da kurum değişirse yeniden girilmelidir.",
+      "teslimiEngelle": "Bildirim başarılı olmadan aracın teslimine izin verme",
+      "teslimiEngelleIpucu": "Kapalıyken teslim yapılır, bildirim kuyruğa girer ve uyarı gösterilir. Açıkken bildirim yapılamazsa teslim reddedilir.",
+      "test": "Bağlantıyı sına",
+      "onceKaydet": "Önce değişiklikleri kaydedin.",
+      "durustNot": "Gerçek KABİS bağlantısı yapılandırılmadıkça hiçbir bildirim \"bildirildi\" görünmez; kayıtlar \"bağlı değil\" notuyla bekler."
+    },
     "mesaj": {
       "baslik": "Müşteri Mesaj Şablonları",
       "aciklama": "Müşteriye giden e-posta ve SMS metinleri. Şablon yazılmadan mesaj gönderilmez; şablonu sonradan yazarsanız kuyrukta bekleyen mesajlar ilk taramada doğru içerikle gönderilir.",
@@ -425,6 +441,7 @@
       "firma": "Firma",
       "entegrasyon": "Entegrasyon kimlikleri",
       "sirAciklama": "Şifre ve API anahtarları yalnız yazılabilir: kayıtlı değer hiçbir zaman gösterilmez. Boş bırakırsanız kayıtlı değer korunur; yeni değer yazarsanız değiştirilir. Kayıtlı değeri silmek için alanın altındaki \"Kayıtlı değeri sil\" kutusunu işaretleyin.",
+      "kabisBaglanti": "KABİS (Kiralık Araç Bildirim Sistemi) ayarları →",
       "sirKayitli": "•••••• (kayıtlı — değiştirmek için yazın)",
       "sirBos": "(boş)",
       "sirSil": "Kayıtlı değeri sil",

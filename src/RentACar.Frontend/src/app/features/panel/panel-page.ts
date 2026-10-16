@@ -408,6 +408,18 @@ export class PanelPage {
       rota: '/rezervasyonlar', // F5.4: SPA rotası (sunucu yönlendirmesine düşmez)
       ton: unseen > 0 ? 'uyari' : 'notr',
     });
+    // KABİS: yalnız firma otomatik bildirimi açtıysa gelir (kapalıyken null — kutu gürültü olurdu). Bekleyen ya da
+    // hatalı bildirimi olan kira sayısı; yasal yükümlülük → sıfırdan büyükse hata tonu.
+    const kabis = count(k.kabisBildirilemeyen);
+    if (kabis !== null) {
+      boxes.push({
+        sayi: kabis,
+        etiket: this.t('panel.vade.kabisBildirilemeyen'),
+        rota: '/kabis',
+        ton: kabis > 0 ? 'hata' : 'notr',
+        ipucu: this.t('panel.vade.kabisIpucu'),
+      });
+    }
     return boxes;
   }
 }

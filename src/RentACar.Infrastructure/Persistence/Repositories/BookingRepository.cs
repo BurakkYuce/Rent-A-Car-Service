@@ -375,17 +375,20 @@ public sealed class BookingRepository(IDbContextFactory<AppDbContext> factory) :
 
     public Task<bool> UpdateRentalWithVehicleAsync(
         Guid id, Action<RentalContract> applyRental, Action<Vehicle> applyVehicle,
-        Func<RentalContract, VehicleKmLog>? kmLog = null, CancellationToken ct = default)
-        => UpdateRentalVehicleAsync(id, (r, _) => applyRental(r), applyVehicle, kmLog, contextual: false, ct);
+        Func<RentalContract, VehicleKmLog>? kmLog = null, RentACar.Application.Kabis.KabisOutbox? kabis = null,
+        CancellationToken ct = default)
+        => UpdateRentalVehicleAsync(id, (r, _) => applyRental(r), applyVehicle, kmLog, kabis, contextual: false, ct);
 
     public Task<bool> UpdateRentalWithVehicleAsync(
         Guid id, Action<RentalContract, KiraKilitBaglami> applyRental, Action<Vehicle> applyVehicle,
-        Func<RentalContract, VehicleKmLog>? kmLog = null, CancellationToken ct = default)
-        => UpdateRentalVehicleAsync(id, applyRental, applyVehicle, kmLog, contextual: true, ct);
+        Func<RentalContract, VehicleKmLog>? kmLog = null, RentACar.Application.Kabis.KabisOutbox? kabis = null,
+        CancellationToken ct = default)
+        => UpdateRentalVehicleAsync(id, applyRental, applyVehicle, kmLog, kabis, contextual: true, ct);
 
     private async Task<bool> UpdateRentalVehicleAsync(
         Guid id, Action<RentalContract, KiraKilitBaglami> applyRental, Action<Vehicle> applyVehicle,
-        Func<RentalContract, VehicleKmLog>? kmLog, bool contextual, CancellationToken ct)
+        Func<RentalContract, VehicleKmLog>? kmLog, RentACar.Application.Kabis.KabisOutbox? kabis, bool contextual,
+        CancellationToken ct)
     {
         return await PgRetry.RunAsync(async () => // deadlock/serialization çakışmasında baştan dene
         {
@@ -424,6 +427,9 @@ public sealed class BookingRepository(IDbContextFactory<AppDbContext> factory) :
 
             // FAZ 2.5: km zaman-serisi — kira güncellemesiyle AYNI transaction (yarım seri kalmaz).
             if (kmLog is not null) db.KmLoglari.Add(kmLog(r));
+
+            // KABİS outbox: teslim/dönüş commit olduysa kuyruk kaydı da vardır (arada çökme yarım bırakamaz).
+            if (kabis is not null) await KabisQueries.AddOutboxAsync(db, r.Id, kabis, ct);
 
             await db.SaveChangesAsync(ct);
             await tx.CommitAsync(ct);
