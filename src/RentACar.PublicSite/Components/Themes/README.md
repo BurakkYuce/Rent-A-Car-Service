@@ -1,15 +1,50 @@
 # Site temaları — sözleşme
 
-Halka açık firma sitesi üç temadan birini kullanır: `tarife`, `vitrin`, `kontuar`
-(`TenantSettings.SiteTemasi`; null/bilinmeyen → `tarife`). Sayfalar veri mantığını paylaşır; temaya göre
-yalnız **dört slot** ve **tema css'i** değişir. Bu belge tema PR'larının uyacağı sözleşmedir.
+Halka açık firma sitesi üç temadan birini kullanır: `pazar`, `vitrin`, `rota`
+(`TenantSettings.SiteTemasi`; null/bilinmeyen → `pazar`). Sayfalar veri mantığını paylaşır; temaya göre
+**yedi slot** ve **tema css'i** değişir. Bu belge tema PR'larının uyacağı sözleşmedir.
+
+## Anahtarlar ve eski anahtar eşlemesi
+
+`Application/TenantSettings/SiteThemeKeys.cs` tek kaynak: `All = [pazar, vitrin, rota]`, `Default = pazar`.
+
+| Eski anahtar | Yeni anahtar | Nerede |
+|---|---|---|
+| `tarife` | `pazar` | `SiteThemeKeys.LegacyAliases` (KALICI, silinmez) |
+| `kontuar` | `rota` | aynı |
+
+- `SiteThemeKeys.Normalize` eski anahtarı yeni karşılığına çevirir: `?tema=tarife` önizlemesi `pazar` basar
+  (noindex dahil), ERP API'si eski anahtarla gelen PUT'u kabul eder ve **yeni anahtarı saklar**; geçerli değer
+  listesi (hata mesajı, ERP seçenekleri) yalnız yeni anahtarları sayar.
+- `RenameSiteThemeKeys` migration'ı kayıtlı değerleri çevirdi (NO FORCE / FORCE parantezi; Down geri çevirir).
+- Sayfa kabuğu `.page[data-tema]` çözülen KANONİK anahtarı taşır (kayıt sabitinden; test ve css içindir).
+- `pazar` yeni temasıyla geldi (`SiteThemes.Pazar`, `Themes/Pazar/`, `css/tema-pazar.css`; eski Tarife dosyaları
+  ve Barlow yazı tipleri silindi). `rota` yeni temasıyla geldi (`SiteThemes.Rota`, `Themes/Rota/`,
+  `css/tema-rota.css`); eski Kontuar dosyaları silindi.
+- Pazar'ın kendi bileşeni `PazarPriceTag` (asılı fiyat etiketi — temanın imzası) slot değildir; Card, Hero ve
+  DetailHero kullanır. Eski tarife'nin geçici palet setleri (`petrol`, `lacivert`, `zeytin`) Pazar setleriyle
+  (`domates` varsayılan, `kobalt`, `hardal`, `cam`, `patlican`) değişti; kayıtlı eski anahtar varsayılana düşer.
+
+## Temalar
+
+| Anahtar | Ad | Kimlik | İmza anı | Yazı |
+|---|---|---|---|---|
+| `pazar` | Pazar | Yerel, samimi, yoğun ama düzenli; serin açık zemin, firma rengi tam genişlik düz bloklar (hero, kapanış bandı), kalın çerçeveli kartlar + kaydırılmış düz gölge. Hero: tam genişlik başlık, arama + "sormak isterseniz arayın", asılı etiketli fotoğraf. Telefon üst barda dolu düğme, telefonda sabit alt çubuk. "Neden <marka>?" yalnız veri ve sistem davranışı; ofis/şubeler (adres, saat, telefon, harita bağlantısı), SSS. Fotoğrafsız ilanda aracın adı tabela harfiyle. | Fiyat etiketleri açılışta bir kez sarkaç gibi sallanıp asılı durur (yalnız `rotate`, dönme noktası çivi) | Bricolage Grotesque Condensed 800 (wdth 75, opsz 36) + Onest 400–700 |
+| `rota` | Rota | Editoryal, seyrek; serin zemin, asimetrik 12 kolon. Hero: büyük başlık + dikey fotoğraf (arkasında vurgu renkli levha, altında künye) + kompakt arama. Filo: NUMARALI FİYAT LİSTESİ (`<ol>`; satır etkinken fotoğraf sağ kolonda, `:hover`/`:focus-within`, JS yok; dar/dokunmatikte satır içi küçük görsel). Koşullar üç sütun, şubeler + saat + harita bağlantısı, SSS. | Noktalı çizgiler açılışta soldan sağa çizilir (clip-path) | Literata 500 (optik boyut 12–72) + Public Sans 400–600 |
 
 ## Seçim ve önizleme
 
-- ERP: `/app/ayarlar` → "Web sitesi görünümü" → Site teması (radyo) + her tema için "Önizle" bağlantısı.
-- Sitede `?tema=<ad>` geçerli bir adsa o istekte o tema basılır; kalıcı değildir (çerez yok), yanıt
-  `X-Robots-Tag: noindex, follow` taşır, kanonik adres sorgusuz olduğundan değişmez. Geçersiz ad yok sayılır.
-- Çözüm tek yerde: `ThemeAccessor` (istek başına bir kez).
+- ERP: `/app/ayarlar` → "Web sitesi görünümü" → Site teması (radyo) + Renk seti (seçili temanın setleri,
+  renk çipli kartlar; tema değişince temaya ait olmayan seçim temizlenir) + Kendi ana rengim (renk seçici +
+  `#rrggbb`, temizlenebilir) + "Seçili görünümü önizle" ve tema başına "Önizle" bağlantıları.
+- Önizleme parametreleri (`SitePreview`): `?tema=<anahtar>` (eski anahtar dahil), `?palet=<set anahtarı>`,
+  `?renk=%23rrggbb` (yalnız KESİN `#rrggbb`). Geçerli olan o istekte basılır; kalıcı değildir (çerez yok), yanıt
+  `X-Robots-Tag: noindex, follow` taşır, kanonik adres sorgusuz olduğundan değişmez, 404 sayfası geçerli
+  önizlemeyi taşır. Geçersiz değer yok sayılır (o parametre hiç yokmuş gibi). Palet, çözülen temanın setlerinde
+  aranır; başka temanın seti varsayılana düşer.
+- Çözüm tek yerde: `ThemeAccessor.GetAppearanceAsync()` → `SiteAppearance(Theme, Palette, CustomPrimary)`
+  (istek başına bir kez). Öncelik her eksende: önizleme → firmanın kaydı (`SiteTemasi` / `SitePaleti` /
+  `SiteVurguRengi`) → temanın varsayılanı.
 
 ## Kayıt
 
@@ -17,23 +52,65 @@ yalnız **dört slot** ve **tema css'i** değişir. Bu belge tema PR'larının u
 
 ```csharp
 public sealed record SiteTheme(string Key, string Ad, string Aciklama, string CssPath,
-    IReadOnlyList<string> FontPreloads, Type Hero, Type Card, Type Header, Type Footer)
+    IReadOnlyList<string> FontPreloads, Type Hero, Type Card, Type Header, Type Footer,
+    Type Home, Type Fleet, Type DetailHero)
 {
     IReadOnlyList<ThemeFont> Fonts { get; init; }   // @font-face (App.razor parmak izli adresle basar)
-    string DefaultBrand { get; init; }              // firma renk seçmediyse vurgu (#rrggbb)
-    string ThemeColorLight / ThemeColorDark         // <meta name="theme-color">
+    required IReadOnlyList<SitePalette> Palettes    // hazır renk setleri; İLK = varsayılan (bkz. "Palet sistemi")
+    SitePalette DefaultPalette => Palettes[0]       // <meta name="theme-color"> da setin zemininden gelir
 }
-SiteThemes.Resolve(key)  // boş/bilinmeyen → Tarife
+SiteThemes.Resolve(key)  // eski anahtar → yeni; boş/bilinmeyen → SiteThemeKeys.Default
 ```
 
-Yeni tema: `Components/Themes/<Ad>/` (4 slot bileşeni) + `wwwroot/css/tema-<ad>.css` + yazı tipleri
-`wwwroot/fonts/` (woff2, latin + latin-ext, kendi barındırılır) + `SiteThemes` kaydı. Anahtar listesi
-`Application/TenantSettings/SiteThemeKeys.cs` ile aynı olmalı (yapısal test).
+## Slotlar ve dağıtım
 
-## Slot imzaları (SABİT)
+Her slot `DynamicComponent` ile aktif temanın bileşenine dağıtılır; sarmalayıcılar `Components/Themes/Themed*.razor`.
 
-Sayfalar slotları `ThemedHero` / `ThemedCard` sarmalayıcılarıyla, kabuk (MainLayout) Header/Footer'ı
-`DynamicComponent` ile basar. Parametre adları ve tipleri değişmez:
+| Slot | Kim basar | Sarmalayıcı | Parametre |
+|---|---|---|---|
+| Header, Footer | kabuk (`Layout/MainLayout.razor`) | doğrudan `DynamicComponent` | aşağıdaki tablo |
+| Home | `Pages/Home.razor` | `ThemedHome` | `Model` : `HomeModel` |
+| Fleet | Home slotu (filo bölümü), `/musaitlik`, ilan detayındaki benzer araçlar, 404 | `ThemedFleet` | `Model` : `FleetModel` |
+| DetailHero | `Pages/IlanDetay.razor` | `ThemedDetailHero` | `Model` : `DetailHeroModel` |
+| Hero | Home slotu (temanın tercihi) | `ThemedHero` | aşağıdaki tablo |
+| Card | Fleet slotu (temanın tercihi) | `ThemedCard` | aşağıdaki tablo |
+
+Veri mantığı SAYFADA kalır (servis çağrıları, sıralama, işaret, teklif bağlantısı, metin/sayı hesapları);
+slotlar yalnız sunar. SEO (`PageTitle`, `SayfaMeta`, JSON-LD, breadcrumb) sayfada kalır, temaya taşınmaz.
+
+### Model slotlarının imzaları (SABİT — `SlotModels.cs`)
+
+```csharp
+enum FleetPlacement { Home, Availability, Similar, NotFound }
+record FleetSummary(string Vurgu, string Aciklama, bool Canli = false);           // Canli → role="status"
+record FleetEmptyState(string Baslik, string Metin, IReadOnlyList<SiteLink> Linkler, bool Canli = false);
+record FleetModel(IReadOnlyList<ListingCard> Kartlar, FleetPlacement Yer)
+{
+    StayDates? Tarih;          // tüm kartlar için aynı aralık; null → tarihsiz ("müsait" DENMEZ)
+    string? Baslik, BaslikId;  // h2 + id (yalnız Home kullanır; diğer yerlerde başlık sayfada)
+    FleetSummary? Ozet;        // yalnız kart varken
+    string? Uyari;             // yalnız kart varken (ör. "X bu tarihlerde müsait değil")
+    FleetEmptyState? Bos;      // kart yokken; null → hiçbir şey basılmaz (T2)
+}
+
+record HomeModel(FleetBranding? Branding, IReadOnlyList<FleetShowcaseCard> Kartlar, FleetModel Filo,
+    IReadOnlyList<SssSatiri> Sss, int SssAdet, IReadOnlyList<string> SubeAdlari, IReadOnlyList<Branch> Subeler,
+    IReadOnlyList<SiteLink> Sayfalar, string? Sehir, string? KosulSayfasi) { string? Marka; }
+
+record DetailRate(string Etiket, decimal Tutar, decimal? GunBasi);             // GunBasi null → günlük satır
+record DetailHeroModel(FleetShowcaseDetail Ilan, IReadOnlyList<DetailRate> Tarife, string TeklifLinki,
+    IReadOnlyList<string> SubeAdlari) { string? MetaSatiri; string? WaLinki; FleetBranding? Branding; string KdvMetni; }
+```
+
+| Slot | Kurallar |
+|---|---|
+| Home | Bölümleri tema seçer ve sıralar; ortak bölümler (`BolumGuvenSeridi`, `BolumNasilCalisir`, `BolumFiyatNasil`, `BolumSss`, `BolumCta`, `AramaFormu`, `BrandMark`) istenirse kullanılır. **Sarmalayıcı öğe YOK**: bölümler doğrudan `<main>`'in çocuğudur (base.css `main > .cta-bant:last-child`). SSS basılıyorsa `BolumSss Adet="Model.SssAdet"` — görünen soru adedi FAQPage JSON-LD adediyle aynı kalır (SEO L-4; render testi kilitler). Filo bölümü `Model.Filo.Kartlar` boşsa basılmaz (T2). Tek `h1` Hero'dadır. |
+| Fleet | Kapsayıcıyı (`wrap`, `section`) ÇAĞIRAN verir; slot başlık (varsa), özet, uyarı ve listeyi ya da boş durumu basar. `Model.Yer` ile yerleşim seçilebilir (ör. Home'da yatay şerit, `Availability`'de ızgara). Kart başına `Model.Tarih` Card slotuna aynen geçer. İlk kartın `Oncelikli` işareti korunur (LCP). |
+| DetailHero | Kendi kapsayıcısını (`wrap`) basar — tam genişlik galeri mümkün. Tek `h1` (ilan adı) buradadır. Tarife satırları ve gün başı yuvarlaması sayfadan gelir; tema hesap yapmaz. Tarih formu ORTAK `<AramaFormu Hedef="/musaitlik" Ilan="@Model.Ilan.Slug" …/>`. Kapak LCP: tembel değil, `fetchpriority="high"`, boyut öznitelikleri. |
+
+### Parametreli slotların imzaları (SABİT)
+
+Parametre adları ve tipleri değişmez:
 
 | Slot | Parametre | Tip | Anlam |
 |---|---|---|---|
@@ -50,46 +127,140 @@ Sayfalar slotları `ThemedHero` / `ThemedCard` sarmalayıcılarıyla, kabuk (Mai
 | | `Sayfalar` | `IReadOnlyList<SiteLink>` | Ana sayfa + menü + firmanın içerik sayfaları |
 | | `YasalSayfalar` | `IReadOnlyList<SiteLink>` | Yayındaki yasal sayfalar (boşsa sütun yok) |
 
-Kurallar: Hero arama için ORTAK `<AramaFormu Hedef="/musaitlik" Subeler="Subeler" />`'u kullanır; firma
-işareti için ORTAK `<BrandMark>`; fiyat için `PriceText`. Card'da `Kart.Gun is null` iken "müsait" DENMEZ
-(T1). Veri yoksa bölüm basılmaz (T2). Firma adına taahhüt metni yazılmaz (T1). JS eklenmez.
+Kurallar (tüm slotlar): arama için ORTAK `<AramaFormu>` (alan adları/doğrulama tek kaynak, T4); firma işareti
+için ORTAK `<BrandMark>`; fiyat için `PriceText`. `Kart.Gun is null` / `Model.Tarih is null` iken "müsait"
+DENMEZ (T1). Veri yoksa bölüm basılmaz (T2). Firma adına taahhüt metni yazılmaz (T1). JS eklenmez (CSP
+`script-src 'self'`). Ham `FleetBranding.VurguRengi` hiçbir yere basılmaz.
 
-Diğer bölümler (SSS, nasıl çalışır, fiyat açıklaması, kapanış bandı, formlar, detay, müsaitlik, blog)
-ORTAK markup'tır; temaya göre yalnız CSS ile değişir.
+Slot dışı kalan sayfalar (iletişim, SSS, blog, içerik sayfası, talep formu, 404 metni) ORTAK markup'tır; temaya
+göre yalnız CSS ile değişir.
+
+## Yeni tema ekleme / değiştirme kılavuzu
+
+1. Anahtar: `SiteThemeKeys` (`All` sırası = ERP seçenek sırası). Var olan anahtarın yerine geçen tema anahtarı
+   DEĞİŞTİRMEZ; anahtar değişirse eskisi `LegacyAliases`'a eklenir + veri migration'ı (bkz. `RenameSiteThemeKeys`).
+2. Bileşenler: `Components/Themes/<Ad>/` altında yedi slot — `<Ad>Hero`, `<Ad>Card`, `<Ad>Header`, `<Ad>Footer`,
+   `<Ad>Home`, `<Ad>Fleet`, `<Ad>DetailHero`. Parametreler yukarıdaki imzalarla BİREBİR (`[Parameter]` adları).
+   Home/Fleet, Hero/Card'ı `ThemedHero`/`ThemedCard` ile ya da kendi bileşenini doğrudan çağırarak kullanabilir.
+3. CSS: `wwwroot/css/tema-<ad>.css` (katman kuralları aşağıda); yazı tipleri `wwwroot/fonts/` (woff2, latin +
+   latin-ext, kendi barındırılır, lisans dosyası).
+4. Kayıt: `SiteThemes` alanı + `All` listesi; anahtarlar `SiteThemeKeys.All` ile aynı sırada (yapısal test).
+5. ERP: `src/RentACar.Frontend/src/app/features/system/settings/settings-model.ts` `SITE_THEMES` + i18n
+   `sistem.ayarlar.tema.<anahtar>.{ad,aciklama}` (`npm run i18n:tipler`).
+6. Doğrulama: `PublicSiteThemeContractTests*` (token, kontrast, 3 tema × adres render, SSS adedi, taşma
+   kuralları), 1440/390 ekran görüntüsü, `prefers-reduced-motion`, yatay taşma ölçümü (tarayıcı, CI'da değil):
+   `node scripts/site-tasma.mjs [--genislik 320,390,768,1440] http://<tema-host>:5230 …` — animasyonlar
+   duraklatılıp adım adım oynatılır (açılış anı SIRASINDA ve SONRASINDA), dinlenme hâlinde kırpılmış içerik de
+   aranır; taşma varsa çıkış kodu 1.
 
 ## CSS katmanları
 
 - `wwwroot/css/base.css` — reset, düzen, erişilebilirlik, ortak bileşenlerin YAPISI. YALNIZ semantik ve
   bileşen token'ı kullanır; hex/rgb/hsl renk literali YASAK.
 - `wwwroot/css/tema-<ad>.css` — dosyanın İLK `:root { }` bloğu **primitive**'ler (renk literalleri YALNIZ
-  burada), ardından `:root` semantik + bileşen token'ları, `@media (prefers-color-scheme: dark)` semantik
-  ezmeleri (yalnız primitive'lere referans), sonra temaya özgü slot stilleri.
-- Sayfaya yalnız `base.css` + aktif tema css'i yüklenir (parmak izli). BrandPalette çıktısı tema css'inden
-  SONRA basılır: `--brand`, `--on-brand`, `--brand-text`, `--brand-soft` her temada firmanın rengidir.
-  Tema `--brand-ink: var(--on-brand)` tanımlar (firma rengi üstündeki yazı).
+  burada), ardından `:root` semantik + bileşen token'ları, `@media (prefers-color-scheme: dark)` ezmeleri,
+  sonra temaya özgü slot stilleri.
+- Sayfaya yalnız `base.css` + aktif tema css'i yüklenir (parmak izli). **Palet bloğu** (`SitePaletteCss`
+  çıktısı) tema css'inden SONRA basılır ve aşağıdaki **palet token'larının** TAMAMINI (açık + koyu) ezer.
+  Tema css'indeki aynı adlı tanımlar yalnız YEDEKTİR (blok basılamazsa) ve varsayılan setle aynı olmalı
+  (yapısal test). Tema `--brand-ink: var(--on-brand)` tanımlar (ana renk üstündeki yazı).
+- **Primitive kuralı:** primitive bloğundan sonra `var(--p-…)` YALNIZ `:root`'taki palet token yedeklerinde ve
+  gerekçeli muafiyetlerde (`--danger --ok` durum renkleri; koyu moddaki siyah `--shadow-1 --shadow-2
+  --ticket-drop`; `--mask-on --mask-off` alfa maskesi) geçebilir. Slot kuralları ve bileşen token'ları
+  (`--board-*`, `--stage-*`, `--logo-plate`, `--field-bg`, `--line-soft` …) semantik token'a bağlanır —
+  `color-mix(in oklab|srgb, …)` serbest — ki palet her şeyi değiştirsin. Açık moddaki gölgeler mürekkep tonunda:
+  `color-mix(in srgb, var(--ink) 30%, transparent)`.
+- **Taşma kuralları** (yapısal test, `PublicSiteThemeContractTests.Overflow`): ızgara izi `minmax(0, Nfr)` —
+  çıplak `1fr`in alt sınırı içeriğin min-content genişliğidir (tarih alanı ~170 px, 320 px'te taşırır);
+  `grid-template-areas` yazan kural sütununu da yazar (örtük sütun `auto`); telefonda tek sütunlu ızgara
+  `minmax(0, 1fr)`; uzun bağlantı metni bölünebilir (`.buyuk-baglanti` base.css'te `overflow-wrap: anywhere`,
+  tema geri almaz); açılışta DÖNEN öğesi olan tema `main { overflow-x: clip }` yazar (salınım ekran kenarını
+  aşar; `clip` kaydırma kabı kurmaz, yapışkan öğe ve dikey taşma etkilenmez).
 
-### Semantik token'lar (her tema HEPSİNİ tanımlar)
+### Palet token'ları (palet bloğu basar; tema css'i yedeğini tanımlar)
 
-`--bg --bg-alt --surface --surface-raised --ink --ink-muted --line --brand --brand-ink --brand-text
---accent --accent-ink --focus --danger --ok --font-display --font-body --step--1 --step-0 --step-1
---step-2 --step-3 --step-4 --step-5 --space-1 … --space-8 --radius-s --radius-m --radius-l --shadow-1
---shadow-2 --measure`
+Şema başına (açık `:root`, koyu `@media (prefers-color-scheme:dark)`): `--bg --bg-alt --surface
+--surface-raised --ink --ink-muted --ink-subtle --line --line-strong --brand --on-brand --brand-text
+--brand-soft --accent --accent-ink`.
 
-base.css ayrıca şunları kullanır — her tema bunları da tanımlar: `--ink-subtle` (ipucu metni, AA),
-`--line-strong` (form/panel çerçevesi), `--on-brand` ve `--brand-soft` (BrandPalette ezer; tema varsayılanı).
+Şemadan bağımsız (yalnız açık blokta; koyu mod da AYNI değeri görür): `--day-bg` (açık şemanın zemini — koyu
+modda logo levhası), `--day-ink` (açık şemanın mürekkebi — iki modda sabit koyu levha/pano), `--night-bg` (koyu
+şemanın zemini — sahne gölgesi), `--night-ink` (koyu şemanın mürekkebi — sabit koyu levha üstündeki yazı).
+
+Her şema bloğu ayrıca `color-scheme: light|dark` yazar — değer ZEMİNDEN (beyaz siyahtan çok kontrast veriyorsa
+koyu). Tema css'indeki `color-scheme` bildirimi yalnız yedektir: koyu kimlikli bir setin açık şeması da koyu
+olduğundan (aşağıda) doğru değer ancak bloktan gelebilir.
+
+Kontrast güvencesi (üretici, tutmayan değeri zıt uca %2 adımla kaydırır; testler bağımsız WCAG hesabıyla
+ölçer): metin 4.5:1 — ink / bg, surface, bg-alt, surface-raised; ink-muted ve ink-subtle / bg, surface, bg-alt;
+brand-text / bg, surface, brand-soft; on-brand / brand; accent-ink / accent. Dolgu 3:1 — brand / bg, surface.
+Açık kimlikli setler için ayrıca night-ink / day-ink 4.5:1 (sabit koyu levha).
+
+### Koyu kimlik ve şemaya bağlı tema token'ları
+
+Bir set `DarkInLightMode = true` bildirirse açık şeması da KOYU olabilir (koyu öncelikli tema; ör. Vitrin'in
+Grafit/Gece mavisi/Bordo/Orman setleri). O sette `--day-*` "açık levha/koyu levha" anlamını taşımaz (gündüz
+zemini koyu, gündüz mürekkebi açık) — böyle setleri olan tema bu sabitleri levha için kullanmaz. Dolgu üstü koyu
+yazı adayı bu sette açık şemanın ZEMİNİDİR (mürekkep açık renk).
+
+Tema css'i hangi setin basıldığını bilemez. Şemanın koyu ya da açık olmasına göre değişmesi gereken tema
+token'ları (fotoğrafsız sahne zemini, logo levhası, alan zemini, durum renkleri) `light-dark(açıkta, koyuda)` ile
+yazılır; seçimi palet bloğunun `color-scheme`'i yapar. Durum renkleri böyle yazılabilir (`--danger:
+light-dark(var(--p-red), var(--p-red-light))`) — yapısal test light-dark'ı setin şemasına göre çözer.
+
+### Diğer semantik token'lar (her tema HEPSİNİ tanımlar)
+
+`--brand-ink --focus --danger --ok --font-display --font-body --step--1 --step-0 --step-1 --step-2 --step-3
+--step-4 --step-5 --space-1 … --space-8 --radius-s --radius-m --radius-l --shadow-1 --shadow-2 --measure`
+(`--focus` = `var(--ink)`; `--danger`/`--ok` her setin zemininde AA olmalı — test).
 
 ### Bileşen token'ları
 
 `--btn-bg --btn-ink --btn-radius --card-bg --card-radius --card-border --field-bg --field-border
---price-ink --price-mark`
+--price-ink --price-mark` (+ temanın kendi bileşen token'ları; hepsi semantik token'a bağlı).
 
 ### Güvenlik
 
-`FleetBranding.VurguRengi` ham DB değeridir; ASLA doğrudan stile/özniteliğe basılmaz — yalnız
-`BrandPalette.Css(...)` çıktısı basılır (CSP `style-src 'unsafe-inline'` olduğundan tek savunma bu).
+`FleetBranding.VurguRengi`, `FleetBranding.Paleti` ve `?palet=` / `?renk=` ham değerdir; ASLA doğrudan
+stile/özniteliğe basılmaz — yalnız `SitePaletteCss` çıktısı basılır (renkler `Rgb`'den yeniden yazılır, palet
+anahtarı yalnız kayıt aramasında kullanılır). CSP `style-src 'unsafe-inline'` olduğundan tek savunma bu.
+
+## Palet sistemi — tema PR'ları için set tanımlama kılavuzu
+
+1. Setler temanın klasöründe: `Components/Themes/<Ad>/<Ad>Palettes.cs` →
+   `public static readonly IReadOnlyList<SitePalette> All = [...]`; kayıtta `Palettes = <Ad>Palettes.All`.
+   İLK set varsayılandır. 4–5 set hedeflenir.
+2. Set: `new SitePalette("anahtar", "Görünen ad", Light, Dark)`; anahtar `^[a-z0-9-]{1,30}$`, tema içinde
+   tekil, KALICI (DB + adres). Şema: `new SchemeColors(Bg, Surface, Ink, Primary, Accent)` — hepsi küçük harf
+   `#rrggbb`. `Accent` null → vurgu ana rengi izler (firma kendi rengini seçince o da değişir). Koyu şemanın
+   zemini mürekkepten koyu; açık şemanınki açık — set `DarkInLightMode = true` ile koyu kimlik bildirmedikçe
+   (bildirirse açık şema da koyu olmalı; test iki yönü de denetler). Her şema kendi `Primary`'sini taşır;
+   firmanın "kendi ana rengim"i ikisini de ezer.
+3. Türetilen tonlar (ikinci zemin, yükseltilmiş yüzey, ikincil/ipucu metni, çizgiler, hafif ton, vurgu üstü
+   yazı) otomatik. Elle ince ayar istenirse init özellikleri: `BgAlt SurfaceRaised InkMuted InkSubtle Line
+   LineStrong AccentInk` — bunlar da güvenceden geçer (tutmayan değer düzeltilir, basılmaz).
+4. Aynı satırı `Application/TenantSettings/SitePaletteKeys.cs` → `ByTheme[<tema anahtarı>]`'na ekle:
+   `new(Key, Ad, Zemin = Light.Bg, Murekkep = Light.Ink, Ana = Light.Primary, Vurgu = Light.Accent, GeceZemin =
+   Dark.Bg)` — ERP kartları ve API aitlik doğrulaması bunu kullanır. `Palet_setleri_ve_ayar_anahtarlari_ayni`
+   uyuşmazlıkta beklenen satırı yazar.
+5. Tema css'indeki palet token yedekleri varsayılan setin değerleriyle aynı olmalı
+   (`Tema_css_yedekleri_varsayilan_setle_ayni`); `--day-*`/`--night-*` yedekleri de.
+6. Doğrulama: `SitePaletteCssTests` (her set × iki şema AA, 216 renk ızgarası özel ana renk olarak her setin
+   zemininde), `PublicSiteThemeContractTests` (primitive kuralı, durum renkleri her sette AA). Ekran görüntüsü
+   için `?tema=<ad>&palet=<set>&renk=%23rrggbb`.
 
 ## Yapısal testler
 
 `PublicSiteThemeContractTests`: base.css'te renk literali yok; her tema tüm token'ları tanımlar; literaller
-yalnız primitive bloğunda; 3 tema × (/, /musaitlik, ilan detay, /iletisim, 404) durum kodu + satır içi betik
-yok + dış kaynak yok; önizleme noindex; `--ink`/`--bg` ve `--brand-ink`/`--brand` AA (bağımsız hesap).
+yalnız primitive bloğunda; primitive referansı yalnız palet yedeklerinde/muafiyetlerde; kayıt =
+`SiteThemeKeys.All`, her temanın yedi slot tipi dolu ve `[Parameter]` imzaları sözleşmeyle aynı; eski anahtar
+eşlemesi; palet setleri ↔ `SitePaletteKeys` birebir; css yedekleri = varsayılan set; durum renkleri her sette
+AA; 3 tema × (/, /musaitlik, tarihli arama, yayındaki ilan detayı, /iletisim, yayında olmayan ilan 404,
+eşleşmeyen adres 404) durum kodu + `data-tema` + satır içi betik yok + dış kaynak yok + görünen SSS adedi =
+FAQPage adedi; önizleme (`?tema` — `?tema=tarife` → `pazar` —, `?palet`, `?renk`) noindex + geçersiz değer yok
+sayılır + 404 taşır; kayıtlı set/renk basılır, temaya ait olmayan set varsayılana düşer; taşma kuralları
+(çıplak `fr` izi yok, alan şablonlu ızgara sütununu yazar, tek sütunlu ızgaralar `minmax(0, 1fr)`, büyük
+bağlantı bölünebilir, dönen anahtar kare → `main` yatayda kırpar). Migration:
+`SiteThemeKeyMigrationTests`. `SitePaletteCssTests`: üreticinin AA değişmezleri (her tema × her set × iki
+şema, 216 renk ızgarası), varsayılan setlerin bugünkü renkleri, enjeksiyon denemeleri varsayılana düşer, çıktı
+yalnız `#rrggbb`.

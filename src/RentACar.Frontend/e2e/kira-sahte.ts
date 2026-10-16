@@ -177,6 +177,15 @@ export const DETAIL = {
   toplamlar: { ekHizmetToplam: 180, cezaToplam: 250 },
 };
 
+/** KABİS kartı: firma otomatik bildirimi kapalı (kart yalnız bilgi notu gösterir). */
+export const KABIS_STATUS = {
+  etkin: false,
+  teslimiEngelle: false,
+  kurum: 'Emniyet',
+  bildirimler: [],
+  uyari: null,
+};
+
 /** F4.3b müşteri özeti — TC hiç gelmez; ehliyet/pasaport no sunucudan MASKELİ (SPA düz numara görmez). */
 export const CUSTOMER_SUMMARY = {
   id: MUSTERI_ID,
@@ -266,6 +275,7 @@ export async function fakeRentalApi(page: Page, { yazma }: Sahte = {}): Promise<
     if (path === '/musait-arac') return route.fulfill({ json: AVAILABLE });
     if (path === '/ek-hizmet-katalogu') return route.fulfill({ json: CATALOG });
     if (path === `/${RENTAL_ID}/musteri-ozet`) return route.fulfill({ json: CUSTOMER_SUMMARY });
+    if (path === `/${RENTAL_ID}/kabis`) return route.fulfill({ json: KABIS_STATUS });
     if (path === '/hesapla') {
       calculationQueries.push(url.search);
       return route.fulfill({ json: CALCULATION });

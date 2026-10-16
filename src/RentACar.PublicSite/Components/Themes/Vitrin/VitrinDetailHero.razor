@@ -1,0 +1,89 @@
+@* Tema "vitrin" — DetailHero slotu. İmza SABİT (Components/Themes/README.md): Model (DetailHeroModel).
+
+   TAM GENİŞLİK GALERİ: ilanın fotoğrafları sayfa kenarından kenarına yana akan bir şeritte (CSS scroll-snap, JS
+   yok). Şerit odaklanabilir bölge (tabindex=0 + aria-label): ok tuşlarıyla kayar. Tek fotoğrafta şerit yok, kapak
+   tam genişlik. FOTOĞRAF YOKSA koyu zemin üstünde büyük model adı (süs, aria-hidden; asıl ad h1'de).
+
+   Altında iki kolon: solda ad (tek h1) + model bilgisi + günlük fiyat; sağda tarife paneli (satırlar ve gün başı
+   yuvarlaması sayfadan — tema hesap yapmaz), eylemler ve ORTAK tarih formu (/musaitlik'e `ilan` ile gider).
+   Telefonda başlığın hemen altında "Teklif iste" (ilk ekranda karar düğmesi; genişte panel yanda).
+
+   GÖRSEL: kapak LCP adayı → tembel DEĞİL, `fetchpriority="high"`, boyut öznitelikleri 3:2 (CLS yok). Diğerleri
+   tembel; alt metinleri ayrı ("… fotoğraf 2"). *@
+
+<section class="v-detay" aria-labelledby="detay-baslik">
+    @if (Model.Ilan.PhotoIds.Count > 1)
+    {
+        <div class="v-galeri" role="region" tabindex="0"
+             aria-label="@($"{Model.Ilan.Baslik} fotoğrafları, {Model.Ilan.PhotoIds.Count} fotoğraf, yana kaydırılır")">
+            <ul class="v-galeri-liste">
+                @for (var i = 0; i < Model.Ilan.PhotoIds.Count; i++)
+                {
+                    var id = Model.Ilan.PhotoIds[i];
+                    <li class="v-galeri-oge">
+                        <img src="@($"/foto/{id}")" srcset="@($"/foto/{id}/thumb 400w, /foto/{id} 1600w")"
+                             sizes="(min-width: 720px) 66vw, 88vw" width="1200" height="800"
+                             alt="@(i == 0 ? Model.Ilan.Baslik : $"{Model.Ilan.Baslik}, fotoğraf {i + 1}")"
+                             loading="@(i == 0 ? "eager" : "lazy")" fetchpriority="@(i == 0 ? "high" : null)" decoding="async" />
+                    </li>
+                }
+            </ul>
+        </div>
+    }
+    else if (Model.Ilan.PhotoIds.Count == 1)
+    {
+        var cover = Model.Ilan.PhotoIds[0];
+        <figure class="v-galeri-tek">
+            <img src="@($"/foto/{cover}")" srcset="@($"/foto/{cover}/thumb 400w, /foto/{cover} 1600w")" sizes="100vw"
+                 width="1200" height="800" alt="@Model.Ilan.Baslik" fetchpriority="high" decoding="async" />
+        </figure>
+    }
+    else
+    {
+        <div class="v-galeri-yok" aria-hidden="true"><span class="wrap">@Model.Ilan.Baslik</span></div>
+    }
+
+    <div class="wrap v-detay-ic">
+        <header class="v-detay-bas">
+            <h1 id="detay-baslik">@Model.Ilan.Baslik</h1>
+            @if (Model.MetaSatiri is { Length: > 0 } meta) { <p class="v-detay-meta">@meta</p> }
+            <p class="fis-toplam v-detay-fiyat">
+                <span class="tutar">@PriceText.Tl(Model.Ilan.GunlukFiyat)</span><span class="birim">/ gün</span>
+                <span class="kdv">@Model.KdvMetni</span>
+            </p>
+            <a class="btn btn-brand v-detay-hizli" href="@Model.TeklifLinki">Teklif iste</a>
+        </header>
+
+        <aside class="panel v-panel" aria-labelledby="tarife-baslik">
+            <h2 id="tarife-baslik">Tarife</h2>
+            <table class="tarife-tablo">
+                <caption class="gorunmez">@Model.Ilan.Baslik kiralama fiyatları</caption>
+                <tbody>
+                    @foreach (var rate in Model.Tarife)
+                    {
+                        <tr>
+                            <th scope="row">@rate.Etiket</th>
+                            <td><strong>@PriceText.Tl(rate.Tutar)</strong><small>@(rate.GunBasi is { } perDay ? $"gün başı {PriceText.Tl(perDay)}" : Model.KdvMetni)</small></td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+            <div class="panel-eylem">
+                <a class="btn btn-brand btn-genis" href="@Model.TeklifLinki">Teklif iste</a>
+                @if (Model.WaLinki is not null)
+                {
+                    <a class="btn btn-cizgi btn-genis" href="@Model.WaLinki" target="_blank" rel="noopener noreferrer">WhatsApp'tan sorun</a>
+                }
+            </div>
+            <AramaFormu Hedef="/musaitlik" Ilan="@Model.Ilan.Slug" Subeler="Model.SubeAdlari"
+                        ButonMetni="Tarihlerime göre fiyatı gör" AriaLabel="Bu araç için tarih seç" />
+            @* Sistemin davranışı, firma taahhüdü DEĞİL: talep bir lead kaydıdır (PublicBookingRequest). *@
+            <p class="panel-not">Teklif istemek ücretsizdir ve sizi bağlamaz; talebiniz bir rezervasyon
+                değil, ekibin size dönmesi için bir kayıttır.</p>
+        </aside>
+    </div>
+</section>
+
+@code {
+    [Parameter, EditorRequired] public DetailHeroModel Model { get; set; } = default!;
+}

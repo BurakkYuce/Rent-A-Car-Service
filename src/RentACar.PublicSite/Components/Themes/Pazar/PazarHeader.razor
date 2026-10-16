@@ -1,0 +1,46 @@
+@using RentACar.Application.Fleet
+
+@* Tema "pazar" — Header slotu. İmza SABİT (Components/Themes/README.md): Branding, Nav.
+
+   Telefon müşterisi için: numara üst barda DOLU düğme, metin olarak da görünür (`tel:` açamayan masaüstünde de
+   işe yarar); WhatsApp yanında. Telefonda numara görsel olarak gizlenir ("Ara" kalır) ama erişilebilir adda kalır
+   (görünen etiket adın parçası, WCAG 2.5.3); WhatsApp telefonda alt eylem çubuğunda (MainLayout). Menü <details>
+   (JS yok). Kanal yoksa düğmesi basılmaz (T2). *@
+
+<header class="bar">
+    <div class="wrap bar-ic">
+        <a class="marka" href="/" aria-label="@($"{Name} ana sayfa")">
+            <BrandMark Name="@Name" LogoVersion="@Branding?.LogoSurum" />
+        </a>
+        <nav class="nav-genis" aria-label="Ana menü">
+            @foreach (var n in Nav) { <a href="@n.Href">@n.Label</a> }
+        </nav>
+        @if (_contact.WaLink is not null)
+        {
+            <a class="btn btn-cizgi pz-bar-wa" href="@_contact.WaLink" target="_blank" rel="noopener noreferrer">WhatsApp</a>
+        }
+        @if (_contact.TelLink is not null)
+        {
+            <a class="btn btn-brand pz-bar-tel" href="@_contact.TelLink">Ara<span class="pz-bar-no"> @_contact.Phone</span></a>
+        }
+        <details class="menu">
+            <summary>Menü</summary>
+            <ul class="menu-liste">
+                <li><a href="/">Ana sayfa</a></li>
+                @foreach (var n in Nav) { <li><a href="@n.Href">@n.Label</a></li> }
+            </ul>
+        </details>
+    </div>
+</header>
+
+@code {
+    /// <summary>Firma bilgisi (ad, logo sürümü, iletişim). Null → nötr kabuk.</summary>
+    [Parameter] public FleetBranding? Branding { get; set; }
+    /// <summary>Ana menü bağlantıları ("Ana sayfa" hariç; veri yoksa SSS/Blog listede yok).</summary>
+    [Parameter] public IReadOnlyList<SiteLink> Nav { get; set; } = [];
+
+    private ContactLinks _contact = ContactLinks.From(null);
+    private string Name => string.IsNullOrWhiteSpace(Branding?.Marka) ? "RentPro" : Branding!.Marka!;
+
+    protected override void OnParametersSet() => _contact = ContactLinks.From(Branding, Name);
+}

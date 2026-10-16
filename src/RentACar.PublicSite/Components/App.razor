@@ -16,8 +16,9 @@
     {
         <link rel="canonical" href="@_canonical" />
     }
-    <meta name="theme-color" content="@_theme.ThemeColorLight" media="(prefers-color-scheme: light)" />
-    <meta name="theme-color" content="@_theme.ThemeColorDark" media="(prefers-color-scheme: dark)" />
+    @* Tarayıcı çubuğu rengi paletin zemininden (Rgb'den yazılmış hex; ham ayar değil). *@
+    <meta name="theme-color" content="@_palette.Light.Bg.Hex" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="@_palette.Dark.Bg.Hex" media="(prefers-color-scheme: dark)" />
 
     @* YAZI TİPLERİ aktif temadan (SiteTheme.Fonts). @font-face bu <style> içinde, CSS dosyasında DEĞİL:
        adresler `@Assets[...]` ile PARMAK İZLİ basılır (bir yıl `immutable`) ve önyükleme adresiyle BİREBİR
@@ -36,11 +37,11 @@
        semantic → component + slot stilleri). Sözleşme: Components/Themes/README.md. *@
     <link rel="stylesheet" href="@Assets["css/base.css"]" />
     <link rel="stylesheet" href="@Assets[_theme.CssPath]" />
-    @* Firma vurgu rengi — tema css'inden SONRA (aynı özgüllükte sonraki kazanır): --brand/--on-brand/
-       --brand-text/--brand-soft her temada firmanın rengidir. YALNIZ BrandPalette çıktısı basılır; ham
-       ayar değeri (FleetBranding.VurguRengi) ASLA doğrudan stile yazılmaz — CSP style-src 'unsafe-inline'
-       olduğundan tek savunma bu. Firma renk seçmediyse temanın varsayılan vurgusu. *@
-    <style>@((MarkupString)_brandCss)</style>
+    @* Palet — tema css'inden SONRA (aynı özgüllükte sonraki kazanır): semantik renk token'larının TAMAMI
+       (zemin, yüzey, mürekkep, çizgi, firma rengi, vurgu; açık + koyu) ve şemadan bağımsız --day-*/--night-*
+       paletten gelir. YALNIZ SitePaletteCss çıktısı basılır; ham ayar/sorgu değeri (SitePaleti, VurguRengi,
+       ?palet=, ?renk=) ASLA doğrudan stile yazılmaz — CSP style-src 'unsafe-inline' olduğundan tek savunma bu. *@
+    <style>@((MarkupString)_paletteCss)</style>
     <HeadOutlet />
 </head>
 
@@ -57,8 +58,9 @@
 
 @code {
     private string? _canonical;
-    private SiteTheme _theme = SiteThemes.Tarife;
-    private string _brandCss = BrandPalette.Css(null);
+    private SiteTheme _theme = SiteThemes.Pazar;
+    private PaletteTokens _palette = SitePaletteCss.Tokens(SiteThemes.Pazar, null, null);
+    private string _paletteCss = "";
 
     /// <summary>@font-face kuralları — değerler yalnız tema KAYDINDAN (sabit kod), kullanıcı verisi yok.</summary>
     private string FontFaceCss() => string.Concat(_theme.Fonts.Select(f =>
@@ -67,17 +69,12 @@
 
     protected override async Task OnInitializedAsync()
     {
-        _theme = await Themes.GetAsync();
-        _brandCss = BrandPalette.Css(_theme.DefaultBrand);
-        try
-        {
-            if ((await Showcase.GetBrandingAsync()).VurguRengi is { Length: > 0 } accent)
-                _brandCss = BrandPalette.Css(accent);
-        }
-        catch
-        {
-            // Marka çözülemedi (alan adı çözülmemiş / site kapalı) → temanın varsayılan rengi. Sayfa YİNE basılır.
-        }
+        // Görünüm (tema + palet + özel ana renk) ThemeAccessor'da çözülür; marka çözülemezse (alan adı çözülmemiş /
+        // site kapalı) temanın varsayılan seti. Sayfa YİNE basılır.
+        var appearance = await Themes.GetAppearanceAsync();
+        _theme = appearance.Theme;
+        _palette = SitePaletteCss.Tokens(appearance.Palette, appearance.CustomPrimary);
+        _paletteCss = SitePaletteCss.Css(_palette);
 
         try
         {

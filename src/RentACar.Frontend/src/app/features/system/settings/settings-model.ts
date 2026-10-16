@@ -1,4 +1,5 @@
 import type { Schema } from '@core/api/ui-tipleri';
+import { trSearchKey } from '@core/metin/tr-normalize';
 
 export type SettingsDto = Schema<'SettingsDto'>;
 export type SettingsRequest = Schema<'SettingsRequest'>;
@@ -79,6 +80,7 @@ export const SETTINGS_FIELDS = [
   ...COLOR_FIELDS,
   'siteVurguRengi',
   'siteTemasi',
+  'sitePaleti',
   'smtpHost',
   'smtpPort',
   'smtpKullanici',
@@ -110,18 +112,81 @@ export const PRICE_TYPES = [
 ] as const;
 
 /**
- * Halka açık site temaları (`SiteThemeKeys.All`; sunucu yalnız bunları kabul eder). Boş = varsayılan (tarife);
- * formda boş seçenek yok, yüklenen null değer "tarife" gibi gösterilir.
+ * Halka açık site temaları (`SiteThemeKeys.All`; sunucu yalnız bunları saklar). Boş = varsayılan (pazar);
+ * formda boş seçenek yok, yüklenen null değer "pazar" gibi gösterilir.
  */
-export const SITE_THEMES = ['tarife', 'vitrin', 'kontuar'] as const;
+export const SITE_THEMES = ['pazar', 'vitrin', 'rota'] as const;
 export type SiteTheme = (typeof SITE_THEMES)[number];
 
+export type SitePaletteOption = Schema<'SitePaletteOptionDto'>;
+
+/** Kesin `#rrggbb` (sunucunun ve sitenin kuralı); başka her şey site önizlemesinde yok sayılır. */
+const HEX_COLOR = /^#[0-9a-fA-F]{6}$/;
+
+export function isHexColor(value: unknown): value is string {
+  return typeof value === 'string' && HEX_COLOR.test(value);
+}
+
+/** Eski anahtar → yeni (`SiteThemeKeys.LegacyAliases`; sunucu da aynı eşlemeyle normalize eder). */
+const LEGACY_SITE_THEMES: Readonly<Partial<Record<string, SiteTheme>>> = {
+  tarife: 'pazar',
+  kontuar: 'rota',
+};
+
 /**
- * Önizleme adresi: firmanın sitesinde `?tema=` (kalıcı değil, arama motoruna kapalı). Şema-göreli (`//host`):
- * ERP ile site aynı şemayla (üretimde https) yayında; mutlak http(s) adres SPA'da lint ile yasak.
+ * Sunucudaki tema değeri → radyo seçimi: boş → varsayılan (site onu basıyor), eski anahtar → yeni karşılığı
+ * (göç öncesi okunmuş ya da elle yazılmış değer de seçili görünsün). Tanınmayan değer aynen kalır.
  */
-export function themePreviewUrl(host: string, theme: SiteTheme): string {
-  return `//${host}/?tema=${encodeURIComponent(theme)}`;
+export function siteThemeFormValue(value: unknown): unknown {
+  if (value === null || value === undefined || value === '') return SITE_THEMES[0];
+  if (typeof value !== 'string') return value;
+  // Anahtarlar ASCII: "TARIFE"/"VITRIN" Türkçe küçültmede ı'ya düşer; arama anahtarı onu i'ye çevirir
+  // (sunucunun ToLowerInvariant'ıyla aynı sonuç).
+  const key = trSearchKey(value);
+  if ((SITE_THEMES as readonly string[]).includes(key)) return key;
+  return LEGACY_SITE_THEMES[key] ?? value;
+}
+
+/**
+ * Temanın palet setleri (sunucu kataloğu `sitePaletSecenekleri`; ilk = varsayılan). Boş tema = varsayılan tema
+ * (`SITE_THEMES[0]`). Katalog henüz yüklenmediyse boş liste.
+ */
+export function palettesFor(
+  dto: SettingsDto | null,
+  theme: string | null | undefined,
+): readonly SitePaletteOption[] {
+  const key = theme || SITE_THEMES[0];
+  return dto?.sitePaletSecenekleri?.find((t) => t.tema === key)?.paletler ?? [];
+}
+
+/**
+ * Tema değişince palet seçimi: yeni temanın setlerinden biriyse korunur, değilse TEMİZLENİR (`null` = temanın
+ * varsayılan seti) — sunucu temaya ait olmayan seti 400 `errors.sitePaleti` ile reddeder. Katalog yoksa dokunulmaz.
+ */
+export function paletteAfterThemeChange(
+  current: unknown,
+  palettes: readonly SitePaletteOption[],
+): string | null {
+  if (typeof current !== 'string' || current === '') return null;
+  if (palettes.length === 0) return current;
+  return palettes.some((p) => p.anahtar === current) ? current : null;
+}
+
+/**
+ * Önizleme adresi: firmanın sitesinde `?tema=` + (seçiliyse) `&palet=` + (geçerliyse) `&renk=%23rrggbb` — kalıcı
+ * değil, arama motoruna kapalı. Şema-göreli (`//host`): ERP ile site aynı şemayla (üretimde https) yayında; mutlak
+ * http(s) adres SPA'da lint ile yasak. Biçimsiz renk gönderilmez (site zaten yok sayar).
+ */
+export function themePreviewUrl(
+  host: string,
+  theme: string,
+  palette?: string | null,
+  color?: unknown,
+): string {
+  let url = `//${host}/?tema=${encodeURIComponent(theme)}`;
+  if (palette) url += `&palet=${encodeURIComponent(palette)}`;
+  if (isHexColor(color)) url += `&renk=${encodeURIComponent(color)}`;
+  return url;
 }
 
 /** `SmtpEndpointGuard.AllowedPorts` (sunucu yalnız bunları kabul eder). */
@@ -161,8 +226,8 @@ export function settingsFormValue(
     out[name] = (SECRET_FIELDS as readonly string[]).includes(name) ? null : (source[name] ?? null);
   }
   for (const flag of CLEAR_FLAG_NAMES) out[flag] = false;
-  // Kayıtlı tema yoksa site varsayılanı (tarife) basıyor: radyo da onu seçili göstersin.
-  out.siteTemasi = out.siteTemasi ?? SITE_THEMES[0];
+  // Kayıtlı tema yoksa site varsayılanı (pazar) basıyor: radyo da onu seçili göstersin; eski anahtar yeni karşılığı.
+  out.siteTemasi = siteThemeFormValue(out.siteTemasi);
   return out;
 }
 

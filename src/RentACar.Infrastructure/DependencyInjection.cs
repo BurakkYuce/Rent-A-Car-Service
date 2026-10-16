@@ -157,6 +157,7 @@ public static class DependencyInjection
             Persistence.Repositories.TenantSettingsRepository>();
         services.AddScoped<RentACar.Application.Notifications.IMessageRepository,
             Persistence.Repositories.MessageRepository>();
+        services.AddScoped<RentACar.Application.Kabis.IKabisRepository, Persistence.Repositories.KabisRepository>();
         // F11.1b — tam değiştirme PUT'larının sürüm deposu (iş/job yolu uygulamaları sürüm bilmez; ayrı sözleşme)
         services.AddScoped<RentACar.Application.TenantSettings.ITenantSettingsVersionStore,
             Persistence.Repositories.TenantSettingsRepository>();

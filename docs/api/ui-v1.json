@@ -2737,6 +2737,257 @@
         }
       }
     },
+    "/api/ui/v1/kiralar/{id}/kabis": {
+      "get": {
+        "tags": [
+          "KAB\u0130S"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/KabisDurumDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/ui/v1/kiralar/{id}/kabis/{tur}/yeniden-dene": {
+      "post": {
+        "tags": [
+          "KAB\u0130S"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "tur",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/KabisDurumDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/ui/v1/kiralar/{id}/kabis/{tur}/gerekli-degil": {
+      "post": {
+        "tags": [
+          "KAB\u0130S"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "tur",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/KabisGerekceIstegi"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/KabisDurumDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/ui/v1/kiralar/{id}/kabis/{tur}/elle-bildirildi": {
+      "post": {
+        "tags": [
+          "KAB\u0130S"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "tur",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/KabisElleIstegi"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/KabisDurumDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/ui/v1/kabis/bildirilemeyenler": {
+      "get": {
+        "tags": [
+          "KAB\u0130S"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/KabisSorunSatiri"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/ui/v1/ayarlar/kabis": {
+      "get": {
+        "tags": [
+          "Sistem"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/KabisAyarDto"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Sistem"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/KabisAyarIstegi"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/KabisAyarDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/ui/v1/ayarlar/kabis/baglanti-testi": {
+      "post": {
+        "tags": [
+          "Sistem"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/KabisBaglantiTestiDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/ui/v1/rezervasyonlar": {
       "get": {
         "tags": [
@@ -47321,6 +47572,308 @@
           }
         }
       },
+      "KabisAyarDto": {
+        "required": [
+          "etkin",
+          "kurum",
+          "kullanici",
+          "sifreTanimli",
+          "teslimiEngelle",
+          "surum"
+        ],
+        "type": "object",
+        "properties": {
+          "etkin": {
+            "type": "boolean"
+          },
+          "kurum": {
+            "type": "string"
+          },
+          "kullanici": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "sifreTanimli": {
+            "type": "boolean"
+          },
+          "teslimiEngelle": {
+            "type": "boolean"
+          },
+          "surum": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
+      "KabisAyarIstegi": {
+        "required": [
+          "etkin",
+          "kurum",
+          "kullanici",
+          "sifre",
+          "sifreTemizle",
+          "teslimiEngelle",
+          "surum"
+        ],
+        "type": "object",
+        "properties": {
+          "etkin": {
+            "type": "boolean"
+          },
+          "kurum": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "kullanici": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "sifre": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "sifreTemizle": {
+            "type": "boolean"
+          },
+          "teslimiEngelle": {
+            "type": "boolean"
+          },
+          "surum": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
+      "KabisBaglantiTestiDto": {
+        "required": [
+          "ok",
+          "mesaj"
+        ],
+        "type": "object",
+        "properties": {
+          "ok": {
+            "type": "boolean"
+          },
+          "mesaj": {
+            "type": "string"
+          }
+        }
+      },
+      "KabisBildirimDto": {
+        "required": [
+          "tur",
+          "durum",
+          "kurum",
+          "olayUtc",
+          "denemeSayisi",
+          "sonHata",
+          "disReferans",
+          "elle",
+          "gerekce",
+          "sonDenemeUtc",
+          "sonrakiDenemeUtc",
+          "bildirimUtc"
+        ],
+        "type": "object",
+        "properties": {
+          "tur": {
+            "type": "string"
+          },
+          "durum": {
+            "type": "string"
+          },
+          "kurum": {
+            "type": "string"
+          },
+          "olayUtc": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "denemeSayisi": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "sonHata": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "disReferans": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "elle": {
+            "type": "boolean"
+          },
+          "gerekce": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "sonDenemeUtc": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "sonrakiDenemeUtc": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "bildirimUtc": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          }
+        }
+      },
+      "KabisDurumDto": {
+        "required": [
+          "etkin",
+          "teslimiEngelle",
+          "kurum",
+          "bildirimler",
+          "uyari"
+        ],
+        "type": "object",
+        "properties": {
+          "etkin": {
+            "type": "boolean"
+          },
+          "teslimiEngelle": {
+            "type": "boolean"
+          },
+          "kurum": {
+            "type": "string"
+          },
+          "bildirimler": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/KabisBildirimDto"
+            }
+          },
+          "uyari": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
+      "KabisElleIstegi": {
+        "required": [
+          "referans"
+        ],
+        "type": "object",
+        "properties": {
+          "referans": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
+      "KabisGerekceIstegi": {
+        "required": [
+          "gerekce"
+        ],
+        "type": "object",
+        "properties": {
+          "gerekce": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
+      "KabisSorunSatiri": {
+        "required": [
+          "kiraId",
+          "sozlesmeNo",
+          "plaka",
+          "tur",
+          "durum",
+          "denemeSayisi",
+          "sonHata",
+          "olayUtc",
+          "sonDenemeUtc"
+        ],
+        "type": "object",
+        "properties": {
+          "kiraId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "sozlesmeNo": {
+            "type": "string"
+          },
+          "plaka": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "tur": {
+            "type": "string"
+          },
+          "durum": {
+            "type": "string"
+          },
+          "denemeSayisi": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "sonHata": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "olayUtc": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "sonDenemeUtc": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          }
+        }
+      },
       "KalintiProjeksiyonDto": {
         "required": [
           "yillikOran",
@@ -55299,7 +55852,8 @@
           "acikRezervasyon",
           "kmGecenBakim",
           "gorulmeyenRezervasyon",
-          "siteTalebi"
+          "siteTalebi",
+          "kabisBildirilemeyen"
         ],
         "type": "object",
         "properties": {
@@ -55368,6 +55922,15 @@
                 "$ref": "#/components/schemas/SiteTalebiOzeti"
               }
             ]
+          },
+          "kabisBildirilemeyen": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
           }
         }
       },
@@ -70018,6 +70581,18 @@
               "string"
             ]
           },
+          "sitePaleti": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "sitePaletSecenekleri": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SiteThemePalettesDto"
+            }
+          },
           "donemselFaturalamaJob": {
             "type": "boolean"
           },
@@ -70367,6 +70942,12 @@
             ]
           },
           "siteTemasi": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "sitePaleti": {
             "type": [
               "null",
               "string"
@@ -70940,6 +71521,44 @@
           }
         }
       },
+      "SitePaletteOptionDto": {
+        "required": [
+          "anahtar",
+          "ad",
+          "zemin",
+          "murekkep",
+          "ana",
+          "vurgu",
+          "geceZemin"
+        ],
+        "type": "object",
+        "properties": {
+          "anahtar": {
+            "type": "string"
+          },
+          "ad": {
+            "type": "string"
+          },
+          "zemin": {
+            "type": "string"
+          },
+          "murekkep": {
+            "type": "string"
+          },
+          "ana": {
+            "type": "string"
+          },
+          "vurgu": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "geceZemin": {
+            "type": "string"
+          }
+        }
+      },
       "SiteTalebiOzeti": {
         "required": [
           "yeni",
@@ -70963,6 +71582,24 @@
               "string"
             ],
             "format": "int32"
+          }
+        }
+      },
+      "SiteThemePalettesDto": {
+        "required": [
+          "tema",
+          "paletler"
+        ],
+        "type": "object",
+        "properties": {
+          "tema": {
+            "type": "string"
+          },
+          "paletler": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SitePaletteOptionDto"
+            }
           }
         }
       },
@@ -74356,6 +74993,9 @@
     },
     {
       "name": "Kira"
+    },
+    {
+      "name": "KAB\u0130S"
     },
     {
       "name": "Rezervasyon"

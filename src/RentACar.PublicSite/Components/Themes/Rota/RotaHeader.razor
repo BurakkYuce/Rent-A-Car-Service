@@ -1,0 +1,40 @@
+@using RentACar.Application.Fleet
+
+@* Tema "rota" — Header slotu. İmza SABİT (Components/Themes/README.md): Branding, Nav.
+
+   Sakin bir künye satırı: marka solda, menü ve telefon sağda, altında tek ince çizgi. Yapışkan DEĞİL
+   (editoryal sayfa: okurken üstte sabit bir şerit yer kaplamasın). Telefon METİN olarak da görünür — `tel:`
+   açamayan masaüstünde de okunur. MOBİL: menü <details> (JS yok); Ara / WhatsApp alt eylem çubuğunda. *@
+<header class="rt-bar">
+    <div class="wrap rt-bar-ic">
+        <a class="rt-marka" href="/" aria-label="@($"{Name} ana sayfa")">
+            <BrandMark Name="@Name" LogoVersion="@Branding?.LogoSurum" />
+        </a>
+        <nav class="rt-nav" aria-label="Ana menü">
+            @foreach (var n in Nav) { <a href="@n.Href">@n.Label</a> }
+        </nav>
+        @if (_contact.TelLink is not null)
+        {
+            <a class="rt-bar-tel" href="@_contact.TelLink">@_contact.Phone</a>
+        }
+        <details class="rt-menu">
+            <summary>Menü</summary>
+            <ul>
+                <li><a href="/">Ana sayfa</a></li>
+                @foreach (var n in Nav) { <li><a href="@n.Href">@n.Label</a></li> }
+            </ul>
+        </details>
+    </div>
+</header>
+
+@code {
+    /// <summary>Firma bilgisi (ad, logo sürümü, iletişim). Null → nötr kabuk.</summary>
+    [Parameter] public FleetBranding? Branding { get; set; }
+    /// <summary>Ana menü bağlantıları ("Ana sayfa" hariç).</summary>
+    [Parameter] public IReadOnlyList<SiteLink> Nav { get; set; } = [];
+
+    private ContactLinks _contact = ContactLinks.From(null);
+    private string Name => string.IsNullOrWhiteSpace(Branding?.Marka) ? "RentPro" : Branding!.Marka!;
+
+    protected override void OnParametersSet() => _contact = ContactLinks.From(Branding, Name);
+}

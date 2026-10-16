@@ -1,0 +1,497 @@
+/* PRIMITIVE — ham değerler. Renk literalleri YALNIZ bu ilk :root bloğunda (yapısal test kilitler).
+   Palet renkleri (zemin, mürekkep, çizgi, ana renk, vurgu) yalnız YEDEK: asıl değerler App.razor'daki palet
+   bloğundan gelir (SitePaletteCss). Buradaki değerler varsayılan set "domates" ile BİREBİR (PazarPalettes.cs). */
+:root {
+  --p-bg: #edf0f2;
+  --p-bg-alt: #e1e5e9;
+  --p-surface: #ffffff;
+  --p-ink: #1b1d22;
+  --p-ink-muted: #454a53;
+  --p-ink-subtle: #5a5f69;
+  --p-line: #c8cdd3;
+  --p-line-strong: #8b919a;
+  --p-tomato: #d42a1c;          /* ana renk: zeminde 4.4:1, beyaz yazı 5.1:1 */
+  --p-tomato-text: #bb2519;
+  --p-tomato-soft: #ead8d8;
+  --p-white: #ffffff;
+  --p-sunflower: #ffc928;       /* etiket kartonu — METİN rengi olarak ASLA */
+  --p-night: #16171a;
+  --p-night-alt: #1c1d21;
+  --p-night-surface: #1f2125;
+  --p-night-raised: #27292d;
+  --p-fog: #eef0f2;
+  --p-fog-muted: #bcc1c8;
+  --p-fog-subtle: #9ca2ab;
+  --p-night-line: #32353b;
+  --p-night-line-strong: #50545c;
+  --p-tomato-night: #d13a28;
+  --p-tomato-night-text: #dd6d60;
+  --p-tomato-night-soft: #3f1f1d;
+  --p-red: #b3261e;             /* durum: her setin zemininde ≥5.6:1 (test) */
+  --p-green: #1f6b3a;
+  --p-red-light: #ff8a80;
+  --p-green-light: #7fd49a;
+  --p-shadow-night: rgb(0 0 0 / 60%);
+}
+
+/* =============================================================================
+   Tema "pazar" — yerel, samimi, bütçe kiralaması; telefon ve WhatsApp müşterisi.
+   Pazar tezgâhı ve dükkân tabelası: firma rengi TAM GENİŞLİK düz bloklar, dar ve kalın tabela harfi
+   (Bricolage Grotesque Condensed 800), kalın çerçeveli kartlar + kaydırılmış DÜZ gölge (bulanıklık yok), fiyat
+   kartlara ASILI karton etiketlerde. Tek cesur öğe etiket; geri kalan sakin ve düzenli.
+   Token sözleşmesi: Components/Themes/README.md.
+   ============================================================================= */
+
+/* Yedek yazı tiplerinin ölçüsü asıllarına yaklaştırılır: yazı tipi inince satırlar zıplamasın (CLS).
+   Asıl @font-face'ler App.razor'da (parmak izli adres, SiteThemes.Pazar.Fonts). */
+@font-face { font-family: "Onest Fallback"; src: local("Arial"); size-adjust: 101%; ascent-override: 95%; descent-override: 25%; line-gap-override: 0%; }
+@font-face { font-family: "Bricolage Condensed Fallback"; src: local("Arial Narrow"), local("Arial"); size-adjust: 84%; ascent-override: 110%; descent-override: 26%; line-gap-override: 0%; }
+
+/* SEMANTIC + COMPONENT (açık) — palet token'larının yedekleri primitive'e, diğerleri semantik token'a bağlı */
+:root {
+  color-scheme: light;
+  --bg: var(--p-bg);
+  --bg-alt: var(--p-bg-alt);
+  --surface: var(--p-surface);
+  --surface-raised: var(--p-surface);
+  --ink: var(--p-ink);
+  --ink-muted: var(--p-ink-muted);
+  --ink-subtle: var(--p-ink-subtle);
+  --line: var(--p-line);
+  --line-strong: var(--p-line-strong);
+  --brand: var(--p-tomato);
+  --on-brand: var(--p-white);
+  --brand-ink: var(--on-brand);
+  --brand-text: var(--p-tomato-text);
+  --brand-soft: var(--p-tomato-soft);
+  --accent: var(--p-sunflower);
+  --accent-ink: var(--p-ink);
+  --day-bg: var(--p-bg);
+  --day-ink: var(--p-ink);
+  --night-bg: var(--p-night);
+  --night-ink: var(--p-fog);
+  --focus: var(--ink);
+  --danger: var(--p-red);
+  --ok: var(--p-green);
+
+  --font-body: "Onest", "Onest Fallback", system-ui, sans-serif;
+  --font-display: "Bricolage Grotesque Condensed", "Bricolage Condensed Fallback", "Arial Narrow", sans-serif;
+  --step--1: .9375rem;
+  --step-0: 1.0625rem;
+  --step-1: 1.5rem;
+  --step-2: clamp(2rem, 1.6rem + 1.6vw, 2.9rem);
+  --step-3: clamp(2.4rem, 1.7rem + 2.8vw, 3.75rem);
+  --step-4: clamp(2.7rem, 1.8rem + 3.6vw, 4.6rem);
+  --step-5: clamp(3rem, 1.7rem + 5.4vw, 6.25rem);
+  --space-1: .5rem; --space-2: 1rem; --space-3: 1.5rem; --space-4: 2.5rem;
+  --space-5: 4rem; --space-6: 5rem; --space-7: 6.5rem; --space-8: 8rem;
+  --radius-s: 6px; --radius-m: 10px; --radius-l: 16px;
+  /* Açık modda gölge mürekkep tonunda (palet değişince gölge de değişir). --shadow-2: kalıcı DÜZ gölge. */
+  --shadow-1: 0 -8px 24px -18px color-mix(in srgb, var(--ink) 30%, transparent);
+  --shadow-2: 4px 4px 0 var(--frame-shadow);
+  --measure: 66ch;
+
+  /* Bileşen token'ları (hepsi semantik token'a bağlı) */
+  --frame: var(--ink);                 /* kalın çerçeve rengi */
+  --frame-w: 3px;
+  --frame-shadow: var(--ink);          /* kaydırılmış düz gölge */
+  --hard-shadow: 6px 6px 0 var(--frame-shadow);
+  --btn-bg: var(--brand);
+  --btn-ink: var(--brand-ink);
+  --btn-radius: var(--radius-s);
+  --card-bg: var(--surface);
+  --card-radius: var(--radius-m);
+  --card-border: var(--frame);
+  --field-bg: var(--surface);
+  --field-border: var(--ink-subtle);   /* form sınırı 3:1'in üstünde (WCAG 1.4.11) — açıkta da koyuda da */
+  --price-ink: var(--ink);
+  --price-mark: var(--accent);
+  --tag-bg: var(--accent);
+  --tag-ink: var(--accent-ink);
+  --tag-line: var(--accent-ink);
+  --tag-string: var(--ink);
+}
+
+/* SEMANTIC (koyu) — palet token'larının yedekleri primitive'e, diğerleri semantik token'a bağlı */
+@media (prefers-color-scheme: dark) {
+  :root {
+    color-scheme: dark;
+    --bg: var(--p-night);
+    --bg-alt: var(--p-night-alt);
+    --surface: var(--p-night-surface);
+    --surface-raised: var(--p-night-raised);
+    --ink: var(--p-fog);
+    --ink-muted: var(--p-fog-muted);
+    --ink-subtle: var(--p-fog-subtle);
+    --line: var(--p-night-line);
+    --line-strong: var(--p-night-line-strong);
+    --brand: var(--p-tomato-night);
+    --on-brand: var(--p-white);
+    --brand-text: var(--p-tomato-night-text);
+    --brand-soft: var(--p-tomato-night-soft);
+    --accent: var(--p-sunflower);
+    --accent-ink: var(--p-night);
+    --danger: var(--p-red-light);
+    --ok: var(--p-green-light);
+    --shadow-1: 0 -8px 24px -18px var(--p-shadow-night);
+    /* Koyuda açık renk kalın çerçeve göz yorar: mürekkep zemine karıştırılır; düz gölge ana renkte (siyah gölge
+       koyu zeminde görünmezdi). */
+    --frame: color-mix(in srgb, var(--ink) 58%, var(--bg));
+    --frame-shadow: var(--brand);
+  }
+}
+
+/* ---- Taban ayarları ---- */
+body { font-feature-settings: "kern"; }
+h1, h2, h3 { font-weight: 800; letter-spacing: 0; line-height: .98; }
+h1 { line-height: .94; }
+strong, b { font-weight: 650; }
+.bolum-baslik { margin-bottom: var(--space-3); }
+.sayfa-ust h1 { font-size: var(--step-4); }
+
+/* Düğmeler: tabela harfi değil gövde yazısı (küçük boyda dar harf okunmaz), kalın çerçeve. */
+.btn {
+  font: 700 1.0625rem/1.1 var(--font-body); letter-spacing: 0;
+  border: 2px solid var(--frame); min-height: 48px; padding: .6rem 1.2rem;
+}
+.btn-brand:hover { background: color-mix(in srgb, var(--btn-bg) 86%, var(--ink)); }
+.btn-cizgi { background: var(--surface); color: var(--ink); border-color: var(--frame); }
+.btn-cizgi:hover { border-color: var(--ink); background: var(--bg-alt); }
+
+/* Form: kalın çerçeveli tezgâh kartı + düz gölge. */
+.arama { border: var(--frame-w) solid var(--frame); border-radius: var(--radius-m); box-shadow: var(--hard-shadow); padding: var(--space-2); }
+.alan { color: var(--ink-muted); font-weight: 600; }
+.alan input, .alan select, .alan textarea { border-width: 2px; font-weight: 400; min-width: 0; }
+.alan input[type="date"] { padding-inline: .55rem; }
+.alan-ipucu, .zorunlu { font-weight: 400; }
+@media (min-width: 720px) { .arama { padding: var(--space-3); } }
+.arama .btn-brand { font-size: 1.125rem; }
+
+/* ---- Header slotu (PazarHeader.razor) ---- */
+.bar { background: var(--surface); border-bottom: var(--frame-w) solid var(--frame); }
+.bar-ic { display: flex; align-items: center; gap: .75rem; min-height: 64px; }
+.marka { display: inline-flex; align-items: center; margin-right: auto; color: var(--ink); text-decoration: none; min-height: 44px; min-width: 0; }
+.marka img { display: block; height: 34px; width: auto; max-width: 160px; object-fit: contain; object-position: left center; }
+@media (prefers-color-scheme: dark) {
+  .marka img { background: var(--day-bg); padding: 4px 8px; border-radius: var(--radius-s); box-sizing: content-box; }
+}
+.marka-ad { font: 800 1.75rem/1 var(--font-display); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.nav-genis { display: none; }
+.nav-genis a, .menu-liste a { color: var(--ink); text-decoration: none; font-weight: 600; }
+.nav-genis a:hover, .menu-liste a:hover { color: var(--brand-text); text-decoration: underline; text-decoration-thickness: 2px; }
+.nav-genis a { display: inline-flex; align-items: center; min-height: 44px; }
+.pz-bar-wa { display: none; }
+.pz-bar-tel { padding-inline: 1rem; }
+/* Telefonda numara görsel olarak gizli ("Ara" kalır), erişilebilir adda kalır. */
+.pz-bar-no { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+.menu { position: relative; }
+.menu > summary {
+  list-style: none; display: inline-flex; align-items: center; gap: .45em; min-height: 48px; padding: 0 .85rem;
+  border: 2px solid var(--frame); border-radius: var(--radius-s); background: var(--surface);
+  font: 700 1rem/1 var(--font-body); cursor: pointer;
+}
+.menu > summary::-webkit-details-marker { display: none; }
+.menu > summary::before {
+  content: ""; width: 16px; height: 12px;
+  background: linear-gradient(currentColor 0 0) top / 100% 2px no-repeat,
+              linear-gradient(currentColor 0 0) center / 100% 2px no-repeat,
+              linear-gradient(currentColor 0 0) bottom / 100% 2px no-repeat;
+}
+.menu[open] > summary { background: var(--bg-alt); }
+.menu-liste {
+  position: absolute; right: 0; top: calc(100% + 8px); z-index: 30; min-width: 230px;
+  margin: 0; padding: var(--space-1) 0; list-style: none;
+  background: var(--surface); border: var(--frame-w) solid var(--frame); border-radius: var(--radius-m); box-shadow: var(--shadow-2);
+}
+.menu-liste a { display: flex; align-items: center; min-height: 44px; padding: 0 var(--space-2); }
+@media (min-width: 720px) {
+  .pz-bar-no { position: static; width: auto; height: auto; overflow: visible; clip-path: none; }
+}
+@media (min-width: 960px) {
+  .bar { position: sticky; top: 0; z-index: 20; }
+  .bar-ic { gap: var(--space-3); min-height: 72px; }
+  .marka img { height: 44px; max-width: 240px; }
+  .nav-genis { display: flex; align-items: center; gap: var(--space-3); }
+  .menu { display: none; }
+  .pz-bar-wa { display: inline-flex; }
+}
+
+/* ---- Hero slotu (PazarHero.razor): firma rengi düz blok. Bloğun üstündeki yazı --on-brand; arama formu
+   kendi yüzeyinde. Odak halkası blokta --on-brand (ana renkle 4.5:1 güvenceli), formda yine mürekkep. ---- */
+.pz-hero {
+  --focus: var(--on-brand);
+  /* Blok üstündeki çerçeve ve gölge sabit koyu (açık mürekkep ana rengin üstünde silik kalırdı). */
+  --frame: var(--day-ink);
+  --frame-shadow: var(--day-ink);
+  background: var(--brand); color: var(--on-brand);
+  border-bottom: var(--frame-w) solid var(--frame);
+  padding-block: var(--space-4) var(--space-5);
+}
+.pz-hero .arama { --focus: var(--ink); color: var(--ink-muted); }
+/* Telefonda tek sütun (başlık → metin → arama → iletişim → görsel). Genişte başlık TAM GENİŞLİK, altında solda
+   metin + arama, sağda görsel: metin sütunu uzayıp görselin üstünde boş blok kalmasın. Metin kabı `contents`:
+   çocukları doğrudan ızgaraya yerleşir (DOM sırası = okuma sırası değişmez). */
+.pz-hero-ic { display: grid; gap: var(--space-4); }
+.pz-hero h1 { font-size: var(--step-5); max-width: 12ch; margin-bottom: var(--space-2); color: inherit; }
+.pz-hero-alt { font-size: clamp(1.0625rem, 1rem + .4vw, 1.25rem); max-width: 42ch; margin-bottom: var(--space-3); }
+.pz-hero-alt strong { font-weight: 700; }
+.pz-hero-ara { margin: var(--space-3) 0 0; font-size: 1.0625rem; font-weight: 500; }
+.pz-hero-ara a { color: inherit; font-weight: 700; text-decoration-thickness: 2px; white-space: nowrap; }
+.pz-hero-ara a:hover { text-decoration-thickness: 3px; }
+.pz-hero-foto { position: relative; margin: 0; padding-top: 1.75rem; }
+.pz-hero-foto figcaption { margin-top: 1rem; font-weight: 600; }
+.pz-hero-foto figcaption a { color: inherit; text-decoration-thickness: 2px; }
+@media (min-width: 960px) {
+  .pz-hero { padding-block: var(--space-5) var(--space-6); }
+  .pz-hero-ic { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); column-gap: var(--space-6); row-gap: 0; }
+  .pz-hero-metin { display: contents; }
+  .pz-hero h1 { grid-column: 1 / -1; max-width: 18ch; margin-bottom: var(--space-4); }
+  .pz-hero-metin > :not(h1) { grid-column: 1; }
+  .pz-hero .pz-hero-foto { grid-column: 2; grid-row: 2 / span 3; align-self: center; padding-top: 0; }
+  .pz-hero .pz-hero-foto .pz-etiket { top: var(--ip); }
+}
+
+/* Çerçeveli görsel (hero, ilan detayı kapağı). Fotoğrafsız ilan: aracın adı "tabela" olarak. */
+.pz-cerceve {
+  position: relative; overflow: hidden; aspect-ratio: 3 / 2;
+  background: var(--surface); border: var(--frame-w) solid var(--frame); border-radius: var(--radius-m);
+  box-shadow: 8px 8px 0 var(--frame-shadow);
+}
+.pz-cerceve img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.pz-fotosuz {
+  display: flex; align-items: flex-end; width: 100%; height: 100%; padding: var(--space-2) var(--space-3);
+  background: var(--brand-soft); color: var(--brand-text);
+  font: 800 clamp(2rem, 1.4rem + 3vw, 3.25rem)/.92 var(--font-display);
+  overflow: hidden; overflow-wrap: anywhere;
+}
+
+/* ---- İMZA: asılı fiyat etiketi (PazarPriceTag.razor) ----
+   .pz-etiket: döner, ipi (::before) ve çiviyi (::after) taşır. Dönme noktası ipin üst ucu (çivi): etiket
+   sarkaç gibi sallanır. .pz-etiket-yuz: dış çizgi dört yönlü düz drop-shadow ile — kesik köşeleri ve deliğin
+   kenarını da izler (kenarlık kırpılmış şekli izleyemezdi). .pz-etiket-kart: şekil (kesik üst köşeler) + delik. */
+.pz-etiket {
+  --ip: 1.35rem;            /* ip uzunluğu: çividen etiketin üst kenarına */
+  --delik: 1.05rem;         /* deliğin merkezi, etiketin üst kenarından */
+  --sapma: -4deg;           /* dinlenme açısı */
+  position: absolute; z-index: 2; top: var(--ip); right: 1rem; margin: 0;
+  rotate: var(--sapma); transform-origin: 50% calc(-1 * var(--ip));
+  pointer-events: none; color: var(--tag-ink); text-align: center;
+}
+.pz-etiket::before {
+  content: ""; position: absolute; z-index: -1; left: calc(50% - 1px); top: calc(-1 * var(--ip));
+  width: 2px; height: calc(var(--ip) + var(--delik)); background: var(--tag-string);
+}
+.pz-etiket::after {
+  content: ""; position: absolute; left: calc(50% - 5px); top: calc(-1 * var(--ip) - 5px);
+  width: 10px; height: 10px; border-radius: 50%; background: var(--tag-string);
+}
+.pz-etiket-yuz {
+  display: block;
+  filter: drop-shadow(2px 0 0 var(--tag-line)) drop-shadow(-2px 0 0 var(--tag-line))
+          drop-shadow(0 2px 0 var(--tag-line)) drop-shadow(0 -2px 0 var(--tag-line));
+}
+/* Dikey karton: tutar üstte, birim ve KDV altında; görseli olabildiğince az örter. */
+.pz-etiket-kart {
+  display: grid; justify-items: center; gap: .1rem;
+  min-width: 5.5rem; padding: calc(var(--delik) + .55rem) .65rem .55rem;
+  background: radial-gradient(circle at 50% var(--delik), transparent .36rem, var(--tag-bg) calc(.36rem + .5px));
+  clip-path: polygon(.8rem 0, calc(100% - .8rem) 0, 100% .8rem, 100% 100%, 0 100%, 0 .8rem);
+  line-height: 1.1;
+}
+.pz-etiket-ust { font: 600 .8125rem/1.2 var(--font-body); }
+.pz-etiket-tutar { font: 800 1.75rem/1 var(--font-display); font-variant-numeric: tabular-nums lining-nums; }
+.pz-etiket-birim { font: 700 .8125rem/1.1 var(--font-body); }
+.pz-etiket-not {
+  justify-self: stretch; margin-top: .3rem; padding-top: .3rem; border-top: 1.5px dashed var(--tag-line);
+  font: 500 .75rem/1.2 var(--font-body);
+}
+.pz-etiket-buyuk { --ip: 1.75rem; --delik: 1.25rem; right: 1.5rem; }
+.pz-etiket-buyuk .pz-etiket-kart { min-width: 7.5rem; padding: calc(var(--delik) + .7rem) .9rem .7rem; }
+.pz-etiket-buyuk .pz-etiket-tutar { font-size: clamp(2.25rem, 1.8rem + 1.6vw, 3rem); }
+.pz-etiket-buyuk .pz-etiket-birim { font-size: .9375rem; }
+.pz-etiket-buyuk .pz-etiket-not { font-size: .8125rem; }
+/* Hero/detay: etiket çerçeveli görselin üst kenarından sarkar (figürün iç boşluğu ipe yer açar). */
+.pz-hero-foto .pz-etiket, .pz-detay .detay-kapak .pz-etiket { top: calc(1.75rem + var(--ip)); }
+
+/* İMZA ANI — açılışta etiketler bir kez sallanıp asılı durur. Yalnız `rotate` (dönüşüm): ara karelerde renk ya
+   da opaklık değişmez, metin her an tam kontrastlı ve ilk boyamada görünür. `backwards`: bitince dinlenme açısı
+   (--sapma) kalır; animasyon hiç koşmasa da (azaltılmış hareket — base.css hepsini kapatır) sayfa aynı. */
+@keyframes pz-asil {
+  0% { rotate: calc(var(--sapma) - 16deg); }
+  32% { rotate: calc(var(--sapma) + 9deg); }
+  58% { rotate: calc(var(--sapma) - 5deg); }
+  80% { rotate: calc(var(--sapma) + 2deg); }
+  100% { rotate: var(--sapma); }
+}
+.pz-etiket { animation: pz-asil 1.5s cubic-bezier(.25, .6, .3, 1) backwards; animation-delay: calc(.2s + var(--sira, 0) * 90ms); }
+/* Salınımın ilk vuruşlarında etiket kartın sağ kenarını ~24 px aşar; telefonda kart ekran kenarına 16 px
+   olduğundan sayfa ~2 sn yana kayabiliyordu. Etiketlerin TÜM yerleşimlerinin (hero, filo, müsaitlik, detay,
+   benzer ilanlar, 404) görünüm alanı genişliğindeki ortak atası `main`: yalnız YATAY ekseni kırp (`clip` kaydırma
+   kabı kurmaz; yapışkan öğeler ve dikey taşma — ip ve çivi — etkilenmez). Görünen hiçbir şey değişmez: kırpılan
+   kısım zaten ekranın dışındaydı. Yapısal test: dönen anahtar kare varsa `main` yatayda kırpar. */
+main { overflow-x: clip; }
+.pz-ilanlar > li:nth-child(2n) .pz-etiket { --sapma: 3deg; }
+.pz-ilanlar > li:nth-child(3n) .pz-etiket { --sapma: -2deg; }
+.pz-ilanlar > li:nth-child(2) .pz-etiket { --sira: 1; }
+.pz-ilanlar > li:nth-child(3) .pz-etiket { --sira: 2; }
+.pz-ilanlar > li:nth-child(4) .pz-etiket { --sira: 3; }
+.pz-ilanlar > li:nth-child(5) .pz-etiket { --sira: 4; }
+.pz-ilanlar > li:nth-child(6) .pz-etiket { --sira: 5; }
+.pz-ilanlar > li:nth-child(n+7) .pz-etiket { --sira: 6; }
+
+/* ---- Card slotu (PazarCard.razor): kalın çerçeve + düz gölge; kartın tamamı detay bağlantısı (başlık ::after),
+   "Teklif iste" üstte ayrı hedef. Etiket görselin sağ üstünden sarkar ve tıklamayı geçirir. ---- */
+.pz-kart {
+  position: relative; display: flex; flex-direction: column; gap: .55rem; height: 100%;
+  padding-bottom: var(--space-2);
+  background: var(--card-bg); border: var(--frame-w) solid var(--card-border); border-radius: var(--card-radius);
+  box-shadow: var(--hard-shadow);
+  transition: translate .15s ease, box-shadow .15s ease;
+}
+.pz-kart > :not(.ilan-foto, .pz-etiket, .ilan-isaret) { margin-inline: var(--space-2); }
+.pz-kart:hover { translate: -2px -2px; box-shadow: 8px 8px 0 var(--frame-shadow); }
+.pz-kart:has(h3 a:focus-visible) { outline: 3px solid var(--focus); outline-offset: 4px; }
+.pz-kart h3 a:focus-visible { outline: none; }
+.pz-kart .ilan-foto {
+  aspect-ratio: 3 / 2; margin-bottom: .35rem; overflow: hidden; background: var(--bg-alt);
+  border-bottom: var(--frame-w) solid var(--card-border);
+  border-radius: calc(var(--card-radius) - var(--frame-w)) calc(var(--card-radius) - var(--frame-w)) 0 0;
+}
+.pz-kart .ilan-foto img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.pz-kart .pz-fotosuz { font-size: clamp(1.9rem, 1.5rem + 1.5vw, 2.5rem); padding: var(--space-2); }
+.pz-kart h3 { margin: 0; font-size: 1.75rem; line-height: 1; }
+.pz-kart h3 a { color: var(--ink); text-decoration: none; }
+.pz-kart h3 a::after { content: ""; position: absolute; inset: 0; z-index: 1; }
+.pz-kart:hover h3 a { text-decoration: underline; text-decoration-thickness: 2px; }
+.ilan-yil { margin: -.2rem 0 0; color: var(--ink-subtle); font-size: var(--step--1); }
+.ozellikler { display: flex; flex-wrap: wrap; gap: .35rem; margin: .1rem 0 0; padding: 0; list-style: none; }
+.ozellikler li { padding: .1rem .55rem; border: 1.5px solid var(--line-strong); border-radius: 999px; color: var(--ink-muted); font-size: .875rem; font-weight: 500; }
+.pz-hesap { margin: 0; color: var(--ink-muted); font-size: var(--step--1); font-variant-numeric: tabular-nums; }
+.ilan-eylem { position: relative; z-index: 2; display: flex; margin-top: auto; padding-top: .35rem; }
+.ilan-eylem .btn { flex: 1; }
+.ilan-isaret {
+  position: absolute; z-index: 2; top: .75rem; left: .75rem; margin: 0; padding: .25rem .65rem;
+  background: var(--ink); color: var(--bg); border-radius: var(--radius-s); font: 700 .875rem/1.3 var(--font-body);
+}
+
+/* ---- Fleet slotu (PazarFleet.razor) ---- */
+.pz-ilanlar { gap: var(--space-4) var(--space-3); }
+.pz-bolum-bas { display: flex; flex-wrap: wrap; align-items: baseline; gap: .25rem var(--space-3); margin-bottom: var(--space-3); }
+.pz-bolum-bas .bolum-baslik { margin: 0; }
+.pz-bolum-not { margin: 0; color: var(--ink-muted); font-weight: 500; }
+.sonuc-ozet strong { font: 800 2rem/1 var(--font-display); }
+
+/* ---- Home slotu (PazarHome.razor) ---- */
+.pz-neden { background: var(--surface); border-block: var(--frame-w) solid var(--frame); }
+.pz-nedenler { display: grid; gap: var(--space-4); grid-template-columns: repeat(auto-fit, minmax(min(100%, 250px), 1fr)); margin: 0; padding: 0; list-style: none; }
+.pz-nedenler li { padding-top: var(--space-2); border-top: 6px solid var(--brand); }
+.pz-nedenler h3 { font-size: var(--step-1); margin-bottom: .4rem; }
+.pz-nedenler p { margin: 0 0 .5rem; color: var(--ink-muted); max-width: 40ch; }
+.pz-nedenler a { font-weight: 700; font-size: 1.25rem; }
+
+/* Ortak süreç bölümü (BolumNasilCalisir): sıra numarası tabela harfiyle. */
+.adimlar li { border-top: var(--frame-w) solid var(--frame); }
+.adimlar li::before { font: 800 3.5rem/1 var(--font-display); color: var(--brand-text); }
+
+/* Ofis / şubeler */
+.pz-ofis { background: var(--bg-alt); }
+.pz-ofisler { display: grid; gap: var(--space-3); grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr)); margin: 0; padding: 0; list-style: none; }
+.pz-ofisler > li {
+  display: grid; gap: .6rem; align-content: start; padding: var(--space-3);
+  background: var(--surface); border: var(--frame-w) solid var(--frame); border-radius: var(--radius-m); box-shadow: var(--hard-shadow);
+}
+.pz-ofisler h3 { font-size: 1.875rem; margin: 0; }
+.pz-ofisler p { margin: 0; }
+.pz-ofis-adres { color: var(--ink); }
+.pz-ofis-saat { display: grid; gap: .1rem; color: var(--ink-muted); font-variant-numeric: tabular-nums; }
+.pz-ofis-etiket { color: var(--ink); font-weight: 700; }
+.pz-ofis-eylem { display: flex; flex-wrap: wrap; gap: .5rem; padding-top: .35rem; }
+
+/* SSS (ortak BolumSss): sorular gövde yazısıyla (uzun soru dar harfle zor okunur). */
+.bolum-kontrast { border-block: var(--frame-w) solid var(--frame); }
+.sss-liste { border-top: 2px solid var(--frame); }
+.sss { border-bottom: 2px solid var(--frame); }
+.sss > summary { font: 700 1.1875rem/1.3 var(--font-body); }
+.sss > summary::after {
+  display: grid; place-items: center; width: 2rem; height: 2rem; border: 2px solid var(--frame); border-radius: var(--radius-s);
+  font: 700 1.25rem/1 var(--font-body); color: var(--ink);
+}
+
+/* Kapanış bandı: firma rengi düz blok (ortak markup'ın ters zemini yerine). */
+.cta-bant {
+  --focus: var(--on-brand);
+  background: var(--brand); color: var(--on-brand); border-top: var(--frame-w) solid var(--day-ink);
+}
+.cta-bant h2 { color: var(--on-brand); font-size: var(--step-3); }
+.cta-bant p { color: var(--on-brand); }
+.cta-bant .btn-ters { background: var(--day-bg); color: var(--day-ink); border-color: var(--day-ink); }
+.cta-bant .btn-ters:hover { background: color-mix(in srgb, var(--day-bg) 86%, var(--day-ink)); color: var(--day-ink); }
+.cta-bant .btn-ters-cizgi { background: transparent; color: var(--on-brand); border-color: var(--on-brand); }
+.cta-bant .btn-ters-cizgi:hover { border-color: var(--on-brand); color: var(--on-brand); background: color-mix(in srgb, var(--brand) 85%, var(--on-brand)); }
+.cta-bant :focus-visible { outline-color: var(--on-brand); }
+
+/* ---- Footer slotu (PazarFooter.razor) ---- */
+.alt { background: var(--surface); border-top: var(--frame-w) solid var(--frame); color: var(--ink-muted); }
+.cta-bant + [data-slot] .alt, main:has(> .cta-bant:last-child) + [data-slot] .alt { border-top-color: var(--day-ink); }
+.alt-ic { display: grid; gap: var(--space-3); padding-block: var(--space-4); grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); }
+.alt-baslik { font: 700 1rem/1.2 var(--font-body); color: var(--ink); margin: 0 0 var(--space-1); }
+.alt ul { list-style: none; margin: 0; padding: 0; }
+.alt li a { display: inline-flex; align-items: center; min-height: 44px; color: var(--ink-muted); }
+.alt li a.pz-alt-tel { font: 800 1.875rem/1 var(--font-display); color: var(--ink); }
+.alt .marka img { height: 40px; max-width: 220px; }
+.alt-son { border-top: 2px solid var(--line); padding-block: var(--space-2); font-size: var(--step--1); color: var(--ink-subtle); }
+
+/* ---- Mobil alt eylem çubuğu (MainLayout, ortak markup): kalın üst çizgi, büyük düğmeler. ---- */
+@media screen and (max-width: 899px) {
+  .page.altbar-acik { --altbar: 76px; }
+  .altbar { border-top: var(--frame-w) solid var(--frame); padding-top: .55rem; }
+  .altbar .btn { min-height: 52px; font-size: 1.125rem; }
+}
+
+/* ---- İlan detayı (PazarDetailHero.razor + ortak .detay düzeni) ---- */
+.pz-detay .detay-kapak { position: relative; padding-top: 1.75rem; }
+.pz-detay .detay-bas h1 { font-size: var(--step-4); }
+.panel { border: var(--frame-w) solid var(--frame); border-radius: var(--radius-m); box-shadow: var(--hard-shadow); }
+.panel h2 { font-size: 2rem; }
+@media (min-width: 960px) { .panel { top: 96px; } }
+.tarife-tablo th, .tarife-tablo td { border-bottom: 2px solid var(--line); }
+.tarife-tablo td strong { font: 800 1.5rem/1.1 var(--font-display); }
+.tarife-tablo tr:first-child td strong { font-size: 2.25rem; }
+.galeri a { border: 2px solid var(--frame); }
+
+/* ---- Ortak sayfalar (yalnız css ile tema) ---- */
+/* Kalın çizgili bölümden önce içerik kartları (düz gölge dahil) çizgiye yapışmasın; kapanış bandı kalın çizgili
+   bölümün hemen ardından gelirse arada boş şerit ve çift çizgi kalmasın. */
+main > .wrap:has(+ .bolum-kontrast) { padding-bottom: var(--space-5); }
+.bolum-kontrast + .cta-bant { margin-top: 0; }
+.bolum-kontrast:has(+ .cta-bant) { border-bottom: 0; }
+.ozellik-tablo { border: var(--frame-w) solid var(--frame); border-radius: var(--radius-m); }
+.ozellik-tablo th, .ozellik-tablo td { border-bottom-width: 2px; }
+.tutar { font-weight: 800; }
+.kdv { border: 1.5px solid var(--frame); font-weight: 600; }
+.not-kutu { border-left-width: 6px; }
+.yazi { border-width: var(--frame-w); box-shadow: var(--hard-shadow); }
+.kanallar li { border-top: var(--frame-w) solid var(--frame); }
+.talep-form fieldset, .ozet-kart, .ornek-fis { border: var(--frame-w) solid var(--frame); }
+.talep-form legend { font-weight: 800; font-size: 1.75rem; }
+/* 404: kod etikete basılı. Süs (aria-hidden), hareketsiz. */
+.hata-kod {
+  display: inline-block; padding: .05em .25em .1em; margin: var(--space-2) 0 var(--space-3);
+  background: var(--accent); color: var(--accent-ink); border: var(--frame-w) solid var(--accent-ink);
+  border-radius: var(--radius-s); rotate: -3deg; font-weight: 800;
+}
+
+/* ---- Etkileşim: kart üstüne gelince etiket hafifçe sallanır (yalnız rotate). ---- */
+.pz-kart .pz-etiket { transition: rotate .35s cubic-bezier(.3, .7, .3, 1.4); }
+.pz-kart:is(:hover, :has(a:focus-visible)) .pz-etiket { rotate: calc(var(--sapma) - 6deg); }
+@media (prefers-reduced-motion: reduce) {
+  .pz-kart:hover { translate: none; }
+  .pz-kart:is(:hover, :has(a:focus-visible)) .pz-etiket { rotate: var(--sapma); }
+}
+
+@media print {
+  .pz-etiket { rotate: none; }
+  .pz-etiket::before, .pz-etiket::after { display: none; }
+  .pz-hero, .cta-bant { background: none; color: CanvasText; }
+  .pz-kart, .panel, .arama, .pz-cerceve { box-shadow: none; }
+}

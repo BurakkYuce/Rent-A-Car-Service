@@ -56,6 +56,15 @@ export const PAGES: Routes = [
       import('@features/kiralar/kira-listesi/kira-listesi').then((m) => m.RentalList),
     canActivate: [ceviriBlogu('kiralar')],
   },
+  {
+    // KABİS bildirilemeyen kiralar (panel kutusunun dökümü). Uç OperationsWrite VEYA FinanceWrite ister (kira
+    // okumalarıyla aynı); kira listesi gibi rota kapısı yok — izinsiz rol uç 403'ünü uyarı bandıyla görür.
+    path: 'kabis',
+    title: 'KABİS bildirimleri — RentACar',
+    loadComponent: () =>
+      import('@features/kiralar/kabis-listesi/kabis-list').then((m) => m.KabisList),
+    canActivate: [ceviriBlogu('kiralar')],
+  },
   // F5.2b planlama ekranları (Blazor /takvim, /musaitlik, /rez-sartlari, /filo-kiralama). Kayıt sayfası
   // `filo-kiralama/:id`; `yeni` ondan ÖNCE eşleşmeli. F5.3 parite: Blazor sayfalarının dördü de
   // `[Authorize(Policy = "izin:OperationsWrite")]`, uç grupları da OperationsWrite ister — izinsiz rol

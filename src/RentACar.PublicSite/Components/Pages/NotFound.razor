@@ -30,14 +30,9 @@
 {
     <section class="wrap bolum-ic" aria-labelledby="nf-filo">
         <h2 id="nf-filo">Filomuzdan</h2>
-        <ul class="ilanlar">
-            @foreach (var c in _cards)
-            {
-                <li>
-                    <ThemedCard Kart="@ListingCard.From(c, QuoteLink.Build(c.Slug, dailyPrice: c.GunlukFiyat))" />
-                </li>
-            }
-        </ul>
+        <ThemedFleet Model="@(new FleetModel(
+            [.. _cards.Select(c => ListingCard.From(c, QuoteLink.Build(c.Slug, dailyPrice: c.GunlukFiyat)))],
+            FleetPlacement.NotFound))" />
     </section>
 }
 

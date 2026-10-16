@@ -34,6 +34,8 @@ public static class JobRunRecorder
     public const string FleetNotification = "filo-bildirim";
     public const string CustomerNotification = "musteri-bildirim";
     public const string PeriodInvoice = "donem-fatura";
+    /// <summary>KABİS kuyruğu yeniden deneme + iptal uzlaştırması (yalnız yapılacak iş varken günlüğe yazılır).</summary>
+    public const string KabisNotification = "kabis-bildirim";
     /// <summary>WhatsApp günlük özeti — koşu günlüğüne yazılmaz (kendi gönderim tablosu var),
     /// yalnız hata logu ve metrik etiketi olarak kullanılır.</summary>
     public const string WhatsAppSummary = "whatsapp-ozet";

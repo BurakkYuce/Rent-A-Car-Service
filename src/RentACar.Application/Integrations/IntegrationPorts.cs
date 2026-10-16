@@ -131,10 +131,97 @@ public interface IPosService
 
 public sealed record KabisBildirim(string SozlesmeNo, string Plaka, string TcKimlik, DateTimeOffset BasTar, DateTimeOffset BitTar);
 
+/// <summary>
+/// Tek gönderim için çözülmüş KABİS kimliği (şifre DÜZ METİN — çağıran <c>ISecretProtector</c> ile çözer, yalnız
+/// bellekte taşınır). Kimlik TENANT BAŞINA olduğu için parametre olarak geçer: adaptör durum tutmaz, singleton olabilir.
+/// </summary>
+public sealed record KabisKimlik(RentACar.Domain.Enums.KabisAuthority Kurum, string Kullanici, string Sifre)
+{
+    /// <summary>Şifre kayıt yazdırımlarında (log, hata, ToString) ASLA görünmez.</summary>
+    public override string ToString() => $"KabisKimlik {{ Kurum = {Kurum}, Kullanici = {Kullanici}, Sifre = *** }}";
+}
+
+/// <summary>Bildirimdeki kişi (kiralayan ya da sürücü). Kimlik numaraları YALNIZ bellekte, gönderim süresince.</summary>
+/// <param name="TcKimlik">T.C. vatandaşı için 11 hane; yabancı uyrukluda boş.</param>
+/// <param name="PasaportNo">TC yoksa zorunlu (yabancı uyruklu).</param>
+/// <param name="Uyruk">Carideki <c>Ulke</c> alanı; boşsa boş gider (T.C. varsayılmaz).</param>
+public sealed record KabisKisi(
+    string? Ad, string? Soyad, string? TcKimlik, string? PasaportNo, string? Uyruk, DateOnly? DogumTarihi,
+    string? EhliyetNo, string? EhliyetSinifi, DateOnly? EhliyetTarihi, string? Telefon, string? Adres)
+{
+    /// <summary>Kimlik/ehliyet numaraları kayıt yazdırımlarında görünmez (KVKK).</summary>
+    public override string ToString() => $"KabisKisi {{ Ad = {Ad}, Soyad = {Soyad}, Kimlik = *** }}";
+}
+
+/// <summary>
+/// Kiralama (teslim) bildirimi yükü. Alan listesi kanunun "kiralayan şahıs ile kiralanan araç bilgileri" ifadesinden
+/// türetildi; karşı sistemin RESMÎ alan sözlüğü kamuya açık değildir (<c>docs/entegrasyon/kabis.md</c>,
+/// "doğrulanamadı"). Gerçek adaptör bu yükü kendi şemasına eşler.
+/// </summary>
+/// <param name="Referans">Bizim tarafımızdaki tekil sözleşme numarası (sorgu/iptal anahtarı olarak da gider).</param>
+/// <param name="KurumMu">Kiralayan kurumsal cari: kamu kurumunda kanun gereği yalnız sözleşme + araç bilgisi gider.</param>
+public sealed record KabisKiralamaBildirimi(
+    string Referans, string Plaka, string? AracMarkaModel,
+    KabisKisi? Kiralayan, KabisKisi? Surucu, bool KurumMu, string? KurumUnvan, string? KurumVergiNo,
+    DateTimeOffset TeslimUtc, DateTimeOffset PlanlananDonusUtc, string? TeslimYeri, string? DonusYeri)
+{
+    /// <summary>Yük kayıt yazdırımlarında yalnız referans + plaka görünür.</summary>
+    public override string ToString() => $"KabisKiralamaBildirimi {{ Referans = {Referans}, Plaka = {Plaka} }}";
+}
+
+/// <summary>İade (dönüş) bildirimi yükü (kimlik numarası taşımaz).</summary>
+public sealed record KabisIadeBildirimi(
+    string Referans, string? DisReferans, string Plaka, DateTimeOffset IadeUtc, string? IadeYeri, int? DonusKm);
+
+/// <summary>Karşı sistemin cevabının sınıfı — kuyruk durumu buna göre ilerler.</summary>
+public enum KabisSonucTuru
+{
+    /// <summary>Kabul edildi; <see cref="KabisSonuc.DisReferans"/> doludur.</summary>
+    Basarili,
+    /// <summary>Adaptör/kimlik yapılandırılmadı — kayıt "bağlı değil" kalır, deneme hakkı YAKILMAZ.</summary>
+    BagliDegil,
+    /// <summary>Geçici (ağ, zaman aşımı, 5xx, oturum) — geri çekilmeyle yeniden denenir.</summary>
+    GeciciHata,
+    /// <summary>Kalıcı (veri reddi, yetkisiz kullanıcı) — operatör düzeltmeden denenmez.</summary>
+    KaliciHata,
+}
+
+/// <summary>Bildirim/iptal sonucu. <paramref name="Hata"/> operatöre gösterilecek Türkçe cümle (çağıran ayrıca maskeler).</summary>
+public sealed record KabisSonuc(KabisSonucTuru Tur, string? DisReferans, string? Hata)
+{
+    public bool Basarili => Tur == KabisSonucTuru.Basarili;
+}
+
+/// <summary>Sorgu sonucu: karşı sistemde bu referansla bir kayıt var mı, durumu ne.</summary>
+public sealed record KabisSorguSonucu(KabisSonucTuru Tur, bool KayitVar, string? Durum, string? Hata);
+
+/// <summary>
+/// KABİS portu. Yasal dayanak 1774 s. Kimlik Bildirme Kanunu ek md. 3 (bkz. <c>docs/entegrasyon/kabis.md</c>).
+///
+/// <para><b>DÜRÜST STUB KURALI:</b> yapılandırma yokken hiçbir yöntem başarı DÖNMEZ — bildirilmemiş kiralamayı
+/// "bildirildi" göstermek, teslimden önce bildirmemenin idari para cezasını (Ek md. 3/4) gizler. Stub <see cref="KabisSonucTuru.BagliDegil"/>
+/// döner; kuyruk kaydı "bağlı değil" notuyla <c>Bekliyor</c> kalır.</para>
+///
+/// <para><b>PII:</b> yük kayıtları kimlik numarası taşır; adaptör onları loglamaz, hata metnine koymaz. Çağıran
+/// (<c>KabisNotificationService</c>) dönen hata metnini yine de maskeleyip saklar (savunma derinliği).</para>
+/// </summary>
 public interface IKabisService
 {
-    /// <summary>Kira sözleşmesi emniyet bildirimi.</summary>
+    /// <summary>ESKİ tek-alanlı imza (v1 stub). Yeni akış <see cref="NotifyRentalAsync"/>'i kullanır; stub false döner.</summary>
     Task<bool> NotifyAsync(KabisBildirim notification, CancellationToken ct = default);
+
+    /// <summary>Teslim anında kiralayan + araç bildirimi.</summary>
+    Task<KabisSonuc> NotifyRentalAsync(KabisKimlik credentials, KabisKiralamaBildirimi notice, CancellationToken ct = default);
+
+    /// <summary>İade (dönüş) bildirimi.</summary>
+    Task<KabisSonuc> NotifyReturnAsync(KabisKimlik credentials, KabisIadeBildirimi notice, CancellationToken ct = default);
+
+    /// <summary>Bildirilmiş kiralamanın iptali.</summary>
+    Task<KabisSonuc> CancelAsync(KabisKimlik credentials, string reference, string? externalReference, string reason,
+        CancellationToken ct = default);
+
+    /// <summary>Referansla karşı sistemde kayıt sorgusu (belirsiz sonuçlu denemeden sonra mükerrer gönderimi önlemek için).</summary>
+    Task<KabisSorguSonucu> QueryAsync(KabisKimlik credentials, string reference, CancellationToken ct = default);
 }
 
 public sealed record TollCrossing(DateTimeOffset Zaman, string Gecis, decimal Tutar);

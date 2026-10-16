@@ -40,6 +40,9 @@
       <section class="rc-bolum" aria-labelledby="ayar-entegrasyon">
         <h2 id="ayar-entegrasyon">{{ 'sistem.ayarlar.entegrasyon' | transloco }}</h2>
         <p class="not">{{ 'sistem.ayarlar.sirAciklama' | transloco }}</p>
+        <p class="not">
+          <a routerLink="/kabis-ayarlari">{{ 'sistem.ayarlar.kabisBaglanti' | transloco }}</a>
+        </p>
         <div class="rc-form-izgara">
           <rc-alan [etiket]="'sistem.ayarlar.alan.eFaturaKullanici' | transloco">
             <rc-metin-girdisi formControlName="eFaturaKullanici" [azamiUzunluk]="128" />
@@ -191,26 +194,41 @@
         <p class="not">{{ 'sistem.ayarlar.siteGorunumAciklama' | transloco }}</p>
         <div class="rc-form-izgara">
           <rc-alan
-            [etiket]="'sistem.ayarlar.alan.siteVurguRengi' | transloco"
-            [ipucu]="'sistem.ayarlar.siteVurguIpucu' | transloco"
-          >
-            <rc-metin-girdisi
-              formControlName="siteVurguRengi"
-              [azamiUzunluk]="7"
-              yerTutucu="#rrggbb"
-            />
-          </rc-alan>
-          <rc-alan
+            class="rc-form-izgara__genis"
             [etiket]="'sistem.ayarlar.alan.siteTemasi' | transloco"
             [ipucu]="'sistem.ayarlar.tema.ipucu' | transloco"
             grup
           >
             <rc-radyo-grubu formControlName="siteTemasi" [secenekler]="themeOptions" />
           </rc-alan>
+          <rc-alan
+            class="rc-form-izgara__genis"
+            [etiket]="'sistem.ayarlar.alan.sitePaleti' | transloco"
+            [ipucu]="'sistem.ayarlar.palet.ipucu' | transloco"
+            grup
+          >
+            <rc-site-palet-secici formControlName="sitePaleti" [paletler]="palettes()" />
+          </rc-alan>
+          <rc-alan
+            [etiket]="'sistem.ayarlar.alan.siteVurguRengi' | transloco"
+            [ipucu]="'sistem.ayarlar.siteVurguIpucu' | transloco"
+          >
+            <rc-site-renk-girdisi
+              formControlName="siteVurguRengi"
+              [varsayilan]="paletteDefaultColor()"
+            />
+          </rc-alan>
         </div>
         @if (dto()?.webSitesiAdresi; as host) {
           <p class="not">{{ 'sistem.ayarlar.tema.onizleAciklama' | transloco }}</p>
           <div class="eylemler">
+            <a
+              class="rc-dugme rc-dugme--kucuk"
+              [href]="currentPreviewUrl(host)"
+              target="_blank"
+              rel="noopener noreferrer"
+              >{{ 'sistem.ayarlar.tema.onizleSecili' | transloco }}</a
+            >
             @for (t of themeKeys; track t) {
               <a
                 class="rc-dugme rc-dugme--kucuk"

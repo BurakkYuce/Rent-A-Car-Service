@@ -9,8 +9,8 @@
    (yapısal test: PublicSiteThemeContractTests). Temaya özgü slot stilleri (üst bar, alt bilgi, hero,
    ilan kartı) tema dosyasında.
 
-   Firma vurgu rengi: App.razor tema css'inden SONRA BrandPalette çıktısını basar; --brand, --brand-ink
-   (BrandPalette'in --on-brand'i üzerinden), --brand-text, --brand-soft her temada firmanın rengidir.
+   Palet: App.razor tema css'inden SONRA SitePaletteCss çıktısını basar; zemin, yüzey, mürekkep, çizgi,
+   firma rengi (--brand, --on-brand → --brand-ink, --brand-text, --brand-soft) ve vurgu paletten gelir.
 
    `screen and` KURALI: dar ekran sorguları `screen and (max-width …)` yazılır — çıplak `max-width`
    yazdırmada da tetiklenir ve A4 çıktı mobil düzene düşer.
@@ -76,7 +76,7 @@ img { max-width: 100%; height: auto; }
 .bos-durum { padding: var(--space-4) 0; color: var(--ink-muted); }
 .linkler { display: flex; flex-wrap: wrap; gap: var(--space-1) var(--space-3); margin: var(--space-2) 0 0; padding: 0; list-style: none; }
 
-/* ---- Düğmeler: birincil = firma rengi (yazı rengi BrandPalette'ten), ikincil = çizgili. 44px hedef. ---- */
+/* ---- Düğmeler: birincil = firma rengi (yazı rengi paletten), ikincil = çizgili. 44px hedef. ---- */
 .btn {
   display: inline-flex; align-items: center; justify-content: center; gap: .5em;
   min-height: 46px; padding: .55rem 1.15rem;
@@ -116,8 +116,13 @@ img { max-width: 100%; height: auto; }
   display: grid; gap: .75rem; padding: var(--space-2);
   background: var(--surface); border: 1.5px solid var(--line-strong); border-radius: var(--radius-m); box-shadow: var(--shadow-2);
 }
-.arama-tarihler { display: grid; grid-template-columns: 1fr 1fr; gap: .75rem; }
-.alan { display: grid; gap: .3rem; color: var(--ink-muted); font-size: var(--step--1); min-width: 0; }
+/* Izgara izleri `minmax(0, …fr)`: çıplak `1fr`in (ve örtük `auto` sütunun) alt sınırı içeriğin min-content
+   genişliğidir — tarih alanının doğal genişliği (geniş yazı tipinde ~170 px) iki sütunda 320 px'i aşıp sayfayı
+   yana taşırıyordu (Vitrin). Pazar ve Rota bunu kendi css'lerinde ayrı ayrı yamamıştı; kural artık burada, tek
+   yerde. 360 px altında iki tarih alanı yan yana sığmaz (tarih metni kesilir): alt alta. Yapısal test kilitli. */
+.arama-tarihler { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .75rem; }
+@media (max-width: 359px) { .arama-tarihler { grid-template-columns: minmax(0, 1fr); } }
+.alan { display: grid; grid-template-columns: minmax(0, 1fr); gap: .3rem; color: var(--ink-muted); font-size: var(--step--1); min-width: 0; }
 .alan input, .alan select, .alan textarea {
   width: 100%; min-height: 48px; padding: .5rem .7rem;
   font: inherit; font-size: var(--step-0); color: var(--ink);
@@ -174,7 +179,7 @@ img { max-width: 100%; height: auto; }
 .madde li::before { content: ""; position: absolute; left: .1rem; top: .5em; width: .75rem; height: .4rem; border-left: 2px solid var(--ok); border-bottom: 2px solid var(--ok); transform: rotate(-45deg); }
 .ornek-fis { background: var(--surface); border: 1.5px solid var(--line-strong); border-radius: var(--radius-m); padding: var(--space-3); font-variant-numeric: tabular-nums; }
 .ornek-fis h3 { font-size: 1.25rem; margin-bottom: .15rem; }
-.ornek-fis dl { display: grid; grid-template-columns: 1fr auto; gap: .45rem 1rem; margin: var(--space-2) 0 0; }
+.ornek-fis dl { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: .45rem 1rem; margin: var(--space-2) 0 0; }
 .ornek-fis dt { color: var(--ink-muted); }
 .ornek-fis dd { margin: 0; text-align: right; font: 600 1.1875rem/1.3 var(--font-display); }
 .ornek-fis .fis-toplam-satir { border-top: 1.5px dashed var(--line-strong); padding-top: .6rem; align-self: end; }
@@ -214,7 +219,9 @@ main:focus { outline: none; }
 /* ---- İlan detayı ----
    Mobil sıra: başlık → hızlı fiyat + "Teklif iste" (ilk ekran) → kapak → panel → galeri.
    Geniş ekran: solda kapak + galeri, sağda yapışkan fiyat paneli. */
-.detay { display: grid; gap: var(--space-3); grid-template-areas: "bas" "kapak" "panel" "galeri"; }
+/* Tek sütun AÇIKÇA `minmax(0, 1fr)`: alan şablonunun örtük sütunu `auto` olur ve en geniş çocuğa (arama formu,
+   kapak) göre büyüyüp 320 px'te sayfayı taşırıyordu. */
+.detay { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--space-3); grid-template-areas: "bas" "kapak" "panel" "galeri"; }
 .detay-bas { grid-area: bas; }
 .detay-bas h1 { margin-bottom: .35rem; }
 .detay-bas p { margin: 0; color: var(--ink-muted); }
@@ -256,7 +263,7 @@ main:focus { outline: none; }
 .talep-form { display: grid; gap: var(--space-3); }
 .talep-form fieldset { margin: 0; padding: var(--space-3); border: 1.5px solid var(--line-strong); border-radius: var(--radius-m); background: var(--surface); display: grid; gap: .9rem; min-width: 0; }
 .talep-form legend { padding: 0 .4rem; margin-left: -.4rem; font: 600 1.3125rem/1.2 var(--font-display); }
-.iki-sutun { display: grid; gap: .9rem; grid-template-columns: 1fr 1fr; }
+.iki-sutun { display: grid; gap: .9rem; grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .zorunlu { color: var(--ink-subtle); font-size: .8125rem; }
 .ozet-kart { background: var(--surface); border: 1.5px solid var(--line-strong); border-radius: var(--radius-m); overflow: hidden; }
 .ozet-kart img { display: block; width: 100%; aspect-ratio: 3 / 2; object-fit: cover; }
@@ -272,7 +279,9 @@ main:focus { outline: none; }
 .kanallar li { padding-top: var(--space-2); border-top: 2px solid var(--ink); }
 .kanallar h2 { font-size: 1.375rem; margin-bottom: .35rem; }
 .kanallar p { margin: 0 0 .5rem; }
-.buyuk-baglanti { font: 600 1.5rem/1.2 var(--font-display); color: var(--ink); }
+/* Büyük iletişim bağlantısı (telefon, e-posta) tek uzun sözcüktür: geniş başlık yazısında e-posta adresi satırı
+   aşıp sayfayı yana taşırıyordu (Vitrin 390 px'te 157 px). Adres içinden de bölünebilsin — her temada. */
+.buyuk-baglanti { font: 600 1.5rem/1.2 var(--font-display); color: var(--ink); overflow-wrap: anywhere; }
 
 /* ---- Uzun metin: blog + içerik sayfaları ---- */
 .metin { max-width: var(--measure); }
@@ -326,13 +335,21 @@ main:focus { outline: none; }
   .cerez-metin { font-size: .8125rem; line-height: 1.35; }
   /* Satır içi "Ayrıntılı bilgi": satır kutusunu büyütmeden dokunma alanını 44px'e çıkarır. */
   .cerez-metin a { padding-block: .85rem; }
-  .iki-sutun { grid-template-columns: 1fr; }
+  .iki-sutun { grid-template-columns: minmax(0, 1fr); }
 }
 
-/* ---- Hareket: tek kural — azaltılmış hareket isteniyorsa hiçbir geçiş yok. ---- */
-.btn, .yazi { transition: background-color .15s ease, border-color .15s ease, box-shadow .15s ease; }
+/* ---- Hareket ----
+   Ortak olan yalnız kullanıcıya CEVAP veren küçük geri bildirim: bağlantı alt çizgisi kalınlaşır, düğme
+   basılınca 1px iner. Renk geçişi YOK (geçiş ortası kare düşük kontrastlı olurdu; yalnız kalınlık ve
+   konum değişir). Açılış anı temanın kendisinde (her temada TEK an). Her animasyon görünür bir dinlenme
+   hâline `backwards` ile döner: animasyon hiç koşmasa da (azaltılmış hareket, eski tarayıcı) sayfa tam.
+   Tek kural: azaltılmış hareket isteniyorsa hiçbir geçiş ve animasyon yok. */
+a { transition: text-decoration-thickness .15s ease, text-underline-offset .15s ease; }
+.btn, .yazi { transition: background-color .15s ease, border-color .15s ease, box-shadow .15s ease, transform .1s ease; }
+.btn:active { transform: translateY(1px); }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { transition: none !important; animation: none !important; scroll-behavior: auto !important; }
+  .btn:active { transform: none; }
 }
 
 /* ---- Yazdırma: kabuk ve eylemler kağıda çıkmaz; fiyat tablosu ve özellikler kalır. Sistem renkleri

@@ -115,6 +115,22 @@
       "matris": "Rol-izin matrisi",
       "matrisAciklama": "Sabit taban (salt okunur). Kullanıcı bazlı istisnalar Kullanıcılar ekranındadır."
     },
+    "kabis": {
+      "baslik": "KABİS Ayarları",
+      "aciklama": "Kiralık Araç Bildirim Sistemi (1774 sayılı Kanun ek madde 3): teslimde kiralayan ve araç bilgisi kolluğa anlık bildirilir. Açıkken her teslim ve dönüş bir bildirim kaydı oluşturur; kira ekranı ve panel bildirilemeyen kiraları gösterir.",
+      "etkin": "Teslim ve dönüşte otomatik KABİS bildirimi yap",
+      "kurum": "Kurum",
+      "emniyet": "Emniyet (EGM)",
+      "jandarma": "Jandarma (JGK)",
+      "kullanici": "KABİS kullanıcı adı",
+      "sifre": "KABİS şifresi",
+      "sifreIpucu": "Şifre yalnız yazılır, hiçbir yanıtta gösterilmez. Kullanıcı ya da kurum değişirse yeniden girilmelidir.",
+      "teslimiEngelle": "Bildirim başarılı olmadan aracın teslimine izin verme",
+      "teslimiEngelleIpucu": "Kapalıyken teslim yapılır, bildirim kuyruğa girer ve uyarı gösterilir. Açıkken bildirim yapılamazsa teslim reddedilir.",
+      "test": "Bağlantıyı sına",
+      "onceKaydet": "Önce değişiklikleri kaydedin.",
+      "durustNot": "Gerçek KABİS bağlantısı yapılandırılmadıkça hiçbir bildirim \"bildirildi\" görünmez; kayıtlar \"bağlı değil\" notuyla bekler."
+    },
     "mesaj": {
       "baslik": "Müşteri Mesaj Şablonları",
       "aciklama": "Müşteriye giden e-posta ve SMS metinleri. Şablon yazılmadan mesaj gönderilmez; şablonu sonradan yazarsanız kuyrukta bekleyen mesajlar ilk taramada doğru içerikle gönderilir.",
@@ -425,6 +441,7 @@
       "firma": "Firma",
       "entegrasyon": "Entegrasyon kimlikleri",
       "sirAciklama": "Şifre ve API anahtarları yalnız yazılabilir: kayıtlı değer hiçbir zaman gösterilmez. Boş bırakırsanız kayıtlı değer korunur; yeni değer yazarsanız değiştirilir. Kayıtlı değeri silmek için alanın altındaki \"Kayıtlı değeri sil\" kutusunu işaretleyin.",
+      "kabisBaglanti": "KABİS (Kiralık Araç Bildirim Sistemi) ayarları →",
       "sirKayitli": "•••••• (kayıtlı — değiştirmek için yazın)",
       "sirBos": "(boş)",
       "sirSil": "Kayıtlı değeri sil",
@@ -443,22 +460,31 @@
       "renkAciklama": "Boş bırakılan renk koddaki varsayılanı kullanır. Dolu ise #rrggbb biçiminde olmalıdır.",
       "siteGorunum": "Web sitesi görünümü",
       "siteGorunumAciklama": "Firmanızın halka açık web sitesinde kullanılır. Logo yukarıdaki logo bölümünden yüklenir ve sitenin başlığında ve alt bilgisinde görünür.",
-      "siteVurguIpucu": "Düğme ve vurgu rengi, #rrggbb biçiminde. Boş bırakılırsa sitenin varsayılan rengi kullanılır. Site, yazıların okunabilmesi için bu rengi gerektiğinde koyulaştırır ya da açar.",
+      "siteVurguIpucu": "İsteğe bağlı, #rrggbb biçiminde. Seçili renk setinin ana rengi yerine düğme ve vurgu rengi olur; zemin ve yazı renkleri setten gelir. Site, yazıların okunabilmesi için bu rengi gerektiğinde koyulaştırır ya da açar.",
+      "palet": {
+        "ipucu": "Seçili temanın hazır renk setleri. Zemin, yazı ve çizgi renkleri açık ve koyu görünümde okunabilir olacak şekilde ayarlıdır. Tema değişince seçim o temanın varsayılan setine döner.",
+        "varsayilan": "Varsayılan"
+      },
+      "renk": {
+        "secici": "Renk seçici",
+        "temizle": "Temizle"
+      },
       "tema": {
-        "ipucu": "Sitenin tasarımı. Logonuz ve vurgu renginiz her temada kullanılır; içerik ve fiyatlar aynı kalır.",
-        "onizleAciklama": "Önizleme bağlantısı kaydetmeden, sitenizi seçilen temayla yeni sekmede açar. Önizleme arama motorlarına kapalıdır.",
+        "ipucu": "Sitenin tasarımı. Logonuz ve renkleriniz her temada kullanılır; içerik ve fiyatlar aynı kalır.",
+        "onizleAciklama": "Önizleme bağlantısı kaydetmeden, sitenizi seçilen tema, renk seti ve ana renkle yeni sekmede açar. Önizleme arama motorlarına kapalıdır.",
         "onizle": "{{ad}} temasını önizle",
-        "tarife": {
-          "ad": "Tarife",
-          "aciklama": "Fiyat şeffaflığı öne çıkar: günlük fiyat tahtası ve açık hesap. Bütçe ve şehir kiralaması için."
+        "onizleSecili": "Seçili görünümü önizle",
+        "pazar": {
+          "ad": "Pazar",
+          "aciklama": "Kalın başlıklar, asılı fiyat etiketleri ve öne çıkan telefon ile WhatsApp; yerel firma ve bütçe kiralaması için."
         },
         "vitrin": {
           "ad": "Vitrin",
-          "aciklama": "Fotoğraf öne çıkar: büyük kapak görseli ve sade kartlar. Özenli fotoğraflı, üst segment filo için."
+          "aciklama": "Koyu, sinematik showroom: tam genişlik fotoğraf ve yana akan filo şeridi. Özenli fotoğraflı, üst segment filo için."
         },
-        "kontuar": {
-          "ad": "Kontuar",
-          "aciklama": "Bilet ve kalkış panosu düzeni. Havalimanı ve otel teslimi yapan firmalar için."
+        "rota": {
+          "ad": "Rota",
+          "aciklama": "Editoryal ve ferah: büyük başlık, dikey fotoğraf ve numaralı fiyat listesi. Tatil bölgesinde, havalimanı ve otel teslimi yapan firmalar için."
         }
       },
       "smtp": "SMTP (e-posta gönderimi)",
@@ -514,8 +540,9 @@
         "renkAlacakli": "Alacaklı cari",
         "renkRezAtananPlaka": "Plakası atanmış rezervasyon",
         "renkKiralanmayan": "Kiralanmayan araç",
-        "siteVurguRengi": "Site vurgu rengi",
+        "siteVurguRengi": "Kendi ana rengim",
         "siteTemasi": "Site teması",
+        "sitePaleti": "Renk seti",
         "smtpHost": "SMTP sunucusu",
         "smtpPort": "SMTP portu",
         "smtpKullanici": "SMTP kullanıcı",

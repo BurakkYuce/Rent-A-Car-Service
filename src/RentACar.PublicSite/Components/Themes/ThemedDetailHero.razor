@@ -1,0 +1,20 @@
+@inject ThemeAccessor Themes
+
+@* DetailHero slotu — ilan detayının üst bölümü (başlık, kapak, galeri, fiyat, tarife, eylemler, tarih formu);
+   aktif temanın DetailHero bileşeni çizilir. Kendi kapsayıcısını (wrap) tema basar: tam genişlik galeri mümkün.
+   Breadcrumb, JSON-LD, meta, teknik özellikler ve benzer araçlar sayfada kalır.
+   Parametre sözlüğü SABİT imza: Model (DetailHeroModel) — Components/Themes/README.md. *@
+@if (_type is not null)
+{
+    <DynamicComponent Type="_type" Parameters="Params" />
+}
+
+@code {
+    [Parameter, EditorRequired] public DetailHeroModel Model { get; set; } = default!;
+
+    private Type? _type;
+
+    private Dictionary<string, object?> Params => new() { [nameof(Model)] = Model };
+
+    protected override async Task OnInitializedAsync() => _type = (await Themes.GetAsync()).DetailHero;
+}

@@ -15,7 +15,7 @@ public static partial class SystemAdminApi
         ("RenkBugunCikacaklar", "renkBugunCikacaklar"), ("RenkOpsiyonlu", "renkOpsiyonlu"),
         ("RenkLimitBakiye", "renkLimitBakiye"), ("RenkAlacakli", "renkAlacakli"),
         ("RenkRezAtananPlaka", "renkRezAtananPlaka"), ("RenkKiralanmayan", "renkKiralanmayan"),
-        ("Site vurgu rengi", "siteVurguRengi"), ("Site teması", "siteTemasi"),
+        ("Site vurgu rengi", "siteVurguRengi"), ("Site teması", "siteTemasi"), ("Site paleti", "sitePaleti"),
         ("SMTP şifresi", "smtpSifre"), ("e-Fatura şifresi", "eFaturaSifre"), ("POS API anahtarı", "posApiKey"),
     ];
 
@@ -59,6 +59,15 @@ public static partial class SystemAdminApi
         if (!string.IsNullOrWhiteSpace(i.SiteTemasi) && Application.TenantSettings.SiteThemeKeys.Normalize(i.SiteTemasi) is null)
             throw new ValidationException("Site teması geçersiz. Geçerli değerler: "
                                           + string.Join(", ", Application.TenantSettings.SiteThemeKeys.All) + ".", "siteTemasi");
+        // Palet seti: AYNI istekteki temanın (boş = varsayılan tema) setlerinden biri olmalı. Tam değiştirme PUT'unda
+        // tema ile palet birlikte gelir; tema değişip palet eski temada kalırsa kayıt reddedilir (ekran seçimi
+        // temizler). Biçim kuralı serviste de var; burada alan eşlemesi açık ve mesaj geçerli setleri sayar.
+        RentalLimits.Text(i.SitePaleti, Application.TenantSettings.SitePaletteKeys.MaxLength, "sitePaleti", "Site paleti");
+        if (!string.IsNullOrWhiteSpace(i.SitePaleti)
+            && !Application.TenantSettings.SitePaletteKeys.BelongsTo(i.SiteTemasi, i.SitePaleti))
+            throw new ValidationException("Site paleti bu temaya ait değil. Geçerli değerler: "
+                                          + string.Join(", ", Application.TenantSettings.SitePaletteKeys.For(i.SiteTemasi).Select(p => p.Key))
+                                          + ".", "sitePaleti");
         foreach (var (value, field) in new[]
                  {
                      (i.RenkGecikenler, "renkGecikenler"), (i.RenkBugunDonecekler, "renkBugunDonecekler"),

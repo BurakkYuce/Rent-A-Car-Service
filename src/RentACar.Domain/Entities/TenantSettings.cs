@@ -187,16 +187,24 @@ public class TenantSettings : ITenantOwned, IAuditable
     /// Halka açık sitenin (RentACar.PublicSite) vurgu rengi, "#rrggbb" ya da null. NULL = sitenin kendi
     /// varsayılan rengi. Değer olduğu gibi basılmaz: site, açık ve koyu temada okunabilir kalması için
     /// rengi kontrast kuralına göre koyulaştırır/açıklaştırır ve üstündeki yazı rengini kendisi seçer
-    /// (<c>BrandPalette</c>).
+    /// (<c>SitePaletteCss</c>). Doluysa seçili palet setinin ana rengini ezer.
     /// </summary>
     public string? SiteVurguRengi { get; set; }
 
     /// <summary>
-    /// Halka açık sitenin teması: <c>tarife</c> / <c>vitrin</c> / <c>kontuar</c> ya da null (= <c>tarife</c>).
+    /// Halka açık sitenin teması: <c>pazar</c> / <c>vitrin</c> / <c>rota</c> ya da null (= <c>pazar</c>).
     /// Anahtar listesi <c>SiteThemeKeys</c>'te; bilinmeyen değer yazılamaz (servis reddeder), okunurken de
     /// varsayılana düşer.
     /// </summary>
     public string? SiteTemasi { get; set; }
+
+    /// <summary>
+    /// Halka açık sitenin renk paleti: seçili temanın hazır palet setlerinden birinin anahtarı ya da null (= temanın
+    /// varsayılan seti). Biçim <c>^[a-z0-9-]{1,30}$</c> (servis doğrular); temaya aitliği uç doğrular
+    /// (<c>SitePaletteKeys</c>). Site, temaya ait olmayan değeri varsayılan sete düşürür — tema değişince eski
+    /// palet kendiliğinden geçersizleşir. <see cref="SiteVurguRengi"/> doluysa setin ana rengini ezer.
+    /// </summary>
+    public string? SitePaleti { get; set; }
 
     /// <summary>
     /// Angular geçişi F1.2 — bu firma yeni arayüzün (<c>/app</c> + <c>/api/ui/v1</c>) PİLOTUNDA mı.
@@ -206,6 +214,28 @@ public class TenantSettings : ITenantOwned, IAuditable
     /// Ayar satırı LAZY oluştuğu için satırı olmayan firma da pilot DEĞİLDİR.
     /// </summary>
     public bool YeniArayuzPilot { get; set; }
+
+    // ---- KABİS (Kiralık Araç Bildirim Sistemi; additive, hepsi boş/false varsayılan) ----
+    // Ayar boşken davranış BAYT-ÖZDEŞ: kuyruk kaydı oluşmaz, teslim engellenmez. Ayrıntı: docs/entegrasyon/kabis.md.
+    // Bu alanlar TenantSettingsService'in tam değiştirme kaydına GİRMEZ; yalnız KabisSettingsService yazar.
+
+    /// <summary>Teslim/dönüşte otomatik KABİS bildirimi kuyruğa girsin mi (varsayılan KAPALI).</summary>
+    public bool KabisEtkin { get; set; }
+
+    /// <summary>Bildirimin gideceği kolluk: <c>Emniyet</c> ya da <c>Jandarma</c> (enum adı). Boş → Emniyet.</summary>
+    public string? KabisKurum { get; set; }
+
+    /// <summary>KABİS kullanıcı kodu/adı (sır değil, düz metin).</summary>
+    public string? KabisKullanici { get; set; }
+
+    /// <summary>KABİS şifresi — <c>ISecretProtector</c> cipher'ı. HİÇBİR API yanıtında dönmez (yalnız "tanımlı" bayrağı).</summary>
+    public string? KabisSifreEnc { get; set; }
+
+    /// <summary>
+    /// true: KABİS bildirimi BAŞARILI olmadan araç teslim edilemez (kanun "araç teslim edilmeden" bildirim ister).
+    /// Varsayılan false: teslim yapılır, bildirim kuyruğa girer, kira ekranı ve panel uyarır.
+    /// </summary>
+    public bool KabisTeslimiEngelle { get; set; }
 
     public DateTimeOffset CreatedAtUtc { get; set; } = DateTimeOffset.UtcNow;
     public DateTimeOffset? UpdatedAtUtc { get; set; }

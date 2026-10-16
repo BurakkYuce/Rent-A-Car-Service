@@ -50,6 +50,8 @@
       "siteTalebi": "Site talebi",
       "siteTalebiEnEski": "En eskisi {{gun}} gündür bekliyor",
       "siteTalebiYok": "Bekleyen talep yok",
+      "kabisBildirilemeyen": "KABİS bildirilemeyen",
+      "kabisIpucu": "KABİS bildirimi bekleyen ya da hatalı kiralar",
       "uyari": "Vade uyarısı:",
       "gecmisUyari": "{{sayi}} geçmiş",
       "yaklasanUyari": "{{sayi}} yaklaşan (≤ 30 gün)",
