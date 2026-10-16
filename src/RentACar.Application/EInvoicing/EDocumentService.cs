@@ -56,10 +56,14 @@ public sealed class EDocumentService(
     public async Task<string?> ConnectionGapAsync(CancellationToken ct = default)
         => EInvoiceConnection.Resolve(await settings.GetAsync(ct), catalog, secrets).Gap;
 
+    /// <summary>Faturanın iadesi kesilmiş mi (e-belgesi gönderilmez; gönderilmiş e-Arşiv'i ancak o zaman iptal edilir).</summary>
+    public Task<bool> HasRefundAsync(Guid invoiceId, CancellationToken ct = default)
+        => invoices.RefundExistsForAsync(invoiceId, ct);
+
     /// <summary>
-    /// Faturayı e-belge gönderim kuyruğuna alır (Taslak/Hata → Gönderilecek; kayıt yoksa — özelliğin öncesinden kalan
-    /// fatura — oluşturulur). Entegratör bağlı değilse REDDEDİLİR (kuyruğa sahte umut yazılmaz). Zaten kuyruktaysa
-    /// sessiz başarı; gönderilmiş/iptal edilmişse ret. FinanceWrite.
+    /// Faturayı e-belge gönderim kuyruğuna alır (Taslak/Hata/TestGonderildi → Gönderilecek; kayıt yoksa — özelliğin
+    /// öncesinden kalan fatura — oluşturulur). Entegratör bağlı değilse REDDEDİLİR (kuyruğa sahte umut yazılmaz). İadesi
+    /// kesilmiş fatura reddedilir. Zaten kuyruktaysa sessiz başarı; gönderilmiş/iptal edilmişse ret. FinanceWrite.
     /// </summary>
     public async Task<EDocumentActionResult> QueueAsync(Guid invoiceId, CancellationToken ct = default)
     {
@@ -67,6 +71,7 @@ public sealed class EDocumentService(
         var invoice = await invoices.FindAsync(invoiceId, ct) ?? throw new ValidationException("Fatura bulunamadı.");
         if (invoice.IadeMi) throw new ValidationException(EDocumentPolicy.RefundNotSent);
         if (invoice.Durum == InvoiceStatus.Iptal) throw new ValidationException("İptal edilmiş fatura için e-belge gönderilmez.");
+        if (await invoices.RefundExistsForAsync(invoiceId, ct)) throw new ValidationException(EDocumentPolicy.RefundedSourceNotSent);
         if (EInvoiceConnection.Resolve(await settings.GetAsync(ct), catalog, secrets).Gap is { } gap)
             throw new ValidationException(EInvoiceReadiness.NotConnected(gap));
 
@@ -77,7 +82,9 @@ public sealed class EDocumentService(
     /// <summary>
     /// e-Belgeyi iptal eder. FinanceReverse + gerekçe zorunlu.
     /// <list type="bullet">
-    /// <item><b>Gönderilmiş e-Arşiv</b> → entegratörde iptal; başarısızsa durum DEĞİŞMEZ.</item>
+    /// <item><b>Gönderilmiş e-Arşiv</b> → yalnız fatura İADE EDİLDİYSE entegratörde iptal (adversarial M3: iadesiz
+    /// iptal defterde satış + KDV bırakıp GİB'de belgesiz, düzeltilemez fatura üretirdi); başarısızsa durum DEĞİŞMEZ.</item>
+    /// <item><b>Test ortamına gönderilmiş</b> → yerel iptal (GİB'e ulaşmadı).</item>
     /// <item><b>Gönderilmiş e-Fatura</b> → reddedilir: e-Fatura gönderenin tek taraflı iptaliyle geri alınamaz.</item>
     /// <item><b>Gönderilmemiş</b> (Taslak/Hata/Gönderilecek) → yerel iptal: belge bir daha gönderilmez. Gönderim işi o
     /// an satırı tutuyorsa (kilit) reddedilir — yarışta "iptal edildi" deyip arkadan gönderilmesin.</item>
@@ -111,7 +118,8 @@ public sealed class EDocumentService(
                     "Önceki gönderim denemesinin sonucu entegratörden alınamadı; daha sonra yeniden deneyin: " + status.Hata)!);
             if (status.Bulundu)
             {
-                if (!await repository.MarkSentAsync(doc.Id, [doc.Durum], status.EntegratorRef, status.Durum, now, ct))
+                if (!await repository.MarkSentAsync(doc.Id, [doc.Durum], status.EntegratorRef, status.Durum,
+                        conn.Credentials!.CanliOrtam, now, ct))
                     throw new ValidationException("e-Belge şu anda gönderiliyor; birkaç dakika sonra yeniden deneyin.");
                 doc = await repository.FindByInvoiceAsync(invoiceId, ct) ?? doc;
             }
@@ -122,11 +130,21 @@ public sealed class EDocumentService(
             case EDocumentStatus.Iptal:
                 return new EDocumentActionResult(invoiceId, doc.Durum, doc.SonMesaj);
 
+            case EDocumentStatus.TestGonderildi:
+            {
+                var message = EDocumentPolicy.Sanitize("Test ortamına gönderilmiş e-belge iptal edildi (GİB'e ulaşmamıştı): " + why);
+                if (!await repository.MarkCancelledAsync(doc.Id, [EDocumentStatus.TestGonderildi], requireLeaseFree: true, message, now, ct))
+                    throw new ValidationException("e-Belge durumu bu sırada değişti; sayfayı yenileyin.");
+                return new EDocumentActionResult(invoiceId, EDocumentStatus.Iptal, message);
+            }
+
             case EDocumentStatus.Gonderildi:
             {
                 if (doc.Tur != EDocumentKind.EArsiv)
                     throw new ValidationException(
                         "Gönderilmiş e-Fatura entegratörden iptal edilemez: alıcının iade faturası ya da GİB portalından iptal talebi gerekir.");
+                if (!await invoices.RefundExistsForAsync(invoiceId, ct))
+                    throw new ValidationException(EDocumentPolicy.SentArchiveNeedsRefund);
                 var conn = EInvoiceConnection.Resolve(await settings.GetAsync(ct), catalog, secrets);
                 if (!conn.Ready) throw new ValidationException(EInvoiceReadiness.NotConnected(conn.Gap!));
                 EInvoiceCancelResult result;
@@ -174,5 +192,5 @@ public interface IEDocumentRepository
     /// <summary>Entegratörün TANIDIĞI (önceki denemede ulaşmış) belgeyi gönderildi olarak düzeltir. Koşul: durum
     /// <paramref name="expected"/> içinde ve gönderim kilidi boş. Koşul tutmazsa false.</summary>
     Task<bool> MarkSentAsync(Guid id, IReadOnlyCollection<EDocumentStatus> expected, string? integratorRef, string? integratorStatus,
-        DateTimeOffset now, CancellationToken ct = default);
+        bool liveEnvironment, DateTimeOffset now, CancellationToken ct = default);
 }

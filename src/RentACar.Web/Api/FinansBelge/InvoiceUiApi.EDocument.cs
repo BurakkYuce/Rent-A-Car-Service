@@ -54,10 +54,14 @@ public static partial class InvoiceUiApi
     {
         var doc = await edocs.GetByInvoiceAsync(inv.Id, ct);
         var connected = await edocs.ConnectionGapAsync(ct) is null;
-        var invoiceSendable = !inv.IadeMi && inv.Durum != InvoiceStatus.Iptal;
+        // İadesi kesilmiş faturanın e-belgesi gönderilmez; gönderilmiş e-Arşiv'i ise ancak iadeden sonra iptal edilir.
+        var refunded = !inv.IadeMi && await edocs.HasRefundAsync(inv.Id, ct);
+        var invoiceSendable = !inv.IadeMi && inv.Durum != InvoiceStatus.Iptal && !refunded;
         if (doc is null)
             return new EDocumentDto(null, null, null, null, null, null, 0, null,
-                inv.IadeMi ? EDocumentPolicy.RefundNotSent : "Bu fatura e-belge kaydı açılmadan önce kesildi.",
+                inv.IadeMi ? EDocumentPolicy.RefundNotSent
+                : refunded ? EDocumentPolicy.RefundedSourceNotSent
+                : "Bu fatura e-belge kaydı açılmadan önce kesildi.",
                 connected, connected && invoiceSendable, false);
 
         return new EDocumentDto(
@@ -65,8 +69,10 @@ public static partial class InvoiceUiApi
             doc.GonderimUtc is null ? null : doc.Ettn.ToString("D").ToUpperInvariant(),
             doc.GonderimUtc, doc.DenemeSayisi, doc.Durum == EDocumentStatus.Gonderilecek ? doc.SonrakiDenemeUtc : null,
             doc.SonMesaj, connected,
-            Gonderilebilir: connected && invoiceSendable && doc.Durum is EDocumentStatus.Taslak or EDocumentStatus.Hata,
+            Gonderilebilir: connected && invoiceSendable
+                            && doc.Durum is EDocumentStatus.Taslak or EDocumentStatus.Hata or EDocumentStatus.TestGonderildi,
             IptalEdilebilir: doc.Durum is EDocumentStatus.Taslak or EDocumentStatus.Hata or EDocumentStatus.Gonderilecek
-                             || (doc.Durum == EDocumentStatus.Gonderildi && doc.Tur == EDocumentKind.EArsiv));
+                                 or EDocumentStatus.TestGonderildi
+                             || (doc.Durum == EDocumentStatus.Gonderildi && doc.Tur == EDocumentKind.EArsiv && refunded));
     }
 }

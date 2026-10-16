@@ -1770,6 +1770,7 @@ export type CeviriAnahtari =
   | 'finansBelge.eBelge.durum.Hata'
   | 'finansBelge.eBelge.durum.Iptal'
   | 'finansBelge.eBelge.durum.Taslak'
+  | 'finansBelge.eBelge.durum.TestGonderildi'
   | 'finansBelge.eBelge.durum.yok'
   | 'finansBelge.eBelge.ettn'
   | 'finansBelge.eBelge.gerekce'

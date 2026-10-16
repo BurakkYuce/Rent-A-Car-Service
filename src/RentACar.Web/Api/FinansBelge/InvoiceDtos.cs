@@ -18,8 +18,10 @@ public sealed record InvoiceListRow(
 /// <list type="bullet">
 /// <item><c>ettn</c> YALNIZ entegratör belgeyi kabul ettiyse döner (<c>gonderimTarihi</c> dolu) — gönderilmemiş belgenin
 /// UUID'si "e-Fatura numarası" gibi görünmesin (dürüst stub kuralı).</item>
-/// <item><c>gonderilebilir</c>: Taslak/Hata durumunda (ya da kaydı olmayan eski faturada) ve entegratör bağlıyken
-/// kuyruğa alınabilir; <c>iptalEdilebilir</c>: gönderilmemiş belge ya da gönderilmiş e-Arşiv.</item>
+/// <item><c>durum</c> <c>TestGonderildi</c>: entegratörün TEST ortamı kabul etti, GİB'e ulaşmadı (gönderildi sayılmaz).</item>
+/// <item><c>gonderilebilir</c>: Taslak/Hata/TestGonderildi durumunda (ya da kaydı olmayan eski faturada), entegratör
+/// bağlıyken ve fatura iade edilmemişken kuyruğa alınabilir; <c>iptalEdilebilir</c>: gönderilmemiş ya da test ortamına
+/// gitmiş belge, ya da iadesi kesilmiş faturanın gönderilmiş e-Arşiv'i.</item>
 /// </list>
 /// </summary>
 public sealed record EDocumentDto(

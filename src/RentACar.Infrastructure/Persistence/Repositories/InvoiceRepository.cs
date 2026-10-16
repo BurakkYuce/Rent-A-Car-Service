@@ -282,6 +282,9 @@ public sealed class InvoiceRepository(IDbContextFactory<AppDbContext> factory) :
             db.Invoices.Add(invoice);          // satırlar cascade
             db.AccountLedgerEntries.AddRange(entries);
             await EDocumentQueue.AddForNewInvoiceAsync(db, invoice, DateTimeOffset.UtcNow, ct); // aynı TX: fatura ↔ e-belge kaydı
+            // İade: kaynağın henüz gönderilmemiş e-belgesi aynı TX'te iptal (geri alınmış satış GİB'e gitmesin).
+            if (invoice.IadeMi && invoice.KaynakFaturaId is Guid refundedSource)
+                await EDocumentQueue.SettleSourceOnRefundAsync(db, refundedSource, DateTimeOffset.UtcNow, ct);
 
             try
             {

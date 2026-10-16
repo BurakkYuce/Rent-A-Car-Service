@@ -34,6 +34,10 @@ public sealed class EDocumentRepository(IDbContextFactory<AppDbContext> factory)
             await using var tx = await db.Database.BeginTransactionAsync(ct);
             await db.Database.ExecuteSqlRawAsync(
                 "SELECT 1 FROM \"EBelgeler\" WHERE \"InvoiceId\" = {0} FOR UPDATE", [invoiceId], ct);
+            // İadesi olan fatura kuyruğa GİRMEZ (adversarial M1) — kilit altında yeniden bakılır: servis ön-kontrolünden
+            // sonra commit eden bir iade de görülür.
+            if (await db.Invoices.AsNoTracking().AnyAsync(i => i.KaynakFaturaId == invoiceId, ct))
+                throw new ValidationException(EDocumentPolicy.RefundedSourceNotSent);
             var doc = await db.EDocuments.FirstOrDefaultAsync(d => d.InvoiceId == invoiceId, ct);
             if (doc is null)
             {
@@ -57,8 +61,15 @@ public sealed class EDocumentRepository(IDbContextFactory<AppDbContext> factory)
                     case EDocumentStatus.Iptal:
                         throw new ValidationException("e-Belge iptal edilmiş; yeniden gönderilemez.");
                 }
-                // Taslak/Hata → kuyruk. Deneme sayacı sıfırlanır (yeni deneme hakkı) ama SonDenemeUtc KORUNUR:
-                // önceki bir deneme entegratöre ulaşmış olabilir → gönderim işi yeniden göndermeden önce durum sorar.
+                // Taslak/Hata/TestGonderildi → kuyruk. Deneme sayacı sıfırlanır (yeni deneme hakkı) ama SonDenemeUtc
+                // KORUNUR: önceki bir deneme entegratöre ulaşmış olabilir → gönderim işi yeniden göndermeden önce durum
+                // sorar. Test ortamı kabulü GİB'e ulaşmadığından onun gönderim izleri silinir (canlıda yeniden gider).
+                if (doc.Durum == EDocumentStatus.TestGonderildi)
+                {
+                    doc.GonderimUtc = null;
+                    doc.EntegratorRef = null;
+                    doc.EntegratorDurum = null;
+                }
                 doc.Durum = EDocumentStatus.Gonderilecek;
                 doc.DenemeSayisi = 0;
                 doc.SonrakiDenemeUtc = null;
@@ -81,7 +92,7 @@ public sealed class EDocumentRepository(IDbContextFactory<AppDbContext> factory)
         }, ct);
 
     public Task<bool> MarkSentAsync(Guid id, IReadOnlyCollection<EDocumentStatus> expected, string? integratorRef,
-        string? integratorStatus, DateTimeOffset now, CancellationToken ct = default)
+        string? integratorStatus, bool liveEnvironment, DateTimeOffset now, CancellationToken ct = default)
         => PgRetry.RunAsync(async () =>
         {
             await using var db = await factory.CreateDbContextAsync(ct);
@@ -90,11 +101,13 @@ public sealed class EDocumentRepository(IDbContextFactory<AppDbContext> factory)
             var doc = await db.EDocuments.FirstOrDefaultAsync(d => d.Id == id, ct);
             if (doc is null || !expected.Contains(doc.Durum)) return false;
             if (doc.KilitBitisUtc is { } lease && lease >= now) return false; // gönderim işi tutuyor
-            doc.Durum = EDocumentStatus.Gonderildi;
+            doc.Durum = liveEnvironment ? EDocumentStatus.Gonderildi : EDocumentStatus.TestGonderildi;
             doc.GonderimUtc ??= now; // asıl kabul anı bilinmiyor; düzeltmenin yapıldığı an
             doc.EntegratorRef = integratorRef ?? doc.EntegratorRef;
             doc.EntegratorDurum = integratorStatus ?? doc.EntegratorDurum;
-            doc.SonMesaj = "Önceki gönderim denemesi entegratöre ulaşmış (durum sorgusuyla doğrulandı).";
+            doc.SonMesaj = liveEnvironment
+                ? "Önceki gönderim denemesi entegratöre ulaşmış (durum sorgusuyla doğrulandı)."
+                : EDocumentPolicy.TestEnvironmentSent;
             doc.KilitBitisUtc = null;
             doc.SonrakiDenemeUtc = null;
             doc.UpdatedAtUtc = now;

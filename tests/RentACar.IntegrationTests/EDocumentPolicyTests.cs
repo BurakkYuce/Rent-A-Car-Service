@@ -88,6 +88,31 @@ public sealed class EDocumentPolicyTests
         Assert.Equal(TimeSpan.FromHours(4), EDocumentPolicy.Backoff(9));
     }
 
+    /// <summary>Adversarial L3: entegratör TCKN'yi gruplu yansıtırsa ("123 456 789 01", "123-456-789-01") da maskelenir;
+    /// 10 haneli VKN ve tarih gibi kısa diziler kalır.</summary>
+    [Fact]
+    public void Sanitize_masks_grouped_eleven_digit_runs_but_leaves_shorter_numbers()
+    {
+        var tckn = TestNationalId.New();
+        var spaced = $"{tckn[..3]} {tckn[3..6]} {tckn[6..9]} {tckn[9..]}";
+        var dashed = $"{tckn[..3]}-{tckn[3..6]}-{tckn[6..9]}-{tckn[9..]}";
+        Assert.Equal("Alıcı kimliği *********** GİB'de bulunamadı",
+            EDocumentPolicy.Sanitize($"Alıcı kimliği {spaced} GİB'de bulunamadı", tckn));
+        Assert.Equal("kimlik ***********", EDocumentPolicy.Sanitize($"kimlik {dashed}", null));
+        Assert.Equal("VKN 123 456 78 90, tarih 2026-10-17 kalır",
+            EDocumentPolicy.Sanitize("VKN 123 456 78 90, tarih 2026-10-17 kalır", null));
+    }
+
+    /// <summary>Adversarial L1: entegratör çağrılarına ayrılan süre kilit bitişinden 1 dk önce biter; en az 1 sn.</summary>
+    [Fact]
+    public void Call_budget_ends_a_minute_before_the_lease()
+    {
+        var clock = new DateTimeOffset(2026, 1, 5, 10, 0, 0, TimeSpan.Zero);
+        Assert.Equal(TimeSpan.FromMinutes(9), EDocumentPolicy.CallBudget(clock.AddMinutes(10), clock));
+        Assert.Equal(TimeSpan.FromSeconds(1), EDocumentPolicy.CallBudget(clock.AddSeconds(30), clock));
+        Assert.True(EDocumentPolicy.CallBudget(clock + EDocumentPolicy.Lease, clock) < EDocumentPolicy.Lease);
+    }
+
     [Fact]
     public void Credentials_and_submission_never_print_their_secrets()
     {

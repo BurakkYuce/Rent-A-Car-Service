@@ -67,11 +67,20 @@ public static class EDocumentDispatcher
             var doc = await db.EDocuments.AsNoTracking().FirstAsync(d => d.Id == id, ct);
 
             Outcome outcome;
+            // Entegratör çağrıları kilit dolmadan kesilir (adversarial L1): kilit süresini aşan bir çağrı, bu arada
+            // yapılan yerel iptalin arkasından belgeyi teslim edebilirdi. Sonuç yazımı (FinishAsync) bu sürenin dışında.
+            using var budget = CancellationTokenSource.CreateLinkedTokenSource(ct);
+            budget.CancelAfter(EDocumentPolicy.CallBudget(lease, DateTimeOffset.UtcNow));
             try
             {
                 outcome = connection.Ready
-                    ? await ProcessAsync(db, doc, settings!, connection, secrets, now, lease, tz ?? TenantDay.Slice, ct)
+                    ? await ProcessAsync(db, doc, settings!, connection, secrets, now, lease, tz ?? TenantDay.Slice, budget.Token)
                     : Outcome.ToDraft(EInvoiceReadiness.NotConnected(connection.Gap!));
+            }
+            catch (OperationCanceledException) when (!ct.IsCancellationRequested)
+            {
+                // Süre doldu: belge entegratöre ulaşmış olabilir → yeniden deneme önce durum sorar (SonDenemeUtc yazılıysa).
+                outcome = Outcome.Retry("Entegratör kilit süresi içinde yanıt vermedi; yeniden denenecek.");
             }
             catch (EDocumentDataException ex)
             {
@@ -95,7 +104,7 @@ public static class EDocumentDispatcher
             }
             switch (outcome.Status)
             {
-                case EDocumentStatus.Gonderildi: sent++; break;
+                case EDocumentStatus.Gonderildi or EDocumentStatus.TestGonderildi: sent++; break;
                 case EDocumentStatus.Gonderilecek: waiting++; break;
                 case EDocumentStatus.Hata: failed++; break;
                 default: draft++; break;
@@ -116,7 +125,12 @@ public static class EDocumentDispatcher
         public static Outcome ToDraft(string message) => new(EDocumentStatus.Taslak, message);
         public static Outcome Failed(string message) => new(EDocumentStatus.Hata, message);
         public static Outcome Retry(string message) => new(EDocumentStatus.Gonderilecek, message, Transient: true);
-        public static Outcome Sent(string? reference, string? status) => new(EDocumentStatus.Gonderildi, null, reference, status);
+        public static readonly Outcome Refunded = new(EDocumentStatus.Iptal, EDocumentPolicy.RefundedSourceCancelled);
+
+        /// <summary>Entegratör kabul etti. TEST ortamı kabulü ayrı durumdur — GİB'e ulaşmadı (adversarial M2).</summary>
+        public static Outcome Sent(bool live, string? reference, string? status) => live
+            ? new(EDocumentStatus.Gonderildi, null, reference, status)
+            : new(EDocumentStatus.TestGonderildi, EDocumentPolicy.TestEnvironmentSent, reference, status);
     }
 
     private static async Task<Outcome> ProcessAsync(
@@ -137,8 +151,13 @@ public static class EDocumentDispatcher
             }
             if (!status.Sorgulandi)
                 return Outcome.Retry(EDocumentPolicy.Sanitize("Entegratörde durum sorgulanamadı: " + status.Hata)!);
-            if (status.Bulundu) return Outcome.Sent(status.EntegratorRef, status.Durum);
+            if (status.Bulundu) return Outcome.Sent(credentials.CanliOrtam, status.EntegratorRef, status.Durum);
         }
+
+        // (1b) İadesi kesilmiş fatura GÖNDERİLMEZ (adversarial M1): defterde geri alınmış satış GİB'e gitmesin. Kilit
+        // bizde: bundan sonra commit edilmek istenen bir iade kilidi görüp reddedilir (EDocumentQueue.SettleSourceOnRefundAsync).
+        if (await db.Invoices.AsNoTracking().AnyAsync(i => i.KaynakFaturaId == doc.InvoiceId, ct))
+            return Outcome.Refunded;
 
         // (2) Veri — fatura değişmez; müşteri TCKN'si yalnız bellekte çözülür.
         var invoice = await db.Invoices.AsNoTracking().Include(i => i.Lines)
@@ -210,7 +229,7 @@ public static class EDocumentDispatcher
 
         return result.Sonuc switch
         {
-            EInvoiceOutcome.Basarili => Outcome.Sent(result.EntegratorRef, result.Durum),
+            EInvoiceOutcome.Basarili => Outcome.Sent(credentials.CanliOrtam, result.EntegratorRef, result.Durum),
             EInvoiceOutcome.KaliciHata => Outcome.Failed(
                 EDocumentPolicy.Sanitize("Entegratör belgeyi reddetti: " + (result.Hata ?? "sebep bildirilmedi"), tckn)!),
             _ => doc.DenemeSayisi >= EDocumentPolicy.MaxAttempts
@@ -242,7 +261,7 @@ public static class EDocumentDispatcher
     private static async Task<bool> FinishAsync(AppDbContext db, EDocument doc, Outcome o, DateTimeOffset now, DateTimeOffset lease, CancellationToken ct)
     {
         var next = o.Transient ? now + EDocumentPolicy.Backoff(Math.Max(doc.DenemeSayisi, 1)) : (DateTimeOffset?)null;
-        var sentAt = o.Status == EDocumentStatus.Gonderildi ? now : (DateTimeOffset?)null;
+        var sentAt = o.Status is EDocumentStatus.Gonderildi or EDocumentStatus.TestGonderildi ? now : (DateTimeOffset?)null;
         var message = EDocumentPolicy.Sanitize(o.Message);
         var n = await db.EDocuments
             .Where(d => d.Id == doc.Id && d.KilitBitisUtc == lease)

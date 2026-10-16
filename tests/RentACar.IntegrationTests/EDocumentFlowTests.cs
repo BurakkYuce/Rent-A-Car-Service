@@ -52,6 +52,8 @@ public sealed class EDocumentFlowTests(PostgresFixture fx)
 
     private const string SellerVkn = "1234567890";
 
+    /// <summary>Entegratöre CANLI ortamda bağlanır: bu dosyanın senaryoları gerçek gönderimi (GİB'e ulaşan belge)
+    /// sınar. Test ortamı davranışı (kabul "gönderildi" SAYILMAZ) <c>EDocumentAdversarialTests</c>'te.</summary>
     private static async Task<string> ConnectAsync(Ctx c)
     {
         var secret = "S" + Guid.NewGuid().ToString("N");
@@ -61,6 +63,7 @@ public sealed class EDocumentFlowTests(PostgresFixture fx)
             FirmaUnvan = "Deneme Oto Kiralama A.Ş.", FirmaVergiNo = SellerVkn, FirmaVergiDairesi = "Kadıköy",
             FirmaAdres = "Moda Cad. No:1", FirmaIl = "İstanbul", FirmaIlce = "Kadıköy",
             EFaturaEntegrator = FakeEInvoiceIntegrator.TestKey, EFaturaKullanici = "entegrator-kullanici", EFaturaSifre = secret,
+            EFaturaCanliOrtam = true,
         });
         return secret;
     }
@@ -202,7 +205,7 @@ public sealed class EDocumentFlowTests(PostgresFixture fx)
         Assert.Equal(queued.Ettn, sent.Ettn);
         Assert.Equal((EDocumentKind.EFatura, "TEMELFATURA", vkn, "urn:mail:defaultpk@alici.example"),
             (sent.Tur, sent.Profil, sent.AliciVknTckn, sent.AliciEtiket));
-        Assert.Equal(("entegrator-kullanici", secret, false), (c.Fake.LastCredentials!.Kullanici, c.Fake.LastCredentials.Sifre, c.Fake.LastCredentials.CanliOrtam));
+        Assert.Equal(("entegrator-kullanici", secret, true), (c.Fake.LastCredentials!.Kullanici, c.Fake.LastCredentials.Sifre, c.Fake.LastCredentials.CanliOrtam));
         AssertUbl(sent.Xml, "efatura");
 
         var invoice = await DbAsync(c, db => db.Invoices.AsNoTracking().SingleAsync(i => i.Id == id));
@@ -506,6 +509,10 @@ public sealed class EDocumentFlowTests(PostgresFixture fx)
 
         using var s = c.Scope();
         var edocs = s.ServiceProvider.GetRequiredService<EDocumentService>();
+        // Gönderilmiş e-Arşiv ancak iadeden sonra iptal edilir (M3). İade, sonucu belirsiz (denenmiş) belgeye DOKUNMAZ:
+        // belge entegratöre ulaşmış olabilir — kayıt "kuyrukta" kalır, iptal entegratöre sorarak karar verir.
+        await s.ServiceProvider.GetRequiredService<InvoiceService>().CreateRefundAsync(archive);
+        Assert.Equal(EDocumentStatus.Gonderilecek, (await DocAsync(c, archive)).Durum);
         var result = await edocs.CancelAsync(archive, "Müşteri vazgeçti");
         Assert.Equal(EDocumentStatus.Iptal, result.Durum);
         var archiveDoc = await DocAsync(c, archive);

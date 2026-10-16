@@ -12,6 +12,8 @@ export const EDOCUMENT_STATUSES = [
   'Gonderildi',
   'Hata',
   'Iptal',
+  // Entegratörün test ortamı kabul etti; GİB'e ulaşmadı — "gönderildi" sayılmaz, canlıda yeniden gönderilir.
+  'TestGonderildi',
 ] as const;
 export type EDocumentStatus = (typeof EDOCUMENT_STATUSES)[number];
 
@@ -23,8 +25,8 @@ function isStatus(value: string | null | undefined): value is EDocumentStatus {
 }
 
 /**
- * Rozet tonu (renk = durum): gönderildi → başarı, hata → hata, kuyrukta → bilgi, taslak (bağlı değil / iade) → uyarı.
- * İptal ve kayıt yok → nötr (`null`).
+ * Rozet tonu (renk = durum): gönderildi → başarı, hata → hata, kuyrukta → bilgi, taslak (bağlı değil / iade) ve test
+ * ortamına gönderildi (GİB'e ulaşmadı) → uyarı. İptal ve kayıt yok → nötr (`null`).
  */
 export function eDocumentTone(
   status: string | null | undefined,
@@ -37,6 +39,7 @@ export function eDocumentTone(
     case 'Gonderilecek':
       return 'bilgi';
     case 'Taslak':
+    case 'TestGonderildi':
       return 'uyari';
     default:
       return null;

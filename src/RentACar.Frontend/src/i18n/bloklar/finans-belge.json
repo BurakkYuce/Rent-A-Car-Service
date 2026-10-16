@@ -142,7 +142,7 @@
       "kuyrugaAlindi": "{{ no }} gönderim kuyruğuna alındı; birkaç dakika içinde gönderilir.",
       "iptal": "e-Belgeyi iptal et",
       "iptalBaslik": "e-Belge iptal edilsin mi?",
-      "iptalMesaj": "{{ no }} numaralı faturanın e-belgesi iptal edilecek. Gönderilmemişse bir daha gönderilmez; gönderilmiş e-Arşiv belgesi entegratörde iptal edilir. Fatura ve muhasebe kaydı DEĞİŞMEZ (gerekirse iade faturası kesin).",
+      "iptalMesaj": "{{ no }} numaralı faturanın e-belgesi iptal edilecek. Gönderilmemişse bir daha gönderilmez; gönderilmiş e-Arşiv belgesi (fatura iade edildiyse) entegratörde iptal edilir. Bu işlem fatura ve muhasebe kaydını DEĞİŞTİRMEZ.",
       "iptalOnayla": "İptali onayla",
       "iptalEdildi": "{{ no }} e-belgesi iptal edildi.",
       "gerekce": "İptal gerekçesi",
@@ -151,6 +151,7 @@
         "Taslak": "Gönderilmedi",
         "Gonderilecek": "Kuyrukta",
         "Gonderildi": "Gönderildi",
+        "TestGonderildi": "Test ortamına gönderildi",
         "Hata": "Hata",
         "Iptal": "İptal",
         "yok": "Kayıt yok"

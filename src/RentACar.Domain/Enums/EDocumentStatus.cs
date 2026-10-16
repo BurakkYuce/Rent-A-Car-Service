@@ -10,6 +10,10 @@ namespace RentACar.Domain.Enums;
 /// <item><b>Gonderildi</b> — entegratör belgeyi KABUL ETTİ (ETTN ancak bu durumda "gönderildi" sayılır).</item>
 /// <item><b>Hata</b> — kalıcı hata (veri eksik/geçersiz ya da deneme sınırı doldu); düzeltilip yeniden kuyruğa alınabilir.</item>
 /// <item><b>Iptal</b> — e-belge iptal edildi (gönderilmişse entegratörde, gönderilmemişse yerel olarak).</item>
+/// <item><b>TestGonderildi</b> — entegratörün TEST ortamı belgeyi kabul etti; GİB'e ULAŞMADI. "Gönderildi" sayılmaz:
+/// canlı ortama geçince yeniden kuyruğa alınabilir (adversarial M2 — test kabulünü gönderim saymak, GİB'e hiç gitmemiş
+/// faturayı kalıcı olarak "gönderildi" gösterirdi). Ayrı durum olması bilinçli: <c>== Gonderildi</c> diye bakan her
+/// tüketici test kabulünü kendiliğinden gönderim SAYMAZ.</item>
 /// </list>
 /// </summary>
 public enum EDocumentStatus
@@ -18,7 +22,8 @@ public enum EDocumentStatus
     Gonderilecek = 1,
     Gonderildi = 2,
     Hata = 3,
-    Iptal = 4
+    Iptal = 4,
+    TestGonderildi = 5
 }
 
 /// <summary>e-Belge türü: alıcı GİB'de kayıtlı e-Fatura kullanıcısıysa e-Fatura, değilse e-Arşiv.</summary>

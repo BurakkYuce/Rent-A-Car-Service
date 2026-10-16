@@ -66,6 +66,26 @@ public sealed partial class UiFinanceDocumentTests
         Assert.Equal(120.00m, await CustomerBalanceAsync(e, e.Customer)); // e-belge iptali faturayı/defteri GERİ ALMAZ
     }
 
+    /// <summary>Adversarial M1 (Web yolu): iade, kaynağın gönderilmemiş e-belgesini aynı işlemde iptal eder; detay
+    /// "iptal" gösterir, gönderime alma ve iptal düğmeleri kapanır, gönderime alma ucu da reddeder.</summary>
+    [Fact]
+    public async Task Refund_cancels_the_unsent_source_edocument_and_closes_its_actions()
+    {
+        var e = await SetupAsync();
+        var s = await LoginAsync(e, Who.Accountant);
+        var id = await IdOf(await PostAsync(s, "/faturalar/manuel", Manual(e.Customer, 100m), NewKey()));
+        await Ok(await PostAsync(s, $"/faturalar/{id}/iade", null));
+
+        var ebelge = (await Ok(await GetAsync(s, $"/faturalar/{id}"))).GetProperty("eBelge");
+        Assert.Equal("Iptal", ebelge.GetProperty("durum").GetString());
+        Assert.Equal("Fatura iade edildi; e-belge gönderilmeden iptal edildi.", ebelge.GetProperty("mesaj").GetString());
+        Assert.False(ebelge.GetProperty("gonderilebilir").GetBoolean());
+        Assert.False(ebelge.GetProperty("iptalEdilebilir").GetBoolean());
+        await Problem(await PostAsync(s, $"/faturalar/{id}/e-belge/gonder", null), HttpStatusCode.BadRequest, "dogrulama");
+        Assert.Equal(0m, await CustomerBalanceAsync(e, e.Customer)); // 120 fatura − 120 iade
+        await AllLedgerBalancedAsync(e);
+    }
+
     [Fact]
     public async Task Edocument_actions_check_branch_scope_before_state_and_other_tenant_gets_404()
     {

@@ -36,6 +36,20 @@ public sealed class FakeEInvoiceIntegrator : IEInvoiceIntegrator
     public TimeSpan SendDelay { get; set; }
     public EInvoiceCredentials? LastCredentials { get; private set; }
 
+    /// <summary>Kabulün hangi ortamda olduğu (ETTN, canlı mı). Entegratörün test ve canlı ortamları AYRI belge
+    /// uzaylarıdır: test ortamının kabul ettiği ETTN canlıda bilinmez (sorgu "bulunamadı", gönderim kabul).</summary>
+    private readonly ConcurrentDictionary<(Guid Ettn, bool Live), byte> _acceptedIn = new();
+
+    /// <summary>Belge CANLI ortamda kabul edildi mi (GİB'e ulaştı mı).</summary>
+    public bool AcceptedLive(Guid ettn) => _acceptedIn.ContainsKey((ettn, true));
+
+    private bool TryAccept(EInvoiceCredentials credentials, EInvoiceSubmission document)
+    {
+        if (!_acceptedIn.TryAdd((document.Ettn, credentials.CanliOrtam), 0)) return false;
+        Accepted[document.Ettn] = document;
+        return true;
+    }
+
     public async Task<EInvoiceSendResult> SendAsync(EInvoiceCredentials credentials, EInvoiceSubmission document, CancellationToken ct = default)
     {
         LastCredentials = credentials;
@@ -43,10 +57,10 @@ public sealed class FakeEInvoiceIntegrator : IEInvoiceIntegrator
         if (SendDelay > TimeSpan.Zero) await Task.Delay(SendDelay, ct);
         if (OnSend?.Invoke(document) is { } custom)
         {
-            if (custom.Sonuc == EInvoiceOutcome.Basarili) Accepted.TryAdd(document.Ettn, document);
+            if (custom.Sonuc == EInvoiceOutcome.Basarili) TryAccept(credentials, document);
             return custom;
         }
-        if (!Accepted.TryAdd(document.Ettn, document))
+        if (!TryAccept(credentials, document))
             return new EInvoiceSendResult(EInvoiceOutcome.KaliciHata, null, null, "Bu ETTN ile belge zaten var.");
         if (AcceptThenLoseResponse)
         {
@@ -59,14 +73,14 @@ public sealed class FakeEInvoiceIntegrator : IEInvoiceIntegrator
     public Task<EInvoiceStatusResult> QueryStatusAsync(EInvoiceCredentials credentials, Guid ettn, EDocumentKind kind, CancellationToken ct = default)
     {
         StatusCalls.Enqueue(ettn);
-        return Task.FromResult(Accepted.ContainsKey(ettn)
+        return Task.FromResult(_acceptedIn.ContainsKey((ettn, credentials.CanliOrtam))
             ? new EInvoiceStatusResult(true, true, "Kabul", "REF-" + ettn.ToString("N")[..8], null)
             : new EInvoiceStatusResult(true, false, null, null, null));
     }
 
     public Task<EInvoiceCancelResult> CancelAsync(EInvoiceCredentials credentials, Guid ettn, EDocumentKind kind, string reason, CancellationToken ct = default)
     {
-        if (!Accepted.ContainsKey(ettn)) return Task.FromResult(new EInvoiceCancelResult(false, "Belge bulunamadı."));
+        if (!_acceptedIn.ContainsKey((ettn, credentials.CanliOrtam))) return Task.FromResult(new EInvoiceCancelResult(false, "Belge bulunamadı."));
         Cancelled.Enqueue((ettn, reason));
         return Task.FromResult(new EInvoiceCancelResult(true, null));
     }
