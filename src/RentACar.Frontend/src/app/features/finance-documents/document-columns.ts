@@ -11,6 +11,7 @@ import type {
   PenaltyRow,
   VehicleSaleRow,
 } from './document-model';
+import { eDocumentLabelKey } from './invoices/e-document';
 
 type Translate = (key: CeviriAnahtari, params?: Record<string, unknown>) => string;
 
@@ -76,6 +77,13 @@ export function invoiceColumns(t: Translate): readonly TabloSutunu<InvoiceRow>[]
       deger: (r) => enumLabel(r.durum),
       sirala: true,
       genislik: 90,
+    },
+    // e-Belge gönderim durumu (rozet hücresi şablonda); dışa aktarmada okunur etiket.
+    {
+      kod: 'eBelge',
+      baslik: h('eBelge'),
+      deger: (r) => t(eDocumentLabelKey(r.eBelgeDurum)),
+      genislik: 120,
     },
     actions(t, 200),
   ];

@@ -24,6 +24,8 @@
               'firmaVergiDairesi',
               'firmaVergiNo',
               'firmaAdres',
+              'firmaIl',
+              'firmaIlce',
               'firmaTel',
               'firmaMobilTel',
               'firmaEmail',
@@ -37,17 +39,44 @@
         </div>
       </section>
 
-      <section class="rc-bolum" aria-labelledby="ayar-entegrasyon">
-        <h2 id="ayar-entegrasyon">{{ 'sistem.ayarlar.entegrasyon' | transloco }}</h2>
-        <p class="not">{{ 'sistem.ayarlar.sirAciklama' | transloco }}</p>
-        <p class="not">
-          <a routerLink="/kabis-ayarlari">{{ 'sistem.ayarlar.kabisBaglanti' | transloco }}</a>
+      <section class="rc-bolum" aria-labelledby="ayar-ebelge">
+        <h2 id="ayar-ebelge">{{ 'sistem.ayarlar.eBelge.baslik' | transloco }}</h2>
+        <p class="not">{{ 'sistem.ayarlar.eBelge.aciklama' | transloco }}</p>
+        <p class="not" role="status" data-testid="ebelge-baglanti">
+          @if (dto()?.eFaturaBagli) {
+            <span class="rc-rozet rc-rozet--basari">{{
+              'sistem.ayarlar.eBelge.bagli' | transloco
+            }}</span>
+          } @else {
+            <span class="rc-rozet rc-rozet--uyari">{{
+              'sistem.ayarlar.eBelge.bagliDegil' | transloco
+            }}</span>
+            {{ dto()?.eFaturaDurumMesaji }}
+          }
         </p>
         <div class="rc-form-izgara">
+          <rc-alan
+            [etiket]="'sistem.ayarlar.alan.eFaturaEntegrator' | transloco"
+            [ipucu]="
+              (integrators().length === 0
+                ? 'sistem.ayarlar.eBelge.adaptorYok'
+                : 'sistem.ayarlar.eBelge.entegratorIpucu'
+              ) | transloco
+            "
+          >
+            <rc-secim
+              formControlName="eFaturaEntegrator"
+              [secenekler]="integrators()"
+              [bosEtiket]="'sistem.ayarlar.eBelge.secilmedi' | transloco"
+            />
+          </rc-alan>
           <rc-alan [etiket]="'sistem.ayarlar.alan.eFaturaKullanici' | transloco">
             <rc-metin-girdisi formControlName="eFaturaKullanici" [azamiUzunluk]="128" />
           </rc-alan>
-          <rc-alan [etiket]="'sistem.ayarlar.alan.eFaturaSifre' | transloco">
+          <rc-alan
+            [etiket]="'sistem.ayarlar.alan.eFaturaSifre' | transloco"
+            [ipucu]="'sistem.ayarlar.eBelge.sifreIpucu' | transloco"
+          >
             <rc-metin-girdisi
               formControlName="eFaturaSifre"
               tur="password"
@@ -61,6 +90,49 @@
               {{ 'sistem.ayarlar.sirSil' | transloco }}
             </rc-onay-kutusu>
           }
+          <rc-alan
+            [etiket]="'sistem.ayarlar.alan.eFaturaGondericiEtiket' | transloco"
+            [ipucu]="'sistem.ayarlar.eBelge.etiketIpucu' | transloco"
+          >
+            <rc-metin-girdisi
+              formControlName="eFaturaGondericiEtiket"
+              [azamiUzunluk]="256"
+              yerTutucu="urn:mail:defaultgb@firmaniz.com.tr"
+            />
+          </rc-alan>
+          <rc-alan
+            [etiket]="'sistem.ayarlar.alan.eFaturaPostaKutusuEtiket' | transloco"
+            [ipucu]="'sistem.ayarlar.eBelge.etiketIpucu' | transloco"
+          >
+            <rc-metin-girdisi
+              formControlName="eFaturaPostaKutusuEtiket"
+              [azamiUzunluk]="256"
+              yerTutucu="urn:mail:defaultpk@firmaniz.com.tr"
+            />
+          </rc-alan>
+          <rc-alan
+            [etiket]="'sistem.ayarlar.alan.eFaturaSenaryo' | transloco"
+            [ipucu]="'sistem.ayarlar.eBelge.senaryoIpucu' | transloco"
+          >
+            <rc-secim
+              formControlName="eFaturaSenaryo"
+              [secenekler]="scenarios"
+              [bosEtiket]="'sistem.ayarlar.eBelge.senaryo.varsayilan' | transloco"
+            />
+          </rc-alan>
+          <rc-onay-kutusu formControlName="eFaturaCanliOrtam">
+            {{ 'sistem.ayarlar.alan.eFaturaCanliOrtam' | transloco }}
+          </rc-onay-kutusu>
+        </div>
+      </section>
+
+      <section class="rc-bolum" aria-labelledby="ayar-entegrasyon">
+        <h2 id="ayar-entegrasyon">{{ 'sistem.ayarlar.entegrasyon' | transloco }}</h2>
+        <p class="not">{{ 'sistem.ayarlar.sirAciklama' | transloco }}</p>
+        <p class="not">
+          <a routerLink="/kabis-ayarlari">{{ 'sistem.ayarlar.kabisBaglanti' | transloco }}</a>
+        </p>
+        <div class="rc-form-izgara">
           <rc-alan [etiket]="'sistem.ayarlar.alan.smsBaslik' | transloco">
             <rc-metin-girdisi formControlName="smsBaslik" [azamiUzunluk]="64" />
           </rc-alan>

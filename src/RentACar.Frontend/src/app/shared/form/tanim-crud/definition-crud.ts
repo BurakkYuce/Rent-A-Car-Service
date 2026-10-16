@@ -112,6 +112,8 @@ export class DefinitionCrud implements OnInit {
   readonly alanlar = input.required<readonly TanimAlani[]>();
   readonly kaynak = input.required<DefinitionSource>();
   readonly layout = input<'row' | 'panel'>('row');
+  /** false: yalnız liste (yeni/düzenle/sil düğmeleri yok) — uç yazmayı daha dar bir kurala bağladığında (ör. şubeler: Admin rolü). */
+  readonly yazilabilir = input(true);
   /** Başarılı oluştur/güncelle/sil sonrası (sayfanın bağlı listeleri tazelensin). */
   readonly changed = output();
 

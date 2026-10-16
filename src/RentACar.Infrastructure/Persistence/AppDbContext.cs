@@ -102,6 +102,8 @@ public sealed class AppDbContext : DbContext
     public DbSet<CashTransaction> CashTransactions => Set<CashTransaction>();
     public DbSet<DepozitoIrat> DepozitoIratlar => Set<DepozitoIrat>(); // FAZ 1.2
     public DbSet<Invoice> Invoices => Set<Invoice>();
+    /// <summary>Faturaların e-belge (e-Fatura/e-Arşiv) gönderim kaydı — fatura başına tek satır.</summary>
+    public DbSet<EDocument> EDocuments => Set<EDocument>();
     public DbSet<GelenEFatura> GelenEFaturalar => Set<GelenEFatura>();
     public DbSet<InvoiceLine> InvoiceLines => Set<InvoiceLine>();
     public DbSet<Expense> Expenses => Set<Expense>();

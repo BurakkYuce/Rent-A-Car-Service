@@ -6,6 +6,7 @@ import {
   INVOICE_1,
   PENALTY_1,
   documentEndpoints,
+  eDocumentDraft,
   incomingRow,
   invoiceDetail,
   penaltyDetail,
@@ -130,6 +131,52 @@ test('/app/faturalar/{id} doğrudan açılır: liste + o faturanın detayı (kal
   await expect(page.getByRole('heading', { level: 1 })).toHaveText('Faturalar');
   await expect(page.getByRole('heading', { name: 'Fatura RNT2026000000001' })).toBeVisible();
   await expect(page).toHaveURL(new RegExp(`/app/faturalar/${INVOICE_1}$`));
+  // e-Belge: entegratör bağlı değil → dürüst "Gönderilmedi" + sebep; ETTN gösterilmez, gönderim düğmesi yok.
+  const ebelge = page.getByRole('region', { name: 'e-Belge (e-Fatura / e-Arşiv)' });
+  await expect(ebelge.getByText('Gönderilmedi', { exact: true })).toBeVisible();
+  await expect(
+    ebelge.getByText('e-Fatura gönderilmedi: entegratör bağlı değil (entegratör seçilmedi).'),
+  ).toBeVisible();
+  await expect(ebelge.getByText('ETTN')).toHaveCount(0);
+  await expect(ebelge.getByRole('button', { name: 'Gönderime al' })).toHaveCount(0);
+  await expect(page.getByRole('gridcell', { name: 'Gönderilmedi' })).toBeVisible();
+  expect(errors).toEqual([]);
+});
+
+test('e-belge gönderime al: onay sorulur, vazgeçince istek gitmez; onayda POST /e-belge/gonder', async ({
+  page,
+}) => {
+  const errors = collectErrors(page, NETWORK_ERROR);
+  const ready = { ...eDocumentDraft(), entegratorBagli: true, gonderilebilir: true, mesaj: null };
+  const sent: string[] = [];
+  const written = await documentEndpoints(page, {
+    read: async (r, path) => {
+      if (path !== `/api/ui/v1/faturalar/${INVOICE_1}`) return false;
+      await r.fulfill({ json: { ...invoiceDetail(), eBelge: ready } });
+      return true;
+    },
+    write: async (r, path) => {
+      if (path !== `/api/ui/v1/faturalar/${INVOICE_1}/e-belge/gonder`) return false;
+      sent.push(path);
+      await r.fulfill({ json: { ...ready, durum: 'Gonderilecek', gonderilebilir: false } });
+      return true;
+    },
+  });
+  await page.goto(`/app/faturalar/${INVOICE_1}`);
+  const ebelge = page.getByRole('region', { name: 'e-Belge (e-Fatura / e-Arşiv)' });
+  const send = ebelge.getByRole('button', { name: 'Gönderime al' });
+  await send.click();
+  const dialog = page.getByRole('alertdialog', { name: 'e-Belge gönderilsin mi?' });
+  await dialog.getByRole('button', { name: 'Vazgeç' }).click();
+  await expect(dialog).toHaveCount(0);
+  expect(written).toHaveLength(0);
+
+  await send.click();
+  await dialog.getByRole('button', { name: 'Gönderime al' }).click();
+  await expect.poll(() => sent.length).toBe(1);
+  await expect(
+    page.getByText('RNT2026000000001 gönderim kuyruğuna alındı', { exact: false }),
+  ).toBeVisible();
   expect(errors).toEqual([]);
 });
 

@@ -187,6 +187,42 @@ test('ayarlar: renk seti temanın setlerinden seçilir, tema değişince temizle
   expect(errors).toEqual([]);
 });
 
+test('ayarlar: e-belge entegratörü — bağlı değil durumu dürüst, adaptör yokken seçenek yok; alanlar PUT gövdesinde', async ({
+  page,
+}) => {
+  const errors = collectErrors(page, NETWORK_ERROR);
+  const writes = await settingsEndpoints(page);
+  await open(page);
+  const status = page.getByTestId('ebelge-baglanti');
+  await expect(status).toContainText('Bağlı değil');
+  await expect(status).toContainText(
+    'e-Fatura gönderilmedi: entegratör bağlı değil (entegratör seçilmedi).',
+  );
+  await expect(
+    page.getByText('Bu sürümde kayıtlı entegratör adaptörü yok', { exact: false }),
+  ).toBeVisible();
+  const secret = page.getByLabel('Şifre / API anahtarı', { exact: true });
+  await expect(secret).toHaveAttribute('type', 'password');
+  await expect(secret).toHaveAttribute('autocomplete', 'new-password');
+
+  await page.getByRole('textbox', { name: 'İl', exact: true }).fill('Ankara');
+  await page
+    .getByRole('textbox', { name: 'Gönderici birim etiketi (GB)' })
+    .fill('urn:mail:defaultgb@ornek.test');
+  await secret.fill('entegrator-anahtari');
+  await page.getByRole('checkbox', { name: /Canlı ortam/ }).check();
+  await page.getByRole('button', { name: 'Ayarları kaydet' }).click();
+  await expect.poll(() => writes.length).toBe(1);
+  const sent = body(writes[0]);
+  expect(sent['firmaIl']).toBe('Ankara');
+  expect(sent['eFaturaGondericiEtiket']).toBe('urn:mail:defaultgb@ornek.test');
+  expect(sent['eFaturaSifre']).toBe('entegrator-anahtari');
+  expect(sent['eFaturaCanliOrtam']).toBe(true);
+  expect(sent['eFaturaEntegrator']).toBeNull();
+  await expect(secret).toHaveValue('');
+  expect(errors).toEqual([]);
+});
+
 test('ayarlar: doğrulama hatasında form korunur (sunucu alan hatası alanın altında)', async ({
   page,
 }) => {

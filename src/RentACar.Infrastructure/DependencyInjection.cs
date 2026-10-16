@@ -202,6 +202,7 @@ public static class DependencyInjection
         services.AddScoped<ICalendarRepository, CalendarRepository>();
         services.AddScoped<ICashRepository, CashRepository>();
         services.AddScoped<IInvoiceRepository, InvoiceRepository>();
+        services.AddScoped<RentACar.Application.EInvoicing.IEDocumentRepository, EDocumentRepository>(); // e-belge gönderim kaydı
         services.AddScoped<RentACar.Application.GelenEFaturalar.IIncomingEInvoiceRepository, IncomingEInvoiceRepository>();
         services.AddScoped<IExpenseRepository, ExpenseRepository>();
         services.AddScoped<IRegulationRepository, RegulationRepository>();

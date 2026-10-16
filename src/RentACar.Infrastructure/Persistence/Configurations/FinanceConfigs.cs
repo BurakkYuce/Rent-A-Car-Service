@@ -190,6 +190,32 @@ internal sealed class InvoiceConfig : IEntityTypeConfiguration<Invoice>
     }
 }
 
+// ---- EDocument / e-Belge gönderim kaydı (tenant-owned; fatura başına tek satır; DURUM değişir, DELETE yok) ----
+internal sealed class EDocumentConfig : IEntityTypeConfiguration<EDocument>
+{
+    public void Configure(EntityTypeBuilder<EDocument> e)
+    {
+        e.ToTable("EBelgeler");
+        e.HasKey(x => x.Id);
+        e.Property(x => x.Id).ValueGeneratedNever();
+        e.Property(x => x.Durum).HasConversion<int>();
+        e.Property(x => x.Tur).HasConversion<int?>();
+        e.Property(x => x.Profil).HasMaxLength(16);
+        e.Property(x => x.FaturaTipi).HasMaxLength(16);
+        e.Property(x => x.EntegratorRef).HasMaxLength(128);
+        e.Property(x => x.EntegratorDurum).HasMaxLength(128);
+        e.Property(x => x.SonMesaj).HasMaxLength(512);
+        e.Property(x => x.XmlOzet).HasMaxLength(64);
+        // Fatura silinemez (rc_prevent_mutation); FK ayrıca EF'e "önce fatura" ekleme sırasını söyler.
+        e.HasOne<Invoice>().WithMany().HasForeignKey(x => x.InvoiceId).OnDelete(DeleteBehavior.Restrict);
+        // İdempotency ŞEMADA: fatura başına tek e-belge, ETTN tenant içinde tekil.
+        e.HasIndex(x => new { x.TenantId, x.InvoiceId }).IsUnique();
+        e.HasIndex(x => new { x.TenantId, x.Ettn }).IsUnique();
+        // Gönderim kuyruğu taraması (Durum = Gönderilecek, vadesi gelmiş).
+        e.HasIndex(x => new { x.TenantId, x.Durum, x.SonrakiDenemeUtc });
+    }
+}
+
 internal sealed class InvoiceLineConfig : IEntityTypeConfiguration<InvoiceLine>
 {
     public void Configure(EntityTypeBuilder<InvoiceLine> e)

@@ -1,15 +1,17 @@
 <section class="tanim" [attr.aria-labelledby]="titleId">
   <header class="ust">
     <h2 [id]="titleId">{{ baslik() }}</h2>
-    <button
-      type="button"
-      class="rc-dugme rc-dugme--birincil rc-dugme--kucuk rc-yazdirma-gizle"
-      [disabled]="editing() !== null"
-      (click)="yeni()"
-    >
-      <rc-ikon ad="plus" [boyut]="14" />
-      {{ 'form.tanim.yeni' | transloco }}
-    </button>
+    @if (yazilabilir()) {
+      <button
+        type="button"
+        class="rc-dugme rc-dugme--birincil rc-dugme--kucuk rc-yazdirma-gizle"
+        [disabled]="editing() !== null"
+        (click)="yeni()"
+      >
+        <rc-ikon ad="plus" [boyut]="14" />
+        {{ 'form.tanim.yeni' | transloco }}
+      </button>
+    }
   </header>
 
   <rc-form-hatalari [hatalar]="submission.genelHatalar()" />
@@ -95,7 +97,7 @@
                           <span class="hata" role="alert">{{ deleteError() }}</span>
                         }
                       </span>
-                    } @else {
+                    } @else if (yazilabilir()) {
                       <button
                         type="button"
                         class="rc-dugme rc-dugme--hayalet rc-dugme--kucuk"

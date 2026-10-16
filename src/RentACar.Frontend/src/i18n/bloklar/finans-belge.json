@@ -68,8 +68,6 @@
       "pdf": "PDF",
       "detayBaslik": "Fatura {{ no }}",
       "tarih": "Fatura Tarihi",
-      "eFatura": "e-Fatura ETTN",
-      "gonderilmedi": "gönderilmedi",
       "kalemler": "Fatura kalemleri",
       "miktar": "Miktar",
       "iade": "İade Faturası Kes",
@@ -127,7 +125,40 @@
         "toplam": "Toplam",
         "doviz": "Döviz",
         "tur": "Tür",
-        "durum": "Durum"
+        "durum": "Durum",
+        "eBelge": "e-Belge"
+      }
+    },
+    "eBelge": {
+      "baslik": "e-Belge (e-Fatura / e-Arşiv)",
+      "turEtiket": "Tür",
+      "ettn": "ETTN",
+      "gonderimTarihi": "Gönderim",
+      "sonrakiDeneme": "Sonraki deneme",
+      "mesaj": "Açıklama",
+      "gonder": "Gönderime al",
+      "gonderBaslik": "e-Belge gönderilsin mi?",
+      "gonderMesaj": "{{ no }} numaralı fatura e-belge olarak entegratöre gönderilecek. Gönderilen e-belge yasal belgedir; e-Fatura gönderildikten sonra gönderen tarafından iptal edilemez.",
+      "kuyrugaAlindi": "{{ no }} gönderim kuyruğuna alındı; birkaç dakika içinde gönderilir.",
+      "iptal": "e-Belgeyi iptal et",
+      "iptalBaslik": "e-Belge iptal edilsin mi?",
+      "iptalMesaj": "{{ no }} numaralı faturanın e-belgesi iptal edilecek. Gönderilmemişse bir daha gönderilmez; gönderilmiş e-Arşiv belgesi (fatura iade edildiyse) entegratörde iptal edilir. Bu işlem fatura ve muhasebe kaydını DEĞİŞTİRMEZ.",
+      "iptalOnayla": "İptali onayla",
+      "iptalEdildi": "{{ no }} e-belgesi iptal edildi.",
+      "gerekce": "İptal gerekçesi",
+      "gerekceIpucu": "Zorunlu, en çok 256 karakter.",
+      "durum": {
+        "Taslak": "Gönderilmedi",
+        "Gonderilecek": "Kuyrukta",
+        "Gonderildi": "Gönderildi",
+        "TestGonderildi": "Test ortamına gönderildi",
+        "Hata": "Hata",
+        "Iptal": "İptal",
+        "yok": "Kayıt yok"
+      },
+      "tur": {
+        "EFatura": "e-Fatura",
+        "EArsiv": "e-Arşiv"
       }
     },
     "faturaSatir": {
