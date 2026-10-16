@@ -1,7 +1,6 @@
 using RentACar.Application.Authorization;
 using RentACar.Application.Bookings;
 using RentACar.Application.Common;
-using RentACar.Application.Integrations;
 using RentACar.Application.Kur;
 using RentACar.Application.Periods;
 using RentACar.Domain.Common;
@@ -11,7 +10,8 @@ using RentACar.Domain.Enums;
 namespace RentACar.Application.Finance;
 
 /// <summary>
-/// Fatura kesimi (dahili belge + e-Fatura stub). Kira sözleşmesinin GenelToplam'ından
+/// Fatura kesimi (dahili belge; e-belge kaydı repository'de aynı transaction'da açılır, gönderim kuyruktan).
+/// Kira sözleşmesinin GenelToplam'ından
 /// (KDV-dahil brüt) net+KDV ayrıştırır, faturayı kesip cari'yi BORÇLANDIRIR:
 ///   Borç Cari (brüt) / Alacak Gelir (net) / Alacak KDV (kdv) — DENGELİ.
 /// Böylece tahsilat sonrası cari bakiye sıfıra yakınsar (faturalı).
@@ -20,7 +20,6 @@ public sealed class InvoiceService(
     IInvoiceRepository repository,
     IBookingRepository bookingRepository,
     RentACar.Application.RentalAddOns.IRentalAddOnRepository addOnRepository,
-    IEInvoiceService eInvoice,
     ICurrentUser currentUser,
     IPeriodLockGuard periodLock,
     ExchangeRateService exchangeRate,
@@ -243,16 +242,9 @@ public sealed class InvoiceService(
         // Vergi/belge metadata (bilgi amaçlı; defter postlamasına YANSIMAZ → denge bozulmaz).
         ApplyTax(invoice, tax);
 
-        // e-Fatura stub (Faz 2'de gerçek): ETTN al. Para birimi faturanınki (denetim: hardcoded "TRY" idi —
-        // gerçek GİB entegrasyonu geldiğinde FX fatura yanlış birimle giderdi).
-        var result = await eInvoice.SendAsync(
-            new EInvoiceRequest("", "", net, vat, invoice.Currency), ct);
-        if (result.Success)
-        {
-            invoice.EFaturaEttn = result.Ettn;
-            invoice.EFaturaGonderildi = true;
-        }
-
+        // e-Belge: fatura burada GÖNDERİLMEZ. Repository faturayla AYNI transaction'da e-belge kaydını (EBelgeler) açar;
+        // entegratör bağlıysa kayıt kuyruğa girer ve gönderim işi ETTN ile idempotent gönderir, bağlı değilse kayıt
+        // "bağlı değil" sebebiyle Taslak kalır. Faturadaki EFaturaEttn/EFaturaGonderildi eski alanlardır (yazılmaz).
         var entries = BuildEntries(invoice);
         await repository.PostAsync(invoice, entries, ct);
         return invoice.Id;
@@ -350,9 +342,7 @@ public sealed class InvoiceService(
             SatirNet = net, SatirKdv = vat, SatirToplam = net + vat
         });
 
-        var eResult = await eInvoice.SendAsync(new EInvoiceRequest("", "", net, vat, invoice.Currency), ct);
-        if (eResult.Success) { invoice.EFaturaEttn = eResult.Ettn; invoice.EFaturaGonderildi = true; }
-
+        // e-Belge kaydı repository'de faturayla aynı transaction'da açılır (bkz. CreateFromRentalAsync notu).
         var issued = await repository.PostPeriodAsync(invoice, BuildEntries(invoice), period.Id, toIssue, invoiced, ct);
         // Yarışı kaybeden istek kilit içinde Kesildi dönemi gördü → mevcut fatura (aynı içerik kuralı).
         return issued == invoice.Id ? issued : await ExistingPeriodInvoiceAsync(issued, vatRate, ct);
@@ -411,9 +401,6 @@ public sealed class InvoiceService(
             SatirToplam = gross
         });
         ApplyTax(invoice, tax);
-
-        var result = await eInvoice.SendAsync(new EInvoiceRequest("", "", net, vat, invoice.Currency), ct);
-        if (result.Success) { invoice.EFaturaEttn = result.Ettn; invoice.EFaturaGonderildi = true; }
 
         await repository.PostAsync(invoice, BuildEntries(invoice), ct);
         return invoice.Id;

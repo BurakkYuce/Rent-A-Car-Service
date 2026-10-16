@@ -17,6 +17,8 @@ public static partial class SystemAdminApi
         ("RenkRezAtananPlaka", "renkRezAtananPlaka"), ("RenkKiralanmayan", "renkKiralanmayan"),
         ("Site vurgu rengi", "siteVurguRengi"), ("Site teması", "siteTemasi"), ("Site paleti", "sitePaleti"),
         ("SMTP şifresi", "smtpSifre"), ("e-Fatura şifresi", "eFaturaSifre"), ("POS API anahtarı", "posApiKey"),
+        ("e-Fatura entegratörü", "eFaturaEntegrator"), ("Gönderici birim etiketi", "eFaturaGondericiEtiket"),
+        ("Posta kutusu etiketi", "eFaturaPostaKutusuEtiket"), ("e-Fatura senaryosu", "eFaturaSenaryo"),
     ];
 
     private static readonly (string, string)[] LogoRules = [("Logo", "dosya")];
@@ -37,8 +39,14 @@ public static partial class SystemAdminApi
         RentalLimits.Text(i.FirmaEmail, 128, "firmaEmail", "E-posta");
         RentalLimits.Text(i.FirmaMobilTel, 64, "firmaMobilTel", "Mobil telefon");
         RentalLimits.Text(i.FirmaMarka, 128, "firmaMarka", "Marka");
+        RentalLimits.Text(i.FirmaIl, 64, "firmaIl", "İl");
+        RentalLimits.Text(i.FirmaIlce, 64, "firmaIlce", "İlçe");
         RentalLimits.Text(i.EFaturaKullanici, 128, "eFaturaKullanici", "e-Fatura kullanıcısı");
         RentalLimits.Text(i.EFaturaSifre, SecretMaxLength, "eFaturaSifre", "e-Fatura şifresi");
+        RentalLimits.Text(i.EFaturaEntegrator, 32, "eFaturaEntegrator", "e-Fatura entegratörü");
+        RentalLimits.Text(i.EFaturaGondericiEtiket, 256, "eFaturaGondericiEtiket", "Gönderici birim etiketi");
+        RentalLimits.Text(i.EFaturaPostaKutusuEtiket, 256, "eFaturaPostaKutusuEtiket", "Posta kutusu etiketi");
+        RentalLimits.Text(i.EFaturaSenaryo, 16, "eFaturaSenaryo", "e-Fatura senaryosu");
         RentalLimits.Text(i.SmsBaslik, 64, "smsBaslik", "SMS başlığı");
         RentalLimits.Text(i.SmsApiKey, SecretMaxLength, "smsApiKey", "SMS API anahtarı");
         RentalLimits.Text(i.PosMerchantId, 128, "posMerchantId", "POS üye işyeri no");

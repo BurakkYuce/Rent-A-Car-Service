@@ -78,5 +78,8 @@
     <PackageVersion Include="xunit.runner.visualstudio" Version="3.1.4" />
     <PackageVersion Include="coverlet.collector" Version="6.0.4" />
     <PackageVersion Include="Microsoft.AspNetCore.Mvc.Testing" Version="10.0.11" />
+    <!-- YALNIZ TEST: GİB UBL-TR şematronu XPath 2.0 kullanır (matches, xs:date); .NET'in XSLT/XPath motoru 1.0'dır.
+         XPath2.Net (MS-PL) şematron assert'lerini değerlendirmek için (tests/…/Infrastructure/UblTrValidator.cs). -->
+    <PackageVersion Include="XPath2" Version="1.1.5" />
   </ItemGroup>
 </Project>

@@ -36,6 +36,7 @@ import { PageBand } from '../../../kabuk/sayfa-bandi/page-band';
 import { mergeServerValues } from '../shared/version-merge';
 import {
   COLOR_FIELDS,
+  EINVOICE_SCENARIOS,
   PRICE_TYPES,
   SECRET_CLEAR_FLAGS,
   SECRET_FLAGS,
@@ -45,6 +46,7 @@ import {
   type SecretField,
   type SettingsDto,
   type SiteTheme,
+  integratorOptions,
   paletteAfterThemeChange,
   palettesFor,
   secretsToClear,
@@ -70,8 +72,14 @@ const MAX_LENGTH: Readonly<Partial<Record<string, number>>> = {
   firmaTel: 64,
   firmaMobilTel: 64,
   firmaEmail: 128,
+  firmaIl: 64,
+  firmaIlce: 64,
   eFaturaKullanici: 128,
   eFaturaSifre: 256,
+  eFaturaEntegrator: 32,
+  eFaturaGondericiEtiket: 256,
+  eFaturaPostaKutusuEtiket: 256,
+  eFaturaSenaryo: 16,
   smsBaslik: 64,
   smsApiKey: 256,
   posMerchantId: 128,
@@ -206,6 +214,13 @@ export class SettingsPage {
     { deger: false, etiket: this.t('sistem.ortak.hayir') },
   ];
   protected readonly groups = signal<readonly SecenekOgesi<string>[]>([]);
+
+  /** e-Belge entegratörü: kayıtlı adaptörler (bu sürümde boş olabilir) + senaryo seçenekleri. */
+  protected readonly integrators = computed(() => integratorOptions(this.dto()));
+  protected readonly scenarios: readonly SecenekOgesi<string>[] = EINVOICE_SCENARIOS.map((s) => ({
+    deger: s,
+    etiket: this.t(`sistem.ayarlar.eBelge.senaryo.${s}`),
+  }));
 
   protected readonly secretSet = computed(() => {
     const d = this.dto();

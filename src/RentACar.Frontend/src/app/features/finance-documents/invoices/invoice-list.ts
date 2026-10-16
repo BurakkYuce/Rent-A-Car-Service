@@ -27,7 +27,13 @@ import { FetchPolicy } from '@core/veri/fetch-policy';
 import { listQueryUrlSync } from '@core/veri/liste-sorgusu-url';
 import { CustomerLabels } from '@features/vehicle-finance/labels';
 import { toNumber } from '@features/vehicles/vehicle-model';
-import { MoneyPipe, NumberPipe, DatePipe, EnumLabelPipe } from '@shared/bicim/bicim-pipe';
+import {
+  MoneyPipe,
+  NumberPipe,
+  DatePipe,
+  DateTimePipe,
+  EnumLabelPipe,
+} from '@shared/bicim/bicim-pipe';
 import { Alan } from '@shared/form/alan/alan';
 import { SearchSelection } from '@shared/form/arama-secim/search-selection';
 import {
@@ -56,6 +62,13 @@ import {
 } from '../document-model';
 import { INVOICES, InvoiceStore, recordPath, summaryParameters } from '../document.store';
 import { pruneSelection } from './batch-selection';
+import {
+  EDOCUMENT_REASON_MAX,
+  type EDocument,
+  eDocumentKindKey,
+  eDocumentLabelKey,
+  eDocumentTone,
+} from './e-document';
 import { invoiceRouteId } from './invoice-print';
 import { ManualInvoiceForm } from './manual-invoice-form';
 import { PageBand } from '../../../kabuk/sayfa-bandi/page-band';
@@ -86,6 +99,7 @@ import { PlateChipComponent } from '@shared/plaka/plaka';
     Table,
     TableCell,
     DatePipe,
+    DateTimePipe,
     DatePicker,
     EnumLabelPipe,
   ],
@@ -117,6 +131,17 @@ export class InvoiceList implements UnsavedChangesOwner {
   protected readonly canRefund = computed(() => this.session.izinVar('FinanceReverse'));
   protected readonly busy = signal(false);
   protected readonly selectedId = signal<string | null>(null);
+
+  // ---- e-belge (durum rozeti + kuyruğa al / iptal; gönderimin kendisi sunucudaki iş)
+  protected readonly eDocTone = eDocumentTone;
+  protected readonly eDocLabel = eDocumentLabelKey;
+  protected readonly eDocKind = eDocumentKindKey;
+  protected readonly eDocCancelOpen = signal(false);
+  protected readonly eDocReason = new FormControl<string | null>(null, [
+    Validators.required,
+    Validators.maxLength(EDOCUMENT_REASON_MAX),
+  ]);
+  protected readonly reasonMax = EDOCUMENT_REASON_MAX;
 
   protected readonly cancelOptions: readonly SecenekOgesi<'true' | 'false'>[] = [
     { deger: 'false', etiket: this.t('finansBelge.fatura.iptalHaric') },
@@ -247,11 +272,84 @@ export class InvoiceList implements UnsavedChangesOwner {
   protected open(row: InvoiceRow): void {
     this.selectedId.set(row.id);
     this.store.detail.yukle(row.id);
+    this.resetEDocCancel();
   }
 
   protected closeDetail(): void {
     this.selectedId.set(null);
     this.store.detail.reset();
+    this.resetEDocCancel();
+  }
+
+  /**
+   * e-Belgeyi gönderim kuyruğuna alır (Taslak/Hata → Gönderilecek). Gönderilen e-belge yasal belgedir → onay sorulur.
+   * Entegratör bağlı değilse sunucu 400 ile sebebini söyler (düğme zaten gizli).
+   */
+  protected async queueEDocument(): Promise<void> {
+    const d = this.store.detail.veri();
+    if (!d || this.busy() || !this.canWrite()) return;
+    const yes = await this.confirm.ask({
+      baslik: this.t('finansBelge.eBelge.gonderBaslik'),
+      mesaj: this.t('finansBelge.eBelge.gonderMesaj', { no: d.no }),
+      onayEtiketi: this.t('finansBelge.eBelge.gonder'),
+    });
+    if (!yes || this.busy()) return;
+    this.busy.set(true);
+    this.api
+      .post<EDocument>(recordPath(INVOICES, d.id, '/e-belge/gonder'), null)
+      .pipe(
+        finalize(() => this.busy.set(false)),
+        takeUntilDestroyed(this.destroyRef),
+      )
+      .subscribe({
+        next: () => {
+          this.toast.basari(this.t('finansBelge.eBelge.kuyrugaAlindi', { no: d.no }));
+          this.store.detail.yukle(d.id);
+          this.reloadList();
+        },
+        error: (raw: unknown) => this.failed(raw, () => this.store.detail.yukle(d.id)),
+      });
+  }
+
+  protected openEDocCancel(): void {
+    this.eDocReason.reset(null);
+    this.eDocCancelOpen.set(true);
+  }
+
+  protected resetEDocCancel(): void {
+    this.eDocCancelOpen.set(false);
+    this.eDocReason.reset(null);
+  }
+
+  /** e-Belge iptali (FinanceReverse, gerekçe zorunlu): gönderilmemiş belge yerel, gönderilmiş e-Arşiv entegratörde. */
+  protected async cancelEDocument(): Promise<void> {
+    const d = this.store.detail.veri();
+    const reason = this.eDocReason.value?.trim() ?? '';
+    this.eDocReason.markAsTouched();
+    if (!d || this.busy() || !this.canRefund() || reason === '' || this.eDocReason.invalid) return;
+    const yes = await this.confirm.ask({
+      baslik: this.t('finansBelge.eBelge.iptalBaslik'),
+      mesaj: this.t('finansBelge.eBelge.iptalMesaj', { no: d.no }),
+      onayEtiketi: this.t('finansBelge.eBelge.iptal'),
+      tehlikeli: true,
+    });
+    if (!yes || this.busy()) return;
+    this.busy.set(true);
+    this.api
+      .post<EDocument>(recordPath(INVOICES, d.id, '/e-belge/iptal'), { gerekce: reason })
+      .pipe(
+        finalize(() => this.busy.set(false)),
+        takeUntilDestroyed(this.destroyRef),
+      )
+      .subscribe({
+        next: () => {
+          this.toast.basari(this.t('finansBelge.eBelge.iptalEdildi', { no: d.no }));
+          this.resetEDocCancel();
+          this.store.detail.yukle(d.id);
+          this.reloadList();
+        },
+        error: (raw: unknown) => this.failed(raw, () => this.store.detail.yukle(d.id)),
+      });
   }
 
   protected async refund(): Promise<void> {

@@ -36,6 +36,26 @@ export function invoiceRow(): Record<string, unknown> {
     eFaturaGonderildi: false,
     eFaturaEttn: null,
     kaynakFaturaId: null,
+    eBelgeDurum: 'Taslak',
+    eBelgeMesaj: 'e-Fatura gönderilmedi: entegratör bağlı değil (entegratör seçilmedi).',
+  };
+}
+
+/** e-Belge durumu: bu sürümün üretim gerçeği — entegratör bağlı değil, belge taslakta. */
+export function eDocumentDraft(): Record<string, unknown> {
+  return {
+    durum: 'Taslak',
+    tur: null,
+    profil: null,
+    faturaTipi: null,
+    ettn: null,
+    gonderimTarihi: null,
+    denemeSayisi: 0,
+    sonrakiDeneme: null,
+    mesaj: 'e-Fatura gönderilmedi: entegratör bağlı değil (entegratör seçilmedi).',
+    entegratorBagli: false,
+    gonderilebilir: false,
+    iptalEdilebilir: true,
   };
 }
 
@@ -56,6 +76,7 @@ export function invoiceDetail(): Record<string, unknown> {
     gonderimSekli: null,
     kdvSifirSebep: null,
     pdfAdresi: `/faturalar/${INVOICE_1}/pdf`,
+    eBelge: eDocumentDraft(),
     satirlar: [
       {
         id: 'l1',

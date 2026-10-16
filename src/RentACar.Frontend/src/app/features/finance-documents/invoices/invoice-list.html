@@ -79,6 +79,17 @@
         satir.durum
       }}</span>
     </ng-template>
+    <ng-template rcTabloHucre="eBelge" [rcTabloHucreSutunlar]="columns" let-satir>
+      <span
+        class="rc-rozet"
+        [class.rc-rozet--basari]="eDocTone(satir.eBelgeDurum) === 'basari'"
+        [class.rc-rozet--uyari]="eDocTone(satir.eBelgeDurum) === 'uyari'"
+        [class.rc-rozet--hata]="eDocTone(satir.eBelgeDurum) === 'hata'"
+        [class.rc-rozet--bilgi]="eDocTone(satir.eBelgeDurum) === 'bilgi'"
+        [attr.title]="satir.eBelgeMesaj"
+        >{{ eDocLabel(satir.eBelgeDurum) | transloco }}</span
+      >
+    </ng-template>
     <ng-template rcTabloHucre="islemler" [rcTabloHucreSutunlar]="columns" let-satir>
       <span class="rc-form-eylemler">
         <button type="button" class="rc-dugme rc-dugme--kucuk" (click)="open(satir)">
@@ -169,11 +180,108 @@
               <dd>{{ num(d.kur) | sayi: '1.4-4' }}</dd>
             </div>
           }
-          <div>
-            <dt>{{ 'finansBelge.fatura.eFatura' | transloco }}</dt>
-            <dd>{{ d.eFaturaEttn ?? ('finansBelge.fatura.gonderilmedi' | transloco) }}</dd>
-          </div>
         </dl>
+        <section aria-labelledby="rc-fatura-ebelge" data-testid="fatura-ebelge">
+          <h3 id="rc-fatura-ebelge">{{ 'finansBelge.eBelge.baslik' | transloco }}</h3>
+          <dl class="kunye">
+            <div>
+              <dt>{{ 'finansBelge.durum' | transloco }}</dt>
+              <dd>
+                <span
+                  class="rc-rozet"
+                  [class.rc-rozet--basari]="eDocTone(d.eBelge.durum) === 'basari'"
+                  [class.rc-rozet--uyari]="eDocTone(d.eBelge.durum) === 'uyari'"
+                  [class.rc-rozet--hata]="eDocTone(d.eBelge.durum) === 'hata'"
+                  [class.rc-rozet--bilgi]="eDocTone(d.eBelge.durum) === 'bilgi'"
+                  >{{ eDocLabel(d.eBelge.durum) | transloco }}</span
+                >
+              </dd>
+            </div>
+            @if (eDocKind(d.eBelge.tur); as kind) {
+              <div>
+                <dt>{{ 'finansBelge.eBelge.turEtiket' | transloco }}</dt>
+                <dd>{{ kind | transloco }} · {{ d.eBelge.profil }}</dd>
+              </div>
+            }
+            @if (d.eBelge.ettn) {
+              <div>
+                <dt>{{ 'finansBelge.eBelge.ettn' | transloco }}</dt>
+                <dd>{{ d.eBelge.ettn }}</dd>
+              </div>
+            }
+            @if (d.eBelge.gonderimTarihi) {
+              <div>
+                <dt>{{ 'finansBelge.eBelge.gonderimTarihi' | transloco }}</dt>
+                <dd>{{ d.eBelge.gonderimTarihi | tarihSaat }}</dd>
+              </div>
+            }
+            @if (d.eBelge.sonrakiDeneme) {
+              <div>
+                <dt>{{ 'finansBelge.eBelge.sonrakiDeneme' | transloco }}</dt>
+                <dd>{{ d.eBelge.sonrakiDeneme | tarihSaat }}</dd>
+              </div>
+            }
+            @if (d.eBelge.mesaj) {
+              <div>
+                <dt>{{ 'finansBelge.eBelge.mesaj' | transloco }}</dt>
+                <dd>{{ d.eBelge.mesaj }}</dd>
+              </div>
+            }
+          </dl>
+          @if (
+            (canWrite() && d.eBelge.gonderilebilir) || (canRefund() && d.eBelge.iptalEdilebilir)
+          ) {
+            <div class="rc-form-eylemler">
+              @if (canWrite() && d.eBelge.gonderilebilir) {
+                <button
+                  type="button"
+                  class="rc-dugme rc-dugme--kucuk"
+                  [disabled]="busy()"
+                  (click)="queueEDocument()"
+                >
+                  {{ 'finansBelge.eBelge.gonder' | transloco }}
+                </button>
+              }
+              @if (canRefund() && d.eBelge.iptalEdilebilir && !eDocCancelOpen()) {
+                <button
+                  type="button"
+                  class="rc-dugme rc-dugme--hayalet rc-dugme--kucuk"
+                  [disabled]="busy()"
+                  (click)="openEDocCancel()"
+                >
+                  {{ 'finansBelge.eBelge.iptal' | transloco }}
+                </button>
+              }
+            </div>
+          }
+          @if (eDocCancelOpen()) {
+            <div class="rc-form-izgara">
+              <rc-alan
+                [etiket]="'finansBelge.eBelge.gerekce' | transloco"
+                [ipucu]="'finansBelge.eBelge.gerekceIpucu' | transloco"
+              >
+                <rc-metin-girdisi [formControl]="eDocReason" [azamiUzunluk]="reasonMax" />
+              </rc-alan>
+            </div>
+            <div class="rc-form-eylemler">
+              <button
+                type="button"
+                class="rc-dugme rc-dugme--tehlike rc-dugme--kucuk"
+                [disabled]="busy()"
+                (click)="cancelEDocument()"
+              >
+                {{ 'finansBelge.eBelge.iptalOnayla' | transloco }}
+              </button>
+              <button
+                type="button"
+                class="rc-dugme rc-dugme--hayalet rc-dugme--kucuk"
+                (click)="resetEDocCancel()"
+              >
+                {{ 'finansBelge.vazgec' | transloco }}
+              </button>
+            </div>
+          }
+        </section>
         <div class="rc-tablo-kap">
           <table class="rc-duz-tablo">
             <caption class="rc-gorunmez">
