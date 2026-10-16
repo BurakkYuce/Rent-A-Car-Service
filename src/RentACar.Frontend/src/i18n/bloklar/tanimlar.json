@@ -378,6 +378,7 @@
       "baslik": "Şube Tanımları",
       "aciklama": "Şubeler (çıkış/dönüş noktası, evrak no öneki, web vitrini ve bayi bilgileri). Kullanımdaki şube silinemez — pasife alın ya da başka şubeyle birleştirin.",
       "tablo": "Şubeler",
+      "yalnizAdmin": "Şube eklemek, düzenlemek, birleştirmek ve hizmet tanımlamak yalnız Admin rolüne açık. Bu ekranı yalnız görüntüleyebilirsiniz.",
       "alan": {
         "adres": "Adres",
         "telefon": "Telefon",

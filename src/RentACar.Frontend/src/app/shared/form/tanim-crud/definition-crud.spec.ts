@@ -15,6 +15,7 @@ import type {
 let satirlar: DefinitionRow[];
 let islemler: string[];
 let listError = false;
+let writable = true;
 
 const kaynak: DefinitionSource = {
   listele: (): Observable<readonly DefinitionRow[]> =>
@@ -53,10 +54,16 @@ const kaynak: DefinitionSource = {
   selector: 'rc-deneme-tanim',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [DefinitionCrud],
-  template: `<rc-tanim-crud baslik="Renkler" [alanlar]="fields" [kaynak]="kaynak" />`,
+  template: `<rc-tanim-crud
+    baslik="Renkler"
+    [alanlar]="fields"
+    [kaynak]="kaynak"
+    [yazilabilir]="yazilabilir"
+  />`,
 })
 class DefinitionTestHost {
   readonly kaynak = kaynak;
+  readonly yazilabilir = writable;
   readonly fields: TanimAlani[] = [
     { ad: 'kod', etiket: 'Kod', tur: 'metin', zorunlu: true },
     { ad: 'ad', etiket: 'Ad', tur: 'metin' },
@@ -172,6 +179,22 @@ describe('rc-tanim-crud', () => {
     const { dugme } = await exchangeRate(['OperationsWrite']);
     expect(dugme('Sil')).toBeUndefined();
     expect(dugme('Düzenle')).toBeDefined();
+  });
+
+  it('yazilabilir=false: liste görünür, yeni/düzenle/sil düğmesi yok (şubeler: yalnız Admin rolü)', async () => {
+    writable = false;
+    try {
+      const { dugme, satirMetinleri } = await exchangeRate();
+      expect(satirMetinleri()).toEqual([
+        ['BYZ', 'Beyaz'],
+        ['SYH', 'Siyah'],
+      ]);
+      expect(dugme('Yeni')).toBeUndefined();
+      expect(dugme('Düzenle')).toBeUndefined();
+      expect(dugme('Sil')).toBeUndefined();
+    } finally {
+      writable = true;
+    }
   });
 
   it('liste hatası boş liste gibi görünmez', async () => {
