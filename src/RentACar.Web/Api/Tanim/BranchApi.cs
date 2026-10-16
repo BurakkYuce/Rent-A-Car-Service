@@ -41,6 +41,9 @@ public static class BranchApi
             FieldRules = [("Şube kodu", "kod"), ("'", "kod"), ("Şube adı", "ad")],
             NotFoundMessage = "Şube bulunamadı.",
         });
+        // Güvenlik tur 3: şube yazmaları (CRUD, hizmetler, birleştir) yalnız Admin ROLÜNE — ManageUsers istisnalı operatör
+        // başka şubeyi kendi şubesine birleştirip kapsamını genişletebiliyordu. Okumalar ManageUsers ile kalır.
+        g.RequireAdminRoleForWrites(AdminRoleGuard.BranchMessage);
 
         g.MapGet("/{id:guid}/hizmetler", async Task<Results<Ok<IReadOnlyList<BranchServiceDto>>, ProblemHttpResult>> (Guid id, BranchService s, CancellationToken ct)
             => await s.GetAsync(id, ct) is null

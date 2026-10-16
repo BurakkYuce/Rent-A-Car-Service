@@ -5244,6 +5244,7 @@ export type CeviriAnahtari =
   | 'tanimlar.branch.hizmet.sube'
   | 'tanimlar.branch.hizmet.yuklenemedi'
   | 'tanimlar.branch.tablo'
+  | 'tanimlar.branch.yalnizAdmin'
   | 'tanimlar.brand.aciklama'
   | 'tanimlar.brand.baslik'
   | 'tanimlar.brand.tablo'

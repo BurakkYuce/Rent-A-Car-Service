@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.EntityFrameworkCore;
+using RentACar.Application.Authorization;
 using RentACar.Application.Common;
 using RentACar.Application.FaturaDonemleri;
 using RentACar.Application.Periods;
@@ -9,6 +10,7 @@ using RentACar.Domain.Enums;
 using RentACar.Infrastructure.Persistence;
 using RentACar.Web.Api.Finans;
 using RentACar.Web.Api.Rezervasyon;
+using RentACar.Web.Identity;
 
 namespace RentACar.Web.Api.FinansHub;
 
@@ -20,7 +22,8 @@ public static partial class FinanceHubApi
     {
         write.MapGet("/donem-kapanis", GetPeriodClose);
         write.MapPost("/donem-kapanis/kilitle", PostPeriodClose);
-        write.MapPost("/donem-kapanis/ac", PostPeriodUnlock);
+        // Güvenlik tur 3: kilidi kaldırmak kapanmış dönemi yeniden yazılabilir kılar (ters işlem) → FinanceReverse.
+        write.MapPost("/donem-kapanis/ac", PostPeriodUnlock).RequirePermission(Permission.FinanceReverse);
         write.MapGet("/otomatik-tahsilat", ListAutoCollection);
         write.MapPost("/otomatik-tahsilat/calistir", PostAutoCollection);
     }

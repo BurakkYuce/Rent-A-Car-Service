@@ -74,9 +74,11 @@ export class BranchPage {
   private readonly toast = inject(ToastService);
   private readonly destroyRef = inject(DestroyRef);
   private readonly session = inject(SessionService);
+  /** Şube yazmaları (CRUD, hizmet, birleştir) yalnız Admin ROLÜNE (güvenlik tur 3): ManageUsers istisnası yetmez. */
+  protected readonly canWrite = computed(() => this.session.ben()?.rol === 'Admin');
   /** Şube hizmeti silme dar izin ister (güvenlik F3). */
-  protected readonly canDeleteService = computed(() =>
-    this.session.hasPermissions(DUGME_IZINLERI.subeHizmetSil.izinler),
+  protected readonly canDeleteService = computed(
+    () => this.canWrite() && this.session.hasPermissions(DUGME_IZINLERI.subeHizmetSil.izinler),
   );
   private readonly t = translationFunction();
   private readonly crud = viewChild(DefinitionCrud);

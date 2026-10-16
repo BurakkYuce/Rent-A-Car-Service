@@ -46,7 +46,7 @@ public static class AuthExtensions
     /// izniyle (ManageUsers) kalır. Servis katmanı aynı kuralı ikinci kez uygular (<c>AdminRoleGuard</c>).
     /// Ret <see cref="NoPermissionException"/> → 403 <c>yetki_yok</c> (UI hata filtresi).
     /// </summary>
-    public static RouteGroupBuilder RequireAdminRoleForWrites(this RouteGroupBuilder group)
+    public static RouteGroupBuilder RequireAdminRoleForWrites(this RouteGroupBuilder group, string? message = null)
     {
         group.WithMetadata(new AdminRoleWritesMetadata());
         group.AddEndpointFilter(async (ctx, next) =>
@@ -54,7 +54,7 @@ public static class AuthExtensions
             var method = ctx.HttpContext.Request.Method;
             if (!HttpMethods.IsGet(method) && !HttpMethods.IsHead(method)
                 && !ctx.HttpContext.User.IsInRole(nameof(UserRole.Admin)))
-                throw new NoPermissionException(AdminRoleGuard.Message);
+                throw new NoPermissionException(message ?? AdminRoleGuard.Message);
             return await next(ctx);
         });
         return group;

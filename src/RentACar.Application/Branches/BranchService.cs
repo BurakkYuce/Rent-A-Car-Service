@@ -30,6 +30,7 @@ public sealed class BranchService(
     public async Task<Guid> CreateAsync(BranchInput input, CancellationToken ct = default)
     {
         PermissionGuard.Require(_currentUser, Permission.ManageUsers);
+        AdminRoleGuard.Require(_currentUser, AdminRoleGuard.BranchMessage); // güvenlik tur 3
         var n = Normalize(input);
         Validate(n);
         if (await _repository.CodeExistsAsync(n.Kod, excludeId: null, ct))
@@ -57,6 +58,7 @@ public sealed class BranchService(
     private async Task<bool> UpdateCoreAsync(Guid id, BranchInput input, string? expectedVersion, CancellationToken ct)
     {
         PermissionGuard.Require(_currentUser, Permission.ManageUsers);
+        AdminRoleGuard.Require(_currentUser, AdminRoleGuard.BranchMessage); // güvenlik tur 3
         var n = Normalize(input);
         Validate(n);
         if (await _repository.CodeExistsAsync(n.Kod, excludeId: id, ct))
@@ -75,6 +77,7 @@ public sealed class BranchService(
     public Task<bool> DeleteAsync(Guid id, CancellationToken ct = default)
     {
         PermissionGuard.Require(_currentUser, Permission.ManageUsers);
+        AdminRoleGuard.Require(_currentUser, AdminRoleGuard.BranchMessage); // güvenlik tur 3
         return _repository.DeleteAsync(id, ct);
     }
 
@@ -180,6 +183,8 @@ public sealed class BranchService(
     public async Task<int> MergeAsync(Guid sourceId, Guid targetId, CancellationToken ct = default)
     {
         PermissionGuard.Require(_currentUser, Permission.ManageUsers);
+        // Güvenlik tur 3: ManageUsers istisnayla devredilebilir; birleştirme şube kapsamını genişlettiği için rol kapısı.
+        AdminRoleGuard.Require(_currentUser, AdminRoleGuard.BranchMessage);
         if (sourceId == Guid.Empty || targetId == Guid.Empty)
             throw new ValidationException("Kaynak ve hedef şube seçilmelidir.");
         // Kendine birleştirme: tüm referansları kendine yazıp şubeyi PASİFE çekerdi — sessiz felaket.
