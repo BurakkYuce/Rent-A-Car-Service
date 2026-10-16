@@ -162,7 +162,9 @@ public sealed class UiSecimMenuTests(WebFixture fx)
         var all = JsonDocument.Parse(text).RootElement;
         Assert.Equal(3, all.GetArrayLength());
         FieldSet(all, "id", "etiket", "tip");
-        Assert.DoesNotContain("0532", text);
+        // Tam değer: 4 haneli parça ("0532") yanıttaki rastgele GUID'lerde tesadüfen geçip testi kırıyordu.
+        Assert.DoesNotContain("05321112233", text);
+        Assert.DoesNotContain("05329998877", text);
         Assert.DoesNotContain("gizli-f16", text);
         Assert.DoesNotContain("Gizli Sokak", text);
         Assert.True(raw.Headers.CacheControl?.NoStore == true);
@@ -347,12 +349,13 @@ public sealed class UiSecimMenuTests(WebFixture fx)
         Assert.Equal("USD", exchangeRate[0].GetProperty("id").GetString());
         Assert.Equal(41m, exchangeRate[0].GetProperty("dovizSatis").GetDecimal());
 
-        // PII sızmaz (telefon, şasi no).
+        // PII sızmaz (telefon, şasi no). Tam değerlerle: 4 haneli parça ("0212") yanıttaki rastgele GUID'de
+        // tesadüfen geçip testi kırıyordu (CI, 8d533af6: "…a8e4e5802126").
         foreach (var endpoint in new[] { "arac", "personel", "lokasyon" })
         {
             var text = await (await admin.GetAsync($"{V1}/secim/{endpoint}")).Content.ReadAsStringAsync();
-            Assert.DoesNotContain("0555", text);
-            Assert.DoesNotContain("0212", text);
+            Assert.DoesNotContain("05551112233", text);
+            Assert.DoesNotContain("02125550000", text);
             Assert.DoesNotContain("GIZLISASI", text);
         }
     }
