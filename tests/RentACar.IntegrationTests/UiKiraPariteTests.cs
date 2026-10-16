@@ -498,7 +498,7 @@ public sealed class UiKiraPariteTests(WebFixture fx)
         Assert.Equal("Ayşe Kaya", S(m, "etiket"));
         Assert.Equal("Bireysel", S(m, "tip"));
         Assert.DoesNotContain(NationalId, text, StringComparison.Ordinal);
-        Assert.DoesNotContain("0532", text, StringComparison.Ordinal);
+        Assert.DoesNotContain("05321112233", text, StringComparison.Ordinal); // tam değer: "0532" parçası GUID'de tesadüfen geçebilir
 
         var a = await Json(await op.C.GetAsync($"{V1}/secim/arac/{vehicleA}"));
         Assert.Equal(["durum", "etiket", "grup", "id", "plaka"], a.EnumerateObject().Select(p => p.Name).OrderBy(x => x, StringComparer.Ordinal).ToArray());
