@@ -38,6 +38,8 @@ public sealed class PeriodLockService(
     public async Task UnlockAsync(CancellationToken ct = default)
     {
         PermissionGuard.Require(_currentUser, Permission.FinanceWrite);
+        // Güvenlik tur 3: kapanmış dönemi yeniden açmak ters işlemdir — FinanceReverse (kullanıcı bazlı yasakla kısılabilir).
+        PermissionGuard.Require(_currentUser, Permission.FinanceReverse);
         await _screens.EnsureScreenAccessAsync("donem-kapanis", Permission.FinanceWrite, ct);
         await _repository.UpsertAsync(k =>
         {

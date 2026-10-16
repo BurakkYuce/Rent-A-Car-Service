@@ -15,8 +15,14 @@ public static class AdminRoleGuard
 {
     public const string Message = "Kullanıcı ve yetki yönetimi değişikliklerini yalnız Admin rolü yapabilir.";
 
-    public static void Require(ICurrentUser user)
+    /// <summary>Güvenlik tur 3: şube master yazmaları (oluştur/güncelle/sil/birleştir) da yalnız Admin rolüne — şube
+    /// kapsamını belirler; ManageUsers istisnalı operatör başka şubeyi kendi şubesine birleştirip kapsamını genişletebiliyordu.</summary>
+    public const string BranchMessage = "Şube tanımlarını ve birleştirmeyi yalnız Admin rolü değiştirebilir.";
+
+    public static void Require(ICurrentUser user) => Require(user, Message);
+
+    public static void Require(ICurrentUser user, string message)
     {
-        if (user.Role != UserRole.Admin) throw new NoPermissionException(Message);
+        if (user.Role != UserRole.Admin) throw new NoPermissionException(message);
     }
 }

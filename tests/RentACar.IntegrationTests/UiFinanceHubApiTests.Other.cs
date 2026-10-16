@@ -183,6 +183,22 @@ public sealed partial class UiFinanceHubApiTests
         Assert.Equal(System.Text.Json.JsonValueKind.Null, (await Ok(await GetAsync(s, "/donem-kapanis"))).GetProperty("kapanisTarihi").ValueKind);
     }
 
+    /// <summary>Güvenlik tur 3: kilidi kaldırmak (kapanmış dönemi yeniden açmak) FinanceReverse ister. FinanceReverse'i
+    /// kullanıcı bazlı yasaklı muhasebeci dönemi KAPATABİLİR ama AÇAMAZ; kilit yerinde kalır.</summary>
+    [Fact]
+    public async Task Period_unlock_requires_finance_reverse()
+    {
+        var e = await SetupAsync();
+        var noReverse = await LoginAsync(e, Who.AccountantNoReverse);
+        var day = DateOnly.FromDateTime(DateTime.UtcNow.Date.AddDays(-3));
+        Assert.Equal(HttpStatusCode.NoContent, (await PostAsync(noReverse, "/donem-kapanis/kilitle", new { kapanisTarihi = day })).StatusCode);
+        await Problem(await PostAsync(noReverse, "/donem-kapanis/ac", null), HttpStatusCode.Forbidden, "yetki_yok");
+        Assert.Equal(day.ToString("yyyy-MM-dd"), (await Ok(await GetAsync(noReverse, "/donem-kapanis"))).GetProperty("kapanisTarihi").GetString());
+
+        var s = await LoginAsync(e, Who.Accountant);
+        Assert.Equal(HttpStatusCode.NoContent, (await PostAsync(s, "/donem-kapanis/ac", null)).StatusCode);
+    }
+
     [Fact]
     public async Task Auto_collection_lists_and_skips_unknown_selection()
     {

@@ -40,6 +40,12 @@ public sealed class DeletePermissionFenceTests(WebFixture fx)
     /// <summary>Yıkıcı POST rota şablonu → gerekçe (silme izni aranmaz).</summary>
     private static readonly Dictionary<string, string> PostExempt = new(StringComparer.OrdinalIgnoreCase)
     {
+        // "reddet" uçları İŞ AKIŞI GEÇİŞİDİR: kayıt silinmez, durum terminal "Reddedildi"ye geçer ve gerekçe saklanır;
+        // grup izni (OperationsWrite / FinanceWrite) iş akışının sahibidir (güvenlik tur 3 kararı).
+        ["/api/ui/v1/teklifler/{id:guid}/reddet"] = "Teklif iş akışı: müşteri reddi durum geçişi (kayıt ve geçmiş kalır).",
+        ["/api/ui/v1/hasar-dosyalari/{id:guid}/reddet"] = "Hasar dosyası iş akışı: onay/ret geçişi (dosya ve not kalır; deftere yazmaz).",
+        ["/api/ui/v1/gelen-talepler/{id:guid}/reddet"] = "Web talebi iş akışı: talebi reddet (talep kaydı kalır).",
+        ["/api/ui/v1/gelen-efatura/{id:guid}/reddet"] = "Gelen e-Fatura iş akışı: GİB ret yanıtı (belge kalır; FinanceWrite grubunun işi).",
     };
 
     private List<(string Route, RouteEndpoint Endpoint)> UiEndpoints(string method)
@@ -56,14 +62,26 @@ public sealed class DeletePermissionFenceTests(WebFixture fx)
         return permissions.Contains(Permission.OperationsDelete) || permissions.Contains(Permission.FinanceReverse);
     }
 
-    /// <summary>Son rota parçası yıkıcı mı: <c>iptal</c>, <c>toplu-iptal</c> ya da <c>-sil</c> sonu.</summary>
+    /// <summary>
+    /// Yıkıcı POST: son rota parçası <c>iptal</c>, <c>toplu-iptal</c>, <c>birlestir</c>, <c>reddet</c> ya da <c>-sil</c>
+    /// sonu; ayrıca <c>donem-kapanis/ac</c> (kapanmış dönemi yeniden açar — güvenlik tur 3).
+    /// </summary>
     internal static bool IsDestructivePost(string route)
     {
-        var last = route.TrimEnd('/').Split('/')[^1];
+        var trimmed = route.TrimEnd('/');
+        var last = trimmed.Split('/')[^1];
         return last.Equals("iptal", StringComparison.OrdinalIgnoreCase)
                || last.Equals("toplu-iptal", StringComparison.OrdinalIgnoreCase)
-               || last.EndsWith("-sil", StringComparison.OrdinalIgnoreCase);
+               || last.Equals("birlestir", StringComparison.OrdinalIgnoreCase)
+               || last.Equals("reddet", StringComparison.OrdinalIgnoreCase)
+               || last.EndsWith("-sil", StringComparison.OrdinalIgnoreCase)
+               || trimmed.EndsWith("/donem-kapanis/ac", StringComparison.OrdinalIgnoreCase);
     }
+
+    /// <summary>Yıkıcı POST kapısı: silme izni ya da grubun yazmalarının Admin ROLÜNE bağlı olması (Admin rolü her
+    /// izni taşır ve istisnayla devredilemez — şube birleştirme).</summary>
+    private static bool GuardsDestructivePost(RouteEndpoint endpoint)
+        => RequiresDeletePermission(endpoint) || endpoint.Metadata.GetMetadata<AdminRoleWritesMetadata>() is not null;
 
     [Fact]
     public void Her_DELETE_ucu_silme_iznini_ister_ya_da_gerekceli_istisnadir()
@@ -91,12 +109,13 @@ public sealed class DeletePermissionFenceTests(WebFixture fx)
         foreach (var known in new[]
                  {
                      "/api/ui/v1/arac-siparisleri/{id:guid}/iptal", "/api/ui/v1/tarife-aktar/kanal-sil",
-                     "/api/ui/v1/arac-kredileri/toplu-iptal",
+                     "/api/ui/v1/arac-kredileri/toplu-iptal", "/api/ui/v1/subeler/birlestir",
+                     "/api/ui/v1/finans/donem-kapanis/ac", "/api/ui/v1/teklifler/{id:guid}/reddet",
                  })
             Assert.True(seen.Contains(known), $"tarama bilinen yıkıcı ucu görmedi: {known}\nGörülen:\n{string.Join("\n", seen.Order())}");
 
         var violations = posts
-            .Where(x => !PostExempt.ContainsKey(x.Route) && !RequiresDeletePermission(x.Endpoint))
+            .Where(x => !PostExempt.ContainsKey(x.Route) && !GuardsDestructivePost(x.Endpoint))
             .Select(x => x.Route).Distinct().Order().ToList();
         Assert.True(violations.Count == 0, "Silme izni (OperationsDelete/FinanceReverse) istemeyen yıkıcı POST uçları:\n" + string.Join("\n", violations));
 
@@ -111,6 +130,11 @@ public sealed class DeletePermissionFenceTests(WebFixture fx)
     [InlineData("/api/ui/v1/kiralar/{id:guid}/iptal-edilenler", false)]
     [InlineData("/api/ui/v1/silinenler", false)]
     [InlineData("/api/ui/v1/araclar/{id:guid}/sil-onizleme", false)]
+    [InlineData("/api/ui/v1/subeler/birlestir", true)]
+    [InlineData("/api/ui/v1/teklifler/{id:guid}/reddet", true)]
+    [InlineData("/api/ui/v1/finans/donem-kapanis/ac", true)]
+    [InlineData("/api/ui/v1/finans/donem-kapanis/kilitle", false)]
+    [InlineData("/api/ui/v1/subeler/birlestir/onizleme", false)]
     public void Yikici_POST_siniflandirmasi(string route, bool destructive)
         => Assert.Equal(destructive, IsDestructivePost(route));
 }
