@@ -850,6 +850,11 @@ public sealed class UiKiraPanelTests(WebFixture fx)
             ["POST " + Rental + "/{id:guid}/paylasim"] = "OperationsWrite",
             ["POST " + Rental + "/{id:guid}/paylasim/yeni-surum"] = "OperationsWrite",
             ["DELETE " + Rental + "/{id:guid}/paylasim"] = "OperationsWrite",
+            // KABİS iç akışı: okuma kira okumalarıyla aynı, işlemler OperationsWrite (KabisApi).
+            ["GET " + Rental + "/{id:guid}/kabis"] = Read,
+            ["POST " + Rental + "/{id:guid}/kabis/{tur}/yeniden-dene"] = "OperationsWrite",
+            ["POST " + Rental + "/{id:guid}/kabis/{tur}/gerekli-degil"] = "OperationsWrite",
+            ["POST " + Rental + "/{id:guid}/kabis/{tur}/elle-bildirildi"] = "OperationsWrite",
             ["GET " + V1 + "/panel/ozet"] = "muaf",
         };
         Assert.Equal(expected.Keys.OrderBy(x => x, StringComparer.Ordinal), map.Keys.OrderBy(x => x, StringComparer.Ordinal));

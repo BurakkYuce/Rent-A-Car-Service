@@ -51,10 +51,12 @@ public interface IBookingRepository
     /// <summary>Kira + aracı AYNI transaction'da günceller (teslim/dönüş km → araç odometresi;
     /// ServiceRecordRepository.TransitionAsync deseni). Araç TX İÇİNDE okunur (PgRetry'de bayat okuma olmaz).
     /// kmLog (FAZ 2.5): verilirse dönüş odometresi km zaman-serisine AYNI transaction'da yazılır
-    /// (delege db'yi açmadığından log insert'i repo metodunun kendisinde).</summary>
+    /// (delege db'yi açmadığından log insert'i repo metodunun kendisinde).
+    /// kabis: verilirse KABİS kuyruk kaydı AYNI transaction'da yazılır (outbox; aynı kira × tür varsa no-op).</summary>
     Task<bool> UpdateRentalWithVehicleAsync(
         Guid id, Action<RentalContract> applyRental, Action<Vehicle> applyVehicle,
-        Func<RentalContract, VehicleKmLog>? kmLog = null, CancellationToken ct = default);
+        Func<RentalContract, VehicleKmLog>? kmLog = null, RentACar.Application.Kabis.KabisOutbox? kabis = null,
+        CancellationToken ct = default);
 
     /// <summary>
     /// F4.1 adversarial M2/M3: yukarıdakiyle aynı, ek olarak kira-fatura kilidi (fatura kesimiyle serileşir)
@@ -63,7 +65,8 @@ public interface IBookingRepository
     /// </summary>
     Task<bool> UpdateRentalWithVehicleAsync(
         Guid id, Action<RentalContract, KiraKilitBaglami> applyRental, Action<Vehicle> applyVehicle,
-        Func<RentalContract, VehicleKmLog>? kmLog = null, CancellationToken ct = default);
+        Func<RentalContract, VehicleKmLog>? kmLog = null, RentACar.Application.Kabis.KabisOutbox? kabis = null,
+        CancellationToken ct = default);
 
     /// <summary>Verilen araç+aralık için aktif (Kirada) kira çakışması var mı?</summary>
     Task<bool> HasOverlappingActiveRentalAsync(

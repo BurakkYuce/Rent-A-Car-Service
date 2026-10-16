@@ -266,6 +266,17 @@ async function fakeApi(
       return route.fulfill({ json: detailFn?.() ?? detay(K1, 2600, 1000) });
     }
     // F4.3b sekme verileri (bu dosyanın testleri onlara dokunmaz; 404 konsol hatası olmasın).
+    if (path === `/${RENTAL_ID}/kabis`) {
+      return route.fulfill({
+        json: {
+          etkin: false,
+          teslimiEngelle: false,
+          kurum: 'Emniyet',
+          bildirimler: [],
+          uyari: null,
+        },
+      });
+    }
     if (path === `/${RENTAL_ID}/musteri-ozet`) {
       return route.fulfill({
         json: {

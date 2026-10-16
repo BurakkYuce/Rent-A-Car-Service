@@ -48,9 +48,11 @@ public static class PanelApi
 
     public sealed record SiteTalebiOzeti(int Yeni, int? EnEskiGun);
 
+    /// <summary><c>KabisBildirilemeyen</c>: KABİS bildirimi bekleyen/hatalı kira sayısı (şube kapsamlı); KABİS
+    /// otomatik bildirimi kapalıysa null (kutu gösterilmez).</summary>
     public sealed record PanelKpi(
         int ToplamArac, int Kirada, int Musait, int Serviste, int AcikRezervasyon, int KmGecenBakim,
-        int GorulmeyenRezervasyon, SiteTalebiOzeti? SiteTalebi);
+        int GorulmeyenRezervasyon, SiteTalebiOzeti? SiteTalebi, int? KabisBildirilemeyen);
 
     public sealed record PanelVade(VadeKademesi Trafik, VadeKademesi Kasko, VadeKademesi Muayene,
         int GecmisUyari, int YaklasanUyari, int AcikSikayet);
@@ -90,6 +92,7 @@ public static class PanelApi
         HttpContext http, RentalService kiralar, ReservationService rezervasyonlar, CashService kasa,
         ReportService raporlar, DashboardService pano, DueService vade, ComplaintService sikayet,
         PublicBookingRequestService talepler, TenantStatusCache kiraciDurum, ITenantContext kiraci,
+        RentACar.Application.Kabis.KabisNotificationService kabis,
         CancellationToken ct)
     {
         var now = DateTimeOffset.UtcNow;
@@ -166,7 +169,8 @@ public static class PanelApi
 
         return TypedResults.Ok(new PanelOzetiYaniti(
             today,
-            new PanelKpi(fleet.Toplam, fleet.Kirada, fleet.Musait, fleet.Serviste, openReservation.Count, kmElapsed, pickupOverdue.Count, siteRequest),
+            new PanelKpi(fleet.Toplam, fleet.Kirada, fleet.Musait, fleet.Serviste, openReservation.Count, kmElapsed, pickupOverdue.Count, siteRequest,
+                await kabis.ProblemCountAsync(ct)),
             new PanelVade(Tier("Trafik"), Tier("Kasko"), Tier("Muayene"),
                 warnings.Count(w => w.Bucket == DueBucket.Gecmis), warnings.Count(w => w.Bucket != DueBucket.Gecmis), openComplaint),
             new PanelDonusKovalari(returnOverdue, returnToday, returnTomorrow, PanelTab.Active(null, returnOverdue.Count)),

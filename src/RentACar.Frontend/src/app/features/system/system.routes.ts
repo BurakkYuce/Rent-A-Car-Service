@@ -33,6 +33,13 @@ export const SYSTEM_ROUTES: Routes = withTranslationBlock('sistem', [
     canDeactivate: [unsavedChangesGuard],
   },
   {
+    path: 'kabis-ayarlari',
+    title: 'KABİS Ayarları — RentACar',
+    canMatch: [permissionGuard('ManageUsers')],
+    loadComponent: () => import('./kabis/kabis-settings-page').then((m) => m.KabisSettingsPage),
+    canDeactivate: [unsavedChangesGuard],
+  },
+  {
     path: 'mesaj-sablonlari',
     title: 'Mesaj Şablonları — RentACar',
     canMatch: [permissionGuard('ManageUsers')],

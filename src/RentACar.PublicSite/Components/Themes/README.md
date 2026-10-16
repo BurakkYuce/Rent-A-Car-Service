@@ -147,8 +147,11 @@ göre yalnız CSS ile değişir.
 4. Kayıt: `SiteThemes` alanı + `All` listesi; anahtarlar `SiteThemeKeys.All` ile aynı sırada (yapısal test).
 5. ERP: `src/RentACar.Frontend/src/app/features/system/settings/settings-model.ts` `SITE_THEMES` + i18n
    `sistem.ayarlar.tema.<anahtar>.{ad,aciklama}` (`npm run i18n:tipler`).
-6. Doğrulama: `PublicSiteThemeContractTests*` (token, kontrast, 3 tema × adres render, SSS adedi), 1440/390
-   ekran görüntüsü, `prefers-reduced-motion`.
+6. Doğrulama: `PublicSiteThemeContractTests*` (token, kontrast, 3 tema × adres render, SSS adedi, taşma
+   kuralları), 1440/390 ekran görüntüsü, `prefers-reduced-motion`, yatay taşma ölçümü (tarayıcı, CI'da değil):
+   `node scripts/site-tasma.mjs [--genislik 320,390,768,1440] http://<tema-host>:5230 …` — animasyonlar
+   duraklatılıp adım adım oynatılır (açılış anı SIRASINDA ve SONRASINDA), dinlenme hâlinde kırpılmış içerik de
+   aranır; taşma varsa çıkış kodu 1.
 
 ## CSS katmanları
 
@@ -167,6 +170,12 @@ göre yalnız CSS ile değişir.
   (`--board-*`, `--stage-*`, `--logo-plate`, `--field-bg`, `--line-soft` …) semantik token'a bağlanır —
   `color-mix(in oklab|srgb, …)` serbest — ki palet her şeyi değiştirsin. Açık moddaki gölgeler mürekkep tonunda:
   `color-mix(in srgb, var(--ink) 30%, transparent)`.
+- **Taşma kuralları** (yapısal test, `PublicSiteThemeContractTests.Overflow`): ızgara izi `minmax(0, Nfr)` —
+  çıplak `1fr`in alt sınırı içeriğin min-content genişliğidir (tarih alanı ~170 px, 320 px'te taşırır);
+  `grid-template-areas` yazan kural sütununu da yazar (örtük sütun `auto`); telefonda tek sütunlu ızgara
+  `minmax(0, 1fr)`; uzun bağlantı metni bölünebilir (`.buyuk-baglanti` base.css'te `overflow-wrap: anywhere`,
+  tema geri almaz); açılışta DÖNEN öğesi olan tema `main { overflow-x: clip }` yazar (salınım ekran kenarını
+  aşar; `clip` kaydırma kabı kurmaz, yapışkan öğe ve dikey taşma etkilenmez).
 
 ### Palet token'ları (palet bloğu basar; tema css'i yedeğini tanımlar)
 
@@ -249,7 +258,9 @@ eşlemesi; palet setleri ↔ `SitePaletteKeys` birebir; css yedekleri = varsayı
 AA; 3 tema × (/, /musaitlik, tarihli arama, yayındaki ilan detayı, /iletisim, yayında olmayan ilan 404,
 eşleşmeyen adres 404) durum kodu + `data-tema` + satır içi betik yok + dış kaynak yok + görünen SSS adedi =
 FAQPage adedi; önizleme (`?tema` — `?tema=tarife` → `pazar` —, `?palet`, `?renk`) noindex + geçersiz değer yok
-sayılır + 404 taşır; kayıtlı set/renk basılır, temaya ait olmayan set varsayılana düşer. Migration:
+sayılır + 404 taşır; kayıtlı set/renk basılır, temaya ait olmayan set varsayılana düşer; taşma kuralları
+(çıplak `fr` izi yok, alan şablonlu ızgara sütununu yazar, tek sütunlu ızgaralar `minmax(0, 1fr)`, büyük
+bağlantı bölünebilir, dönen anahtar kare → `main` yatayda kırpar). Migration:
 `SiteThemeKeyMigrationTests`. `SitePaletteCssTests`: üreticinin AA değişmezleri (her tema × her set × iki
 şema, 216 renk ızgarası), varsayılan setlerin bugünkü renkleri, enjeksiyon denemeleri varsayılana düşer, çıktı
 yalnız `#rrggbb`.

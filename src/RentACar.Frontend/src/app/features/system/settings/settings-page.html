@@ -129,6 +129,9 @@
       <section class="rc-bolum" aria-labelledby="ayar-entegrasyon">
         <h2 id="ayar-entegrasyon">{{ 'sistem.ayarlar.entegrasyon' | transloco }}</h2>
         <p class="not">{{ 'sistem.ayarlar.sirAciklama' | transloco }}</p>
+        <p class="not">
+          <a routerLink="/kabis-ayarlari">{{ 'sistem.ayarlar.kabisBaglanti' | transloco }}</a>
+        </p>
         <div class="rc-form-izgara">
           <rc-alan [etiket]="'sistem.ayarlar.alan.smsBaslik' | transloco">
             <rc-metin-girdisi formControlName="smsBaslik" [azamiUzunluk]="64" />

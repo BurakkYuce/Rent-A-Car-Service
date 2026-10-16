@@ -11,6 +11,7 @@ import {
 } from '@angular/core';
 import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
+import { RouterLink } from '@angular/router';
 import { TranslocoPipe } from '@jsverse/transloco';
 import { map } from 'rxjs';
 
@@ -107,6 +108,7 @@ const MAX_LENGTH: Readonly<Partial<Record<string, number>>> = {
   imports: [
     PageBand,
     ReactiveFormsModule,
+    RouterLink,
     TranslocoPipe,
     Alan,
     FormErrors,

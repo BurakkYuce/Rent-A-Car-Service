@@ -139,6 +139,8 @@ public sealed class AppDbContext : DbContext
     public DbSet<MesajSablon> MesajSablonlari => Set<MesajSablon>();
     /// <summary>Müşteriye giden mesajların kalıcı gönderim kaydı (idempotency + "gitti mi").</summary>
     public DbSet<GidenMesaj> GidenMesajlar => Set<GidenMesaj>();
+    /// <summary>KABİS bildirim kuyruğu — kira × tür başına tek satır (PII taşımaz).</summary>
+    public DbSet<KabisNotification> KabisBildirimleri => Set<KabisNotification>();
     public DbSet<Personel> Personeller => Set<Personel>();
     public DbSet<PersonelVardiya> PersonelVardiyalari => Set<PersonelVardiya>();   // FAZ-45 — vardiya/çalışma grafiği
     public DbSet<HukukDosya> HukukDosyalari => Set<HukukDosya>();

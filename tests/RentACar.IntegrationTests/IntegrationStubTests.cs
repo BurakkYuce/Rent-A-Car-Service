@@ -99,6 +99,36 @@ public sealed class IntegrationStubTests
     }
 
     [Fact]
+    public async Task Kabis_stub_yeni_yontemlerde_bagli_degil_doner_dis_referans_uretmez()
+    {
+        // Yeni port (kiralama/iade/iptal/sorgu): hiçbiri başarı ya da sahte dış referans döndürmez. "Bağlı değil"
+        // sınıfı kuyruğa deneme hakkı yakmadan Bekliyor kalmasını söyler.
+        using var sp = Build();
+        var kabis = sp.GetRequiredService<IKabisService>();
+        var credentials = new KabisKimlik(RentACar.Domain.Enums.KabisAuthority.Emniyet, "firma", Guid.NewGuid().ToString("N"));
+        var person = new KabisKisi("Ali", "Kaya", "11111111110", null, null, null, null, null, null, null, null);
+        foreach (var r in new[]
+        {
+            await kabis.NotifyRentalAsync(credentials, new KabisKiralamaBildirimi("RZ-1", "34ABC123", null, person, null,
+                false, null, null, DateTimeOffset.UtcNow, DateTimeOffset.UtcNow.AddDays(1), null, null)),
+            await kabis.NotifyReturnAsync(credentials, new KabisIadeBildirimi("RZ-1", null, "34ABC123", DateTimeOffset.UtcNow, null, 100)),
+            await kabis.CancelAsync(credentials, "RZ-1", null, "iptal"),
+        })
+        {
+            Assert.False(r.Basarili);
+            Assert.Equal(KabisSonucTuru.BagliDegil, r.Tur);
+            Assert.Null(r.DisReferans);
+            Assert.False(string.IsNullOrWhiteSpace(r.Hata));
+        }
+        var q = await kabis.QueryAsync(credentials, "RZ-1");
+        Assert.Equal(KabisSonucTuru.BagliDegil, q.Tur);
+        Assert.False(q.KayitVar);
+        // Kimlik/şifre kayıt yazdırımında görünmez.
+        Assert.DoesNotContain(credentials.Sifre, credentials.ToString());
+        Assert.DoesNotContain("11111111110", person.ToString());
+    }
+
+    [Fact]
     public async Task Eposta_noop_gonderici_hata_dondurur()
     {
         using var sp = Build();

@@ -63,6 +63,10 @@ internal sealed class TenantSettingsConfig : IEntityTypeConfiguration<TenantSett
         e.Property(x => x.SmtpGonderenAd).HasMaxLength(128);
         e.Property(x => x.FaturaSeriKodu).HasMaxLength(3);   // GİB: tam 3 karakter
         e.Property(x => x.WhatsAppNumarasi).HasMaxLength(32);
+        // KABİS (additive): kurum enum ADI, kullanıcı düz metin, şifre cipher.
+        e.Property(x => x.KabisKurum).HasMaxLength(16);
+        e.Property(x => x.KabisKullanici).HasMaxLength(128);
+        e.Property(x => x.KabisSifreEnc).HasMaxLength(1024);
         // PR-10: varsayılan araç grubu. Grup silinirse ayar NULL'a düşer (ON DELETE SET NULL) —
         // ölü Id'ye işaret eden ayar, çözücüde "bulunamadı" olarak sessizce Ekonomi'ye kayardı.
         // Tenant-arası bütünlük: FK tek kolonlu (Id) ama çözücü grubu AKTİF olarak arar ve o okuma
@@ -146,6 +150,30 @@ internal sealed class OutgoingMessageConfig : IEntityTypeConfiguration<GidenMesa
         // "önce sorgula, sonra yaz" kontrolü yarışta yetersiz kalır, benzersiz index kalmaz.
         e.HasIndex(x => new { x.TenantId, x.Anahtar }).IsUnique();
         e.HasIndex(x => new { x.TenantId, x.Durum, x.OlusturmaUtc });
+    }
+}
+
+// ---- KabisNotification / KABİS bildirim kuyruğu (tenant-owned; kira × tür başına TEK satır) ----
+internal sealed class KabisNotificationConfig : IEntityTypeConfiguration<KabisNotification>
+{
+    public void Configure(EntityTypeBuilder<KabisNotification> e)
+    {
+        e.ToTable("KabisBildirimleri");
+        e.HasKey(x => x.Id);
+        e.Property(x => x.Id).ValueGeneratedNever();
+        // Enum'lar ADIYLA (GidenMesaj deseni): sıra değişse de geçmiş kayıt anlamını korur.
+        e.Property(x => x.Tur).HasConversion<string>().IsRequired().HasMaxLength(16);
+        e.Property(x => x.Durum).HasConversion<string>().IsRequired().HasMaxLength(16);
+        e.Property(x => x.Kurum).HasConversion<string>().IsRequired().HasMaxLength(16);
+        e.Property(x => x.SonHata).HasMaxLength(512);
+        e.Property(x => x.DisReferans).HasMaxLength(128);
+        e.Property(x => x.Gerekce).HasMaxLength(256);
+        e.HasOne<RentalContract>().WithMany().HasForeignKey(x => x.KiraId).OnDelete(DeleteBehavior.Cascade);
+        // İDEMPOTENCY ŞEMADA: kira × tür başına tek kayıt. Çift tık / iki replika / job tekrarı ikinci
+        // satırı yazamaz; "önce sorgula sonra yaz" yarışta yetmez, benzersiz index yeter.
+        e.HasIndex(x => new { x.TenantId, x.KiraId, x.Tur }).IsUnique();
+        // Yeniden deneme işinin taraması + panel sayacı.
+        e.HasIndex(x => new { x.TenantId, x.Durum, x.SonrakiDenemeUtc });
     }
 }
 

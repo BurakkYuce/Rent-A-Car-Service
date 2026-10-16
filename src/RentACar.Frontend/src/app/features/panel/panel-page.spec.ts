@@ -47,6 +47,7 @@ function ozet(extra: Partial<PanelSummaryResponse> = {}): PanelSummaryResponse {
       kmGecenBakim: 0,
       gorulmeyenRezervasyon: 0,
       siteTalebi: null,
+      kabisBildirilemeyen: null,
     },
     vade: {
       trafik: tier,
@@ -215,6 +216,17 @@ describe('PanelSayfasi', () => {
     );
     // Oturum yok (izin yok) → hızlı işlemler bölümü çizilmez.
     expect(kok.querySelector('rc-hizli-islemler')).toBeNull();
+  });
+
+  it('KABİS kutusu yalnız otomatik bildirim açıkken: sayı + hata tonu, /kabis bağlantısı', async () => {
+    // Kapalı (null) → kutu yok (yukarıdaki testte 2 rozet satırı).
+    const base = ozet();
+    const { kok } = await open({ ...base, kpi: { ...base.kpi, kabisBildirilemeyen: 2 } });
+    const rows = [...kok.querySelectorAll('rc-hatirlatma-listesi .rozet-satiri')];
+    expect(rows).toHaveLength(3);
+    const kabis = rows.find((r) => r.textContent?.includes('KABİS bildirilemeyen'));
+    expect(kabis?.textContent).toContain('2');
+    expect(kabis?.getAttribute('href')).toContain('/kabis');
   });
 
   it('tahsilat anahtarı yoksa "Tahsil Et" ve İşlem sütunu yok (FinanceWrite sunucuda)', async () => {

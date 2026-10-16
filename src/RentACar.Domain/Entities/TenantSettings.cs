@@ -237,6 +237,28 @@ public class TenantSettings : ITenantOwned, IAuditable
     /// </summary>
     public bool YeniArayuzPilot { get; set; }
 
+    // ---- KABİS (Kiralık Araç Bildirim Sistemi; additive, hepsi boş/false varsayılan) ----
+    // Ayar boşken davranış BAYT-ÖZDEŞ: kuyruk kaydı oluşmaz, teslim engellenmez. Ayrıntı: docs/entegrasyon/kabis.md.
+    // Bu alanlar TenantSettingsService'in tam değiştirme kaydına GİRMEZ; yalnız KabisSettingsService yazar.
+
+    /// <summary>Teslim/dönüşte otomatik KABİS bildirimi kuyruğa girsin mi (varsayılan KAPALI).</summary>
+    public bool KabisEtkin { get; set; }
+
+    /// <summary>Bildirimin gideceği kolluk: <c>Emniyet</c> ya da <c>Jandarma</c> (enum adı). Boş → Emniyet.</summary>
+    public string? KabisKurum { get; set; }
+
+    /// <summary>KABİS kullanıcı kodu/adı (sır değil, düz metin).</summary>
+    public string? KabisKullanici { get; set; }
+
+    /// <summary>KABİS şifresi — <c>ISecretProtector</c> cipher'ı. HİÇBİR API yanıtında dönmez (yalnız "tanımlı" bayrağı).</summary>
+    public string? KabisSifreEnc { get; set; }
+
+    /// <summary>
+    /// true: KABİS bildirimi BAŞARILI olmadan araç teslim edilemez (kanun "araç teslim edilmeden" bildirim ister).
+    /// Varsayılan false: teslim yapılır, bildirim kuyruğa girer, kira ekranı ve panel uyarır.
+    /// </summary>
+    public bool KabisTeslimiEngelle { get; set; }
+
     public DateTimeOffset CreatedAtUtc { get; set; } = DateTimeOffset.UtcNow;
     public DateTimeOffset? UpdatedAtUtc { get; set; }
 }

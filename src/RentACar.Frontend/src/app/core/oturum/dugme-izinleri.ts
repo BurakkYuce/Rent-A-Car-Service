@@ -100,6 +100,19 @@ export const DUGME_IZINLERI = {
     izinler: ['ManageUsers', 'OperationsDelete'],
     uc: 'POST /api/ui/v1/tarife-aktar/kanal-sil',
   },
+  /** Kira ekranı KABİS kartı işlemleri — okuma OW|FW, işlemler (yeniden dene / gerekli değil / elle) OW. */
+  kabisYenidenDene: {
+    izinler: ['OperationsWrite'],
+    uc: 'POST /api/ui/v1/kiralar/{id:guid}/kabis/{tur}/yeniden-dene',
+  },
+  kabisGerekliDegil: {
+    izinler: ['OperationsWrite'],
+    uc: 'POST /api/ui/v1/kiralar/{id:guid}/kabis/{tur}/gerekli-degil',
+  },
+  kabisElleBildirildi: {
+    izinler: ['OperationsWrite'],
+    uc: 'POST /api/ui/v1/kiralar/{id:guid}/kabis/{tur}/elle-bildirildi',
+  },
 } as const satisfies Readonly<Record<string, DugmeIzni>>;
 
 export type ButtonName = keyof typeof DUGME_IZINLERI;

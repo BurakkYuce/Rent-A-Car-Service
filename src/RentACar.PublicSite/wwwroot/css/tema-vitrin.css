@@ -515,7 +515,8 @@ a.v-model:hover .v-model-ad { text-decoration: underline; text-decoration-thickn
 /* Fotoğrafsız ilan: koyu sahne zemini + büyük ad (süs; asıl ad h1'de). */
 .v-galeri-yok { display: flex; align-items: flex-end; min-height: clamp(200px, 38svh, 420px); margin-top: var(--space-2); padding-block: var(--space-3); background: var(--stage-bg); }
 .v-galeri-yok span { display: block; width: 100%; font: 700 var(--step-5)/.92 var(--font-display); letter-spacing: -.035em; color: var(--stage-muted); overflow-wrap: anywhere; }
-.v-detay-ic { display: grid; gap: var(--space-4); padding-top: var(--space-4); }
+/* Tek sütun açıkça `minmax(0, 1fr)`: örtük `auto` sütun en geniş çocuğa göre büyüyüp 320 px'te taşırıyordu. */
+.v-detay-ic { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--space-4); padding-top: var(--space-4); }
 .v-detay-bas h1 { font-size: var(--step-4); margin-bottom: .5rem; max-width: 18ch; }
 .v-detay-meta { margin: 0 0 var(--space-2); color: var(--ink-muted); }
 .v-detay-fiyat { margin: 0 0 var(--space-2); }
