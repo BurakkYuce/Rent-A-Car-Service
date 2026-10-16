@@ -1,0 +1,518 @@
+﻿using Microsoft.EntityFrameworkCore.Migrations;
+
+#nullable disable
+
+namespace RentACar.Infrastructure.Migrations
+{
+    /// <summary>
+    /// Blazor dönemi SAAT KAYMASI düzeltmesi (yalnız veri; EF modeli değişmez). Envanter, ayırt etme kuralı ve
+    /// işletim adımları: <c>docs/ops/blazor-saat-kaymasi.md</c>. Kuru çalışma: <c>scripts/saat-kaymasi/kuru-calistir.sql</c>
+    /// (bu sınıfın SQL'inden üretilir; <c>BlazorTimeShiftTests</c> birebir kilitler).
+    ///
+    /// <para><b>Sorun:</b> Blazor formlarındaki <c>datetime-local</c> alanları minimal-API'de <c>[FromForm]
+    /// DateTimeOffset</c> ile bağlandı; bağlama ofsetsiz değeri UTC kabul etti. Kullanıcının yazdığı İSTANBUL duvar
+    /// saati (09:00) UTC etiketiyle (09:00Z = 12:00 İstanbul) saklandı; Blazor aynı değeri UTC duvar saatiyle geri
+    /// gösterdiği için hata Blazor'da görünmüyordu. SPA doğru UTC'yi (06:00Z) yazar ve İstanbul saatiyle gösterir:
+    /// Blazor kayıtları SPA'da 3 saat ileri görünür. Etkilenen alanlar: teklif/rezervasyon/kira başlangıç-bitiş,
+    /// kira gerçek dönüş ve uzatılan bitiş; bunlardan türeyen fatura dönem planı sınırları ve dönüş km kaydı.
+    /// <c>FormParse.Date</c> ile okunan alanlar (assistans talebi zamanı, BAF dönüş tarihi, manuel fatura tarihi)
+    /// Blazor SUNUCUSUNUN saat dilimine bağlıdır: İstanbul'da doğru, UTC'de kayık — ayrı anahtarla dahil edilir.</para>
+    ///
+    /// <para><b>Ayırt etme:</b> her alanın SON GERÇEK yazımı denetim kaydından bulunur (Create ya da eski≠yeni
+    /// Update; değer güncel değerle aynı olmalı, değilse dokunulmaz). Yazım kesişten (Blazor'un son çalıştığı an)
+    /// ÖNCEYSE Blazor formudur. Saniye taşıyan değer form değildir (<c>datetime-local</c> dakika hassasiyetinde
+    /// gönderir; saniyeli değer kod/API'nin ürettiği doğru UTC'dir). Kopyalar kaynağını izler: tekliften rezervasyon, rezervasyondan kira; site
+    /// talebinden gelen rezervasyon (gün değeri) form değildir. Dönem planı sınırları kiranın başlangıcını (bitişe
+    /// eşit sınır bitişi), dönüş km kaydı gerçek dönüşü izler. Faturalar DEĞİŞMEZ tablodur: yalnız rapor.</para>
+    ///
+    /// <para><b>Kapı:</b> veri değişikliği yalnız <c>racar.saat_kaymasi_kesis</c> ayarı varsa uygulanır (<c>simdi</c> =
+    /// migration anı; Blazor'dan doğrudan bu sürüme geçen üretim için doğru kesiş — ya da ofsetli zaman). Ayar yoksa
+    /// yalnız defter tabloları ve fonksiyonlar kurulur, veriye dokunulmaz: SPA'nın zaten yazdığı bir veritabanında
+    /// (geliştirme, pilot) varsayılan bir kesiş SPA kayıtlarını yanlışlıkla kaydırırdı. İsteğe bağlı:
+    /// <c>racar.saat_kaymasi_sunucu_utc</c> (true → sunucu-saat-dilimine bağlı alanlar da) ve
+    /// <c>racar.saat_kaymasi_kiraci</c> (yalnız o firma).</para>
+    ///
+    /// <para><b>Güvenlik:</b> tek transaction; RLS deseni NO FORCE / FORCE (racar_owner'da BYPASSRLS yok); yalnız
+    /// eski değeri hâlâ duran alan değişir; her değişiklik <c>SaatKaymasiDuzeltmeleri</c> defterine yazılır (tablo +
+    /// kolon + kayıt benzersiz) ve her çalıştırma <c>SaatKaymasiCalismalari</c>'na — aynı kesişle ikinci çalıştırma
+    /// hiçbir şey değiştirmez, FARKLI kesişle çalıştırma reddedilir. Kira çakışma kısıtı (aynı araçta açık kiralar)
+    /// kaydırmadan önce denetlenir; satırlar kısıtın ara durum görmeyeceği sırayla güncellenir. Down defterden geri
+    /// alır; sonradan değişmiş alan varsa REDDEDER (veri kaybı yok). Defter tablolarına uygulama rolü erişemez.</para>
+    /// </summary>
+    public partial class FixBlazorSaatKaymasi : Migration
+    {
+        /// <summary>Defter (alan başına eski/yeni) + çalıştırma kaydı. Uygulama rolüne (racar_app) yetki verilmez.</summary>
+        public const string LedgerSql = """
+            CREATE TABLE IF NOT EXISTS "SaatKaymasiDuzeltmeleri" (
+                "Id" bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+                "TenantId" uuid NOT NULL,
+                "Tablo" text NOT NULL,
+                "Kolon" text NOT NULL,
+                "KayitId" uuid NOT NULL,
+                "Eski" timestamptz NOT NULL,
+                "Yeni" timestamptz NOT NULL,
+                "Gerekce" text NOT NULL,
+                "Kesis" timestamptz NOT NULL,
+                "SunucuUtc" boolean NOT NULL,
+                "UygulamaZamani" timestamptz NOT NULL DEFAULT now(),
+                CONSTRAINT "UX_SaatKaymasiDuzeltmeleri" UNIQUE ("Tablo", "Kolon", "KayitId")
+            );
+            CREATE TABLE IF NOT EXISTS "SaatKaymasiCalismalari" (
+                "Id" bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+                "Kesis" timestamptz NOT NULL,
+                "SunucuUtc" boolean NOT NULL,
+                "Kiraci" uuid NULL,
+                "Adet" integer NOT NULL,
+                "Zaman" timestamptz NOT NULL DEFAULT now()
+            );
+            COMMENT ON TABLE "SaatKaymasiDuzeltmeleri" IS
+                'Blazor saat kayması düzeltmesi defteri (migration FixBlazorSaatKaymasi): alan başına eski/yeni değer. Geri alma kaynağı; uygulama erişmez.';
+            COMMENT ON TABLE "SaatKaymasiCalismalari" IS
+                'Blazor saat kayması düzeltmesi çalıştırmaları (kesiş anı). Farklı kesişle yeniden uygulama bu kayda bakılarak reddedilir.';
+            REVOKE ALL ON TABLE "SaatKaymasiDuzeltmeleri", "SaatKaymasiCalismalari" FROM PUBLIC;
+            REVOKE ALL ON TABLE "SaatKaymasiDuzeltmeleri", "SaatKaymasiCalismalari" FROM racar_app;
+            """;
+
+        /// <summary>
+        /// RLS parantezi: ilgili tablolardan FORCE'lu olanları NO FORCE yapar ve listesini döner (sonra aynıları
+        /// FORCE'lanır). RLS'i zaten atlayan rol (süper kullanıcı / BYPASSRLS) için tabloya dokunmaz — kuru çalışma
+        /// üretimde tablo kilidi almadan koşabilsin. Aynı transaction içinde kalır: başkası ara durumu görmez.
+        /// </summary>
+        public const string RlsSql = """
+            CREATE OR REPLACE FUNCTION rc_time_shift_unforce() RETURNS text[]
+            LANGUAGE plpgsql AS $fn$
+            DECLARE
+                forced text[];
+                t text;
+            BEGIN
+                IF EXISTS (SELECT 1 FROM pg_roles r WHERE r.rolname = current_user AND (r.rolsuper OR r.rolbypassrls)) THEN
+                    RETURN ARRAY[]::text[];
+                END IF;
+                SELECT coalesce(array_agg(c.relname::text ORDER BY c.relname), ARRAY[]::text[]) INTO forced
+                FROM pg_class c
+                WHERE c.relnamespace = 'public'::regnamespace AND c.relkind = 'r' AND c.relforcerowsecurity
+                  AND c.relname = ANY (ARRAY['AuditLogs', 'Quotations', 'Reservations', 'Rentals', 'FaturaDonemleri',
+                                             'VehicleKmLoglari', 'AssistansTalepleri', 'Baflar', 'SiteTalepleri', 'Invoices']);
+                FOREACH t IN ARRAY forced LOOP
+                    EXECUTE format('ALTER TABLE %I NO FORCE ROW LEVEL SECURITY', t);
+                END LOOP;
+                RETURN forced;
+            END
+            $fn$;
+
+            CREATE OR REPLACE FUNCTION rc_time_shift_reforce(p_tables text[]) RETURNS void
+            LANGUAGE plpgsql AS $fn$
+            DECLARE
+                t text;
+            BEGIN
+                FOREACH t IN ARRAY p_tables LOOP
+                    EXECUTE format('ALTER TABLE %I FORCE ROW LEVEL SECURITY', t);
+                END LOOP;
+            END
+            $fn$;
+            """;
+
+        /// <summary>
+        /// Sınıflandırma (SALT OKUR; RLS parantezini çağıran kurar): her aday alan için eski/yeni değer, kaydırılacak mı
+        /// ve gerekçe. Yeni değer: eski değerin UTC duvar saati İSTANBUL duvar saati sayılır.
+        /// </summary>
+        public const string ClassifySql = """
+            CREATE OR REPLACE FUNCTION rc_time_shift_classify(p_cutover timestamptz, p_server_was_utc boolean,
+                                                              p_tenant uuid DEFAULT NULL)
+            RETURNS TABLE ("TenantId" uuid, "Tablo" text, "Kolon" text, "KayitId" uuid, "Eski" timestamptz,
+                           "Yeni" timestamptz, "Kaydir" boolean, "Gerekce" text)
+            LANGUAGE sql STABLE AS $fn$
+            WITH last_write AS (
+                -- Alanın SON GERÇEK yazımı: Create ya da eski ≠ yeni Update (aynı anda ikisi varsa Update).
+                SELECT DISTINCT ON (a."EntityName", a."EntityId", k.col)
+                       a."EntityName"::text AS tbl, a."EntityId"::text AS rid, k.col, a."TimestampUtc" AS at,
+                       a."Action" AS act, (a."NewValues" ->> k.col)::timestamptz AS val
+                FROM "AuditLogs" a
+                CROSS JOIN LATERAL unnest(ARRAY['BasTar', 'BitTar', 'GercekDonusTar', 'Zaman', 'DonusTarihi']) AS k(col)
+                WHERE a."EntityName" IN ('Quotations', 'Reservations', 'Rentals', 'AssistansTalepleri', 'Baflar')
+                  AND (p_tenant IS NULL OR a."TenantId" = p_tenant)
+                  AND a."NewValues" ? k.col
+                  AND (a."Action" = 0 OR (a."OldValues" ->> k.col) IS DISTINCT FROM (a."NewValues" ->> k.col))
+                ORDER BY a."EntityName", a."EntityId", k.col, a."TimestampUtc" DESC, a."Action" DESC
+            ),
+            fields AS (
+                SELECT t."TenantId", 'Quotations'::text AS tbl, 'BasTar'::text AS col, t."Id" AS id, t."BasTar" AS val,
+                       t."CreatedAtUtc" AS created, coalesce(t."UpdatedAtUtc", t."CreatedAtUtc") AS touched
+                FROM "Quotations" t
+                UNION ALL SELECT t."TenantId", 'Quotations', 'BitTar', t."Id", t."BitTar", t."CreatedAtUtc",
+                       coalesce(t."UpdatedAtUtc", t."CreatedAtUtc") FROM "Quotations" t
+                UNION ALL SELECT t."TenantId", 'Reservations', 'BasTar', t."Id", t."BasTar", t."CreatedAtUtc",
+                       coalesce(t."UpdatedAtUtc", t."CreatedAtUtc") FROM "Reservations" t
+                UNION ALL SELECT t."TenantId", 'Reservations', 'BitTar', t."Id", t."BitTar", t."CreatedAtUtc",
+                       coalesce(t."UpdatedAtUtc", t."CreatedAtUtc") FROM "Reservations" t
+                UNION ALL SELECT t."TenantId", 'Rentals', 'BasTar', t."Id", t."BasTar", t."CreatedAtUtc",
+                       coalesce(t."UpdatedAtUtc", t."CreatedAtUtc") FROM "Rentals" t
+                UNION ALL SELECT t."TenantId", 'Rentals', 'BitTar', t."Id", t."BitTar", t."CreatedAtUtc",
+                       coalesce(t."UpdatedAtUtc", t."CreatedAtUtc") FROM "Rentals" t
+                UNION ALL SELECT t."TenantId", 'Rentals', 'GercekDonusTar', t."Id", t."GercekDonusTar", t."CreatedAtUtc",
+                       coalesce(t."UpdatedAtUtc", t."CreatedAtUtc") FROM "Rentals" t WHERE t."GercekDonusTar" IS NOT NULL
+                UNION ALL SELECT t."TenantId", 'AssistansTalepleri', 'Zaman', t."Id", t."Zaman", t."CreatedAtUtc",
+                       coalesce(t."UpdatedAtUtc", t."CreatedAtUtc") FROM "AssistansTalepleri" t
+                UNION ALL SELECT t."TenantId", 'Baflar', 'DonusTarihi', t."Id", t."DonusTarihi", t."CreatedAtUtc",
+                       coalesce(t."UpdatedAtUtc", t."CreatedAtUtc") FROM "Baflar" t WHERE t."DonusTarihi" IS NOT NULL
+            ),
+            era AS (
+                SELECT f."TenantId", f.tbl, f.col, f.id, f.val, w.act, w.rid IS NULL AS no_audit,
+                       CASE
+                           WHEN w.rid IS NOT NULL AND (w.val IS NULL OR abs(extract(epoch FROM w.val - f.val)) > 0.001)
+                               THEN 'tutarsiz'
+                           WHEN date_trunc('minute', f.val) <> f.val THEN 'saniyeli'
+                           WHEN coalesce(w.at, CASE WHEN f.col IN ('GercekDonusTar', 'DonusTarihi') THEN f.touched
+                                                    ELSE f.created END) < p_cutover THEN 'blazor'
+                           ELSE 'sonra'
+                       END AS donem
+                FROM fields f
+                LEFT JOIN last_write w ON w.tbl = f.tbl AND w.rid = f.id::text AND w.col = f.col
+                WHERE p_tenant IS NULL OR f."TenantId" = p_tenant
+            ),
+            decided AS (
+                SELECT e."TenantId", e.tbl, e.col, e.id, e.val, e.act, e.donem = 'blazor' AS era_shift,
+                       CASE e.donem
+                           WHEN 'blazor' THEN CASE WHEN e.no_audit THEN 'Blazor formu (denetim kaydı yok; satır zamanı)'
+                                                   ELSE 'Blazor formu' END
+                           WHEN 'sonra' THEN 'kesişten sonra yazılmış (SPA/API)'
+                           WHEN 'saniyeli' THEN 'saniye taşıyor: datetime-local formu üretmez (kod/API değeri; dokunulmaz)'
+                           ELSE 'tutarsız: denetimdeki son değer güncel değer değil (dokunulmaz)'
+                       END AS era_reason
+                FROM era e
+            ),
+            q AS (
+                SELECT d."TenantId", d.tbl, d.col, d.id, d.val, d.era_shift AS shift, d.era_reason AS reason
+                FROM decided d WHERE d.tbl = 'Quotations'
+            ),
+            r AS (
+                SELECT d."TenantId", d.tbl, d.col, d.id, d.val,
+                       CASE WHEN st.hit THEN false WHEN qq.id IS NOT NULL THEN qq.shift ELSE d.era_shift END AS shift,
+                       CASE WHEN st.hit THEN 'site talebinden (gün değeri; Blazor formu değil)'
+                            WHEN qq.id IS NOT NULL THEN 'tekliften kopya: ' || qq.reason
+                            ELSE d.era_reason END AS reason
+                FROM decided d
+                JOIN "Reservations" res ON res."Id" = d.id
+                LEFT JOIN q qq ON (d.act IS NULL OR d.act = 0) AND qq.id = res."KaynakTeklifId"
+                              AND qq.col = d.col AND qq.val = d.val
+                LEFT JOIN LATERAL (
+                    SELECT true AS hit FROM "SiteTalepleri" s
+                    WHERE s."DonusenReservationId" = res."Id"
+                      AND (CASE d.col WHEN 'BasTar' THEN s."BasTar" ELSE s."BitTar" END) = d.val
+                    LIMIT 1) st ON (d.act IS NULL OR d.act = 0)
+                WHERE d.tbl = 'Reservations'
+            ),
+            k AS (
+                SELECT d."TenantId", d.tbl, d.col, d.id, d.val,
+                       CASE WHEN rr.id IS NOT NULL THEN rr.shift ELSE d.era_shift END AS shift,
+                       CASE WHEN rr.id IS NOT NULL THEN 'rezervasyondan kopya: ' || rr.reason ELSE d.era_reason END AS reason
+                FROM decided d
+                JOIN "Rentals" ren ON ren."Id" = d.id
+                LEFT JOIN r rr ON d.col IN ('BasTar', 'BitTar') AND (d.act IS NULL OR d.act = 0)
+                              AND rr.id = ren."ReservationId" AND rr.col = d.col AND rr.val = d.val
+                WHERE d.tbl = 'Rentals'
+            ),
+            fd AS (
+                -- Dönem planı: sınır kiranın bitişine eşitse bitişi, değilse başlangıcı izler (BasTar.AddMonths(i)).
+                SELECT p."TenantId", 'FaturaDonemleri'::text AS tbl, x.col, p."Id" AS id, x.val, src.shift,
+                       'kiradan türetilmiş (' || src.col || '): ' || src.reason AS reason
+                FROM "FaturaDonemleri" p
+                JOIN "Rentals" ren ON ren."Id" = p."RentalId"
+                CROSS JOIN LATERAL (VALUES ('DonemBas'::text, p."DonemBas"), ('DonemBit'::text, p."DonemBit")) AS x(col, val)
+                JOIN k src ON src.id = ren."Id"
+                          AND src.col = CASE WHEN x.val = ren."BitTar" THEN 'BitTar' ELSE 'BasTar' END
+            ),
+            km AS (
+                SELECT DISTINCT ON (v."Id") v."TenantId", 'VehicleKmLoglari'::text AS tbl, 'Tarih'::text AS col,
+                       v."Id" AS id, v."Tarih" AS val, src.shift, 'kira dönüşünden türetilmiş: ' || src.reason AS reason
+                FROM "VehicleKmLoglari" v
+                JOIN "Rentals" ren ON ren."VehicleId" = v."VehicleId" AND ren."GercekDonusTar" = v."Tarih"
+                JOIN k src ON src.id = ren."Id" AND src.col = 'GercekDonusTar'
+                WHERE v."Kaynak" = 1
+                ORDER BY v."Id", src.shift DESC
+            ),
+            env AS (
+                SELECT d."TenantId", d.tbl, d.col, d.id, d.val, d.era_shift AND p_server_was_utc AS shift,
+                       CASE WHEN d.era_shift AND NOT p_server_was_utc
+                            THEN 'sunucu saat dilimine bağlı (FormParse.Date): Blazor sunucusu UTC idiyse kayık; sunucu_utc=true ile dahil edilir'
+                            ELSE d.era_reason END AS reason
+                FROM decided d WHERE d.tbl IN ('AssistansTalepleri', 'Baflar')
+            ),
+            inv AS (
+                SELECT i."TenantId", 'Invoices'::text AS tbl, 'Tarih'::text AS col, i."Id" AS id, i."Tarih" AS val,
+                       false AS shift,
+                       'değişmez tablo (fatura): yalnız rapor; manuel fatura tarihi Blazor datetime-local + FormParse.Date (sunucu UTC idiyse kayık; defter satırının EntryDateUtc değeri de aynı)' AS reason
+                FROM "Invoices" i
+                WHERE i."RentalId" IS NULL AND i."KaynakKiraId" IS NULL AND i."KaynakFaturaId" IS NULL AND NOT i."IadeMi"
+                  AND date_trunc('minute', i."Tarih") = i."Tarih"
+                  AND i."CreatedAtUtc" < p_cutover AND (p_tenant IS NULL OR i."TenantId" = p_tenant)
+            ),
+            alls AS (
+                SELECT * FROM q UNION ALL SELECT * FROM r UNION ALL SELECT * FROM k UNION ALL SELECT * FROM fd
+                UNION ALL SELECT * FROM km UNION ALL SELECT * FROM env UNION ALL SELECT * FROM inv
+            )
+            SELECT a."TenantId", a.tbl, a.col, a.id, a.val,
+                   CASE WHEN a.shift AND z."Id" IS NULL THEN (a.val AT TIME ZONE 'UTC') AT TIME ZONE 'Europe/Istanbul'
+                        ELSE a.val END,
+                   a.shift AND z."Id" IS NULL,
+                   CASE WHEN z."Id" IS NOT NULL THEN 'zaten düzeltildi (defterde)' ELSE a.reason END
+            FROM alls a
+            LEFT JOIN "SaatKaymasiDuzeltmeleri" z ON z."Tablo" = a.tbl AND z."Kolon" = a.col AND z."KayitId" = a.id;
+            $fn$;
+            """;
+
+        /// <summary>Kaydırma sonrası aynı araçta çakışacak AÇIK kira çiftleri (<c>rentals_no_overlap</c> kısıtı).</summary>
+        public const string ConflictsSql = """
+            CREATE OR REPLACE FUNCTION rc_time_shift_conflicts(p_cutover timestamptz, p_server_was_utc boolean DEFAULT false,
+                                                               p_tenant uuid DEFAULT NULL)
+            RETURNS TABLE ("TenantId" uuid, "VehicleId" uuid, "KiraA" uuid, "KiraB" uuid)
+            LANGUAGE sql STABLE AS $fn$
+            WITH c AS MATERIALIZED (
+                SELECT x."KayitId", x."Kolon", x."Yeni"
+                FROM rc_time_shift_classify(p_cutover, p_server_was_utc, p_tenant) x
+                WHERE x."Tablo" = 'Rentals' AND x."Kaydir"
+            ),
+            nr AS (
+                SELECT ren."TenantId", ren."VehicleId", ren."Id",
+                       coalesce(cb."Yeni", ren."BasTar") AS bas, coalesce(ce."Yeni", ren."BitTar") AS bit
+                FROM "Rentals" ren
+                LEFT JOIN c cb ON cb."KayitId" = ren."Id" AND cb."Kolon" = 'BasTar'
+                LEFT JOIN c ce ON ce."KayitId" = ren."Id" AND ce."Kolon" = 'BitTar'
+                WHERE ren."Durum" = 0 AND (p_tenant IS NULL OR ren."TenantId" = p_tenant)
+            )
+            SELECT a."TenantId", a."VehicleId", a."Id", b."Id"
+            FROM nr a
+            JOIN nr b ON b."TenantId" = a."TenantId" AND b."VehicleId" = a."VehicleId" AND a."Id" < b."Id"
+            WHERE tstzrange(a.bas, a.bit) && tstzrange(b.bas, b.bit);
+            $fn$;
+            """;
+
+        /// <summary>
+        /// Uygula: kaydırılacak alanlar deftere, sonra hedef satırlar satır satır (bir satırın tüm kolonları birlikte;
+        /// kiralar eski başlangıç sırasıyla — hepsi aynı yöne kaydığı için çakışma kısıtı ara durum görmez). Yalnız
+        /// eski değeri hâlâ duran alan değişir. Dönen: bu çalıştırmada kaydırılan alan sayısı.
+        /// </summary>
+        public const string ApplySql = """
+            CREATE OR REPLACE FUNCTION rc_time_shift_apply(p_cutover timestamptz, p_server_was_utc boolean DEFAULT false,
+                                                           p_tenant uuid DEFAULT NULL)
+            RETURNS integer
+            LANGUAGE plpgsql AS $fn$
+            DECLARE
+                forced text[];
+                spec record;
+                sets text;
+                stmt text;
+                rid uuid;
+                conflicts integer;
+                applied integer;
+            BEGIN
+                IF p_cutover IS NULL THEN
+                    RAISE EXCEPTION 'Saat kayması: kesiş anı verilmeli.';
+                END IF;
+                IF EXISTS (SELECT 1 FROM "SaatKaymasiCalismalari" w
+                           WHERE (w."Kiraci" IS NULL OR p_tenant IS NULL OR w."Kiraci" = p_tenant) AND w."Kesis" <> p_cutover) THEN
+                    RAISE EXCEPTION 'Saat kayması daha önce FARKLI bir kesişle uygulandı (bkz. "SaatKaymasiCalismalari"); farklı kesiş SPA kayıtlarını kaydırabilir.';
+                END IF;
+                forced := rc_time_shift_unforce();
+                SELECT count(*) INTO conflicts FROM rc_time_shift_conflicts(p_cutover, p_server_was_utc, p_tenant);
+                IF conflicts > 0 THEN
+                    RAISE EXCEPTION 'Saat kayması uygulanamaz: kaydırma sonrası % açık kira çifti aynı araçta çakışıyor (rc_time_shift_conflicts).', conflicts;
+                END IF;
+
+                INSERT INTO "SaatKaymasiDuzeltmeleri" ("TenantId", "Tablo", "Kolon", "KayitId", "Eski", "Yeni", "Gerekce",
+                                                       "Kesis", "SunucuUtc")
+                SELECT c."TenantId", c."Tablo", c."Kolon", c."KayitId", c."Eski", c."Yeni", c."Gerekce",
+                       p_cutover, p_server_was_utc
+                FROM rc_time_shift_classify(p_cutover, p_server_was_utc, p_tenant) c
+                WHERE c."Kaydir"
+                ON CONFLICT ("Tablo", "Kolon", "KayitId") DO NOTHING;
+                GET DIAGNOSTICS applied = ROW_COUNT;
+
+                FOR spec IN SELECT * FROM (VALUES
+                    ('Quotations', ARRAY['BasTar', 'BitTar']),
+                    ('Reservations', ARRAY['BasTar', 'BitTar']),
+                    ('Rentals', ARRAY['BasTar', 'BitTar', 'GercekDonusTar']),
+                    ('FaturaDonemleri', ARRAY['DonemBas', 'DonemBit']),
+                    ('VehicleKmLoglari', ARRAY['Tarih']),
+                    ('AssistansTalepleri', ARRAY['Zaman']),
+                    ('Baflar', ARRAY['DonusTarihi'])) AS v(tbl, cols)
+                LOOP
+                    SELECT string_agg(format(
+                        '%1$I = coalesce((SELECT d."Yeni" FROM "SaatKaymasiDuzeltmeleri" d WHERE d."Tablo" = %2$L '
+                        || 'AND d."Kolon" = %1$L AND d."KayitId" = t."Id" AND d."UygulamaZamani" = now() '
+                        || 'AND d."Eski" = t.%1$I), t.%1$I)', col, spec.tbl), ', ')
+                    INTO sets FROM unnest(spec.cols) AS col;
+                    stmt := format('UPDATE %I AS t SET %s WHERE t."Id" = $1', spec.tbl, sets);
+                    FOR rid IN EXECUTE format(
+                        'SELECT x."Id" FROM %I x WHERE x."Id" IN (SELECT d."KayitId" FROM "SaatKaymasiDuzeltmeleri" d '
+                        || 'WHERE d."Tablo" = %L AND d."UygulamaZamani" = now()) ORDER BY x.%I, x."Id"',
+                        spec.tbl, spec.tbl, spec.cols[1])
+                    LOOP
+                        EXECUTE stmt USING rid;
+                    END LOOP;
+                END LOOP;
+
+                INSERT INTO "SaatKaymasiCalismalari" ("Kesis", "SunucuUtc", "Kiraci", "Adet")
+                VALUES (p_cutover, p_server_was_utc, p_tenant, applied);
+                PERFORM rc_time_shift_reforce(forced);
+                RETURN applied;
+            END
+            $fn$;
+            """;
+
+        /// <summary>
+        /// Geri al: defterdeki her alan hâlâ "Yeni" ise "Eski"ye döner ve defter satırı silinir (kiralar ters sırayla);
+        /// hedef satırı artık olmayan defter satırı da silinir. Sonradan değişmiş alan defterde KALIR. Dönen: geri
+        /// alınan alan sayısı.
+        /// </summary>
+        public const string RevertSql = """
+            CREATE OR REPLACE FUNCTION rc_time_shift_revert(p_tenant uuid DEFAULT NULL) RETURNS integer
+            LANGUAGE plpgsql AS $fn$
+            DECLARE
+                forced text[];
+                spec record;
+                sets text;
+                matched text;
+                stmt text;
+                rid uuid;
+                reverted integer := 0;
+                n integer;
+            BEGIN
+                forced := rc_time_shift_unforce();
+                FOR spec IN SELECT * FROM (VALUES
+                    ('Quotations', ARRAY['BasTar', 'BitTar']),
+                    ('Reservations', ARRAY['BasTar', 'BitTar']),
+                    ('Rentals', ARRAY['BasTar', 'BitTar', 'GercekDonusTar']),
+                    ('FaturaDonemleri', ARRAY['DonemBas', 'DonemBit']),
+                    ('VehicleKmLoglari', ARRAY['Tarih']),
+                    ('AssistansTalepleri', ARRAY['Zaman']),
+                    ('Baflar', ARRAY['DonusTarihi'])) AS v(tbl, cols)
+                LOOP
+                    SELECT string_agg(format(
+                               '%1$I = coalesce((SELECT d."Eski" FROM "SaatKaymasiDuzeltmeleri" d WHERE d."Tablo" = %2$L '
+                               || 'AND d."Kolon" = %1$L AND d."KayitId" = t."Id" AND d."Yeni" = t.%1$I), t.%1$I)', col, spec.tbl), ', '),
+                           string_agg(format('(d."Kolon" = %1$L AND x.%1$I = d."Eski")', col), ' OR ')
+                    INTO sets, matched FROM unnest(spec.cols) AS col;
+                    stmt := format('UPDATE %I AS t SET %s WHERE t."Id" = $1', spec.tbl, sets);
+                    FOR rid IN EXECUTE format(
+                        'SELECT x."Id" FROM %I x WHERE x."Id" IN (SELECT d."KayitId" FROM "SaatKaymasiDuzeltmeleri" d '
+                        || 'WHERE d."Tablo" = %L AND ($1 IS NULL OR d."TenantId" = $1)) ORDER BY x.%I DESC, x."Id" DESC',
+                        spec.tbl, spec.tbl, spec.cols[1]) USING p_tenant
+                    LOOP
+                        EXECUTE stmt USING rid;
+                    END LOOP;
+                    EXECUTE format('DELETE FROM "SaatKaymasiDuzeltmeleri" d USING %I x WHERE d."Tablo" = %L '
+                                   || 'AND x."Id" = d."KayitId" AND ($1 IS NULL OR d."TenantId" = $1) AND (%s)',
+                                   spec.tbl, spec.tbl, matched) USING p_tenant;
+                    GET DIAGNOSTICS n = ROW_COUNT;
+                    reverted := reverted + n;
+                    EXECUTE format('DELETE FROM "SaatKaymasiDuzeltmeleri" d WHERE d."Tablo" = %L '
+                                   || 'AND ($1 IS NULL OR d."TenantId" = $1) '
+                                   || 'AND NOT EXISTS (SELECT 1 FROM %I x WHERE x."Id" = d."KayitId")',
+                                   spec.tbl, spec.tbl) USING p_tenant;
+                END LOOP;
+                DELETE FROM "SaatKaymasiCalismalari" w
+                WHERE (p_tenant IS NULL OR w."Kiraci" = p_tenant)
+                  AND NOT EXISTS (SELECT 1 FROM "SaatKaymasiDuzeltmeleri" d WHERE w."Kiraci" IS NULL OR d."TenantId" = w."Kiraci");
+                PERFORM rc_time_shift_reforce(forced);
+                RETURN reverted;
+            END
+            $fn$;
+            """;
+
+        /// <summary>Kuru çalışma raporu (veriye dokunmaz): tablo/kolon/karar/gerekçe başına adet ve eski/yeni aralığı;
+        /// kaydırma sonrası kira çakışması varsa ayrı satır.</summary>
+        public const string ReportSql = """
+            CREATE OR REPLACE FUNCTION rc_time_shift_report(p_cutover timestamptz, p_server_was_utc boolean DEFAULT false,
+                                                            p_tenant uuid DEFAULT NULL)
+            RETURNS TABLE ("Tablo" text, "Kolon" text, "Kaydir" boolean, "Gerekce" text, "Adet" bigint, "Kiraci" bigint,
+                           "EnErkenEski" timestamptz, "EnGecEski" timestamptz, "EnErkenYeni" timestamptz,
+                           "EnGecYeni" timestamptz)
+            LANGUAGE plpgsql AS $fn$
+            #variable_conflict use_column
+            DECLARE
+                forced text[];
+            BEGIN
+                forced := rc_time_shift_unforce();
+                RETURN QUERY
+                SELECT c."Tablo", c."Kolon", c."Kaydir", c."Gerekce", count(*), count(DISTINCT c."TenantId"),
+                       min(c."Eski"), max(c."Eski"), min(c."Yeni"), max(c."Yeni")
+                FROM rc_time_shift_classify(p_cutover, p_server_was_utc, p_tenant) c
+                GROUP BY 1, 2, 3, 4
+                UNION ALL
+                SELECT 'Rentals', 'Period', false,
+                       'ÇAKIŞMA: kaydırma sonrası aynı araçta açık kiralar çakışıyor; uygulama REDDEDİLİR, önce elle çözülmeli',
+                       count(*), count(DISTINCT x."TenantId"), NULL::timestamptz, NULL::timestamptz, NULL::timestamptz,
+                       NULL::timestamptz
+                FROM rc_time_shift_conflicts(p_cutover, p_server_was_utc, p_tenant) x
+                HAVING count(*) > 0
+                ORDER BY 1, 2, 3 DESC, 4;
+                PERFORM rc_time_shift_reforce(forced);
+            END
+            $fn$;
+            """;
+
+        /// <summary>Kapı: <c>racar.saat_kaymasi_kesis</c> yoksa veriye DOKUNMAZ (bkz. sınıf özeti).</summary>
+        public const string GateSql = """
+            DO $gate$
+            DECLARE
+                v_cutover text := nullif(btrim(current_setting('racar.saat_kaymasi_kesis', true)), '');
+                v_utc boolean := coalesce(nullif(btrim(current_setting('racar.saat_kaymasi_sunucu_utc', true)), '')::boolean, false);
+                v_tenant uuid := nullif(btrim(current_setting('racar.saat_kaymasi_kiraci', true)), '')::uuid;
+                v_at timestamptz;
+                n integer;
+            BEGIN
+                IF v_cutover IS NULL THEN
+                    RAISE NOTICE 'Blazor saat kayması düzeltmesi UYGULANMADI (racar.saat_kaymasi_kesis yok); bkz. docs/ops/blazor-saat-kaymasi.md';
+                    RETURN;
+                END IF;
+                v_at := CASE WHEN lower(v_cutover) = 'simdi' THEN now() ELSE v_cutover::timestamptz END;
+                n := rc_time_shift_apply(v_at, v_utc, v_tenant);
+                RAISE NOTICE 'Blazor saat kayması düzeltmesi: % alan kaydırıldı (kesiş %, sunucu_utc %, firma %).',
+                    n, v_at, v_utc, coalesce(v_tenant::text, 'tümü');
+            END
+            $gate$;
+            """;
+
+        /// <summary>Down: defterden geri al; sonradan değişmiş alan kalırsa REDDET (veri kaybı yok); sonra kaldır.</summary>
+        public const string DownSql = """
+            DO $down$
+            DECLARE
+                remaining integer;
+            BEGIN
+                PERFORM rc_time_shift_revert(NULL);
+                SELECT count(*) INTO remaining FROM "SaatKaymasiDuzeltmeleri";
+                IF remaining > 0 THEN
+                    RAISE EXCEPTION 'Saat kayması düzeltmesi geri alınamadı: % alan düzeltmeden sonra değişmiş (defter "SaatKaymasiDuzeltmeleri").', remaining;
+                END IF;
+            END
+            $down$;
+            DROP FUNCTION IF EXISTS rc_time_shift_report(timestamptz, boolean, uuid);
+            DROP FUNCTION IF EXISTS rc_time_shift_apply(timestamptz, boolean, uuid);
+            DROP FUNCTION IF EXISTS rc_time_shift_revert(uuid);
+            DROP FUNCTION IF EXISTS rc_time_shift_conflicts(timestamptz, boolean, uuid);
+            DROP FUNCTION IF EXISTS rc_time_shift_classify(timestamptz, boolean, uuid);
+            DROP FUNCTION IF EXISTS rc_time_shift_reforce(text[]);
+            DROP FUNCTION IF EXISTS rc_time_shift_unforce();
+            DROP TABLE IF EXISTS "SaatKaymasiCalismalari";
+            DROP TABLE IF EXISTS "SaatKaymasiDuzeltmeleri";
+            """;
+
+        /// <summary>Fonksiyon tanımları, kurulum sırasıyla (kuru çalışma betiği de aynı sırayla üretilir).</summary>
+        public static readonly string[] DefinitionSql = [LedgerSql, RlsSql, ClassifySql, ConflictsSql, ApplySql, RevertSql, ReportSql];
+
+        /// <inheritdoc />
+        protected override void Up(MigrationBuilder migrationBuilder)
+        {
+            foreach (var sql in DefinitionSql)
+                migrationBuilder.Sql(sql);
+            migrationBuilder.Sql(GateSql);
+        }
+
+        /// <inheritdoc />
+        protected override void Down(MigrationBuilder migrationBuilder)
+        {
+            migrationBuilder.Sql(DownSql);
+        }
+    }
+}
