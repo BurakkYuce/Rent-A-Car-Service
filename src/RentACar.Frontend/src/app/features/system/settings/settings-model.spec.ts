@@ -1,8 +1,10 @@
 import {
+  EINVOICE_SCENARIOS,
   SECRET_FIELDS,
   SETTINGS_FIELDS,
   SITE_THEMES,
   type SettingsDto,
+  integratorOptions,
   isHexColor,
   needsTxtRecord,
   paletteAfterThemeChange,
@@ -154,7 +156,45 @@ describe('ayarlar modeli', () => {
     expect(body['kurElleGirisKilitli']).toBe(false);
     expect(body['donemselFaturalamaJob']).toBe(false);
     expect(body['donemselOtomatikTahsilat']).toBe(false);
+    expect(body['eFaturaCanliOrtam']).toBe(false);
     expect(body['surum']).toBeNull();
+  });
+
+  it('e-belge ayarları tam PUT gövdesinde; şifre yalnız yazılınca, ortam bayrağı bool', () => {
+    const value = {
+      ...settingsFormValue(DTO),
+      eFaturaEntegrator: 'test-entegrator',
+      eFaturaGondericiEtiket: 'urn:mail:defaultgb@ornek.test',
+      eFaturaSenaryo: 'TICARIFATURA',
+      eFaturaCanliOrtam: true,
+      firmaIl: 'İstanbul',
+      firmaIlce: 'Şişli',
+      eFaturaSifre: 'entegrator-anahtari',
+    };
+    const body = settingsBody(value, 'v7');
+    expect(body['eFaturaEntegrator']).toBe('test-entegrator');
+    expect(body['eFaturaGondericiEtiket']).toBe('urn:mail:defaultgb@ornek.test');
+    expect(body['eFaturaSenaryo']).toBe('TICARIFATURA');
+    expect(body['eFaturaCanliOrtam']).toBe(true);
+    expect(body['firmaIl']).toBe('İstanbul');
+    expect(body['eFaturaSifre']).toBe('entegrator-anahtari');
+    // Yanıt tarafı salt-okunur alanlar gövdeye girmez.
+    for (const k of ['eFaturaBagli', 'eFaturaDurumMesaji', 'eFaturaEntegratorSecenekleri']) {
+      expect(k in body).toBe(false);
+    }
+  });
+
+  it('entegratör seçenekleri: kayıtlı adaptörler; listede olmayan kayıtlı değer düşmez', () => {
+    expect(integratorOptions(null)).toEqual([]);
+    expect(integratorOptions(DTO)).toEqual([]); // bu sürümde adaptör yok
+    const withList = {
+      ...DTO,
+      eFaturaEntegratorSecenekleri: [{ anahtar: 'test-entegrator', ad: 'Test' }],
+    } as SettingsDto;
+    expect(integratorOptions(withList)).toEqual([{ deger: 'test-entegrator', etiket: 'Test' }]);
+    const removed = { ...DTO, eFaturaEntegrator: 'eski-adaptor' } as SettingsDto;
+    expect(integratorOptions(removed)).toEqual([{ deger: 'eski-adaptor', etiket: 'eski-adaptor' }]);
+    expect(EINVOICE_SCENARIOS).toEqual(['TEMELFATURA', 'TICARIFATURA']);
   });
 
   it('birleştirme değerlerinde sır anahtarı hiç yok (yazılan sır korunur)', () => {

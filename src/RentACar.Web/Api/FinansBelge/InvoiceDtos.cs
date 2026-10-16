@@ -2,12 +2,35 @@ namespace RentACar.Web.Api.FinansBelge;
 
 /// <summary>Fatura listesi satırı. Tutarlar faturanın KENDİ dövizinde; iade faturası pozitif saklanır
 /// (<c>iadeMi</c> ile işaretlenir). Cari adı KVKK tek kuralıyla (<c>MusteriGorunumu</c>); vergi no/TC DÖNMEZ.
-/// <c>kiraId</c>: kira faturası ya da fark faturasının kirası.</summary>
+/// <c>kiraId</c>: kira faturası ya da fark faturasının kirası.
+/// <c>eBelgeDurum</c>: e-belge gönderim durumu (<c>Taslak</c>/<c>Gonderilecek</c>/<c>Gonderildi</c>/<c>Hata</c>/<c>Iptal</c>)
+/// ya da null (özelliğin öncesinden kalan, e-belge kaydı olmayan fatura); <c>eBelgeMesaj</c> sebebi.
+/// <c>eFaturaGonderildi</c>/<c>eFaturaEttn</c> eski alanlardır (artık yazılmaz).</summary>
 public sealed record InvoiceListRow(
     Guid Id, string No, DateTimeOffset Tarih, DateTimeOffset? VadeTarihi, string Durum, bool IadeMi, bool ManuelMi,
     Guid CariId, string CariAd, Guid? KiraId, string? SozlesmeNo, string? Plaka, string? Ofis,
     decimal NetTutar, decimal KdvTutar, decimal GenelToplam, string Doviz, decimal Kur,
-    bool EFaturaGonderildi, string? EFaturaEttn, Guid? KaynakFaturaId);
+    bool EFaturaGonderildi, string? EFaturaEttn, Guid? KaynakFaturaId,
+    string? EBelgeDurum, string? EBelgeMesaj);
+
+/// <summary>
+/// Faturanın e-belge (e-Fatura/e-Arşiv) durumu.
+/// <list type="bullet">
+/// <item><c>ettn</c> YALNIZ entegratör belgeyi kabul ettiyse döner (<c>gonderimTarihi</c> dolu) — gönderilmemiş belgenin
+/// UUID'si "e-Fatura numarası" gibi görünmesin (dürüst stub kuralı).</item>
+/// <item><c>durum</c> <c>TestGonderildi</c>: entegratörün TEST ortamı kabul etti, GİB'e ulaşmadı (gönderildi sayılmaz).</item>
+/// <item><c>gonderilebilir</c>: Taslak/Hata/TestGonderildi durumunda (ya da kaydı olmayan eski faturada), entegratör
+/// bağlıyken ve fatura iade edilmemişken kuyruğa alınabilir; <c>iptalEdilebilir</c>: gönderilmemiş ya da test ortamına
+/// gitmiş belge, ya da iadesi kesilmiş faturanın gönderilmiş e-Arşiv'i.</item>
+/// </list>
+/// </summary>
+public sealed record EDocumentDto(
+    string? Durum, string? Tur, string? Profil, string? FaturaTipi, string? Ettn, DateTimeOffset? GonderimTarihi,
+    int DenemeSayisi, DateTimeOffset? SonrakiDeneme, string? Mesaj, bool EntegratorBagli, bool Gonderilebilir,
+    bool IptalEdilebilir);
+
+/// <summary>e-Belge iptal gövdesi — gerekçe zorunlu (en çok 256 karakter).</summary>
+public sealed record EDocumentCancelRequest(string? Gerekce);
 
 /// <summary>Fatura listesinin bir dövizdeki toplamı (faturanın KENDİ dövizinde; kurla çevrilmez). <c>genelToplam</c> iade
 /// faturalarını da (pozitif saklanır) içerir; iadelerin payı <c>iadeToplam</c>.</summary>
@@ -24,7 +47,8 @@ public sealed record InvoiceLineDto(
 
 /// <summary>Fatura detayı. <c>pdfAdresi</c>: tek kaynak QuestPDF çıktısı (<c>/faturalar/{id}/pdf</c>, SPA yönlendirmesi
 /// dışında — tam sayfa açılır). <c>iadeFaturaId</c>: bu faturanın iadesi kesildiyse onun kimliği (kaynak başına tek iade).
-/// e-Fatura: entegrasyon yapılandırılmadığında <c>eFaturaGonderildi=false</c> ve ETTN boştur (dürüst stub).</summary>
+/// e-Belge durumu <c>eBelge</c>'dedir (her zaman döner; kaydı olmayan eski faturada <c>durum = null</c>).
+/// <c>eFaturaGonderildi</c>/<c>eFaturaEttn</c> eski alanlardır (artık yazılmaz).</summary>
 public sealed record InvoiceDetail(
     Guid Id, string No, DateTimeOffset Tarih, DateTimeOffset? VadeTarihi, string Durum, bool IadeMi, bool ManuelMi,
     Guid CariId, string CariAd, Guid? KiraId, Guid? KaynakFaturaId, Guid? IadeFaturaId,
@@ -32,7 +56,7 @@ public sealed record InvoiceDetail(
     decimal? Otv, decimal? TevkifatOran, decimal? TevkifatTutar, decimal? DamgaVergisi,
     string? IslemSube, string? EvrakNo, string? FaturaOzelKod, string? OdemeTuru, string? GonderimSekli,
     string? KdvSifirSebep, bool EFaturaGonderildi, string? EFaturaEttn, string PdfAdresi,
-    IReadOnlyList<InvoiceLineDto> Satirlar);
+    IReadOnlyList<InvoiceLineDto> Satirlar, EDocumentDto EBelge);
 
 /// <summary>Fatura detay listesi satırı (fatura satırı seviyesinde). <c>isaretliToplamTl</c>: iade eksi, TL baz.</summary>
 public sealed record InvoiceLineListRow(

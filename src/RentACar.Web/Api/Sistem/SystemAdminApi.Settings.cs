@@ -116,12 +116,21 @@ public static partial class SystemAdminApi
         var raw = await sp.GetRequiredService<ITenantSettingsRepository>().GetAsync(ct);
         var wa = await svc.ListWhatsAppDispatchesAsync(7, ct);
         var cfg = sp.GetRequiredService<IConfiguration>();
+        var catalog = sp.GetRequiredService<Application.EInvoicing.EInvoiceIntegratorCatalog>();
+        var einvoice = Application.EInvoicing.EInvoiceConnection.Resolve(
+            raw, catalog, sp.GetRequiredService<Application.Common.ISecretProtector>());
         return new SettingsDto
         {
             FirmaUnvan = m.FirmaUnvan, FirmaVergiDairesi = m.FirmaVergiDairesi, FirmaVergiNo = m.FirmaVergiNo,
             FirmaAdres = m.FirmaAdres, FirmaTel = m.FirmaTel, FirmaEmail = m.FirmaEmail, FirmaMobilTel = m.FirmaMobilTel,
-            FirmaMarka = m.FirmaMarka,
+            FirmaMarka = m.FirmaMarka, FirmaIl = m.FirmaIl, FirmaIlce = m.FirmaIlce,
             EFaturaKullanici = m.EFaturaKullanici, EFaturaSifreTanimli = !string.IsNullOrEmpty(raw?.EFaturaSifreEnc),
+            EFaturaEntegrator = m.EFaturaEntegrator, EFaturaGondericiEtiket = m.EFaturaGondericiEtiket,
+            EFaturaPostaKutusuEtiket = m.EFaturaPostaKutusuEtiket, EFaturaCanliOrtam = m.EFaturaCanliOrtam,
+            EFaturaSenaryo = m.EFaturaSenaryo,
+            EFaturaBagli = einvoice.Ready,
+            EFaturaDurumMesaji = einvoice.Gap is { } gap ? Application.EInvoicing.EInvoiceReadiness.NotConnected(gap) : null,
+            EFaturaEntegratorSecenekleri = catalog.All.Select(i => new EInvoiceIntegratorOptionDto(i.Key, i.Ad)).ToList(),
             SmsBaslik = m.SmsBaslik, SmsApiKeyTanimli = !string.IsNullOrEmpty(raw?.SmsApiKeyEnc),
             PosMerchantId = m.PosMerchantId, PosApiKeyTanimli = !string.IsNullOrEmpty(raw?.PosApiKeyEnc),
             LogoUrl = m.LogoUrl, LogoVar = m.LogoBytes is { Length: > 0 },
@@ -162,8 +171,11 @@ public static partial class SystemAdminApi
     {
         FirmaUnvan = i.FirmaUnvan, FirmaVergiDairesi = i.FirmaVergiDairesi, FirmaVergiNo = i.FirmaVergiNo,
         FirmaAdres = i.FirmaAdres, FirmaTel = i.FirmaTel, FirmaEmail = i.FirmaEmail, FirmaMobilTel = i.FirmaMobilTel,
-        FirmaMarka = i.FirmaMarka,
+        FirmaMarka = i.FirmaMarka, FirmaIl = i.FirmaIl, FirmaIlce = i.FirmaIlce,
         EFaturaKullanici = i.EFaturaKullanici, EFaturaSifre = i.EFaturaSifre,
+        EFaturaEntegrator = i.EFaturaEntegrator, EFaturaGondericiEtiket = i.EFaturaGondericiEtiket,
+        EFaturaPostaKutusuEtiket = i.EFaturaPostaKutusuEtiket, EFaturaCanliOrtam = i.EFaturaCanliOrtam,
+        EFaturaSenaryo = i.EFaturaSenaryo,
         SmsBaslik = i.SmsBaslik, SmsApiKey = i.SmsApiKey, PosMerchantId = i.PosMerchantId, PosApiKey = i.PosApiKey,
         EFaturaSifreTemizle = i.EFaturaSifreTemizle, SmsApiKeyTemizle = i.SmsApiKeyTemizle,
         PosApiKeyTemizle = i.PosApiKeyTemizle, SmtpSifreTemizle = i.SmtpSifreTemizle,

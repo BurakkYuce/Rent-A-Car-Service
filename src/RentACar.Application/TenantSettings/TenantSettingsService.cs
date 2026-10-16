@@ -13,7 +13,7 @@ namespace RentACar.Application.TenantSettings;
 public sealed class TenantSettingsService(
     ITenantSettingsRepository repository, ICurrentUser currentUser, ISecretProtector secrets, ScreenPermissionService screens,
     ITenantDomainRepository domains, ITenantContext tenant, ITenantSettingsVersionStore? versionStore = null,
-    IDnsTxtResolver? dnsTxt = null)
+    IDnsTxtResolver? dnsTxt = null, EInvoicing.EInvoiceIntegratorCatalog? einvoiceCatalog = null)
 {
     /// <summary>
     /// F11.1b güvenlik M6 — özel alan adının sahiplik doğrulaması: <c>_racar-verify.&lt;alan adı&gt;</c> TXT kaydında
@@ -76,8 +76,15 @@ public sealed class TenantSettingsService(
             FirmaEmail = s.FirmaEmail,
             FirmaMobilTel = s.FirmaMobilTel,
             FirmaMarka = s.FirmaMarka,
+            FirmaIl = s.FirmaIl,
+            FirmaIlce = s.FirmaIlce,
             EFaturaKullanici = s.EFaturaKullanici,
             EFaturaSifre = secrets.Unprotect(s.EFaturaSifreEnc),
+            EFaturaEntegrator = s.EFaturaEntegrator,
+            EFaturaGondericiEtiket = s.EFaturaGondericiEtiket,
+            EFaturaPostaKutusuEtiket = s.EFaturaPostaKutusuEtiket,
+            EFaturaCanliOrtam = s.EFaturaCanliOrtam,
+            EFaturaSenaryo = s.EFaturaSenaryo,
             SmsBaslik = s.SmsBaslik,
             SmsApiKey = secrets.Unprotect(s.SmsApiKeyEnc),
             PosMerchantId = s.PosMerchantId,
@@ -222,6 +229,11 @@ public sealed class TenantSettingsService(
         if (!string.IsNullOrEmpty(s.EFaturaSifreEnc) && string.IsNullOrWhiteSpace(m.EFaturaSifre) && !m.EFaturaSifreTemizle
             && !string.IsNullOrWhiteSpace(m.EFaturaKullanici) && Changed(s.EFaturaKullanici, m.EFaturaKullanici))
             throw new ValidationException("e-Fatura şifresi: kullanıcı değişince şifre yeniden girilmelidir.");
+        // Entegratör değişirse kayıtlı sır BAŞKA bir firmaya (yeni entegratöre) gönderilirdi → yeniden girilmeli.
+        if (!string.IsNullOrEmpty(s.EFaturaSifreEnc) && string.IsNullOrWhiteSpace(m.EFaturaSifre) && !m.EFaturaSifreTemizle
+            && !string.IsNullOrWhiteSpace(m.EFaturaEntegrator) && !string.IsNullOrWhiteSpace(s.EFaturaEntegrator)
+            && Changed(s.EFaturaEntegrator, m.EFaturaEntegrator))
+            throw new ValidationException("e-Fatura şifresi: entegratör değişince şifre / API anahtarı yeniden girilmelidir.", "eFaturaSifre");
         if (!string.IsNullOrEmpty(s.PosApiKeyEnc) && string.IsNullOrWhiteSpace(m.PosApiKey) && !m.PosApiKeyTemizle
             && !string.IsNullOrWhiteSpace(m.PosMerchantId) && Changed(s.PosMerchantId, m.PosMerchantId))
             throw new ValidationException("POS API anahtarı: üye işyeri no değişince anahtar yeniden girilmelidir.");
@@ -240,7 +252,10 @@ public sealed class TenantSettingsService(
             s.FirmaEmail = Trim(m.FirmaEmail);
             s.FirmaMobilTel = Trim(m.FirmaMobilTel);
             s.FirmaMarka = Trim(m.FirmaMarka);
+            s.FirmaIl = Trim(m.FirmaIl);
+            s.FirmaIlce = Trim(m.FirmaIlce);
             s.EFaturaKullanici = Trim(m.EFaturaKullanici);
+            ApplyEInvoice(s, m);
             s.SmsBaslik = Trim(m.SmsBaslik);
             s.PosMerchantId = Trim(m.PosMerchantId);
             // Sır: dolu ise şifrele+güncelle; boş ise mevcut cipher KORUNUR.
@@ -328,6 +343,38 @@ public sealed class TenantSettingsService(
             s.WhatsAppNumarasi = Trim(m.WhatsAppNumarasi);
             s.WhatsAppGunlukOzet = m.WhatsAppGunlukOzet ?? false;
         }
+    }
+
+    /// <summary>
+    /// e-Belge entegratör ayarları. Entegratör yalnız uygulamada KAYITLI bir adaptörün anahtarı olabilir (yoksa ayar
+    /// "bağlı" görünüp hiçbir şey göndermezdi); kayıtlı değer adaptör sonradan kaldırılmış olsa da DEĞİŞMEDEN geri
+    /// yazılabilir (diğer ayarların kaydı kilitlenmesin). Etiketler GİB biçiminde (<c>urn:mail:…</c>).
+    /// </summary>
+    private void ApplyEInvoice(RentACar.Domain.Entities.TenantSettings s, TenantSettingsModel m)
+    {
+        var integrator = Trim(m.EFaturaEntegrator)?.ToLowerInvariant();
+        if (integrator is not null && !string.Equals(integrator, s.EFaturaEntegrator, StringComparison.Ordinal)
+            && einvoiceCatalog?.Find(integrator) is null)
+            throw new ValidationException(
+                "e-Fatura entegratörü geçersiz: bu sürümde bu anahtarla kayıtlı bir entegratör adaptörü yok.", "eFaturaEntegrator");
+        s.EFaturaEntegrator = integrator;
+
+        var sender = Trim(m.EFaturaGondericiEtiket);
+        if (sender is not null && !EInvoicing.EInvoiceReadiness.IsValidAlias(sender))
+            throw new ValidationException("Gönderici birim etiketi 'urn:mail:' ile başlamalı ve boşluk içermemelidir.", "eFaturaGondericiEtiket");
+        s.EFaturaGondericiEtiket = sender;
+
+        var mailbox = Trim(m.EFaturaPostaKutusuEtiket);
+        if (mailbox is not null && !EInvoicing.EInvoiceReadiness.IsValidAlias(mailbox))
+            throw new ValidationException("Posta kutusu etiketi 'urn:mail:' ile başlamalı ve boşluk içermemelidir.", "eFaturaPostaKutusuEtiket");
+        s.EFaturaPostaKutusuEtiket = mailbox;
+
+        var scenario = Trim(m.EFaturaSenaryo)?.ToUpperInvariant();
+        if (scenario is not null && !EInvoicing.EInvoiceReadiness.Scenarios.Contains(scenario))
+            throw new ValidationException("e-Fatura senaryosu TEMELFATURA ya da TICARIFATURA olmalıdır.", "eFaturaSenaryo");
+        s.EFaturaSenaryo = scenario;
+
+        s.EFaturaCanliOrtam = m.EFaturaCanliOrtam;
     }
 
     /// <summary>

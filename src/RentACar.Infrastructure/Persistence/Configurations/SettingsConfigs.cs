@@ -38,6 +38,13 @@ internal sealed class TenantSettingsConfig : IEntityTypeConfiguration<TenantSett
         e.Property(x => x.SitePaleti).HasMaxLength(30);    // halka açık site palet seti (SitePaletteKeys)
         e.Property(x => x.EFaturaKullanici).HasMaxLength(128);
         e.Property(x => x.EFaturaSifreEnc).HasMaxLength(1024);
+        // e-belge entegratör ayarları (kimliksiz altyapı): anahtar = kayıtlı adaptör; etiketler urn:mail:…
+        e.Property(x => x.EFaturaEntegrator).HasMaxLength(32);
+        e.Property(x => x.EFaturaGondericiEtiket).HasMaxLength(256);
+        e.Property(x => x.EFaturaPostaKutusuEtiket).HasMaxLength(256);
+        e.Property(x => x.EFaturaSenaryo).HasMaxLength(16);
+        e.Property(x => x.FirmaIl).HasMaxLength(64);
+        e.Property(x => x.FirmaIlce).HasMaxLength(64);
         e.Property(x => x.SmsBaslik).HasMaxLength(64);
         e.Property(x => x.SmsApiKeyEnc).HasMaxLength(1024);
         e.Property(x => x.PosMerchantId).HasMaxLength(128);

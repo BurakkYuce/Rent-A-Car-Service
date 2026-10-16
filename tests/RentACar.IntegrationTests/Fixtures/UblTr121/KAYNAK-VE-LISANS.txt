@@ -1,0 +1,44 @@
+UBL-TR 1.2.1 doğrulama dosyaları — YALNIZ TEST KAYNAĞI (uygulamaya gömülmez, üretim kodunda kullanılmaz)
+====================================================================================================
+
+Ne var
+------
+xsdrt/maindoc/UBL-Invoice-2.1.xsd ve xsdrt/common/*.xsd
+    GİB UBL-TR 1.2.1 paketinin "xsdrt" (çalışma zamanı, açıklamasız) şemaları — OASIS UBL 2.1'in GİB tarafından
+    daraltılmış hâli (ör. ext:UBLExtensions ve cac:Signature zorunlu, AddressType'ta il/ilçe zorunlu).
+schematron/UBL-TR_Main_Schematron.xml, UBL-TR_Common_Schematron.xml, UBL-TR_Codelist.xml
+    GİB UBL-TR iş kuralları (şematron) ve kod listeleri. History.txt = GİB'in değişiklik günlüğü (son kayıt
+    20260701; Windows-1254'ten UTF-8'e çevrildi, içerik aynı).
+
+Kaynak (indirme: 2026-10-15)
+---------------------------
+Resmî yayın yeri GİB e-Belge portalıdır (ebelge.gib.gov.tr → e-Fatura / UBL-TR paketi). Portal bu ortamdan
+erişilemedi (bağlantı zaman aşımı), bu yüzden dosyalar paketin birebir kopyasını yayınlayan bağımsız aynalardan
+alındı ve aynalar birbirine karşı DOĞRULANDI:
+  * Şemalar (xsdrt): github.com/furkanmeclis/go-ubltr  schemas/ubltr-1.2.1/xsdrt
+      git blob karşılaştırması — UBL-Invoice-2.1.xsd (fd41b262…) ve UBL-CommonAggregateComponents-2.1.xsd
+      (cfb78e4f…) şu iki bağımsız aynada BİREBİR aynı:
+        github.com/MehmetCanak/e-fatura-entegrasyon  Documentation/UBL-TR1.2.1_Paketi/UBLTR_1.2.1_Paketi/xsdrt
+        github.com/CDinler/muhasebe-sistem            src/Library/ubl/xsdrt
+  * Şematron: github.com/furkanmeclis/go-ubltr  schemas/ubltr-1.2.1/schematron
+      UBL-TR_Main_Schematron.xml SHA-256 a0a27943…4dab — github.com/ahmeti/e-belge-dokuman (GIB_eFatura/schematron)
+      kopyasıyla BİREBİR aynı.
+
+Lisans
+------
+* xsdrt/*.xsd: OASIS UBL 2.1 türevi; dosya başlıklarındaki "Copyright (c) OASIS Open 2013" bildirimi ve OASIS
+  IPR politikası geçerlidir (OASIS şemaları değiştirilmeden/atıfla dağıtılabilir). GİB uyarlaması kamu kurumu
+  tarafından herkese açık yayımlanmış teknik standarttır.
+* schematron/*: Gelir İdaresi Başkanlığı'nın herkese açık yayımladığı teknik doğrulama kuralları; e-Fatura
+  uygulayıcılarının belgelerini doğrulaması amacıyla dağıtılır. Burada yalnız test oracle'ı olarak, değiştirilmeden
+  kullanılır.
+* Kopyalandıkları go-ubltr deposu MIT lisanslıdır (depo kodu için); dosyaların içeriği GİB/OASIS'e aittir.
+
+Nasıl kullanılıyor
+------------------
+tests/RentACar.IntegrationTests/Infrastructure/UblTrValidator.cs:
+  * XSD: System.Xml.Schema ile maindoc/UBL-Invoice-2.1.xsd.
+  * Şematron: GİB şematronu XPath 2.0 ister (matches, xs:date, current-date); .NET XSLT 1.0 olduğundan küçük bir
+    ISO-şematron yorumlayıcısı + XPath2.Net (MS-PL, yalnız test bağımlılığı). $type parametresi GİB'in açıkladığı
+    gibi: "efatura" ya da e-Arşiv için "earchive".
+Güncelleme: GİB yeni paket yayımlarsa bu dizindeki dosyalar birlikte değiştirilir ve bu not güncellenir.

@@ -260,6 +260,7 @@ builder.Services.AddApplication();
 builder.Services.AddInfrastructure(appConn, piiKey);
 builder.Services.AddHostedService<RentACar.Web.Jobs.DueNotificationJob>(); // scheduler: vade→bildirim (kimliksiz)
 builder.Services.AddHostedService<RentACar.Web.Jobs.PeriodInvoiceJob>(); // FAZ 4.2-B4: dönemsel fatura job'ı (ayar-kapılı)
+builder.Services.AddHostedService<RentACar.Web.Jobs.EDocumentJob>(); // e-belge gönderim kuyruğu (adaptör yoksa iş de yok)
 builder.Services.AddHostedService<RentACar.Web.Jobs.KabisRetryJob>(); // KABİS kuyruğu yeniden deneme (ayar-kapılı; stub → "bağlı değil")
 builder.Services.AddHttpClient(); // TCMB kur çekimi
 builder.Services.AddSingleton<RentACar.Web.Kur.TcmbExchangeRateService>(); // TCMB kur çek/upsert (paylaşımlı KurKayitlari)

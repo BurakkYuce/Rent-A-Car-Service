@@ -7291,6 +7291,76 @@
         }
       }
     },
+    "/api/ui/v1/faturalar/{id}/e-belge/gonder": {
+      "post": {
+        "tags": [
+          "Fatura"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EDocumentDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/ui/v1/faturalar/{id}/e-belge/iptal": {
+      "post": {
+        "tags": [
+          "Fatura"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EDocumentCancelRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EDocumentDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/ui/v1/faturalar/manuel": {
       "post": {
         "tags": [
@@ -41337,6 +41407,121 @@
           }
         }
       },
+      "EDocumentCancelRequest": {
+        "required": [
+          "gerekce"
+        ],
+        "type": "object",
+        "properties": {
+          "gerekce": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
+      "EDocumentDto": {
+        "required": [
+          "durum",
+          "tur",
+          "profil",
+          "faturaTipi",
+          "ettn",
+          "gonderimTarihi",
+          "denemeSayisi",
+          "sonrakiDeneme",
+          "mesaj",
+          "entegratorBagli",
+          "gonderilebilir",
+          "iptalEdilebilir"
+        ],
+        "type": "object",
+        "properties": {
+          "durum": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "tur": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "profil": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "faturaTipi": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "ettn": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "gonderimTarihi": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "denemeSayisi": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "sonrakiDeneme": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "mesaj": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "entegratorBagli": {
+            "type": "boolean"
+          },
+          "gonderilebilir": {
+            "type": "boolean"
+          },
+          "iptalEdilebilir": {
+            "type": "boolean"
+          }
+        }
+      },
+      "EInvoiceIntegratorOptionDto": {
+        "required": [
+          "anahtar",
+          "ad"
+        ],
+        "type": "object",
+        "properties": {
+          "anahtar": {
+            "type": "string"
+          },
+          "ad": {
+            "type": "string"
+          }
+        }
+      },
       "EkHizmetAracPivotDto": {
         "required": [
           "kolonlar",
@@ -46888,7 +47073,8 @@
           "eFaturaGonderildi",
           "eFaturaEttn",
           "pdfAdresi",
-          "satirlar"
+          "satirlar",
+          "eBelge"
         ],
         "type": "object",
         "properties": {
@@ -47071,6 +47257,9 @@
             "items": {
               "$ref": "#/components/schemas/InvoiceLineDto"
             }
+          },
+          "eBelge": {
+            "$ref": "#/components/schemas/EDocumentDto"
           }
         }
       },
@@ -47317,7 +47506,9 @@
           "kur",
           "eFaturaGonderildi",
           "eFaturaEttn",
-          "kaynakFaturaId"
+          "kaynakFaturaId",
+          "eBelgeDurum",
+          "eBelgeMesaj"
         ],
         "type": "object",
         "properties": {
@@ -47430,6 +47621,18 @@
               "string"
             ],
             "format": "uuid"
+          },
+          "eBelgeDurum": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "eBelgeMesaj": {
+            "type": [
+              "null",
+              "string"
+            ]
           }
         }
       },
@@ -70421,6 +70624,18 @@
               "string"
             ]
           },
+          "firmaIl": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "firmaIlce": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
           "eFaturaKullanici": {
             "type": [
               "null",
@@ -70429,6 +70644,48 @@
           },
           "eFaturaSifreTanimli": {
             "type": "boolean"
+          },
+          "eFaturaEntegrator": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "eFaturaGondericiEtiket": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "eFaturaPostaKutusuEtiket": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "eFaturaCanliOrtam": {
+            "type": "boolean"
+          },
+          "eFaturaSenaryo": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "eFaturaBagli": {
+            "type": "boolean"
+          },
+          "eFaturaDurumMesaji": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "eFaturaEntegratorSecenekleri": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/EInvoiceIntegratorOptionDto"
+            }
           },
           "smsBaslik": {
             "type": [
@@ -70769,6 +71026,18 @@
               "string"
             ]
           },
+          "firmaIl": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "firmaIlce": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
           "eFaturaKullanici": {
             "type": [
               "null",
@@ -70776,6 +71045,33 @@
             ]
           },
           "eFaturaSifre": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "eFaturaEntegrator": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "eFaturaGondericiEtiket": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "eFaturaPostaKutusuEtiket": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "eFaturaCanliOrtam": {
+            "type": "boolean"
+          },
+          "eFaturaSenaryo": {
             "type": [
               "null",
               "string"
