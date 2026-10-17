@@ -97,6 +97,11 @@ git -C <repo> rev-parse HEAD      # bu SHA için GitHub'da spa-<sha> release'i O
 sudo <repo>/deploy/yayinla.sh
 ```
 
+> **ZORUNLU — Blazor saat kayması düzeltmesi:** Blazor dönemi kira/rezervasyon/teklif saatleri 3 saat kayık saklandı;
+> SPA onları 3 saat ileri gösterir. İLK yayında, `yayinla.sh`'tan ÖNCE [blazor-saat-kaymasi.md](blazor-saat-kaymasi.md)
+> §5'in 1–4. adımları (sunucu saat dilimi, kuru çalışma, Migrator bağlantısına `Options=-c racar.saat_kaymasi_kesis=simdi`),
+> sonra 6–7. adımlar (doğrula, `Options` ekini kaldır). Atlanırsa sonradan elle ve kesiş anı bulunarak yapılmak zorunda kalır.
+
 Beklenen satırlar (sırayla): `SPA token'ı tanımlı (değer yazdırılmaz)` → `Commit: <sha>` →
 `sha256 doğrulandı` → `SPA açıldı: N hash'li dosya` → (ilk seferde) `Önceki sürümde SPA chunks.txt yok`
 (normal) → publish satırları → `Yeni arayüz /app/ hazır` → `YAYIN TAMAM`.
