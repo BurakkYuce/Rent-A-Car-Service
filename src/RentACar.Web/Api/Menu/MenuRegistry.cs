@@ -185,6 +185,7 @@ public static class MenuRegistry
         E(Finance, "/app/otomatik-tahsilat", "Otomatik Tahsilat", FW);
         E(Finance, "/app/toplu-gider", "Toplu Gider", FW);
         E(Finance, "/app/cezalar", "Cezalar", FW, orAny: opsOrReport);
+        E(Finance, "/app/hgs", "HGS Geçişleri", FW, orAny: opsOrReport); // dosyadan içe aktar + yansıt (ceza ile aynı kapı)
         E(Finance, "/app/donem-kapanis", "Dönem Kapanışı", FW);
 
         // ---- Raporlar (MainLayout: Roles="Admin,Yonetici,Muhasebe" → ViewReports). F10.3: grubun tamamı spa.

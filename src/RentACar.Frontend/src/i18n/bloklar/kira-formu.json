@@ -611,10 +611,12 @@
       "yok": "Bu kiraya bağlı ceza yok.",
       "hgs": "HGS geçişleri",
       "zaman": "Geçiş zamanı",
-      "gise": "Gişe",
-      "hgsYok": "Kira döneminde HGS geçişi yok.",
+      "gise": "Giriş → Çıkış",
+      "yansitilan": "Yansıtılan",
+      "hgsYok": "Bu kiraya eşleşmiş HGS geçişi yok (geçişler HGS Geçişleri ekranından dosyayla içe aktarılır).",
       "ekran": "Ceza ekle / yansıt",
-      "not": "HGS yansıtması Cezalar ekranından."
+      "hgsEkran": "HGS geçişleri / yansıt",
+      "not": "HGS geçişleri dosyadan içe aktarılır ve HGS Geçişleri ekranından müşteriye yansıtılır."
     },
     "bildirim": {
       "tahsilat": "Tahsilat kaydedildi.",

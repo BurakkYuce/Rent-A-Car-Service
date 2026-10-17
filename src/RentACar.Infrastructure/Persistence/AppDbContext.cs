@@ -169,6 +169,7 @@ public sealed class AppDbContext : DbContext
     public DbSet<DolulukFiyatKural> DolulukFiyatKurallari => Set<DolulukFiyatKural>(); // FAZ 3.A7
     public DbSet<FaturaDonemi> FaturaDonemleri => Set<FaturaDonemi>(); // FAZ 4.2-B1
     public DbSet<DisHizmetAlimi> DisHizmetAlimlari => Set<DisHizmetAlimi>(); // FAZ 4.3
+    public DbSet<HgsCrossing> HgsGecisleri => Set<HgsCrossing>(); // HGS dosyadan içe aktarım (yansıtılınca değişmez)
     public DbSet<BelgeSablon> BelgeSablonlari => Set<BelgeSablon>(); // marka-özel PDF metin şablonları
     // Firmanın KENDİ yüklediği PDF'ler. PlatformBelgeler ile karıştırma: o platform→tenant dağıtımı
     // (RLS yok), bu tenant'ın kendi dosyası (ITenantOwned + RLS).

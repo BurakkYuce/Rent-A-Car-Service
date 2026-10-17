@@ -3,10 +3,7 @@ using RentACar.Application.Bookings;
 using RentACar.Application.Common;
 using RentACar.Application.Customers;
 using RentACar.Application.Finance;
-using RentACar.Application.Hgs;
-using RentACar.Application.Integrations;
 using RentACar.Application.Penalties;
-using RentACar.Application.Periods;
 using RentACar.Application.Reporting;
 using RentACar.Application.ServiceRecords;
 using RentACar.Application.Vehicles;
@@ -27,12 +24,6 @@ public sealed class KarlilikAtifProbeTests(PostgresFixture fx)
     private static readonly DateTimeOffset Start =
         new DateTimeOffset(DateTime.UtcNow.Date, TimeSpan.Zero).AddDays(-3).AddHours(9);
 
-    private sealed class FakeHgs(IReadOnlyList<TollCrossing> crossings) : IHgsService
-    {
-        public Task<IReadOnlyList<TollCrossing>> GetCrossingsAsync(
-            string plate, DateTimeOffset from, DateTimeOffset to, CancellationToken ct = default)
-            => Task.FromResult(crossings);
-    }
 
     private static async Task<(Guid rental, Guid vehicle, Guid cari)> RentalExchangeRateAsync(IServiceProvider sp, string plate)
     {
@@ -93,13 +84,25 @@ public sealed class KarlilikAtifProbeTests(PostgresFixture fx)
         await sp.GetRequiredService<VehicleSaleService>().CreateAsync(new VehicleSaleInput
         { VehicleId = v2, AliciCariId = account, SatisNet = 10000m, KdvOrani = 0.20m, Kur = 1m });
 
-        // --- Atanmamış: HGS 100 × 1.03 = 103 ---
-        var hgs = new HgsReflectionService(
-            new FakeHgs([new TollCrossing(Start.AddDays(1), "Köprü", 100m)]),
-            sp.GetRequiredService<ILedgerPoster>(),
-            sp.GetRequiredService<IPeriodLockGuard>(),
-            sp.GetRequiredService<ICurrentUser>());
-        await hgs.ReflectAsync(account, "34 PR 01", Start, Start.AddDays(3));
+        // --- Atanmamış: HGS 100 × 1.03 = 103 — HGS yansıtmasının defter kümesi (Borç Cari / Alacak Gelir, "Hgs").
+        // Eski dönem-MD5 servisi #391 L1 ile silindi; atıf yalnız (SourceType, SourceId)'ye baktığı için küme
+        // doğrudan yazılır (geçiş başına yansıtma da aynı kümeyi üretir; HGS geliri araca atfedilmez).
+        var hgsSource = Guid.NewGuid();
+        await sp.GetRequiredService<ILedgerPoster>().PostAsync(
+        [
+            new RentACar.Domain.Entities.AccountLedgerEntry
+            {
+                EntryDateUtc = DateTimeOffset.UtcNow, AccountType = LedgerAccountType.Cari, AccountRef = account,
+                Direction = RentACar.Domain.Entities.LedgerDirection.Debit, Amount = new Money(103m, "TRY", 1m),
+                SourceType = "Hgs", SourceId = hgsSource,
+            },
+            new RentACar.Domain.Entities.AccountLedgerEntry
+            {
+                EntryDateUtc = DateTimeOffset.UtcNow, AccountType = LedgerAccountType.Gelir, AccountRef = null,
+                Direction = RentACar.Domain.Entities.LedgerDirection.Credit, Amount = new Money(103m, "TRY", 1m),
+                SourceType = "Hgs", SourceId = hgsSource,
+            },
+        ]);
 
         // --- Atanmamış: manuel fatura 200 + iadesi (−200) ---
         var manId = await invoices.CreateManualAsync(new ManualInvoiceInput { CariId = account, NetTutar = 200m });

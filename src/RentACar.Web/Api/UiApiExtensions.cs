@@ -223,6 +223,7 @@ public static class UiApiExtensions
         v1.MapFinanceHubApi();   // F8.1a — finans ekranları 1. yarı (kasa, cari, depozito, dönem, kurlar)
         v1.MapInvoiceUiApi();         // F8.1b — faturalar (liste/detay/satırlar/manuel/iade/toplu)
         v1.MapPenaltyUiApi();         // F8.1b — cezalar
+        v1.MapHgsUiApi();             // HGS geçişleri: dosyadan içe aktar + kiraya eşleştir + yansıt
         v1.MapExpenseUiApi();         // F8.1b — giderler
         v1.MapIncomingInvoiceUiApi(); // F8.1b — gelen e-fatura
         v1.MapVehicleSaleUiApi();     // F8.1b — araç satışları

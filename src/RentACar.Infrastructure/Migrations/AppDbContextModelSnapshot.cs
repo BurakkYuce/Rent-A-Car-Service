@@ -3296,6 +3296,107 @@ namespace RentACar.Infrastructure.Migrations
                     b.ToTable("HesapKodlari", (string)null);
                 });
 
+            modelBuilder.Entity("RentACar.Domain.Entities.HgsCrossing", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("AracSinifi")
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.Property<string>("CikisIstasyonu")
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<DateTimeOffset>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("DosyaAdi")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
+                    b.Property<int>("Durum")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("EslesmeNotu")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
+                    b.Property<string>("EtiketNo")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<DateTimeOffset>("GecisZamani")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("GirisIstasyonu")
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<DateTimeOffset?>("GirisZamani")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<decimal?>("HizmetOrani")
+                        .HasColumnType("numeric(9,4)");
+
+                    b.Property<Guid>("IceAktarimId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("IstasyonAnahtari")
+                        .IsRequired()
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)");
+
+                    b.Property<string>("Kaynak")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)");
+
+                    b.Property<string>("Plaka")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)");
+
+                    b.Property<Guid?>("RentalId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid");
+
+                    b.Property<decimal>("Tutar")
+                        .HasColumnType("numeric(19,4)");
+
+                    b.Property<DateTimeOffset?>("UpdatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("VehicleId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid?>("YansitilanCariId")
+                        .HasColumnType("uuid");
+
+                    b.Property<decimal?>("YansitilanTutar")
+                        .HasColumnType("numeric(19,4)");
+
+                    b.Property<DateTimeOffset?>("YansitmaZamani")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TenantId", "IceAktarimId");
+
+                    b.HasIndex("TenantId", "RentalId");
+
+                    b.HasIndex("TenantId", "Durum", "GecisZamani");
+
+                    b.HasIndex("TenantId", "Plaka", "GecisZamani", "IstasyonAnahtari", "Tutar")
+                        .IsUnique()
+                        .HasDatabaseName("IX_HgsGecisleri_DogalAnahtar");
+
+                    b.ToTable("HgsGecisleri", (string)null);
+                });
+
             modelBuilder.Entity("RentACar.Domain.Entities.HukukDosya", b =>
                 {
                     b.Property<Guid>("Id")

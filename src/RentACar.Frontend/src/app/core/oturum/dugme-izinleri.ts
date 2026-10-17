@@ -100,6 +100,8 @@ export const DUGME_IZINLERI = {
     izinler: ['ManageUsers', 'OperationsDelete'],
     uc: 'POST /api/ui/v1/tarife-aktar/kanal-sil',
   },
+  /** HGS geçişleri "Müşteriye yansıt" — defter yazar (Borç Cari / Alacak Gelir). */
+  hgsYansit: { izinler: ['FinanceWrite'], uc: 'POST /api/ui/v1/hgs/gecisler/yansit' },
   /** Kira ekranı KABİS kartı işlemleri — okuma OW|FW, işlemler (yeniden dene / gerekli değil / elle) OW. */
   kabisYenidenDene: {
     izinler: ['OperationsWrite'],

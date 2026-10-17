@@ -117,19 +117,25 @@ export class FinanceRates {
             <th scope="col">{{ 'kiraFinans.ceza.zaman' | transloco }}</th>
             <th scope="col">{{ 'kiraFinans.ceza.gise' | transloco }}</th>
             <th scope="col" class="rc-num">{{ 'kiraFinans.alan.tutar' | transloco }}</th>
+            <th scope="col">{{ 'kiraFinans.alan.durum' | transloco }}</th>
+            <th scope="col" class="rc-num">{{ 'kiraFinans.ceza.yansitilan' | transloco }}</th>
           </tr>
         </thead>
         <tbody>
-          @for (g of v?.hgsGecisleri ?? []; track $index) {
+          @for (g of v?.hgsGecisleri ?? []; track g.id) {
             <tr>
               <td>{{ g.zaman | tarihSaat }}</td>
               <td>{{ g.gecis }}</td>
               <td class="rc-num">{{ money(g.tutar, null) }}</td>
+              <td>{{ g.durum | etiket }}</td>
+              <td class="rc-num">
+                {{ g.yansitilanTutar !== null ? money(g.yansitilanTutar, null) : '—' }}
+              </td>
             </tr>
           } @empty {
             @if (s.tur() === 'hazir') {
               <tr>
-                <td colspan="3" class="rc-bos">{{ 'kiraFinans.ceza.hgsYok' | transloco }}</td>
+                <td colspan="5" class="rc-bos">{{ 'kiraFinans.ceza.hgsYok' | transloco }}</td>
               </tr>
             }
           }
@@ -138,6 +144,10 @@ export class FinanceRates {
     </div>
     <p class="kf-not">
       <a routerLink="/cezalar">{{ 'kiraFinans.ceza.ekran' | transloco }}</a>
+      ·
+      <a routerLink="/hgs" [queryParams]="{ kiraId: f.kira()?.id }">{{
+        'kiraFinans.ceza.hgsEkran' | transloco
+      }}</a>
       — {{ 'kiraFinans.ceza.not' | transloco }}
     </p>
   `,

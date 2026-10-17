@@ -92,6 +92,8 @@ Finans	/tek-cari-toplu	Tek Cari Toplu Kapatma
 Finans	/otomatik-tahsilat	Otomatik Tahsilat	
 Finans	/toplu-gider	Toplu Gider	
 Finans	/cezalar	Cezalar	
+# 2026-10 eklendi (F4.6 sonrasi, Blazor karsiligi yok; rozetsiz -> 4. sutun bos): HGS dosyadan ice aktarim PR'i.
+Finans	/app/hgs	HGS Geçişleri
 Finans	/donem-kapanis	Dönem Kapanışı	
 Raporlar	/raporlar/finans-analiz	Finans Analiz	
 Raporlar	/raporlar/gelir-gider	Gelir-Gider	

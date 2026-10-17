@@ -669,6 +669,12 @@ public sealed class RentalService(
             // odometrenin uygulama içi düzeltme yolu yok, bu üst sınır tek savunmadır.
             if (returnKm - c.CikisKm.Value > 100_000)
                 throw new ValidationException("KM farkı gerçekçi değil (tek kirada 100.000 km üstü). Dönüş KM'yi kontrol edin.");
+            // #391 M3: müşteriye yansıtılmış bir HGS geçişi dönüş anından SONRA kalırsa (yarı açık aralık: dönüş anı
+            // hariç) kira dışı bir geçişin borcu müşteride kalırdı; yansıtma geri alınamaz → dönüş reddedilir.
+            if (k.SonYansitilanHgs is { } lastHgs && actualReturn <= lastHgs)
+                throw new ValidationException(
+                    "Dönüş anı, bu kiraya müşteriye yansıtılmış son HGS geçişinden önce olamaz " +
+                    $"({TimeZoneInfo.ConvertTime(lastHgs, RentACar.Application.Periods.PeriodLock.Zone).ToString("dd.MM.yyyy HH:mm", System.Globalization.CultureInfo.InvariantCulture)}).");
             if (actualReturn < c.BasTar)
                 throw new ValidationException("Dönüş tarihi başlangıçtan önce olamaz.");
 
@@ -777,6 +783,9 @@ public sealed class RentalService(
                 throw new ValidationException("Faturalanmış kira iptal edilemez — önce faturanın iadesini kesin.");
             if (c.Tahsilat != 0m)
                 throw new ValidationException("Tahsilatı olan kira iptal edilemez — önce tahsilatı iade edin (ödeme ya da ters kayıt).");
+            // #391 M3: müşteriye yansıtılmış HGS geçişi olan kira iptal edilirse cari borç iptal edilmiş kiraya ait kalırdı.
+            if (k.SonYansitilanHgs is not null)
+                throw new ValidationException("Müşteriye yansıtılmış HGS geçişi olan kira iptal edilemez.");
             c.Durum = RentalStatus.Iptal;
             c.UpdatedAtUtc = DateTimeOffset.UtcNow;
         }, v => v.Durum = VehicleStatus.Musait, ct: ct)); // iptal → araç serbest (boşta)

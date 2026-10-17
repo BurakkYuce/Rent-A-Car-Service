@@ -57,7 +57,8 @@ public sealed class MenuKaydiTests
         => File.ReadAllLines(Path.Combine(RepoRoot(), "tests", "RentACar.IntegrationTests", "Oracle", "menu-f46-oncesi.tsv"))
             .Where(l => l.Length > 0 && !l.StartsWith('#'))
             .Select(l => l.Split('\t'))
-            .Select(p => new LayoutOgesi(p[0], p[1], p[2], p[3].Length == 0 ? null : p[3]))
+            // Boş rozet sütunu sondaki sekmeyle yazılır; editörler sondaki boşluğu silebildiği için eksik 4. sütun = rozetsiz.
+            .Select(p => new LayoutOgesi(p[0], p[1], p[2], p.Length < 4 || p[3].Length == 0 ? null : p[3]))
             .ToList();
 
     /// <summary>Kaydın, F4.6 öncesi menüyle karşılaştırılabilir hâli: <c>spa</c> öğesinin rotası Blazor karşılığına çevrilir.</summary>
@@ -117,7 +118,8 @@ public sealed class MenuKaydiTests
         ];
         Assert.Equal(43, f11.Length);
         // F9.3: Servis & Sigorta (3) + Fiyat & Tarife (11) gruplarının tamamı + grupsuz Vade Panosu (15).
-        // F8.3: Finans grubunun tamamı (17; cari ekstresi ve fatura yazdır kimlikli olduğu için menüde yok).
+        // F8.3: Finans grubunun tamamı (17; cari ekstresi ve fatura yazdır kimlikli olduğu için menüde yok) + 2026-10 HGS
+        // Geçişleri (SPA'ya özgü, Blazor karşılığı yok).
         Assert.Equal(new[]
             {
                 "/app/anketler", "/app/arac-durum", "/app/arac-kredi", "/app/arac-sahipleri", "/app/arac-siparis", "/app/arac-tipleri",
@@ -125,7 +127,7 @@ public sealed class MenuKaydiTests
                 "/app/cari-virman", "/app/cariler", "/app/cezalar", "/app/crm", "/app/depozito", "/app/donem-kapanis",
                 "/app/ek-hizmetler", "/app/faturalar", "/app/faturalar/detay-listesi", "/app/filo-kiralama", "/app/filo-plan",
                 "/app/finans/bakiye-duzeltme", "/app/finans/nakit-islem", "/app/fiyat-hesapla", "/app/gelen-efatura",
-                "/app/giderler", "/app/hasar", "/app/hukuk", "/app/kasa", "/app/kira-kurallari", "/app/kiralar",
+                "/app/giderler", "/app/hasar", "/app/hgs", "/app/hukuk", "/app/kasa", "/app/kira-kurallari", "/app/kiralar",
                 "/app/kiralar/yeni", "/app/kurlar", "/app/maliyet-hesapla", "/app/maliyet-teklifleri", "/app/musaitlik",
                 "/app/musaitlik", "/app/musteri-taksit", "/app/otomatik-tahsilat", "/app/panel",
                 "/app/raporlar/arac-durum-takip", "/app/raporlar/arac-gunluk-durum", "/app/raporlar/cari-bakiye",
@@ -189,6 +191,7 @@ public sealed class MenuKaydiTests
         ["/app/raporlar/karsilastirmali-analiz"] = [Permission.OperationsWrite, Permission.ViewReports],
         ["/app/raporlar/personel-calisma"] = [Permission.OperationsWrite, Permission.ViewReports],
         ["/app/cezalar"] = [Permission.OperationsWrite, Permission.FinanceWrite, Permission.ViewReports],
+        ["/app/hgs"] = [Permission.OperationsWrite, Permission.FinanceWrite, Permission.ViewReports], // HgsUiApi okuma kapısı
         ["/app/satislar"] = [Permission.OperationsWrite, Permission.FinanceWrite, Permission.ViewReports],
         ["/app/kurlar"] = [Permission.OperationsWrite, Permission.FinanceWrite, Permission.ViewReports],
     };
@@ -249,7 +252,7 @@ public sealed class MenuKaydiTests
     [InlineData(UserRole.Operator,
         "Raporlar|/raporlar/arac-durum-takip;Raporlar|/raporlar/km-detay;Raporlar|/raporlar/periyodik-servis;" +
         "Raporlar|/raporlar/sigorta-muayene;Raporlar|/raporlar/karsilastirmali-analiz;Raporlar|/raporlar/personel-calisma;" +
-        "Finans|/cezalar;Finans|/satislar;Finans|/kurlar",
+        "Finans|/cezalar;Finans|/satislar;Finans|/kurlar;Finans|/app/hgs",
         "Araçlar|/vehicles/detayli;Araçlar|/musteri-taksit;Cariler & CRM|/crm;Fiyat & Tarife|/maliyet-hesapla;Fiyat & Tarife|/maliyet-teklifleri")]
     [InlineData(UserRole.Muhasebe,
         "Araçlar|/vehicles/detayli;Araçlar|/musteri-taksit;Cariler & CRM|/crm;Fiyat & Tarife|/maliyet-hesapla;Fiyat & Tarife|/maliyet-teklifleri", "")]
@@ -289,7 +292,7 @@ public sealed class MenuKaydiTests
         // ViewReports'la açılır; menü de gösterir).
         Assert.Contains("Finans|/faturalar", extra);
         var noFinance = NewVisible(User(UserRole.Muhasebe, ban: ["FinanceWrite"]));
-        Assert.Equal(new[] { "Finans|/cezalar", "Finans|/kurlar", "Finans|/satislar" },
+        Assert.Equal(new[] { "Finans|/app/hgs", "Finans|/cezalar", "Finans|/kurlar", "Finans|/satislar" },
             noFinance.Where(x => x.StartsWith("Finans|", StringComparison.Ordinal)).Order(StringComparer.Ordinal));
         // F9.3: Servis & Sigorta ve Fiyat & Tarife spa öğeleri de izne bağlı; maliyet ekranları FinanceWrite ister.
         Assert.DoesNotContain(ban, x => x.StartsWith("Servis & Sigorta|", StringComparison.Ordinal));

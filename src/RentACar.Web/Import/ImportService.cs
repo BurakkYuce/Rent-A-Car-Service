@@ -27,6 +27,19 @@ public sealed record ParsedImport(IReadOnlyList<Dictionary<string, string>> Rows
 /// servis doğrulama mesajı.</summary>
 public sealed record ImportError(string Label, string Message);
 
+/// <summary>
+/// Ayrıştırma seçenekleri (varsayılan = eski davranış, mevcut içe aktarmalar etkilenmez).
+/// <para><see cref="InvariantCells"/>: xlsx hücresi TİPİNE göre kültürden bağımsız metne çevrilir — tarih
+/// <c>yyyy-MM-dd HH:mm:ss</c> (saat 00:00:00 ise yalnız <c>yyyy-MM-dd</c> — saatsiz sayılır), saat <c>HH:mm:ss</c>,
+/// tam sayı <c>1250</c>, kesirli sayı en az 4 ondalıkla
+/// (<c>47.2500</c>; "tek ayraç + 3 hane" belirsizlik kuralına hiç takılmaz). Varsayılan yol <c>GetString()</c>
+/// sunucu kültürüne göre biçimler ("15.10.2026 08:30:00" / "10/15/2026 8:30:00 AM") — HGS gibi tarih-saat ve tutar
+/// taşıyan dosyalarda bu tahmin edilemez.</para>
+/// <para><see cref="Windows1254Fallback"/>: BOM'suz CSV geçerli UTF-8 değilse Windows-1254 (Türkçe Excel'in "CSV"
+/// kaydı) olarak okunur; yoksa "Giriş İstasyonu" başlığı bozulur ve sütun tanınmaz.</para>
+/// </summary>
+public sealed record ImportParseOptions(bool InvariantCells = false, bool Windows1254Fallback = false);
+
 /// <summary>F11.2d (H1) — ayrıştırma sınırları: bellek tüketimi dosya boyutundan bağımsız olarak sınırlı kalır.</summary>
 public static class ImportLimits
 {
@@ -73,13 +86,17 @@ public sealed class ImportService(VehicleService vehicles, CustomerService custo
 
     /// <summary><see cref="Parse"/> + dosyadaki özgün başlıklar (tanınmayan sütun uyarısı için).</summary>
     public static ParsedImport ParseWithHeaders(Stream stream, string fileName)
+        => ParseWithHeaders(stream, fileName, new ImportParseOptions());
+
+    /// <summary><see cref="ParseWithHeaders(Stream, string)"/> + <see cref="ImportParseOptions"/> (HGS içe aktarımı).</summary>
+    public static ParsedImport ParseWithHeaders(Stream stream, string fileName, ImportParseOptions options)
     {
         var isExcel = fileName.EndsWith(".xlsx", StringComparison.OrdinalIgnoreCase)
                    || fileName.EndsWith(".xls", StringComparison.OrdinalIgnoreCase);
         using var buffer = CopyBounded(stream);
         try
         {
-            return isExcel ? ParseExcel(buffer) : ParseCsv(buffer);
+            return isExcel ? ParseExcel(buffer, options) : ParseCsv(buffer, options);
         }
         catch (Exception ex) when (ex is not ValidationException and not OperationCanceledException and not OutOfMemoryException)
         {
@@ -240,7 +257,7 @@ public sealed class ImportService(VehicleService vehicles, CustomerService custo
         return cells;
     }
 
-    private static ParsedImport ParseExcel(MemoryStream s)
+    private static ParsedImport ParseExcel(MemoryStream s, ImportParseOptions options)
     {
         CheckZip(s);
         var rows = new List<Dictionary<string, string>>();
@@ -261,7 +278,8 @@ public sealed class ImportService(VehicleService vehicles, CustomerService custo
             for (int i = 0; i < keys.Count; i++)
             {
                 if (string.IsNullOrEmpty(keys[i])) continue;
-                var v = row.Cell(i + 1).GetString().Trim();
+                var cell = row.Cell(i + 1);
+                var v = (options.InvariantCells ? InvariantText(cell) : cell.GetString()).Trim();
                 if (v.Length > 0) dict[keys[i]] = v;
             }
             if (dict.Count > 0) rows.Add(dict);
@@ -269,10 +287,43 @@ public sealed class ImportService(VehicleService vehicles, CustomerService custo
         return new ParsedImport(rows, headers);
     }
 
-    private static ParsedImport ParseCsv(Stream s)
+    /// <summary>Hücre tipine göre kültürden bağımsız metin (bkz. <see cref="ImportParseOptions.InvariantCells"/>).</summary>
+    private static string InvariantText(IXLCell cell)
+    {
+        var inv = System.Globalization.CultureInfo.InvariantCulture;
+        var value = cell.Value;
+        return value.Type switch
+        {
+            // Saat bileşeni 0 olan tarih hücresi SAATSİZ metne çevrilir (#391 M2): Excel'de "tarih" biçimli hücre ile
+            // tam gece yarısı ayırt edilemez; saatsiz değer okuyucunun "saat yok" reddine düşer (ya da ayrı saat
+            // sütunuyla birleşir) — 00:00 sessizce kabul edilmez.
+            XLDataType.DateTime => value.GetDateTime() is var dt && dt.TimeOfDay == TimeSpan.Zero
+                ? dt.ToString("yyyy-MM-dd", inv)
+                : dt.ToString("yyyy-MM-dd HH:mm:ss", inv),
+            XLDataType.TimeSpan => value.GetTimeSpan() is var ts && ts >= TimeSpan.Zero && ts < TimeSpan.FromDays(1)
+                ? ts.ToString(@"hh\:mm\:ss", inv)
+                : cell.GetString(),
+            XLDataType.Number => FormatNumber(value.GetNumber(), inv),
+            XLDataType.Text => value.GetText(),
+            XLDataType.Boolean => value.GetBoolean() ? "1" : "0",
+            _ => string.Empty,
+        };
+    }
+
+    private static string FormatNumber(double d, System.Globalization.CultureInfo inv)
+    {
+        if (double.IsNaN(d) || double.IsInfinity(d)) return string.Empty;
+        if (Math.Abs(d) < 1e15 && d == Math.Floor(d)) return ((long)d).ToString(inv);
+        // Kesirli: en az 4 ondalık → "tek ayraç + tam 3 hane" belirsizlik kalıbına asla uymaz (47.25 → 47.2500).
+        return ((decimal)d).ToString("0.0000##########", inv);
+    }
+
+    private static ParsedImport ParseCsv(Stream s, ImportParseOptions options)
     {
         var rows = new List<Dictionary<string, string>>();
-        using var reader = new StreamReader(s);
+        using var reader = options.Windows1254Fallback && s is MemoryStream ms && !LooksUtf8(ms)
+            ? new StreamReader(s, Windows1254(), detectEncodingFromByteOrderMarks: false)
+            : new StreamReader(s);
         var lineBuffer = new System.Text.StringBuilder();
         var headerLine = ReadLineBounded(reader, lineBuffer, ImportLimits.MaxHeaderChars, "Başlık satırı çok uzun.");
         if (headerLine is null) return new ParsedImport(rows, []);
@@ -343,11 +394,35 @@ public sealed class ImportService(VehicleService vehicles, CustomerService custo
         return result;
     }
 
-    /// <summary>Başlık normalizasyonu: küçük harf + Türkçe katla + alfanumerik dışını at (esnek eşleme).</summary>
+    /// <summary>BOM'lu metni StreamReader zaten tanır; BOM'suzsa geçerli UTF-8 mi?</summary>
+    private static bool LooksUtf8(MemoryStream ms)
+    {
+        var span = ms.GetBuffer().AsSpan(0, (int)ms.Length);
+        if (span.StartsWith((ReadOnlySpan<byte>)[0xEF, 0xBB, 0xBF]) || span.StartsWith((ReadOnlySpan<byte>)[0xFF, 0xFE])
+            || span.StartsWith((ReadOnlySpan<byte>)[0xFE, 0xFF]))
+            return true;
+        return System.Text.Unicode.Utf8.IsValid(span);
+    }
+
+    private static readonly Lazy<System.Text.Encoding> TurkishWindows = new(() =>
+    {
+        System.Text.Encoding.RegisterProvider(System.Text.CodePagesEncodingProvider.Instance);
+        return System.Text.Encoding.GetEncoding(1254);
+    });
+
+    private static System.Text.Encoding Windows1254() => TurkishWindows.Value;
+
+    /// <summary>Başlığın eşleme anahtarı — satır sözlüklerindeki anahtarla AYNI kural (sütun eşleme ekranları için).</summary>
+    public static string HeaderKey(string? header) => Norm(header);
+
+    /// <summary>Başlık normalizasyonu: küçük harf + Türkçe katla + alfanumerik dışını at (esnek eşleme).
+    /// <para>'İ' küçültmeden ÖNCE 'i' yapılır: değişmez kültürde küçültme onu 'i'ye indirmiyor, "GEÇİŞ TARİHİ" başlığı
+    /// "Geçiş Tarihi" takma adıyla eşleşmiyordu (HGS testi yakaladı). Katlama yalnız anahtarları BİRLEŞTİRİR; önceden
+    /// eşleşen hiçbir başlık ayrışmaz.</para></summary>
     private static string Norm(string? s)
     {
         if (string.IsNullOrWhiteSpace(s)) return "";
-        var lowered = s.Trim().ToLowerInvariant()
+        var lowered = s.Trim().Replace('İ', 'i').ToLowerInvariant()
             .Replace('ı', 'i').Replace('ş', 's').Replace('ğ', 'g')
             .Replace('ü', 'u').Replace('ö', 'o').Replace('ç', 'c').Replace('â', 'a').Replace('î', 'i');
         return new string(lowered.Where(char.IsLetterOrDigit).ToArray());

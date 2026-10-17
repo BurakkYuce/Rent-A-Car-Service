@@ -84,4 +84,6 @@ public interface IBookingRepository
 /// <summary>Kira satır + fatura kilidi ALTINDA okunmuş bağlam (F4.1 adversarial M2/M3).</summary>
 /// <param name="EkHizmetToplam">Kiranın ek hizmet kalemlerinin brüt toplamı (commit edilmiş son hâl).</param>
 /// <param name="AcikFaturaVar">İade edilmemiş base/fark/dönem faturası var mı.</param>
-public sealed record KiraKilitBaglami(decimal EkHizmetToplam, bool AcikFaturaVar);
+/// <param name="SonYansitilanHgs">Bu kiraya müşteriye YANSITILMIŞ en geç HGS geçişinin anı (yoksa null). Kira satırı
+/// FOR UPDATE kilitliyken okunur; HGS yansıtması kirayı FOR SHARE kilitlediği için ikisi serileşir (#391 M3).</param>
+public sealed record KiraKilitBaglami(decimal EkHizmetToplam, bool AcikFaturaVar, DateTimeOffset? SonYansitilanHgs = null);

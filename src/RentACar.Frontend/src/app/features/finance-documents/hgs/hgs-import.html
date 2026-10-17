@@ -1,0 +1,188 @@
+<rc-sayfa-bandi [baslik]="'finansBelge.hgs.iceAktarBaslik' | transloco" ikon="file-text">
+  <ng-container eylemler>
+    <a class="rc-dugme" routerLink="/hgs">{{ 'finansBelge.hgs.baslik' | transloco }}</a>
+  </ng-container>
+</rc-sayfa-bandi>
+<div class="rc-sayfa">
+  <p class="not">{{ 'finansBelge.hgs.iceAktarAciklama' | transloco }}</p>
+
+  <section class="rc-bolum" aria-labelledby="rc-hgs-dosya">
+    <h2 id="rc-hgs-dosya">{{ 'finansBelge.hgs.adim1' | transloco }}</h2>
+    <div class="satir-form">
+      <label class="not" for="rc-hgs-dosya-girdi">{{ 'finansBelge.hgs.dosya' | transloco }}</label>
+      <input
+        #fileInput
+        id="rc-hgs-dosya-girdi"
+        type="file"
+        accept=".xlsx,.csv"
+        (change)="picked()"
+      />
+      <button
+        type="button"
+        class="rc-dugme rc-dugme--kucuk"
+        [disabled]="busy() || !file()"
+        (click)="runPreview()"
+      >
+        <rc-ikon ad="search" [boyut]="14" />
+        {{ 'finansBelge.hgs.onizle' | transloco }}
+      </button>
+    </div>
+    <p class="not">{{ 'finansBelge.hgs.sutunlar' | transloco }}</p>
+    @if (error(); as e) {
+      <div class="rc-form-mesaji rc-form-mesaji--hata" role="alert">{{ e }}</div>
+    }
+  </section>
+
+  @if (preview(); as p) {
+    <section class="rc-bolum" aria-labelledby="rc-hgs-eslesme">
+      <h2 id="rc-hgs-eslesme">{{ 'finansBelge.hgs.adim2' | transloco }}</h2>
+      <p class="not">{{ 'finansBelge.hgs.eslesmeAciklama' | transloco }}</p>
+      <form class="filtre" [formGroup]="mappingForm" (ngSubmit)="runPreview()">
+        <div class="eslesme-izgara">
+          @for (f of fields(); track f.kod) {
+            <rc-alan [etiket]="f.etiket + (f.zorunlu ? ' *' : '')">
+              <rc-secim
+                [formControlName]="f.kod"
+                [secenekler]="headerOptions()"
+                [bosEtiket]="'finansBelge.hgs.eslenmedi' | transloco"
+              />
+            </rc-alan>
+          }
+        </div>
+        <div class="filtre__eylemler">
+          @if (mappingDirty()) {
+            <span class="rc-rozet rc-rozet--uyari">{{
+              'finansBelge.hgs.eslesmeDegisti' | transloco
+            }}</span>
+          }
+          <button type="submit" class="rc-dugme rc-dugme--kucuk" [disabled]="busy()">
+            {{ 'finansBelge.hgs.eslesmeUygula' | transloco }}
+          </button>
+        </div>
+      </form>
+    </section>
+
+    <section class="rc-bolum" aria-labelledby="rc-hgs-ozet">
+      <h2 id="rc-hgs-ozet">{{ 'finansBelge.hgs.adim3' | transloco }}</h2>
+      <dl class="ozet-serit" aria-live="polite">
+        <div class="rc-kart">
+          <dt>{{ 'finansBelge.hgs.toplam' | transloco }}</dt>
+          <dd>{{ p.toplam }}</dd>
+        </div>
+        <div class="rc-kart">
+          <dt>{{ 'finansBelge.hgs.eslesen' | transloco }}</dt>
+          <dd>{{ p.eslesen }} · {{ num(p.eslesenTutar) | para }}</dd>
+        </div>
+        <div class="rc-kart">
+          <dt>{{ 'finansBelge.hgs.kiraDisi' | transloco }}</dt>
+          <dd>{{ p.kiraDisi }} · {{ num(p.kiraDisiTutar) | para }}</dd>
+        </div>
+        <div class="rc-kart">
+          <dt>{{ 'finansBelge.hgs.aracYok' | transloco }}</dt>
+          <dd>{{ p.aracBulunamadi }}</dd>
+        </div>
+        <div class="rc-kart">
+          <dt>{{ 'finansBelge.hgs.belirsiz' | transloco }}</dt>
+          <dd>{{ p.belirsiz }}</dd>
+        </div>
+        <div class="rc-kart">
+          <dt>{{ 'finansBelge.hgs.olasiMukerrer' | transloco }}</dt>
+          <dd>{{ p.olasiMukerrer }}</dd>
+        </div>
+        <div class="rc-kart">
+          <dt>{{ 'finansBelge.hgs.mukerrer' | transloco }}</dt>
+          <dd>{{ p.mukerrer }}</dd>
+        </div>
+        <div class="rc-kart">
+          <dt>{{ 'finansBelge.hgs.hatali' | transloco }}</dt>
+          <dd>{{ p.hatali }}</dd>
+        </div>
+        @if (imported(); as r) {
+          <div class="rc-kart">
+            <dt>{{ 'finansBelge.hgs.eklenen' | transloco }}</dt>
+            <dd>{{ r.eklenen }}</dd>
+          </div>
+        }
+      </dl>
+      @if (p.uyarilar.length > 0) {
+        <div class="rc-form-mesaji rc-form-mesaji--uyari" role="status">
+          <ul>
+            @for (u of p.uyarilar; track $index) {
+              <li>{{ u }}</li>
+            }
+          </ul>
+        </div>
+      }
+
+      <div class="filtre__eylemler">
+        @if (imported(); as r) {
+          @if (r.iceAktarimId) {
+            <a class="rc-dugme" routerLink="/hgs" [queryParams]="{ iceAktarimId: r.iceAktarimId }">
+              {{ 'finansBelge.hgs.aktarilanlariGor' | transloco }}
+            </a>
+          }
+        } @else {
+          <button
+            type="button"
+            class="rc-dugme rc-dugme--birincil"
+            [disabled]="!canConfirm()"
+            (click)="confirmImport()"
+          >
+            <rc-ikon ad="check" [boyut]="14" />
+            {{ 'finansBelge.hgs.onayla' | transloco }}
+          </button>
+        }
+      </div>
+
+      @if (p.satirlar.length > 0) {
+        <div
+          class="rc-tablo-kap"
+          role="region"
+          tabindex="0"
+          [attr.aria-label]="'finansBelge.hgs.satirlar' | transloco"
+        >
+          <table class="rc-duz-tablo">
+            <caption class="rc-gorunmez">
+              {{
+                'finansBelge.hgs.satirlar' | transloco
+              }}
+            </caption>
+            <thead>
+              <tr>
+                <th scope="col">{{ 'finansBelge.hgs.satirNo' | transloco }}</th>
+                <th scope="col">{{ 'finansBelge.hgs.sutun.durum' | transloco }}</th>
+                <th scope="col">{{ 'finansBelge.hgs.sutun.plaka' | transloco }}</th>
+                <th scope="col">{{ 'finansBelge.hgs.sutun.zaman' | transloco }}</th>
+                <th scope="col">{{ 'finansBelge.hgs.sutun.istasyon' | transloco }}</th>
+                <th scope="col" class="rc-num">{{ 'finansBelge.hgs.sutun.tutar' | transloco }}</th>
+                <th scope="col">{{ 'finansBelge.hgs.sutun.sozlesme' | transloco }}</th>
+                <th scope="col">{{ 'finansBelge.hgs.mesaj' | transloco }}</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (r of p.satirlar; track r.satirNo + '-' + $index) {
+                <tr>
+                  <td>{{ r.satirNo }}</td>
+                  <td>
+                    <span class="rc-rozet">{{ statusLabel(r.durum) }}</span>
+                  </td>
+                  <td>{{ r.plaka ?? '—' }}</td>
+                  <td>{{ r.gecisZamani ? (r.gecisZamani | tarihSaat) : '—' }}</td>
+                  <td>{{ station(r) }}</td>
+                  <td class="rc-num">{{ r.tutar !== null ? (num(r.tutar) | para) : '—' }}</td>
+                  <td>{{ r.sozlesmeNo ?? '—' }}</td>
+                  <td>{{ r.mesaj ?? '' }}</td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+        @if (truncated()) {
+          <p class="not">
+            {{ 'finansBelge.hgs.ilkSatirlar' | transloco: { adet: p.satirlar.length } }}
+          </p>
+        }
+      }
+    </section>
+  }
+</div>
