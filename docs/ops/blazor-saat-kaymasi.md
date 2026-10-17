@@ -78,7 +78,10 @@ sudo -u postgres psql racar -v kesis="$(date -Iseconds)" -f <repo>/scripts/saat-
 
 Çıktı: tablo/kolon/karar/gerekçe başına adet ve eski/yeni aralığı; toplam (alan, kayıt, firma, en erken/en geç);
 kaydırma sonrası çakışacak açık kira çiftleri (**boş olmalı** — doluysa uygulama reddedilir, önce elle çözülür).
-`racar_owner` ile de koşar (RLS NO FORCE parantezi aynı transaction'da kalır, sonda ROLLBACK).
+**Üretimde yalnız süper kullanıcıyla (`postgres`) koş, `racar_owner` ile KOŞMA.** Owner ile koşunca RLS NO FORCE
+adımı 10 tabloyu ROLLBACK'e kadar ACCESS EXCLUSIVE kilitler. O süre boyunca uygulamanın sorguları bekler ya da zaman
+aşımına düşer (adversarial ölçüm: racar_app `SELECT count(*) FROM "Rentals"` → `55P03 lock timeout`). Owner ile koşmak
+yalnız trafiksiz bir kopyada güvenlidir.
 
 **Geliştirme veritabanı kopyasında sonuç** (`racar` → `racar_saat_kopya`, kesiş 2026-09-26 21:17:42+03 = #349; `racar`'a
 uygulanmadı): **191 alan / 95 kayıt / 1 firma**, eski değer aralığı 2026-04-06 02:10 – 2027-06-24 13:00 (İstanbul);
@@ -105,10 +108,30 @@ sağlama toplamı kaynakla birebir aynı döndü.
    (`ALTER DATABASE ... SET racar.saat_kaymasi_kesis` racar_owner ile reddedilir — PostgreSQL 15 yer tutucu parametreyi
    süper kullanıcıya bırakır; bağlantı `Options`'ı bu yüzden tercih edildi.)
 5. `sudo <repo>/deploy/yayinla.sh` — migration açılışta koşar.
-6. Doğrula: `sudo -u postgres psql racar -c 'SELECT * FROM "SaatKaymasiCalismalari"'` → tek satır, `Adet` ≈ 3. adımdaki
-   "alan" (aradaki dakikalarda yazılan Blazor kayıtları kadar fazla olabilir). Bir Blazor dönemi kirasını SPA'da aç: saat
-   formda girilenle aynı olmalı.
+6. **Doğrula (ATLANAMAZ):** `sudo -u postgres psql racar -c 'SELECT * FROM "SaatKaymasiCalismalari"'`
+   - Beklenen: tek satır, `Adet` ≈ 3. adımdaki "alan" sayısı. Aradaki dakikalarda yazılan Blazor kayıtları kadar
+     fazla olabilir.
+   - Ardından bir Blazor dönemi kirasını SPA'da aç: saat, formda girilenle aynı olmalı.
+   - **Tablo BOŞSA kapı uygulanmamıştır.** 4. adımdaki ek unutulmuş ya da yanlış yazılmış olabilir. Migration yine de
+     "uygulandı" olarak kaydedilir ve hiçbir uyarı vermez: EF çıktısında NOTICE görünmez. Veri kayık kalır; SPA
+     saatleri 3 saat ileri gösterir ve HGS eşleştirmesi kayık pencerelerle çalışır.
+   - Bu durumda HGS içe aktarmayı KULLANMA. Hemen aşağıdaki "elle uygulama" yolunu izle; kesiş, 5. adımın anıdır
+     (yayın günlüğündeki zaman).
 7. 4. adımdaki `Options` ekini racar.env'den **kaldır** (migration bir kez koşar; ek yine de kalmasın).
+
+**Açılış "çakışma" hatasıyla durursa:** Kaydırma, aynı araçta açık kiraları çakıştıracaksa kapılı migration hata atar.
+Migration açılışta koştuğu için uygulama açılmaz; transaction geri alınır, veri ve migration kaydı değişmez.
+Kurtarma:
+1. 4. adımdaki `Options` ekini kaldır ve yeniden başlat. Migration kapısız koşar: "uygulandı" olarak kaydedilir, veriye
+   dokunmaz, uygulama açılır.
+2. Kuru çalışmanın (§4) listelediği çakışan açık kiraları elle düzelt.
+3. Aynı kesişle yeniden kuru çalışma yap; çakışma satırı kalmamalı.
+4. Elle uygula: `sudo -u postgres psql racar -c "SELECT rc_time_shift_apply('<kesiş>+03', <sunucu_utc>)"`.
+   - Kesiş, ilk denemenin anıdır (yayın günlüğündeki zaman); 1. adımdan sonra açılışın anı DEĞİL.
+   - 1. adımdan sonra SPA'nın yazdığı alanların son yazımı kesişten sonradır; doğru (UTC) oldukları için kaydırılmazlar.
+5. 6. adımdaki doğrulamayı yap.
+
+1. ile 4. adım arasında HGS içe aktarmayı kullanma.
 
 **Bu sürümden önce SPA yayına alındıysa** (migration ayarsız koştu ve SPA yazmaya başladıysa): kesiş, Blazor'u söken
 yayının anıdır (`/opt/racar/releases/<zaman>` dizin adı / yayın günlüğü). Elle, ofsetli:
