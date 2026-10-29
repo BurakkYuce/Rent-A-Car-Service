@@ -1,30 +1,26 @@
 # Site temaları — sözleşme
 
-Halka açık firma sitesi altı temadan birini kullanır: `anahtar` (varsayılan), `kiyas`, `paket`, `pazar`, `vitrin`, `rota`
-(`TenantSettings.SiteTemasi`; null/bilinmeyen → `anahtar`; 2026-10'a kadar varsayılan `pazar`dı — kayıtlı teması
-olan firma etkilenmez, teması boş olan firma Anahtar'ı görür). Sayfalar veri mantığını paylaşır; temaya göre
+Halka açık firma sitesi üç temadan birini kullanır: `anahtar` (varsayılan), `kiyas`, `paket`
+(`TenantSettings.SiteTemasi`; null/bilinmeyen → `anahtar`). Sayfalar veri mantığını paylaşır; temaya göre
 **yedi slot** ve **tema css'i** değişir. Bu belge tema PR'larının uyacağı sözleşmedir.
 
 ## Anahtarlar ve eski anahtar eşlemesi
 
-`Application/TenantSettings/SiteThemeKeys.cs` tek kaynak: `All = [anahtar, kiyas, paket, pazar, vitrin, rota]`, `Default = anahtar`.
+`Application/TenantSettings/SiteThemeKeys.cs` tek kaynak: `All = [anahtar, kiyas, paket]`, `Default = anahtar`.
 
 | Eski anahtar | Yeni anahtar | Nerede |
 |---|---|---|
-| `tarife` | `pazar` | `SiteThemeKeys.LegacyAliases` (KALICI, silinmez) |
-| `kontuar` | `rota` | aynı |
+| `pazar`, `tarife` | `anahtar` | `SiteThemeKeys.LegacyAliases` (KALICI, silinmez; zincir yok — doğrudan bugünkü tema) |
+| `rota`, `kontuar` | `kiyas` | aynı |
+| `vitrin` | `paket` | aynı |
 
-- `SiteThemeKeys.Normalize` eski anahtarı yeni karşılığına çevirir: `?tema=tarife` önizlemesi `pazar` basar
+- `SiteThemeKeys.Normalize` eski anahtarı yeni karşılığına çevirir: `?tema=vitrin` önizlemesi `paket` basar
   (noindex dahil), ERP API'si eski anahtarla gelen PUT'u kabul eder ve **yeni anahtarı saklar**; geçerli değer
   listesi (hata mesajı, ERP seçenekleri) yalnız yeni anahtarları sayar.
-- `RenameSiteThemeKeys` migration'ı kayıtlı değerleri çevirdi (NO FORCE / FORCE parantezi; Down geri çevirir).
+- Migration'lar: `RenameSiteThemeKeys` (tarife → pazar, kontuar → rota) ve T4 `RetireOldSiteThemes` (Pazar, Rota,
+  Vitrin söküldü: pazar/tarife → anahtar, rota/kontuar → kiyas, vitrin → paket; kayıtlı palet yeni temanın setlerinden
+  değilse NULL → temanın varsayılan seti; Down no-op). NO FORCE / FORCE parantezi.
 - Sayfa kabuğu `.page[data-tema]` çözülen KANONİK anahtarı taşır (kayıt sabitinden; test ve css içindir).
-- `pazar` yeni temasıyla geldi (`SiteThemes.Pazar`, `Themes/Pazar/`, `css/tema-pazar.css`; eski Tarife dosyaları
-  ve Barlow yazı tipleri silindi). `rota` yeni temasıyla geldi (`SiteThemes.Rota`, `Themes/Rota/`,
-  `css/tema-rota.css`); eski Kontuar dosyaları silindi.
-- Pazar'ın kendi bileşeni `PazarPriceTag` (asılı fiyat etiketi — temanın imzası) slot değildir; Card, Hero ve
-  DetailHero kullanır. Eski tarife'nin geçici palet setleri (`petrol`, `lacivert`, `zeytin`) Pazar setleriyle
-  (`domates` varsayılan, `kobalt`, `hardal`, `cam`, `patlican`) değişti; kayıtlı eski anahtar varsayılana düşer.
 
 ## Temalar
 
@@ -33,8 +29,6 @@ olan firma etkilenmez, teması boş olan firma Anahtar'ı görür). Sayfalar ver
 | `anahtar` | Anahtar | VARSAYILAN. İletişim önce, telefonla/WhatsApp'la çalışan yerel firma. Kâğıt beyazı zemin, firma rengi yalnız düğme/bağlantı/küçük işarette, 1 px çizgi, gölge yok. Hero fotoğrafsız: firma adı (h1) + hizmet bölgesi, güven satırı (kuruluş yılı, Google puanı profile bağlı, "Bugün 08:00–21:00 açık" — `BranchOffices.TodayHours`, yalnız kesin okunabilen saat), WhatsApp (sabit koyu yeşil `--wa-bg`, beyaz yazı AA) + Ara, "tezgâh" (kompakt arama + depozito/km/yaş çipleri). Filo kartı ızgarada dikey, müsaitlikte yatay; fotoğrafsız ilanda silüet. "Kiralamadan önce" (firma beyanları satır satır), Google yorum bandı, ofisler (bugünkü saat), SSS. Detay: mobil ilk ekranda fiyat + depozito/km/iptal + Rezervasyon talebi / WhatsApp'tan sor. Boş bilgi alanı hiçbir öğe üretmez. Setler: `zumrut` (varsayılan), `lacivert`, `visne`, `grafit`. | Yok — açılış animasyonu bilinçli olarak yok (kullanıcı kararı: arama formu ilk karede kullanılabilir olmalı) | Plus Jakarta Sans 700–800 + Public Sans 400–600 |
 | `kiyas` | Kıyas | Liste ve şeffaf fiyat önce; havalimanı/turist firması, çok sınıflı filo. Serin gri zemin, beyaz kartlar, 1 px çizgi, 8 px köşe. Hero: bölge başlığı + künye (ad, yıl, puan) + tam genişlik arama + veriden doğan şeffaflık satırları ("Fiyatlar KDV dahil" yalnız tüm ilanlar dahilse, depozitosuz/sınırsız km/iptal firmanın beyanı). Ana sayfada süzgeç boyutu başına "en düşük günlük fiyat" kutucukları (`/musaitlik?vites=…` GET). /musaitlik: solda JS'siz GET süzgeci (`FleetModel.Filtre`; telefonda listenin üstünde), kartta fiyat (toplam + gün × fiyat dökümü) adla aynı blokta ve en üstte, altında teknik satır (vites, yakıt, koltuk) ve koşul rozetleri; ana sayfada kartlar hero'nun hemen altında (1440'ta ilk ekranda fiyat görünür), (yeşil müşteri lehine, kehribar şart, gri bilgi — `--rozet-*` sabit, AA test), gün × fiyat dökümü. Görseller tek tip açık gri 4:3 kutuda `contain`. Detay: "Fiyata dahil" / "Şartlar", yapışkan tarife paneli. Setler: `mavi` (varsayılan), `turkuaz`, `kiremit`, `gece`. | Yok — açılış animasyonu yok; tek belirgin unsur eş genişlikli fiyat dökümü | IBM Plex Sans 400–600 + IBM Plex Mono 500 (yalnız fiyat/döküm) |
 | `paket` | Paket | Aylık/uzun dönem ve kurumsal; sade, tipografik. Kâğıt zemin, ince ayraç, 4 px köşe, gölge yok; firma rengi tek vurgu. Hero: geniş başlık, en düşük AYLIK fiyat (yalnız ilanda girilmiş `AylikToplam`'dan; yoksa günlük — aylık fiyat uydurulmaz), araçlar/teklif, tarihle toplam formu. İki sütun büyük kart (aylık varsa "/ ay" büyük + günlük küçük). "Aylık fiyatlar" tablosu (30 gün / günlük; aylığı olmayan ilanda "Teklif alın"), kiralama koşulları, KOYU BANT kurumsal teklif (`id="kurumsal"`, `--day-ink` üstünde `--day-bg`): mevcut talep formuna GET ile geçer (`/rezervasyon-talebi?bas&bit&kurumsal=1` — serbest metin adrese GİRMEZ (KVKK), not talep sayfasının POST formunda yazılır; `kurumsal=1` başlığı ve not ipucunu değiştirir; yeni POST ucu yok). Fotoğrafsız ilanda tipografik "tabela". Detay: 16:10 görsel, büyük rakamlı tarife (Süre/Tutar/Gün başı), yapışkan panelde öne çıkan fiyat (aylık satır varsa o). Setler: `kiremit` (varsayılan), `lacivert`, `zeytin`, `grafit` (vurgu ana rengi izler). | Yok — animasyon yok; tek belirgin unsur büyük rakam | Paket Display 600–700 (Mona Sans'tan, genişlik 112; OFL ayrılmış adı "Mona" değiştirilmiş sürümde kullanılamadığından aile adı değişti) + Inter 400–500 |
-| `pazar` | Pazar | Yerel, samimi, yoğun ama düzenli; serin açık zemin, firma rengi tam genişlik düz bloklar (hero, kapanış bandı), kalın çerçeveli kartlar + kaydırılmış düz gölge. Hero: tam genişlik başlık, arama + "sormak isterseniz arayın", asılı etiketli fotoğraf. Telefon üst barda dolu düğme, telefonda sabit alt çubuk. "Neden <marka>?" yalnız veri ve sistem davranışı; ofis/şubeler (adres, saat, telefon, harita bağlantısı), SSS. Fotoğrafsız ilanda aracın adı tabela harfiyle. | Fiyat etiketleri açılışta bir kez sarkaç gibi sallanıp asılı durur (yalnız `rotate`, dönme noktası çivi) | Bricolage Grotesque Condensed 800 (wdth 75, opsz 36) + Onest 400–700 |
-| `rota` | Rota | Editoryal, seyrek; serin zemin, asimetrik 12 kolon. Hero: büyük başlık + dikey fotoğraf (arkasında vurgu renkli levha, altında künye) + kompakt arama. Filo: NUMARALI FİYAT LİSTESİ (`<ol>`; satır etkinken fotoğraf sağ kolonda, `:hover`/`:focus-within`, JS yok; dar/dokunmatikte satır içi küçük görsel). Koşullar üç sütun, şubeler + saat + harita bağlantısı, SSS. | Noktalı çizgiler açılışta soldan sağa çizilir (clip-path) | Literata 500 (optik boyut 12–72) + Public Sans 400–600 |
 
 ## Seçim ve önizleme
 
@@ -190,10 +184,10 @@ göre yalnız CSS ile değişir.
   Tema css'indeki aynı adlı tanımlar yalnız YEDEKTİR (blok basılamazsa) ve varsayılan setle aynı olmalı
   (yapısal test). Tema `--brand-ink: var(--on-brand)` tanımlar (ana renk üstündeki yazı).
 - **Primitive kuralı:** primitive bloğundan sonra `var(--p-…)` YALNIZ `:root`'taki palet token yedeklerinde ve
-  gerekçeli muafiyetlerde (`--danger --ok` durum renkleri; koyu moddaki siyah `--shadow-1 --shadow-2
-  --ticket-drop`; `--mask-on --mask-off` alfa maskesi; sabit WhatsApp düğmesi `--wa-bg --wa-ink` ve Kıyas
-  rozetleri `--rozet-iyi-* --rozet-dikkat-*`, AA ayrıca test edilir) geçebilir. Slot kuralları ve bileşen token'ları
-  (`--board-*`, `--stage-*`, `--logo-plate`, `--field-bg`, `--line-soft` …) semantik token'a bağlanır —
+  gerekçeli muafiyetlerde (`--danger --ok` durum renkleri; koyu moddaki siyah `--shadow-1 --shadow-2`; sabit
+  WhatsApp düğmesi `--wa-bg --wa-ink` ve Kıyas rozetleri `--rozet-iyi-* --rozet-dikkat-*`, AA ayrıca test edilir)
+  geçebilir. Slot kuralları ve bileşen token'ları (`--band-*`, `--siluet` gibi tema token'ları, `--logo-plate`,
+  `--field-bg` …) semantik token'a bağlanır —
   `color-mix(in oklab|srgb, …)` serbest — ki palet her şeyi değiştirsin. Açık moddaki gölgeler mürekkep tonunda:
   `color-mix(in srgb, var(--ink) 30%, transparent)`.
 - **Taşma kuralları** (yapısal test, `PublicSiteThemeContractTests.Overflow`): ızgara izi `minmax(0, Nfr)` —
@@ -224,8 +218,8 @@ Açık kimlikli setler için ayrıca night-ink / day-ink 4.5:1 (sabit koyu levha
 
 ### Koyu kimlik ve şemaya bağlı tema token'ları
 
-Bir set `DarkInLightMode = true` bildirirse açık şeması da KOYU olabilir (koyu öncelikli tema; ör. Vitrin'in
-Grafit/Gece mavisi/Bordo/Orman setleri). O sette `--day-*` "açık levha/koyu levha" anlamını taşımaz (gündüz
+Bir set `DarkInLightMode = true` bildirirse açık şeması da KOYU olabilir (koyu öncelikli tema; sökülen Vitrin'in
+setleri böyleydi — bugün kayıtlı temalarda yok, üretici desteği korunur). O sette `--day-*` "açık levha/koyu levha" anlamını taşımaz (gündüz
 zemini koyu, gündüz mürekkebi açık) — böyle setleri olan tema bu sabitleri levha için kullanmaz. Dolgu üstü koyu
 yazı adayı bu sette açık şemanın ZEMİNİDİR (mürekkep açık renk).
 
@@ -283,7 +277,7 @@ yalnız primitive bloğunda; primitive referansı yalnız palet yedeklerinde/mua
 eşlemesi; palet setleri ↔ `SitePaletteKeys` birebir; css yedekleri = varsayılan set; durum renkleri her sette
 AA; 3 tema × (/, /musaitlik, tarihli arama, yayındaki ilan detayı, /iletisim, yayında olmayan ilan 404,
 eşleşmeyen adres 404) durum kodu + `data-tema` + satır içi betik yok + dış kaynak yok + görünen SSS adedi =
-FAQPage adedi; önizleme (`?tema` — `?tema=tarife` → `pazar` —, `?palet`, `?renk`) noindex + geçersiz değer yok
+FAQPage adedi; önizleme (`?tema` — `?tema=vitrin` → `paket` —, `?palet`, `?renk`) noindex + geçersiz değer yok
 sayılır + 404 taşır; kayıtlı set/renk basılır, temaya ait olmayan set varsayılana düşer; taşma kuralları
 (çıplak `fr` izi yok, alan şablonlu ızgara sütununu yazar, tek sütunlu ızgaralar `minmax(0, 1fr)`, büyük
 bağlantı bölünebilir, dönen anahtar kare → `main` yatayda kırpar). Migration:

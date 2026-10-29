@@ -502,18 +502,6 @@
         "paket": {
           "ad": "Paket",
           "aciklama": "Aylık ve kurumsal kiralama önce: aylık fiyat önde, aylık fiyat tablosu ve kurumsal teklif bölümü; sade, tipografik. Uzun dönem ve kurumsal müşteriyle çalışan firma için."
-        },
-        "pazar": {
-          "ad": "Pazar",
-          "aciklama": "Kalın başlıklar, asılı fiyat etiketleri ve öne çıkan telefon ile WhatsApp; yerel firma ve bütçe kiralaması için."
-        },
-        "vitrin": {
-          "ad": "Vitrin",
-          "aciklama": "Koyu, sinematik showroom: tam genişlik fotoğraf ve yana akan filo şeridi. Özenli fotoğraflı, üst segment filo için."
-        },
-        "rota": {
-          "ad": "Rota",
-          "aciklama": "Editoryal ve ferah: büyük başlık, dikey fotoğraf ve numaralı fiyat listesi. Tatil bölgesinde, havalimanı ve otel teslimi yapan firmalar için."
         }
       },
       "siteBilgi": {

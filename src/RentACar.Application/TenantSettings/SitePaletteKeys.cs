@@ -56,31 +56,6 @@ public static partial class SitePaletteKeys
                 new("zeytin", "Zeytin", "#f2f2ec", "#14160f", "#4a5a23", null, "#11120e"),
                 new("grafit", "Grafit", "#f2f2f2", "#15171a", "#2b2f36", null, "#111214"),
             ],
-            [SiteThemeKeys.Pazar] =
-            [
-                new("domates", "Domates ve ayçiçeği", "#edf0f2", "#1b1d22", "#d42a1c", "#ffc928", "#16171a"),
-                new("kobalt", "Kobalt ve portakal", "#eef1f6", "#141a2b", "#1d4ed8", "#ff8a3d", "#11141c"),
-                new("hardal", "Hardal ve mürekkep", "#eeefeb", "#25220f", "#8a6800", "#f2b705", "#161510"),
-                new("cam", "Çam yeşili ve kraft", "#edf1ee", "#13201a", "#1d6b46", "#f0d49b", "#0f1612"),
-                new("patlican", "Patlıcan ve şeftali", "#f1eff3", "#1f1626", "#5d2a78", "#ffb38a", "#151119"),
-            ],
-            [SiteThemeKeys.Vitrin] =
-            [
-                // Koyu öncelikli: ilk dört setin açık şeması da koyu (Zemin = açık şemanın zemini, burada koyu).
-                new("grafit", "Grafit", "#1c1f23", "#f1efea", "#d6cfc2", null, "#121417"),
-                new("gece-mavisi", "Gece mavisi", "#172030", "#eef2f8", "#b9cbe6", null, "#0e1520"),
-                new("bordo", "Bordo", "#2a161b", "#f6ecec", "#e6b8b0", null, "#1b0e12"),
-                new("orman", "Orman", "#17221d", "#edf2ee", "#c5d4b5", null, "#0e1612"),
-                new("sampanya", "Şampanya, açık zemin", "#efede8", "#1d1c1a", "#6e5a36", null, "#191714"),
-            ],
-            [SiteThemeKeys.Rota] =
-            [
-                new("deniz", "Deniz", "#f1f5f6", "#0e2a33", "#0b5e6b", "#e2b02a", "#0b171b"),
-                new("zeytin", "Zeytin", "#f2f4f1", "#1c2617", "#4d6a27", "#7fb3d5", "#10140e"),
-                new("gece-mavisi", "Gece mavisi", "#f2f4f8", "#121a2e", "#1f3f8f", "#3fbf9b", "#0b0f1a"),
-                new("kayisi", "Kayısı", "#f3f4f6", "#1d2433", "#2a3446", "#f4a259", "#12161d"),
-                new("tas", "Taş", "#f3f4f4", "#1e2326", "#4a555d", null, "#15191c"),
-            ],
         };
 
     /// <summary>Kanonik anahtar (kırpılmış, küçük harf) ya da null (boş / biçimsiz). Temaya aitliğe BAKMAZ.</summary>
