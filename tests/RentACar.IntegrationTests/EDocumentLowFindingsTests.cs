@@ -376,6 +376,84 @@ public sealed class EDocumentLowFindingsTests(PostgresFixture fx)
         Assert.Empty(c.Fake.Cancelled);
     }
 
+    /// <summary>
+    /// #410 adversarial M1 (P1): test'te kabul → canlıya geç, yeniden kuyruk → canlı deneme istemci zaman aşımı → 30 dk
+    /// dolmadan teste geri dön. Canlının "bulunamadı"sından sonra test ortamına SORULMAZ (aynı ETTN'in eski test kabulü
+    /// bulunup belge TestGonderildi sayılırdı); belge kuyrukta bekler. Sunucu canlıda geç kabul edince iade belgeyi yerelde
+    /// iptal ETMEZ; sonraki koşu canlıda bulur → Gonderildi.
+    /// </summary>
+    private static async Task<(Guid Id, Func<Task> LateLiveAccept, DateTimeOffset T0)> TestLiveTestFlapAsync(Ctx c)
+    {
+        await ConnectAsync(c, live: false);
+        var id = await InvoiceAsync(c, await IndividualAsync(c));
+        var t0 = DateTimeOffset.UtcNow;
+        await DispatchAsync(c, t0);
+        Assert.Equal(EDocumentStatus.TestGonderildi, (await DocAsync(c, id)).Durum);
+
+        await SwitchAsync(c, live: true);
+        using (var s = c.Scope()) await s.ServiceProvider.GetRequiredService<EDocumentService>().QueueAsync(id);
+        EInvoiceSubmission? pending = null;
+        EInvoiceCredentials? creds = null;
+        c.Fake.OnSend = sub => { pending = sub; creds = c.Fake.LastCredentials; throw new TaskCanceledException("İstemci zaman aşımı."); };
+        await DispatchAsync(c, t0.AddMinutes(1));
+        c.Fake.OnSend = null;
+        Assert.Equal((bool?)true, (await DocAsync(c, id)).SonDenemeCanli);
+        await SwitchAsync(c, live: false);
+        return (id, () => c.Fake.SendAsync(creds! with { CanliOrtam = true }, pending!), t0);
+    }
+
+    [Fact]
+    public async Task M1_test_live_test_flap_does_not_count_the_old_test_acceptance_and_refund_never_orphans_the_live_document()
+    {
+        using var c = New();
+        var (id, lateLiveAccept, t0) = await TestLiveTestFlapAsync(c);
+
+        await DispatchAsync(c, t0.AddMinutes(10)); // canlı deneme 9 dk önce: kesinleşmedi
+        var waiting = await DocAsync(c, id);
+        Assert.Equal(EDocumentStatus.Gonderilecek, waiting.Durum);
+        Assert.StartsWith(NotSettledPrefix, waiting.SonMesaj, StringComparison.Ordinal);
+
+        await lateLiveAccept(); // sunucu canlıda geç kabul
+        await RefundAsync(c, id);
+        Assert.NotEqual(EDocumentStatus.Iptal, (await DocAsync(c, id)).Durum);
+
+        await DispatchAsync(c, t0.AddMinutes(20)); // canlıda bulunur
+        var doc = await DocAsync(c, id);
+        Assert.Equal(EDocumentStatus.Gonderildi, doc.Durum);
+        Assert.True(c.Fake.AcceptedLive(doc.Ettn));
+        Assert.Empty(c.Fake.Cancelled);
+    }
+
+    [Fact]
+    public async Task M1_same_flap_local_cancel_is_refused_until_the_live_attempt_settles()
+    {
+        using var c = New();
+        var (id, lateLiveAccept, _) = await TestLiveTestFlapAsync(c);
+
+        Assert.StartsWith("red: " + NotSettledPrefix, await CancelAsync(c, id, "Vazgeçildi"), StringComparison.Ordinal);
+        await lateLiveAccept();
+        Assert.NotEqual(EDocumentStatus.Iptal, (await DocAsync(c, id)).Durum);
+    }
+
+    [Fact]
+    public async Task M1_test_sent_document_with_an_unsettled_live_attempt_is_not_cancelled_locally_or_by_refund()
+    {
+        using var c = New();
+        await ConnectAsync(c, live: false);
+        var id = await InvoiceAsync(c, await IndividualAsync(c));
+        await DispatchAsync(c, DateTimeOffset.UtcNow);
+        // Savunma katmanı: TestGonderildi ama son deneme kesinleşmemiş canlı deneme (durum elle kurulur).
+        await DbAsync(c, db => db.EDocuments.Where(d => d.InvoiceId == id)
+            .ExecuteUpdateAsync(u => u.SetProperty(d => d.SonDenemeCanli, true).SetProperty(d => d.SonDenemeUtc, DateTimeOffset.UtcNow)));
+
+        Assert.StartsWith("red: " + NotSettledPrefix, await CancelAsync(c, id, "Vazgeçildi"), StringComparison.Ordinal);
+        await RefundAsync(c, id);
+        Assert.Equal(EDocumentStatus.TestGonderildi, (await DocAsync(c, id)).Durum); // iade dokunmadı
+
+        await AgeLastAttemptAsync(c, id, Settle + TimeSpan.FromMinutes(1));
+        Assert.Equal("Iptal", await CancelAsync(c, id, "Vazgeçildi"));
+    }
+
     // ===================================================================== N4 — maskeleme ayraçları
 
     [Theory]
@@ -385,6 +463,12 @@ public sealed class EDocumentLowFindingsTests(PostgresFixture fx)
     [InlineData(" ")]          // dar NBSP
     [InlineData(" / ")]
     [InlineData(". ")]
+    [InlineData("–")]          // en-dash (#410 L3)
+    [InlineData(" – ")]
+    [InlineData("_")]
+    [InlineData(",")]
+    [InlineData(" , ")]
+    [InlineData("​")]          // sıfır genişlikli boşluk
     public void N4_tckn_with_unusual_separators_is_masked(string sep)
     {
         var t = TestNationalId.New();
@@ -464,6 +548,34 @@ public sealed class EDocumentLowFindingsTests(PostgresFixture fx)
         var docB = await DocAsync(c, b);
         Assert.Equal((EDocumentStatus.Gonderildi, $"EAR{year}000000001", (bool?)true), (docA.Durum, docA.BelgeNo, docA.SonDenemeCanli));
         Assert.Equal((EDocumentStatus.Gonderildi, $"EAR{year}000000002", (bool?)true), (docB.Durum, docB.BelgeNo, docB.SonDenemeCanli));
+    }
+
+    /// <summary>#410 adversarial L1 (P5): e-Arşiv numarası vermiş seri sonradan e-Fatura serisi yapılamaz (ve tersi);
+    /// üç kod farklı olsa da aynı sayaç iki türü karıştırırdı. Alan hatası, ayar değişmez.</summary>
+    [Fact]
+    public async Task E5_a_series_that_issued_numbers_for_one_kind_cannot_be_swapped_to_the_other_kind()
+    {
+        using var c = New();
+        await ConnectAsync(c);
+        c.Fake.RegisteredRecipients.Add("9876543210");
+        var a1 = await InvoiceAsync(c, await IndividualAsync(c));
+        var e1 = await InvoiceAsync(c, await CorporateAsync(c, "9876543210"));
+        await DispatchAsync(c, DateTimeOffset.UtcNow);
+        var year = await YearAsync(c, a1);
+        Assert.Equal($"EAR{year}000000001", (await DocAsync(c, a1)).BelgeNo);
+        Assert.Equal($"EFA{year}000000001", (await DocAsync(c, e1)).BelgeNo);
+
+        using var s = c.Scope();
+        var settings = s.ServiceProvider.GetRequiredService<TenantSettingsService>();
+        var toEInvoice = await Assert.ThrowsAsync<ValidationException>(() => settings.SaveAsync(Settings(null, true, "EAR", "XAR")));
+        Assert.Equal("eFaturaSeriKodu", toEInvoice.Alan);
+        Assert.StartsWith("e-Fatura seri kodu EAR daha önce e-Arşiv belgelerinde kullanıldı", toEInvoice.Message, StringComparison.Ordinal);
+        var toArchive = await Assert.ThrowsAsync<ValidationException>(() => settings.SaveAsync(Settings(null, true, "XFA", "EFA")));
+        Assert.Equal("eArsivSeriKodu", toArchive.Alan);
+        var saved = await settings.GetAsync();
+        Assert.Equal(((string?)null, (string?)null), (saved.EFaturaSeriKodu, saved.EArsivSeriKodu)); // değişmedi
+
+        await settings.SaveAsync(Settings(null, true, "XFA", "XAR")); // kullanılmamış yeni seriler serbest
     }
 
     [Fact]

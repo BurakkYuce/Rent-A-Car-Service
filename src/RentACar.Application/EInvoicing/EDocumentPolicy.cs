@@ -134,9 +134,12 @@ public static class EDocumentPolicy
         _ => TimeSpan.FromHours(4),
     };
 
-    /// <summary>Hane arası en çok 3 karakterlik boşluk/nokta/eğik çizgi/tire (gruplu yazım: "123 456 789 01",
-    /// "123 - 456 - 789 - 01", "123/456/789/01"). NBSP gibi boşluklar önce tek boşluğa indirilir (adversarial N4).</summary>
-    private const string DigitSeparator = @"[\s./\-]{0,3}";
+    /// <summary>Hane arası en çok 3 karakterlik HARF/RAKAM DIŞI ayraç (gruplu yazım: "123 456 789 01", "123 – 456",
+    /// "123_456", "123,456", "123/456"). Görünmez biçim karakterleri (U+200B vb.) önce silinir, boşluklar tek ' 'e
+    /// indirilir (adversarial N4, #410 L3). İki nokta HARİÇ: saat ("08:30:15") tarihle birleşip 11 hane sayılmasın.</summary>
+    private const string DigitSeparator = @"[^\p{L}0-9:]{0,3}";
+
+    private static readonly Regex FormatChars = new(@"\p{Cf}", RegexOptions.CultureInvariant);
 
     private static readonly Regex ElevenDigits = new(
         @"(?<![0-9])[0-9](?:" + DigitSeparator + @"[0-9]){10}(?![0-9])", RegexOptions.CultureInvariant);
@@ -150,7 +153,7 @@ public static class EDocumentPolicy
     {
         if (string.IsNullOrWhiteSpace(text)) return null;
         // Önce boşluk normalizasyonu: NBSP / dar boşluk / sekme / satır sonu → tek ' ' (char.IsWhiteSpace).
-        var s = string.Join(' ', text.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries));
+        var s = string.Join(' ', FormatChars.Replace(text, string.Empty).Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries));
         foreach (var secret in secrets ?? [])
         {
             if (string.IsNullOrWhiteSpace(secret) || secret.Length < 4) continue;

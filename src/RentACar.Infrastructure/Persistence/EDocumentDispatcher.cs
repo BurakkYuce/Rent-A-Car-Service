@@ -146,7 +146,7 @@ public static class EDocumentDispatcher
         {
             EInvoiceStatusResult status;
             bool foundLive;
-            try { (status, foundLive) = await conn.QueryPreviousAttemptAsync(doc, ct); }
+            try { (status, foundLive) = await conn.QueryPreviousAttemptAsync(doc, now, ct); }
             catch (Exception ex) when (ex is not OperationCanceledException)
             {
                 return Outcome.Retry(EDocumentPolicy.Sanitize("Entegratörde durum sorgulanamadı: " + ex.Message)!);

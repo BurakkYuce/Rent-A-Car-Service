@@ -13,7 +13,8 @@ namespace RentACar.Application.TenantSettings;
 public sealed class TenantSettingsService(
     ITenantSettingsRepository repository, ICurrentUser currentUser, ISecretProtector secrets, ScreenPermissionService screens,
     ITenantDomainRepository domains, ITenantContext tenant, ITenantSettingsVersionStore? versionStore = null,
-    IDnsTxtResolver? dnsTxt = null, EInvoicing.EInvoiceIntegratorCatalog? einvoiceCatalog = null)
+    IDnsTxtResolver? dnsTxt = null, EInvoicing.EInvoiceIntegratorCatalog? einvoiceCatalog = null,
+    EInvoicing.IEDocumentRepository? edocuments = null)
 {
     /// <summary>
     /// F11.1b güvenlik M6 — özel alan adının sahiplik doğrulaması: <c>_racar-verify.&lt;alan adı&gt;</c> TXT kaydında
@@ -54,7 +55,32 @@ public sealed class TenantSettingsService(
     {
         PermissionGuard.Require(currentUser, Permission.ManageUsers);
         await screens.EnsureScreenAccessAsync("ayarlar", Permission.ManageUsers, ct);
+        await EnsureSeriesKeepTheirKindAsync(m, ct);
         await Versions.UpsertAsync(s => Apply(s, m), expectedVersion, ct);
+    }
+
+    /// <summary>
+    /// #410 adversarial L1 — seri takası: bir seri (ör. EAR) e-Arşiv numarası vermişse sonradan e-Fatura serisi yapılamaz
+    /// (ve tersi). Ayar üç kodun farklı olmasını sağlar ama takas edilen kod, sayacı aynı olduğundan aynı seride iki türü
+    /// karıştırırdı (GİB e-Arşiv kılavuzu v1.18 §6). Yıl ayrımı yapılmaz: daha katı ve geçmiş yıl belgeleriyle karışmaz.
+    /// </summary>
+    private async Task EnsureSeriesKeepTheirKindAsync(TenantSettingsModel m, CancellationToken ct)
+    {
+        if (edocuments is null) return;
+        (string? Value, RentACar.Domain.Enums.EDocumentKind Kind, string Field, string Label, string Other)[] rows =
+        [
+            (m.EFaturaSeriKodu, RentACar.Domain.Enums.EDocumentKind.EFatura, "eFaturaSeriKodu", "e-Fatura", "e-Arşiv"),
+            (m.EArsivSeriKodu, RentACar.Domain.Enums.EDocumentKind.EArsiv, "eArsivSeriKodu", "e-Arşiv", "e-Fatura"),
+        ];
+        foreach (var r in rows)
+        {
+            var series = Trim(r.Value)?.ToUpperInvariant() ?? (r.Kind == RentACar.Domain.Enums.EDocumentKind.EFatura
+                ? EInvoicing.EDocumentPolicy.EInvoiceSeriesDefault : EInvoicing.EDocumentPolicy.EArchiveSeriesDefault);
+            if (DocumentNo.IsSeriesValid(series) && await edocuments.SeriesUsedByOtherKindAsync(series, r.Kind, ct))
+                throw new ValidationException(
+                    $"{r.Label} seri kodu {series} daha önce {r.Other} belgelerinde kullanıldı; GİB e-Arşiv ve e-Fatura için " +
+                    "farklı seri ister. Başka bir kod seçin.", r.Field);
+        }
     }
 
     private ITenantSettingsVersionStore Versions => versionStore
@@ -223,6 +249,7 @@ public sealed class TenantSettingsService(
     {
         PermissionGuard.Require(currentUser, Permission.ManageUsers);
         await screens.EnsureScreenAccessAsync("ayarlar", Permission.ManageUsers, ct);
+        await EnsureSeriesKeepTheirKindAsync(m, ct);
         await repository.UpsertAsync(s => Apply(s, m), ct);
     }
 

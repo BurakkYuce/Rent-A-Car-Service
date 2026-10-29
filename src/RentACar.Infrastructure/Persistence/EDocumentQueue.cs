@@ -55,6 +55,9 @@ public static class EDocumentQueue
         if (doc.KilitBitisUtc is { } lease && lease >= now)
             throw new ValidationException("Kaynak faturanın e-belgesi şu anda gönderiliyor; birkaç dakika sonra yeniden deneyin.");
         if (doc.SonDenemeUtc is not null && doc.Durum != EDocumentStatus.TestGonderildi) return;
+        // Son deneme kesinleşmemiş bir CANLI denemeyse test kabulü de "ulaşmadı" sayılmaz (#410 adversarial M1): dokunulmaz,
+        // kullanıcı iptali süre dolunca yapılır (EDocumentService.CancelAsync aynı kuralla bekletir).
+        if (doc.SonDenemeCanli == true && EDocumentPolicy.LiveAttemptMayStillLand(doc, now)) return;
 
         doc.Durum = EDocumentStatus.Iptal;
         doc.SonMesaj = EDocumentPolicy.RefundedSourceCancelled;
