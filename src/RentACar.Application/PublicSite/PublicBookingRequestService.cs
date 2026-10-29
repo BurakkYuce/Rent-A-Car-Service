@@ -19,6 +19,9 @@ public sealed class PublicBookingRequestInput
     public Guid? IlanId { get; set; }
     public DateTimeOffset BasTar { get; set; }
     public DateTimeOffset BitTar { get; set; }
+    /// <summary>Ziyaretçi alış/iade saatini seçtiyse true (tarihler İstanbul saatinin UTC karşılığı); false → eski
+    /// saatsiz talep (günün UTC gece yarısı) — bildirimde yalnız gün yazılır, uydurma saat basılmaz.</summary>
+    public bool HasTime { get; set; }
     public string? Sube { get; set; }
     public string? Not { get; set; }
 
@@ -122,8 +125,8 @@ public sealed class PublicBookingRequestService(
                     {
                         ["MusteriAd"] = request.AdSoyad,
                         ["Arac"] = request.IlanBaslik,
-                        ["CikisTarih"] = request.BasTar.ToString("dd.MM.yyyy HH:mm"),
-                        ["DonusTarih"] = request.BitTar.ToString("dd.MM.yyyy HH:mm"),
+                        ["CikisTarih"] = NoticeDate(request.BasTar, input.HasTime),
+                        ["DonusTarih"] = NoticeDate(request.BitTar, input.HasTime),
                         ["CikisOfis"] = request.Sube,
                         ["No"] = request.Id.ToString("N")[..8].ToUpperInvariant(),
                     },
@@ -372,4 +375,12 @@ public sealed class PublicBookingRequestService(
     }
 
     private static string? TrimOrNull(string? s) => string.IsNullOrWhiteSpace(s) ? null : s.Trim();
+
+    /// <summary>Bildirimdeki tarih: saatli talepte İSTANBUL gün+saati (an UTC saklanır; çevrilmeden basılsa 10:00
+    /// alış "07:00" görünürdü). Saatsiz eski talepte an günün UTC gece yarısıdır — yalnız gün basılır.</summary>
+    private static string NoticeDate(DateTimeOffset instant, bool hasTime)
+        => hasTime
+            ? TimeZoneInfo.ConvertTime(instant, Periods.PeriodLock.Zone)
+                .ToString("dd.MM.yyyy HH:mm", System.Globalization.CultureInfo.InvariantCulture)
+            : instant.UtcDateTime.ToString("dd.MM.yyyy", System.Globalization.CultureInfo.InvariantCulture);
 }

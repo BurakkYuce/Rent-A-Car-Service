@@ -72,6 +72,12 @@
     /// <summary>Statik SSR'da doğrudan kullanılabilir (circuit yok) — durum kodunu yazmak için.</summary>
     [CascadingParameter] public HttpContext? Http { get; set; }
 
+    // Seçili aralık (adreste geldiyse) "Rezervasyon talebi" bağlantılarına aynen geçer; biçimsiz saat QuoteLink'te düşer.
+    [SupplyParameterFromQuery(Name = "bas")] public string? Start { get; set; }
+    [SupplyParameterFromQuery(Name = "bit")] public string? End { get; set; }
+    [SupplyParameterFromQuery(Name = "basSaat")] public string? StartTime { get; set; }
+    [SupplyParameterFromQuery(Name = "bitSaat")] public string? EndTime { get; set; }
+
     private FleetShowcaseDetail? _detail;
     private FleetBranding? _branding;
     private string? _canonicalRoot;
@@ -82,7 +88,7 @@
         [new("Ana sayfa", "/"), new("Araçlar ve fiyatlar", "/musaitlik"), new(d.Baslik, $"/araclar/{d.Slug}")];
 
     private FleetModel SimilarFleet => new(
-        [.. _similar.Select(c => ListingCard.From(c, QuoteLink.Build(c.Slug, dailyPrice: c.GunlukFiyat)))],
+        [.. _similar.Select(c => ListingCard.From(c, QuoteLink.Build(c.Slug, Start, End, null, c.GunlukFiyat, StartTime, EndTime)))],
         FleetPlacement.Similar);
 
     private static string? MetaLine(FleetShowcaseDetail d)
@@ -135,7 +141,7 @@
         var waLink = WhatsAppAsk.Link(_branding, _detail.Baslik);
 
         _hero = new DetailHeroModel(_detail, Rates(_detail),
-            QuoteLink.Build(_detail.Slug, dailyPrice: _detail.GunlukFiyat), branches)
+            QuoteLink.Build(_detail.Slug, Start, End, null, _detail.GunlukFiyat, StartTime, EndTime), branches)
         {
             MetaLine = MetaLine(_detail),
             WhatsAppLink = waLink,

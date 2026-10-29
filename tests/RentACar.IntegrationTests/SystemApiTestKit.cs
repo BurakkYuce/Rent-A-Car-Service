@@ -38,7 +38,8 @@ public sealed class SystemApiTestKit(WebFixture fx)
 
     public static string Random(string prefix) => prefix + Guid.NewGuid().ToString("N")[..10];
 
-    public async Task<Env> SetupAsync()
+    /// <param name="settingsRow">false → ayar satırı (LAZY) hiç oluşmamış firma; gerçek yeni kiracının ilk hâli.</param>
+    public async Task<Env> SetupAsync(bool settingsRow = true)
     {
         var e = new Env
         {
@@ -67,7 +68,8 @@ public sealed class SystemApiTestKit(WebFixture fx)
             }
             await db.SaveChangesAsync();
         }
-        // Ayar satırı olan firma: sürüm (surum) ve domain testleri satırı varsayar. Gerçek repository'den (racar_app).
+        if (!settingsRow) return e;
+        // Ayar satırı olan firma: sürüm (surum) testleri satırı varsayar. Gerçek repository'den (racar_app).
         using (var host = new TestHost(fx.Pg.AppConnectionString))
         using (var scope = host.ScopeFor(e.TenantId, role: UserRole.Admin))
             await scope.ServiceProvider.GetRequiredService<ITenantSettingsRepository>().UpsertAsync(_ => { });

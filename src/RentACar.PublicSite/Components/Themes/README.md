@@ -133,7 +133,9 @@ Parametre adları ve tipleri değişmez:
 
 Ortak `<SearchForm>` alanları DOLU açılır (alış yarın İstanbul günü, iade +3 gün, saatler 10:00); alan adları
 `bas`/`bit`/`sube` + EK `basSaat`/`bitSaat` (`HH:mm`, İstanbul). `/musaitlik` iki saat de geçerliyse aramayı o
-saatlerle yapar (gün sayısı saatle), biri bile yoksa eski davranış (yalnız günler). `ListingCard.WhatsAppLink` /
+saatlerle yapar (gün sayısı saatle), biri bile yoksa eski davranış (yalnız günler). Talep formu
+(`/rezervasyon-talebi`) aynı alanları alır (varsayılan 10:00) ve POST'ta iki saat de geçerliyse İstanbul gün+saatini
+UTC'ye çevirip talebe yazar; `QuoteLink` (kart ve detay `QuoteUrl`) saatleri yalnız ikisi de geçerliyse taşır. `ListingCard.WhatsAppLink` /
 `DetailHeroModel.WhatsAppLink` "WhatsApp'tan sor" bağlantısıdır: `WhatsAppAsk` (araç + seçilen tarih/saatle hazır mesaj,
 numara `PhoneLink` ile); numara yoksa null → düğme basılmaz.
 

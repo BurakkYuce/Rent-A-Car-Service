@@ -39,6 +39,31 @@ public sealed partial class UiSystemSecurityTests
         Assert.Equal(System.Text.Json.JsonValueKind.Null, after.GetProperty("dogrulamaDegeri").ValueKind);
     }
 
+    // Ayar satırı LAZY oluşur: ayarlarını hiç kaydetmemiş firma eklediği alan adını hem ekleme yanıtında hem GET'te görmeli
+    // (eskiden satır yoksa model boş dönüyor, domain listesi ve web sitesi adresi düşüyordu).
+    [Fact]
+    public async Task Tenant_without_settings_row_sees_its_added_domain()
+    {
+        var e = await _kit.SetupAsync(settingsRow: false);
+        var admin = await _kit.LoginAsync(e, Who.Admin);
+        var host = "www." + Random("ns") + ".com";
+
+        var added = await Json(await Send(admin, HttpMethod.Post, V1 + "/ayarlar/domainler", new { host }));
+        Assert.False(await _kit.ReadAsync(e.TenantId, db => db.TenantSettings.AnyAsync()));
+        Assert.Equal(System.Text.Json.JsonValueKind.Null, added.GetProperty("surum").ValueKind);
+        var row = Assert.Single(added.GetProperty("domainler").EnumerateArray(), d => d.GetProperty("host").GetString() == host);
+        Assert.Equal("_racar-verify." + host, row.GetProperty("dogrulamaKaydi").GetString());
+
+        var listed = await Json(await Send(admin, HttpMethod.Get, V1 + "/ayarlar"));
+        Assert.Single(listed.GetProperty("domainler").EnumerateArray(), d => d.GetProperty("host").GetString() == host);
+
+        // Başka kiracı (o da satırsız) bu alan adını görmez.
+        var other = await _kit.SetupAsync(settingsRow: false);
+        var otherAdmin = await _kit.LoginAsync(other, Who.Admin);
+        var otherList = await Json(await Send(otherAdmin, HttpMethod.Get, V1 + "/ayarlar"));
+        Assert.Empty(otherList.GetProperty("domainler").EnumerateArray());
+    }
+
     // 4. tur: etkinleştirme başarısızsa (arada başka kiracı doğruladı) uç 200 değil 400 döner ve kayıt beklemede kalır.
     [Fact]
     public async Task Verify_returns_400_when_activation_does_not_happen()
