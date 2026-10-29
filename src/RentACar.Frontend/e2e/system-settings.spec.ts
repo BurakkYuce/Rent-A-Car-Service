@@ -134,9 +134,8 @@ test('ayarlar: site teması radyo ile seçilir (kayıtsızsa anahtar seçili), �
 
   for (const [name, key] of [
     ['Anahtar', 'anahtar'],
-    ['Pazar', 'pazar'],
-    ['Vitrin', 'vitrin'],
-    ['Rota', 'rota'],
+    ['Kıyas', 'kiyas'],
+    ['Paket', 'paket'],
   ] as const) {
     const link = page.getByRole('link', { name: `${name} temasını önizle` });
     // Kendi ana renk (#0b5d6b) her temanın önizlemesine taşınır; palet temaya özgü olduğundan taşınmaz.
@@ -145,10 +144,10 @@ test('ayarlar: site teması radyo ile seçilir (kayıtsızsa anahtar seçili), �
     await expect(link).toHaveAttribute('rel', 'noopener noreferrer');
   }
 
-  await group.getByRole('radio', { name: /^Rota:/ }).check();
+  await group.getByRole('radio', { name: /^Paket:/ }).check();
   await page.getByRole('button', { name: 'Ayarları kaydet' }).click();
   await expect.poll(() => writes.length).toBe(1);
-  expect(body(writes[0])['siteTemasi']).toBe('rota');
+  expect(body(writes[0])['siteTemasi']).toBe('paket');
   expect(errors).toEqual([]);
 });
 
@@ -163,33 +162,33 @@ test('ayarlar: renk seti temanın setlerinden seçilir, tema değişince temizle
   await expect(sets.getByRole('radio', { name: /^Zümrüt ve kehribar/ })).toBeChecked();
   await page
     .getByRole('radiogroup', { name: 'Site teması' })
-    .getByRole('radio', { name: /^Pazar:/ })
+    .getByRole('radio', { name: /^Kıyas:/ })
     .check();
   // Yalnız seçili temanın setleri listelenir; kayıtlı set yok → temanın ilk seti seçili.
   await expect(sets.getByRole('radio')).toHaveCount(2);
-  await expect(sets.getByRole('radio', { name: /^Petrol ve yol sarısı/ })).toBeChecked();
+  await expect(sets.getByRole('radio', { name: /^Kobalt mavi/ })).toBeChecked();
 
-  await sets.getByRole('radio', { name: /^Lacivert ve amber/ }).check();
+  await sets.getByRole('radio', { name: /^Turkuaz ve turuncu/ }).check();
   const current = page.getByRole('link', { name: 'Seçili görünümü önizle' });
   await expect(current).toHaveAttribute(
     'href',
-    '//ornek.site.test/?tema=pazar&palet=lacivert&renk=%230b5d6b',
+    '//ornek.site.test/?tema=kiyas&palet=turkuaz&renk=%230b5d6b',
   );
 
   // Tema değişti: eski temanın seti yeni temada yok → seçim temizlenir, yeni temanın varsayılanı seçili görünür.
   await page
     .getByRole('radiogroup', { name: 'Site teması' })
-    .getByRole('radio', { name: /^Vitrin:/ })
+    .getByRole('radio', { name: /^Paket:/ })
     .check();
-  await expect(sets.getByRole('radio', { name: /^Porselen ve grafit/ })).toBeChecked();
-  await sets.getByRole('radio', { name: /^Bordo/ }).check();
+  await expect(sets.getByRole('radio', { name: /^Koyu kiremit/ })).toBeChecked();
+  await sets.getByRole('radio', { name: /^Zeytin/ }).check();
   await page.getByRole('button', { name: 'Temizle' }).click(); // kendi ana renk kaldırılır
-  await expect(current).toHaveAttribute('href', '//ornek.site.test/?tema=vitrin&palet=bordo');
+  await expect(current).toHaveAttribute('href', '//ornek.site.test/?tema=paket&palet=zeytin');
 
   await page.getByRole('button', { name: 'Ayarları kaydet' }).click();
   await expect.poll(() => writes.length).toBe(1);
-  expect(body(writes[0])['siteTemasi']).toBe('vitrin');
-  expect(body(writes[0])['sitePaleti']).toBe('bordo');
+  expect(body(writes[0])['siteTemasi']).toBe('paket');
+  expect(body(writes[0])['sitePaleti']).toBe('zeytin');
   expect(body(writes[0])['siteVurguRengi']).toBeNull();
   expect(errors).toEqual([]);
 });

@@ -40,9 +40,6 @@ public sealed partial class PublicSiteThemeContractTests(PostgresFixture fx)
         ["--ok"] = "durum rengi (başarı) palete bağlı değil; her setin zemininde AA ayrıca ölçülür",
         ["--shadow-1"] = "koyu modda gölge saf siyah (palete bağlı değil); açık modda mürekkep tonu",
         ["--shadow-2"] = "koyu modda gölge saf siyah (palete bağlı değil); açık modda mürekkep tonu",
-        ["--ticket-drop"] = "koyu modda kupon gölgesi saf siyah (palete bağlı değil)",
-        ["--mask-on"] = "maske yalnız alfa kanalı taşır, görünen renk değil",
-        ["--mask-off"] = "maske yalnız alfa kanalı taşır, görünen renk değil",
         ["--wa-bg"] = "WhatsApp düğmesi markanın sabit koyu yeşili (palete bağlı değil); beyaz yazıyla AA ayrıca ölçülür",
         ["--wa-ink"] = "WhatsApp düğmesinin yazısı sabit beyaz; --wa-bg üstünde AA ayrıca ölçülür",
         ["--rozet-iyi-bg"] = "Kıyas olumlu rozeti anlam rengi (yeşil), palete bağlı değil; yazısıyla AA ayrıca ölçülür",
@@ -109,13 +106,13 @@ public sealed partial class PublicSiteThemeContractTests(PostgresFixture fx)
     public void Kayit_ve_ayar_anahtarlari_ayni()
     {
         // Beklenen anahtarlar elle (oracle): kayıt ve ayar listesi ikisi de buna eşit, aynı sırada.
-        Assert.Equal(["anahtar", "kiyas", "paket", "pazar", "vitrin", "rota"], SiteThemeKeys.All);
+        Assert.Equal(["anahtar", "kiyas", "paket"], SiteThemeKeys.All);
         Assert.Equal(SiteThemeKeys.All, SiteThemes.All.Select(t => t.Key));
         Assert.Equal("anahtar", SiteThemeKeys.Default);
         Assert.Equal("anahtar", SiteThemes.Resolve(null).Key);
         Assert.Equal("anahtar", SiteThemes.Resolve("olmayan").Key);
-        Assert.Same(SiteThemes.Pazar, SiteThemes.Resolve("pazar")); // kayıtlı eski tema varsayılana düşmez
-        Assert.Same(SiteThemes.Vitrin, SiteThemes.Resolve(" VITRIN "));
+        Assert.Same(SiteThemes.Kiyas, SiteThemes.Resolve(" KIYAS "));
+        Assert.Same(SiteThemes.Paket, SiteThemes.Resolve("vitrin")); // sökülen tema karşılığına (varsayılana değil)
         foreach (var t in SiteThemes.All)
         {
             Assert.True(File.Exists(Path.Combine(CssDir(), ThemeFile(t))), t.CssPath);
@@ -207,15 +204,20 @@ public sealed partial class PublicSiteThemeContractTests(PostgresFixture fx)
 
     // Anahtar göçü: eski anahtarlar KALICI olarak yeni karşılığına normalize edilir (paylaşılmış ?tema= bağlantısı,
     // eski istemcinin PUT'u). Eski anahtar geçerli değer listesinde YOK — yeniden saklanamaz, ERP'de görünmez.
+    // T4: sökülen Pazar/Rota/Vitrin → Anahtar/Kıyas/Paket; daha eski tarife/kontuar doğrudan bugünkü temaya.
     [Theory]
-    [InlineData("tarife", "pazar")]
-    [InlineData(" TARIFE ", "pazar")]
-    [InlineData("Tarife", "pazar")]
-    [InlineData("kontuar", "rota")]
-    [InlineData("KONTUAR", "rota")]
-    [InlineData("pazar", "pazar")]
-    [InlineData(" Rota", "rota")]
-    [InlineData("vitrin", "vitrin")]
+    [InlineData("tarife", "anahtar")]
+    [InlineData(" TARIFE ", "anahtar")]
+    [InlineData("pazar", "anahtar")]
+    [InlineData("Pazar", "anahtar")]
+    [InlineData("kontuar", "kiyas")]
+    [InlineData("KONTUAR", "kiyas")]
+    [InlineData(" Rota", "kiyas")]
+    [InlineData("vitrin", "paket")]
+    [InlineData(" VITRIN ", "paket")]
+    [InlineData("anahtar", "anahtar")]
+    [InlineData("kiyas", "kiyas")]
+    [InlineData("paket", "paket")]
     public void Eski_anahtar_yeni_anahtara_normalize_edilir(string input, string expected)
     {
         Assert.Equal(expected, SiteThemeKeys.Normalize(input));
@@ -240,10 +242,12 @@ public sealed partial class PublicSiteThemeContractTests(PostgresFixture fx)
     [Fact]
     public void Eski_anahtarlar_gecerli_listede_yok_ve_esleme_yalniz_gecerli_anahtara_gider()
     {
-        Assert.Equal(new Dictionary<string, string> { ["tarife"] = "pazar", ["kontuar"] = "rota" },
+        Assert.Equal(new Dictionary<string, string>
+            {
+                ["pazar"] = "anahtar", ["tarife"] = "anahtar", ["rota"] = "kiyas", ["kontuar"] = "kiyas", ["vitrin"] = "paket",
+            },
             SiteThemeKeys.LegacyAliases.ToDictionary(x => x.Key, x => x.Value));
-        Assert.DoesNotContain("tarife", SiteThemeKeys.All);
-        Assert.DoesNotContain("kontuar", SiteThemeKeys.All);
+        Assert.All(SiteThemeKeys.LegacyAliases.Keys, k => Assert.DoesNotContain(k, SiteThemeKeys.All));
         Assert.All(SiteThemeKeys.LegacyAliases.Values, v => Assert.Contains(v, SiteThemeKeys.All));
     }
 
@@ -321,20 +325,5 @@ public sealed partial class PublicSiteThemeContractTests(PostgresFixture fx)
         var rest = css[(end + 1)..];
         var hits = ColorLiteral().Matches(rest).Select(m => m.Value).ToList();
         Assert.True(hits.Count == 0, $"{key}: primitive bloğu dışında renk literali: " + string.Join(", ", hits));
-    }
-
-    // Vitrin sahnesindeki model adı bağlantısı koyulaşan fotoğraf / grafit sahne üstünde durur: genel --focus
-    // (açık modda grafit) orada ~1:1 kalıyordu. Kural: bu seçicinin kendi :focus-visible kuralı var, açık dış
-    // halka (sahne mürekkebi) + koyu iç halka (sahne gölgesi) — ikisi birlikte her zeminde görünür.
-    [Fact]
-    public void Vitrin_sahne_model_baglantisi_cift_odak_halkasi_tasir()
-    {
-        var css = ReadCss(ThemeFile(SiteThemes.Vitrin));
-        var m = Regex.Match(css, @"\.v-sahne\s+a\.v-model:focus-visible\s*\{(?<body>[^}]*)\}");
-        Assert.True(m.Success, "tema-vitrin.css: .v-sahne a.v-model:focus-visible kuralı yok");
-        var body = m.Groups["body"].Value;
-        Assert.Matches(@"outline\s*:[^;]*var\(--stage-ink\)", body);
-        Assert.Matches(@"box-shadow\s*:[^;]*var\(--stage-shade\)", body);
-        Assert.DoesNotContain("--focus", body);
     }
 }
