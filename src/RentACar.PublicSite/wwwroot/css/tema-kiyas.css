@@ -217,7 +217,8 @@ main:has(> .bolum:last-child) { padding-bottom: 0; }
 .ky-seffaf li::before { content: ""; position: absolute; left: .15rem; top: .45em; width: .7rem; height: .35rem; border-left: 2px solid var(--ok); border-bottom: 2px solid var(--ok); transform: rotate(-45deg); }
 
 /* ---- En düşük günlük fiyat kutucukları ---- */
-.ky-enucuz { padding-block: var(--space-3) 0; }
+.ky-filo { padding-top: var(--space-3); }
+.ky-enucuz { padding-block: 0 var(--space-4); }
 .ky-enucuz-baslik { font-size: var(--step-1); margin-bottom: var(--space-2); }
 .ky-kutucuklar { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 170px), 1fr)); gap: .6rem; margin: 0; padding: 0; list-style: none; }
 .ky-kutucuklar a {
@@ -256,32 +257,35 @@ main:has(> .bolum:last-child) { padding-bottom: 0; }
 .ky-ilanlar { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 260px), 1fr)); gap: var(--space-2); margin: 0; padding: 0; list-style: none; }
 .ky-ilanlar > li { display: flex; min-width: 0; }
 .ky-kart {
-  position: relative; display: grid; grid-template-columns: minmax(0, 1fr); grid-template-rows: auto 1fr auto; width: 100%;
+  position: relative; display: grid; grid-template-columns: minmax(0, 1fr); grid-template-rows: auto auto 1fr auto; width: 100%;
   background: var(--card-bg); border: 1px solid var(--card-border); border-radius: var(--card-radius); overflow: hidden;
 }
 .ky-kart:hover { border-color: var(--line-strong); }
 .ky-kart:has(h3 a:focus-visible) { outline: 2px solid var(--focus); outline-offset: 3px; }
 .ky-kart h3 a:focus-visible { outline: none; }
 .ky-kart h3 a::after { content: ""; position: absolute; inset: 0; }
-.ky-kart-foto { display: grid; place-items: center; aspect-ratio: 4 / 3; background: var(--photo-box); color: var(--line-strong); border-bottom: 1px solid var(--line); }
+/* 16:10: kart kısa kalır — 1440'ta ilk ekranda en az bir kartın fiyatı görünür. */
+.ky-kart-foto { display: grid; place-items: center; aspect-ratio: 16 / 10; overflow: hidden; /* görsel kutuyu büyütmesin: tüm kartlarda aynı yükseklik */ background: var(--photo-box); color: var(--line-strong); border-bottom: 1px solid var(--line); }
 .ky-kart-foto img { display: block; width: 100%; height: 100%; object-fit: contain; }
 .siluet { width: 62%; max-width: 220px; height: auto; fill: currentColor; }
-.ky-kart-govde { padding: .85rem var(--space-2) 0; min-width: 0; }
+.ky-kart-bas { padding: .8rem var(--space-2) .7rem; min-width: 0; border-bottom: 1px dashed var(--line-strong); }
+.ky-kart-bas .ky-fiyat { margin-top: .45rem; }
+.ky-kart-govde { padding: .6rem var(--space-2) 0; min-width: 0; }
 .ky-kart h3 { margin: 0 0 .2rem; font-size: 1.1875rem; line-height: 1.25; }
 .ky-kart h3 a { color: var(--ink); text-decoration: none; }
 .ky-kart-meta { margin: 0; color: var(--ink-muted); font-size: var(--step--1); }
-.ky-teknik { margin: .3rem 0 0; color: var(--ink); font-size: .9375rem; }
+.ky-teknik { margin: 0; color: var(--ink); font-size: .9375rem; }
 .ky-rozetler { display: flex; flex-wrap: wrap; gap: .3rem; margin: .6rem 0 0; padding: 0; list-style: none; }
 .ky-rozetler li { padding: .15rem .5rem; border-radius: 4px; font-size: .8125rem; font-weight: 600; line-height: 1.5; }
 .ky-rozet-iyi { background: var(--rozet-iyi-bg); color: var(--rozet-iyi-ink); }
 .ky-rozet-dikkat { background: var(--rozet-dikkat-bg); color: var(--rozet-dikkat-ink); }
 .ky-rozet-notr { background: var(--bg-alt); color: var(--ink); }
-.ky-kart-fiyat { display: grid; gap: .15rem; align-content: end; margin-top: .85rem; padding: .85rem var(--space-2) var(--space-2); border-top: 1px dashed var(--line-strong); }
+.ky-kart-alt { display: grid; align-content: end; padding: .75rem var(--space-2) var(--space-2); }
 .ky-dokum { margin: 0; font: 500 .9375rem/1.3 var(--font-num); color: var(--ink-muted); }
 .ky-fiyat { display: flex; flex-wrap: wrap; align-items: baseline; gap: .1rem .5rem; margin: 0; }
 .ky-tutar { font: 500 1.625rem/1.15 var(--font-num); letter-spacing: -.02em; color: var(--price-ink); }
 .ky-kdv { color: var(--ink-muted); font-size: var(--step--1); }
-.ky-kart-eylem { position: relative; z-index: 1; display: flex; flex-wrap: wrap; gap: .5rem; margin-top: .6rem; }
+.ky-kart-eylem { position: relative; z-index: 1; display: flex; flex-wrap: wrap; gap: .5rem; }
 .ky-kart-eylem .btn { flex: 1 1 auto; min-height: 44px; }
 .ky-kart-wa::before { content: ""; flex: none; width: .55rem; height: .55rem; border-radius: 50%; background: var(--wa-bg); }
 .ky-isaret { position: absolute; top: .6rem; left: .6rem; z-index: 1; margin: 0; padding: .15rem .55rem; border-radius: 4px; background: var(--accent); color: var(--accent-ink); font-size: .8125rem; font-weight: 600; }

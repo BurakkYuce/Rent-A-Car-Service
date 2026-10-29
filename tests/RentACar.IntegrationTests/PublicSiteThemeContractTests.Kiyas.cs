@@ -120,6 +120,10 @@ public sealed partial class PublicSiteThemeContractTests
         Assert.Contains("₺1.800 × 3 gün", filtered);                                     // gün × fiyat dökümü
         Assert.Contains("₺5.400", filtered);                                             // 1.800 × 3 (elle)
         Assert.Contains($"href=\"/musaitlik?bas={Day(30)}&bit={Day(33)}\">Temizle", filtered);
+        // Kullanıcı kararı: kartta fiyat (toplam + döküm) adla aynı blokta, teknik satırdan ve rozetlerden ÖNCE.
+        var card = filtered[filtered.IndexOf("class=\"ky-kart\"", StringComparison.Ordinal)..];
+        Assert.True(card.IndexOf("ky-tutar", StringComparison.Ordinal) < card.IndexOf("ky-teknik", StringComparison.Ordinal));
+        Assert.True(card.IndexOf("ky-dokum", StringComparison.Ordinal) < card.IndexOf("ky-teknik", StringComparison.Ordinal));
 
         // Tanınmayan değer yok sayılır: iki ilan da listede.
         var unknown = WebUtility.HtmlDecode(await client.GetStringAsync("/musaitlik?vites=Yar%C4%B1+otomatik"));
