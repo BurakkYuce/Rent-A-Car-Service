@@ -8,8 +8,8 @@ namespace RentACar.IntegrationTests;
 /// Yatay taşma — YAPISAL kilitler (css kaynaktan okunur). Telefonda yana kayan sayfanın canlıda ölçülen dört kök
 /// nedeni kural olarak burada: (1) çıplak <c>fr</c> izi — alt sınırı içeriğin min-content genişliği (tarih alanı
 /// ~170 px, iki sütunda 320 px'i aşar); (2) alan şablonlu ya da tek sütunlu ızgaranın örtük <c>auto</c> sütunu — en
-/// geniş çocuğa göre büyür; (3) bölünemeyen uzun bağlantı metni (e-posta adresi, Vitrin 390 px'te 157 px);
-/// (4) açılışta dönen öğe (Pazar fiyat etiketi salınımı ~2 sn 5–8 px). Ölçümün kendisi tarayıcı ister:
+/// geniş çocuğa göre büyür; (3) bölünemeyen uzun bağlantı metni (e-posta adresi, sökülen Vitrin 390 px'te 157 px);
+/// (4) açılışta dönen öğe (sökülen Pazar'ın fiyat etiketi salınımı ~2 sn 5–8 px). Ölçümün kendisi tarayıcı ister:
 /// <c>scripts/site-tasma.mjs</c> (animasyon sırasında + sonrasında, 320/390 px; CI'da değil — PublicSite + veri ister).
 /// </summary>
 public sealed partial class PublicSiteThemeContractTests
@@ -130,7 +130,6 @@ public sealed partial class PublicSiteThemeContractTests
     [Theory]
     [InlineData("base.css", ".alan")]
     [InlineData("base.css", ".detay")]
-    [InlineData("tema-vitrin.css", ".v-detay-ic")]
     public void Tek_sutunlu_izgara_icerige_gore_genislemez(string file, string selector)
     {
         var rule = Rules(ReadCss(file)).FirstOrDefault(r => r.Selector == selector);
@@ -189,8 +188,6 @@ public sealed partial class PublicSiteThemeContractTests
     {
         var css = ReadCss(ThemeFile(SiteThemes.Resolve(key)));
         var rotates = KeyframeBodies(css).Any(b => Rotation().IsMatch(b));
-        // Kapsam (oracle): Pazar'ın imza anı dönen fiyat etiketi — denetim boşa koşmasın.
-        if (key == "pazar") Assert.True(rotates, "pazar: pz-asil anahtar karesinde rotate bekleniyordu");
         if (!rotates) return;
         Assert.Contains(Rules(css), r => r.Selector == "main" && OverflowXClip().IsMatch(r.Body));
     }

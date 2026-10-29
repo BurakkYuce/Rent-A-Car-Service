@@ -167,7 +167,7 @@ export const PRICE_TYPES = [
  * Halka açık site temaları (`SiteThemeKeys.All`; sunucu yalnız bunları saklar). Boş = varsayılan (anahtar, ilk
  * eleman); formda boş seçenek yok, yüklenen null değer "anahtar" gibi gösterilir.
  */
-export const SITE_THEMES = ['anahtar', 'kiyas', 'paket', 'pazar', 'vitrin', 'rota'] as const;
+export const SITE_THEMES = ['anahtar', 'kiyas', 'paket'] as const;
 export type SiteTheme = (typeof SITE_THEMES)[number];
 
 export type SitePaletteOption = Schema<'SitePaletteOptionDto'>;
@@ -181,8 +181,11 @@ export function isHexColor(value: unknown): value is string {
 
 /** Eski anahtar → yeni (`SiteThemeKeys.LegacyAliases`; sunucu da aynı eşlemeyle normalize eder). */
 const LEGACY_SITE_THEMES: Readonly<Partial<Record<string, SiteTheme>>> = {
-  tarife: 'pazar',
-  kontuar: 'rota',
+  pazar: 'anahtar',
+  tarife: 'anahtar',
+  rota: 'kiyas',
+  kontuar: 'kiyas',
+  vitrin: 'paket',
 };
 
 /**
@@ -278,7 +281,7 @@ export function settingsFormValue(
     out[name] = (SECRET_FIELDS as readonly string[]).includes(name) ? null : (source[name] ?? null);
   }
   for (const flag of CLEAR_FLAG_NAMES) out[flag] = false;
-  // Kayıtlı tema yoksa site varsayılanı (pazar) basıyor: radyo da onu seçili göstersin; eski anahtar yeni karşılığı.
+  // Kayıtlı tema yoksa site varsayılanı (anahtar) basıyor: radyo da onu seçili göstersin; eski anahtar yeni karşılığı.
   out.siteTemasi = siteThemeFormValue(out.siteTemasi);
   return out;
 }
