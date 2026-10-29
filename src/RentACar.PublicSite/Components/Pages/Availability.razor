@@ -99,7 +99,7 @@
             // ---- (a) TARİH SEÇİLMİŞ: gerçek müsaitlik + dönem toplamı. Gün sayısı aralığın kendisinden
             // (BookingMath) — tüm sonuçlarda aynı.
             var (fromDay, toDay) = (DateOnly.FromDateTime(_start!.Value.Date), DateOnly.FromDateTime(_end!.Value.Date));
-            var all = _results.Select((r, i) => ListingCard.From(r, QuoteLink.Build(r.Slug, Start, End, Branch, r.GunlukFiyat),
+            var all = _results.Select((r, i) => ListingCard.From(r, QuoteLink.Build(r.Slug, Start, End, Branch, r.GunlukFiyat, StartTime, EndTime),
                 r.Slug == Listing ? "Baktığınız araç" : null, i == 0) with
             {
                 WhatsAppLink = WhatsAppAsk.Link(_branding, r.Baslik, fromDay, toDay, _fromTime, _toTime),
@@ -129,7 +129,7 @@
 
         // ---- (b) TARİH YOK: misafir filoyu serbestçe geziyor. BURADA "müsait" DENMEZ: tarih olmadan hangi aracın
         // boşta olduğu bilinemez. Kart adet etiketi de "9 araç" der, "9 araç müsait" demez (ListingCard, Card slotu).
-        var allFleet = _fleet.Select((k, i) => ListingCard.From(k, QuoteLink.Build(k.Slug, Start, End, Branch, k.GunlukFiyat),
+        var allFleet = _fleet.Select((k, i) => ListingCard.From(k, QuoteLink.Build(k.Slug, Start, End, Branch, k.GunlukFiyat, StartTime, EndTime),
             k.Slug == Listing ? "Baktığınız araç" : null, i == 0) with { WhatsAppLink = WhatsAppAsk.Link(_branding, k.Baslik) }).ToList();
         var (fleet, fleetFilter) = ApplyFilter(allFleet);
         return new FleetModel(fleet, FleetPlacement.Availability)

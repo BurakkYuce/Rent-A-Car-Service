@@ -11,12 +11,18 @@ namespace RentACar.PublicSite;
 public static class QuoteLink
 {
     public static string Build(string slug, string? start = null, string? end = null, string? branch = null,
-        decimal? dailyPrice = null)
+        decimal? dailyPrice = null, string? startTime = null, string? endTime = null)
     {
         var q = System.Web.HttpUtility.ParseQueryString(string.Empty);
         q["ilan"] = slug; // slug: form ilanı yeniden çözer (yayından kalkmışsa fiyat/başlık taşınmaz)
         if (!string.IsNullOrWhiteSpace(start)) q["bas"] = start;
         if (!string.IsNullOrWhiteSpace(end)) q["bit"] = end;
+        // Saat yalnız İKİSİ de geçerliyse taşınır (/musaitlik ile aynı kural); tek saat formda varsayılana düşerdi.
+        if (SiteDate.ParseTime(startTime) is not null && SiteDate.ParseTime(endTime) is not null)
+        {
+            q["basSaat"] = startTime;
+            q["bitSaat"] = endTime;
+        }
         if (!string.IsNullOrWhiteSpace(branch)) q["sube"] = branch;
         if (dailyPrice is { } p) q["fiyat"] = p.ToString(CultureInfo.InvariantCulture);
         return "/rezervasyon-talebi?" + q;

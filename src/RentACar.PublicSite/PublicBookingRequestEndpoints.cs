@@ -20,6 +20,18 @@ public static class PublicBookingRequestEndpoints
         app.MapPost("/rezervasyon-talebi/gonder", async (HttpRequest req, PublicBookingRequestService svc) =>
         {
             var f = req.Form;
+            var (start, end) = (ParseDate(f["bas"].ToString()), ParseDate(f["bit"].ToString()));
+            // Saat yalnız İKİ tarih ve İKİ saat de geçerliyse kullanılır (/musaitlik ile aynı kural): İstanbul gün+saati
+            // → UTC (Npgsql timestamptz yalnız UTC yazar). Biri bile yoksa ESKİ davranış: günün UTC gece yarısı.
+            var hasTime = false;
+            if (start is not null && end is not null
+                && SiteDate.ParseTime(f["basSaat"].ToString()) is { } fromTime
+                && SiteDate.ParseTime(f["bitSaat"].ToString()) is { } toTime)
+            {
+                start = SiteDate.At(DateOnly.FromDateTime(start.Value.Date), fromTime).ToUniversalTime();
+                end = SiteDate.At(DateOnly.FromDateTime(end.Value.Date), toTime).ToUniversalTime();
+                hasTime = true;
+            }
             var input = new PublicBookingRequestInput
             {
                 AdSoyad = f["adSoyad"].ToString(),
@@ -34,8 +46,9 @@ public static class PublicBookingRequestEndpoints
                 Sube = f["sube"].ToString(),
                 Not = f["not"].ToString(),
                 Website = f["website"].ToString(), // HONEYPOT — gerçek kullanıcı boş bırakır
-                BasTar = ParseDate(f["bas"].ToString()) ?? default,
-                BitTar = ParseDate(f["bit"].ToString()) ?? default,
+                BasTar = start ?? default,
+                BitTar = end ?? default,
+                HasTime = hasTime,
             };
 
             try
