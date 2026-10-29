@@ -19,10 +19,10 @@ açık kararıyla ve `docs/roadmap/DEGISIKLIKLER.md` kaydıyla olur. Çekirdekte
 
 ## 1. Durum (her merge'den sonra güncelle)
 
-Güncelleme: 2026-09-26. **ANGULAR GEÇİŞİ KODDA KAPANDI: F4–F12 ve F13 söküm main'de** (#348 F13.0 karar + F12 kesiş,
+Güncelleme: 2026-10-29 (geçiş sonrası işler aşağıda "2026-09-30 – 10-29"). **ANGULAR GEÇİŞİ KODDA KAPANDI: F4–F12 ve F13 söküm main'de** (#348 F13.0 karar + F12 kesiş,
 #349 F13.1a sayfalar + form uçları, #350 F13.1b kabuk + pilot kapısı + 301, F13.2 belgeler). Web'de Blazor yok (`@page`
 = 0); arayüz yalnız `/app` (Angular), veri yalnız `/api/ui/v1`; eski adresler herkes için 301. Pilot kapısı kalktı
-(`YeniArayuzPilot` kolonu kullanılmıyor, ayrı migration'la düşecek). **CANLIYA YAYIN YOK** — F2.2 sunucu adımları
+(`YeniArayuzPilot` kolonu `DropYeniArayuzPilot` migration'ıyla düştü). **CANLIYA YAYIN YOK** — F2.2 sunucu adımları
 (`docs/ops/f2-2-sunucu-adimlari.md`) ve `/app` üretim doğrulaması kullanıcıda; yayından önce canlı duman testi (README
 "Doğrulama"). Ajanlar `deploy/yayinla.sh` çalıştırmaz. Kalan: Low'lar (§6), aşağıdaki "Sırada".
 
@@ -118,14 +118,38 @@ olabilir). Açık PR yoksa "Sırada" listesinin ilk maddesi.
     çağrı onaysız olamaz) ve `NonApiEndpointAuthorizationTests` (Api dışı her uçta açık yetki kararı).
   - #350: kabuk, Radzen, circuit kimliği (`HttpContextIdentity` tek kaynak), `wwwroot` silindi; eski adresler herkes
     için 301; LoginPath `/app/giris`, 403/404/500 → `/app/panel?hata=`; `/auth/login` silindi (`/auth/logout` #352'de: CSRF'siz, kaldırıldı); pilot kapısı ve platform pilot anahtarı kalktı. Güvenlik incelemesi hedefleri PR açıklamasında.
+- **2026-09-30 – 10-29: geçiş sonrası işler** (canlıya yayın HÂLÂ YOK — kullanıcı kararı, aşağıda F2.2).
+  - **Firma sitesi (PublicSite, kendi Blazor'u) temaları:** #353 firma kimliği (vurgu rengi, logo ucu, kontrast güvenceli
+    palet), #354/#359 SEO, #355–#358 ilk temalar + tema altyapısı (`SiteTemasi`, `?tema=` önizleme, slotlar), #360/#384/
+    #385/#392 düzeltmeler. #386 slot genişletme + anahtar göçü (tarife→pazar, kontuar→rota), **#387 palet altyapısı**
+    (tema başına hazır renk setleri + firmanın kendi ana rengi), #388–#390 Rota/Pazar/Vitrin. #399 firma bilgi alanları,
+    #400 dolu + saatli arama formu ve WhatsApp'tan sor. Yeni temalar: #401 **Anahtar** (yeni varsayılan), #403
+    **Kıyas**, #404 **Paket**. #405: eski temalar (Pazar/Rota/Vitrin) söküldü; kayıtlı değerler kalıcı eşleme + veri
+    migration'ıyla yeni temalara geçer. Tema sözleşmesi: `src/RentACar.PublicSite/Components/Themes/README.md`.
+  - **Kabul testi düzeltme serisi (2026-10-04, #361–#383):** sitede gösterilen fiyat rezervasyon/kira/faturaya birebir
+    (#361); PARA: TL tarife dövizli kirada kurla (#362), tarife-aktar tüm sütunlar (#365), adla kayıtlı araç grubu
+    (#368); araç durumu korumaları (#364), km limiti snapshot (#366), geç dönüş (#372, #376), yaşlandırma FIFO (#367),
+    KDV listesi alış tarafı (#369), raporlar/export (#370, #373; KVKK maskesi #375, #378); yetki: seed operatör (#363),
+    rol/şube güncellenebilir (#374), silmeler OperationsDelete (#371, #383), şube adı çözümü tek kural (#379); SPA
+    (#377, #380–#382).
+  - **#393 KABİS iç akış** (kimliksiz: kuyruk, yeniden deneme, ayarlar, kira kartı, panel; gerçek bildirim yok).
+  - **#394 e-Fatura/e-Arşiv altyapısı** (UBL-TR üretici, kuyruk, ayarlar, durum; adaptör YOK; `TestGonderildi` ≠
+    gönderildi). 5 Low PR #394 yorumunda — **adaptör PR'ından ÖNCE kapanmalı.**
+  - **#391 HGS** dosyadan içe aktar + kiraya eşleştir + yansıt (PARA; açık Low #391 yorumunda) ve **#397 Blazor dönemi
+    saat kayması veri düzeltmesi** (kapılı, geri alınabilir; `docs/ops/blazor-saat-kaymasi.md`). **Canlıda HGS içe
+    aktarma, o belgenin §5 adım 6 doğrulaması yapılmadan kullanılmaz.**
+  - **#395 yetki tur 3:** şube yazmaları yalnız Admin, dönem kilidini açmak FinanceReverse. Test kararlılığı #396, #402.
+  - **#398 `docs/harita.md`:** "X nerede?" sorusunun tek giriş noktası.
+  - Satış (pazarlama) sitesi ayrı repoda: `github.com/BurakkYuce/rentpro-site` — bu repoda değil.
 
 ### ⏳ Açık PR
-- F13 PR'ları merge edildikten sonra: yok. Gerçek durum için `rtk gh pr list --state open`.
+- 2026-10-29: #406 (bu belge), #407 (HGS #391 L1), #408 (site kod adları İngilizce), #409 (`YeniArayuzPilot` düşür).
+  Gerçek durum için `rtk gh pr list --state open`.
 
 ### ⬜ Sırada (başlamadı)
 1. ~~F12 kesiş~~ ve ~~F13 söküm~~ **BİTTİ (2026-09-26).** Yayın öncesi (kullanıcıda): F2.2 sunucu adımları → `/app`
    üretim doğrulaması → canlı duman testi (README "Doğrulama"; 301'ler, giriş, 403/404 bandı, platform konsolu). Ayrı
-   küçük temizlikler: SPA'daki ölü `ben.pilot === false` dalı; `YeniArayuzPilot` kolonunu düşüren migration;
+   küçük temizlikler: SPA'daki ölü `ben.pilot === false` dalı; ~~`YeniArayuzPilot` kolonunu düşüren migration~~ (bitti);
    `PlatformIsolation` atlama listesindeki `/_blazor|_framework|_content`.
 2. **Low kalıntıları** (§6 "2026-09-25 Low'ları" — kalanlar: #320 L2 tekrar-öncesi doğrulama ile POST arası TOCTOU
    [kalıcı çözüm sunucuda beklenen kullanıcı başlığı], #331 L1 başarısız sekmeler arası yenilemede yeniden deneme yok,
@@ -142,6 +166,7 @@ olabilir). Açık PR yoksa "Sırada" listesinin ilk maddesi.
 ### 🧑 Kullanıcıda bekleyenler (cevap gelmeden ilgili işe dokunma)
 - **F2.2 sunucu adımları:** `docs/ops/f2-2-sunucu-adimlari.md`. Bitmeden `/app` üretimde yok. **F13 söküm main'de
   olduğu için bu adımlar ve `/app` üretim doğrulaması tamamlanmadan HİÇBİR YAYIN YAPILMAZ** (yoksa arayüz kalmaz).
+  İlk yayında `docs/ops/blazor-saat-kaymasi.md` §5 (#397) de izlenir; adım 6 doğrulanmadan HGS içe aktarma kullanılmaz.
 - referans sistem parolası değişimi + GitGuardian olayı 37502190'ın kapatılması.
 - **GitGuardian 37582605 YANLIŞ ALARM** — `IlkKesisTests.cs` yönlendirme yol listesinde `"kullanicilar"` ile
   `"profil/sifre-degistir"` yan yana; kimlik bilgisi yok. Main'i birleştiren her PR'da kırmızı görünür; panelde

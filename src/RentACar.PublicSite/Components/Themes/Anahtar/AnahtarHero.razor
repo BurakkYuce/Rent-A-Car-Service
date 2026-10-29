@@ -1,13 +1,13 @@
 @using RentACar.Application.Fleet
 
-@* Tema "anahtar" — Hero slotu. İmza SABİT (Components/Themes/README.md): Marka, Branding, Subeler, Kartlar, Sehir.
+@* Tema "anahtar" — Hero slotu. İmza SABİT (Components/Themes/README.md): BrandName, Branding, Branches, Cards, Area.
 
    İlk ekranın işi "bu firmayı ara": solda firmanın kendisi — ad (h1), hizmet bölgesi, güven satırı (kuruluş yılı,
    Google puanı bağlantısıyla, bugünkü çalışma saati) ve iki büyük iletişim düğmesi (WhatsApp, Ara). Sağda (telefonda
    altta) "tezgâh": kompakt arama ve firmanın kısa koşulları (depozito, km, yaş). Fotoğraf YOK: fotoğrafsız firmada da
    aynı görünür. Her öğe yalnız verisi varsa basılır (T2); boş kutu yok.
 
-   "Bugün açık" satırı şube verisinden (AnahtarHome hesaplar, `AnahtarBugun` adlı basamaklı değerle gelir — Hero'nun
+   "Bugün açık" satırı şube verisinden (AnahtarHome hesaplar, `AnahtarTodayHours` adlı basamaklı değerle gelir — Hero'nun
    parametre imzası sabit). Saat aralığıyla yazılır ("Bugün 09:00–18:00 açık"): sayfa hangi saatte açılırsa açılsın
    doğru kalır. Açılış animasyonu YOK: arama formu ilk karede kullanılabilir. *@
 
@@ -15,18 +15,18 @@
     <div class="wrap an-hero-ic">
         <div class="an-kimlik">
             <h1 id="hero-baslik">
-                @if (!string.IsNullOrWhiteSpace(Marka))
+                @if (!string.IsNullOrWhiteSpace(BrandName))
                 {
-                    <span class="an-ad">@Marka</span><span class="gorunmez">, </span>
+                    <span class="an-ad">@BrandName</span><span class="gorunmez">, </span>
                 }
-                <span class="an-is">@(string.IsNullOrWhiteSpace(Sehir) ? "Araç kiralama" : $"{Sehir} bölgesinde araç kiralama")</span>
+                <span class="an-is">@(string.IsNullOrWhiteSpace(Area) ? "Araç kiralama" : $"{Area} bölgesinde araç kiralama")</span>
             </h1>
 
-            @if (_founded is not null || _rating is not null || Bugun is not null)
+            @if (_founded is not null || _rating is not null || TodayHours is not null)
             {
                 <ul class="an-guven">
                     @if (_founded is not null) { <li class="an-guven-yil">@_founded</li> }
-                    @if (_rating is not null && Branding?.Bilgi is { } facts)
+                    @if (_rating is not null && Branding?.Facts is { } facts)
                     {
                         <li class="an-guven-puan">
                             <a href="@facts.GoogleProfilUrl" target="_blank" rel="noopener noreferrer">
@@ -36,7 +36,7 @@
                             </a>
                         </li>
                     }
-                    @if (Bugun is not null) { <li class="an-guven-acik">@Bugun</li> }
+                    @if (TodayHours is not null) { <li class="an-guven-acik">@TodayHours</li> }
                 </ul>
             }
 
@@ -57,7 +57,7 @@
 
         <div class="an-tezgah">
             <h2 class="an-tezgah-baslik">Tarih seçin, fiyatı görün</h2>
-            <AramaFormu Hedef="/musaitlik" Subeler="Subeler" ButonMetni="Fiyatları göster" AriaLabel="Tarihe göre araç ve fiyat ara" />
+            <SearchForm Action="/musaitlik" Branches="Branches" ButtonText="Fiyatları göster" AriaLabel="Tarihe göre araç ve fiyat ara" />
             @if (_chips.Count > 0)
             {
                 <ul class="an-cipler" aria-label="Kiralama koşulları">
@@ -70,18 +70,18 @@
 
 @code {
     /// <summary>Marka adı (boşsa başlık yalnız hizmeti söyler).</summary>
-    [Parameter] public string? Marka { get; set; }
+    [Parameter] public string? BrandName { get; set; }
     /// <summary>Firma bilgisi (iletişim, kuruluş yılı, Google puanı, koşullar).</summary>
     [Parameter] public FleetBranding? Branding { get; set; }
     /// <summary>Aktif şube adları (arama formunun seçim kutusu).</summary>
-    [Parameter] public IReadOnlyList<string> Subeler { get; set; } = [];
+    [Parameter] public IReadOnlyList<string> Branches { get; set; } = [];
     /// <summary>Yayındaki ilanlar (bu hero fotoğraf kullanmaz; imza gereği alınır).</summary>
-    [Parameter] public IReadOnlyList<FleetShowcaseCard> Kartlar { get; set; } = [];
+    [Parameter] public IReadOnlyList<FleetShowcaseCard> Cards { get; set; } = [];
     /// <summary>Hizmet bölgesi ("Konak, İzmir"); null → başlık yalnız "Araç kiralama".</summary>
-    [Parameter] public string? Sehir { get; set; }
+    [Parameter] public string? Area { get; set; }
 
     /// <summary>"Bugün 09:00–18:00 açık" (AnahtarHome hesaplar); null → satır yok.</summary>
-    [CascadingParameter(Name = "AnahtarBugun")] public string? Bugun { get; set; }
+    [CascadingParameter(Name = "AnahtarTodayHours")] public string? TodayHours { get; set; }
 
     private ContactLinks _contact = ContactLinks.From(null);
     private string? _founded;
@@ -90,9 +90,9 @@
 
     protected override void OnParametersSet()
     {
-        _contact = ContactLinks.From(Branding, Marka);
-        _founded = SiteFactsText.Founded(Branding?.Bilgi);
-        _rating = SiteFactsText.Rating(Branding?.Bilgi);
-        _chips = SiteFactsText.Chips(Branding?.Bilgi);
+        _contact = ContactLinks.From(Branding, BrandName);
+        _founded = SiteFactsText.Founded(Branding?.Facts);
+        _rating = SiteFactsText.Rating(Branding?.Facts);
+        _chips = SiteFactsText.Chips(Branding?.Facts);
     }
 }

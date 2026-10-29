@@ -237,15 +237,6 @@ public class TenantSettings : ITenantOwned, IAuditable
     /// </summary>
     public string? SitePaleti { get; set; }
 
-    /// <summary>
-    /// Angular geçişi F1.2 — bu firma yeni arayüzün (<c>/app</c> + <c>/api/ui/v1</c>) PİLOTUNDA mı.
-    /// Varsayılan <c>false</c>: <c>/api/ui/v1</c>'in <c>oturum/*</c> ve <c>istemci-hata</c> dışındaki
-    /// HER ucu pilot olmayan firmaya 403 <c>pilot_degil</c> döner (sunucu filtresi, UI gizlemesi değil).
-    /// Gerekçe: F4 öncesinde üretime çıkan para uçları hiçbir firmaya kendiliğinden açılmamalı.
-    /// Ayar satırı LAZY oluştuğu için satırı olmayan firma da pilot DEĞİLDİR.
-    /// </summary>
-    public bool YeniArayuzPilot { get; set; }
-
     // ---- KABİS (Kiralık Araç Bildirim Sistemi; additive, hepsi boş/false varsayılan) ----
     // Ayar boşken davranış BAYT-ÖZDEŞ: kuyruk kaydı oluşmaz, teslim engellenmez. Ayrıntı: docs/entegrasyon/kabis.md.
     // Bu alanlar TenantSettingsService'in tam değiştirme kaydına GİRMEZ; yalnız KabisSettingsService yazar.

@@ -467,9 +467,8 @@ public sealed class TabloDuzeniApiTests(WebFixture fx)
         var adminLayout = (await Json(await admin.GetAsync(Root + code))).GetProperty("duzen");
         Assert.Equal("plaka", adminLayout.GetProperty("sutunlar")[0].GetProperty("kod").GetString());
 
-        // Başka pilot firma: aynı tablo kodu, düzen yok.
+        // Başka firma: aynı tablo kodu, düzen yok.
         var other = await fx.CompanyAndUserAsync("Tablo Diğer Pilot");
-        await fx.MakePilotAsync(await fx.TenantIdAsync(other.Firma), true);
         var (d, _) = await Login(other);
         Assert.Equal(JsonValueKind.Null, (await Json(await d.GetAsync(Root + code))).GetProperty("duzen").ValueKind);
     }

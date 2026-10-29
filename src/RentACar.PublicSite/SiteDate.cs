@@ -42,10 +42,10 @@ public static class SiteDate
     /// Arama formunun dolu gelen tarihleri: girilen değer korunur; boşsa alış = yarın (İstanbul), iade = alış +
     /// <see cref="DefaultDays"/>. Biçimsiz alış tarihi de yarına düşer (form zaten geçersiz değeri basamaz).
     /// </summary>
-    public static (string Bas, string Bit) FormDates(string? bas, string? bit, DateTimeOffset now)
+    public static (string Start, string End) FormDates(string? startDay, string? endDay, DateTimeOffset now)
     {
-        var start = ParseDay(bas) ?? Today(now).AddDays(1);
-        var end = ParseDay(bit) ?? start.AddDays(DefaultDays);
+        var start = ParseDay(startDay) ?? Today(now).AddDays(1);
+        var end = ParseDay(endDay) ?? start.AddDays(DefaultDays);
         return (Iso(start), Iso(end));
     }
 

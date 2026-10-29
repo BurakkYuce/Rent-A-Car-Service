@@ -19,7 +19,7 @@ public sealed partial class PublicSiteThemeContractTests
     private static ListingCard Car(string slug, decimal daily, params (string Label, string Value)[] features)
         => new(slug, slug, null, null, daily, true, [], 1, null, null, "/t")
         {
-            TumOzellikler = [.. features.Select(f => new OzellikGoster(f.Label, f.Value))],
+            AllFeatures = [.. features.Select(f => new FeatureItem(f.Label, f.Value))],
         };
 
     private static Dictionary<string, string[]> Pick(params (string Key, string[] Values)[] picks)

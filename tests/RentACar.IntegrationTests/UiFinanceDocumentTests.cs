@@ -79,7 +79,6 @@ public sealed partial class UiFinanceDocumentTests(WebFixture fx)
             }
             await db.SaveChangesAsync();
         }
-        await fx.MakePilotAsync(tenantId, true);
 
         return await ReadAsync(tenantId, async sp =>
         {

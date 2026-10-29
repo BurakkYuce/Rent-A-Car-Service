@@ -140,7 +140,7 @@ public sealed partial class PublicSiteThemeContractTests(PostgresFixture fx)
             {
                 Assert.Matches(PaletteKeyFormat(), p.Key);
                 Assert.Equal(p.Key, SitePaletteKeys.Normalize(p.Key));
-                var expected = new SitePaletteOption(p.Key, p.Ad, p.Light.Bg, p.Light.Ink, p.Light.Primary, p.Light.Accent,
+                var expected = new SitePaletteOption(p.Key, p.Name,p.Light.Bg, p.Light.Ink, p.Light.Primary, p.Light.Accent,
                     p.Dark.Bg);
                 Assert.True(expected == o, $"{theme.Key}/{p.Key}: SitePaletteKeys satırı {expected} olmalı, {o} yazılı");
                 foreach (var hex in new[] { p.Light.Bg, p.Light.Surface, p.Light.Ink, p.Light.Primary, p.Dark.Bg,
@@ -257,16 +257,16 @@ public sealed partial class PublicSiteThemeContractTests(PostgresFixture fx)
     {
         ["Hero"] =
         [
-            ("Marka", typeof(string)), ("Branding", typeof(FleetBranding)),
-            ("Subeler", typeof(IReadOnlyList<string>)), ("Kartlar", typeof(IReadOnlyList<FleetShowcaseCard>)),
-            ("Sehir", typeof(string)),
+            ("BrandName", typeof(string)), ("Branding", typeof(FleetBranding)),
+            ("Branches", typeof(IReadOnlyList<string>)), ("Cards", typeof(IReadOnlyList<FleetShowcaseCard>)),
+            ("Area", typeof(string)),
         ],
-        ["Card"] = [("Kart", typeof(ListingCard)), ("Tarih", typeof(StayDates))],
+        ["Card"] = [("Card", typeof(ListingCard)), ("Dates", typeof(StayDates))],
         ["Header"] = [("Branding", typeof(FleetBranding)), ("Nav", typeof(IReadOnlyList<SiteLink>))],
         ["Footer"] =
         [
-            ("Branding", typeof(FleetBranding)), ("Sayfalar", typeof(IReadOnlyList<SiteLink>)),
-            ("YasalSayfalar", typeof(IReadOnlyList<SiteLink>)),
+            ("Branding", typeof(FleetBranding)), ("Pages", typeof(IReadOnlyList<SiteLink>)),
+            ("LegalPages", typeof(IReadOnlyList<SiteLink>)),
         ],
         ["Home"] = [("Model", typeof(HomeModel))],
         ["Fleet"] = [("Model", typeof(FleetModel))],

@@ -37,9 +37,9 @@ public sealed class ThemeAccessor(FleetShowcaseService showcase, IHttpContextAcc
             // Tenant çözülemedi (ör. 404 kabuğu) → önizleme ya da varsayılan görünüm; sayfa yine basılır.
         }
 
-        var theme = SiteThemes.Resolve(preview.Theme ?? branding?.Tema);
-        var palette = SitePaletteCss.Find(theme, preview.Palette) ?? SitePaletteCss.Resolve(theme, branding?.Paleti);
-        var color = preview.Color ?? (Rgb.TryParse(branding?.VurguRengi, out var c) ? c.Hex : null);
+        var theme = SiteThemes.Resolve(preview.Theme ?? branding?.Theme);
+        var palette = SitePaletteCss.Find(theme, preview.Palette) ?? SitePaletteCss.Resolve(theme, branding?.Palette);
+        var color = preview.Color ?? (Rgb.TryParse(branding?.AccentColor, out var c) ? c.Hex : null);
         return _appearance = new SiteAppearance(theme, palette, color);
     }
 }

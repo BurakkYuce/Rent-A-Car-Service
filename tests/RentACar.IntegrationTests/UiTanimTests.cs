@@ -59,7 +59,6 @@ public sealed partial class UiTanimTests(WebFixture fx)
             }
             await db.SaveChangesAsync();
         }
-        await fx.MakePilotAsync(e.TenantId, true);
         return e;
     }
 

@@ -4,7 +4,7 @@
    Son öğe bulunulan sayfadır: bağlantı değil, `aria-current="page"`. JSON-LD yalnız kanonik kök
    varsa basılır (şema MUTLAK adres ister; yarım veri basmaktansa hiç basmamak doğru).
    `MarkupString` güvenli: System.Text.Json varsayılan kodlayıcısı `<`/`>`/`&` kaçırır — firma
-   verisinden `</script>` üretilemez (YapisalVeri.razor ile aynı gerekçe). *@
+   verisinden `</script>` üretilemez (StructuredData.razor ile aynı gerekçe). *@
 
 <nav class="yol wrap" aria-label="Sayfa yolu">
     <ol>
@@ -38,7 +38,7 @@
 
     /// <summary>Kanonik kök (https://host). Verilmezse bileşen KENDİSİ kanonik host'tan çözer (istek host'u
     /// DEĞİL); o da yoksa (site yayında değil) JSON-LD basılmaz.</summary>
-    [Parameter] public string? KanonikKok { get; set; }
+    [Parameter] public string? CanonicalRoot { get; set; }
 
     [Inject] private RentACar.Application.Fleet.FleetShowcaseService Showcase { get; set; } = default!;
 
@@ -46,7 +46,7 @@
 
     protected override async Task OnParametersSetAsync()
     {
-        var given = KanonikKok;
+        var given = CanonicalRoot;
         if (string.IsNullOrWhiteSpace(given))
         {
             try { given = await Showcase.GetCanonicalRootAsync(); }

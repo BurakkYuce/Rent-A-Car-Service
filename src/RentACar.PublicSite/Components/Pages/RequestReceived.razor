@@ -3,11 +3,11 @@
 @using RentACar.Application.Fleet
 @inject FleetShowcaseService Showcase
 
-@* Talep sonrası sayfa. "Sırada ne var" adımları SİSTEMİN akışı (BolumNasilCalisir ile aynı gerçek):
+@* Talep sonrası sayfa. "Sırada ne var" adımları SİSTEMİN akışı (HowItWorksSection ile aynı gerçek):
    talep bir lead kaydıdır, personel arar, onaylanırsa sözleşme hazırlanır — firma adına süre vaadi
    (ör. "15 dakikada döneriz") YAZILMAZ (T1). Beklemek istemeyen için iletişim kanalları (varsa). *@
 
-<PageTitle>Talebiniz alındı — @(_branding?.Marka ?? "RentPro")</PageTitle>
+<PageTitle>Talebiniz alındı — @(_branding?.BrandName ?? "RentPro")</PageTitle>
 
 <div class="wrap-dar sayfa-ust">
     <div class="onay-isaret" aria-hidden="true"></div>
@@ -41,9 +41,9 @@
         try
         {
             _branding = await Showcase.GetBrandingAsync();
-            _phone = string.IsNullOrWhiteSpace(_branding.Tel) ? _branding.MobilTel : _branding.Tel;
+            _phone = string.IsNullOrWhiteSpace(_branding.Phone) ? _branding.MobilePhone : _branding.Phone;
             _telLink = PhoneLink.Tel(_phone);
-            _waLink = PhoneLink.Wa(string.IsNullOrWhiteSpace(_branding.WhatsApp) ? _branding.MobilTel : _branding.WhatsApp,
+            _waLink = PhoneLink.Wa(string.IsNullOrWhiteSpace(_branding.WhatsApp) ? _branding.MobilePhone : _branding.WhatsApp,
                 "Merhaba, sitenizden araç kiralama talebi bıraktım.");
         }
         catch

@@ -6,7 +6,7 @@
 @* Blog yazısı için JSON-LD (schema.org BlogPosting) — arama motorları ve AI arama yüzeyleri
    yazının başlığını, tarihini ve yayıncısını böyle okur.
 
-   `MarkupString` BURADA GÜVENLİ, gerekçesi YapisalVeri.razor'daki ile AYNI: çıktı
+   `MarkupString` BURADA GÜVENLİ, gerekçesi StructuredData.razor'daki ile AYNI: çıktı
    System.Text.Json ile ÜRETİLİYOR ve varsayılan JavaScriptEncoder `<` `>` `&` karakterlerini
    kaçırdığı için tenant verisi ne içerirse içersin `</script>` dizisi üretilemez. *@
 
@@ -16,10 +16,10 @@
 }
 
 @code {
-    [Parameter, EditorRequired] public BlogDetail? Yazi { get; set; }
-    [Parameter] public FleetBranding? Marka { get; set; }
+    [Parameter, EditorRequired] public BlogDetail? Post { get; set; }
+    [Parameter] public FleetBranding? Branding { get; set; }
     /// <summary>Kanonik kök (https://host) — göreli adresleri mutlak yapmak için. Yoksa url/image atlanır.</summary>
-    [Parameter] public string? KanonikKok { get; set; }
+    [Parameter] public string? CanonicalRoot { get; set; }
 
     private string? _json;
 
@@ -31,9 +31,9 @@
 
     protected override void OnParametersSet()
     {
-        if (Yazi is not { } y) { _json = null; return; }
+        if (Post is not { } y) { _json = null; return; }
 
-        var root = string.IsNullOrWhiteSpace(KanonikKok) ? null : KanonikKok.TrimEnd('/');
+        var root = string.IsNullOrWhiteSpace(CanonicalRoot) ? null : CanonicalRoot.TrimEnd('/');
         var model = new Dictionary<string, object?>
         {
             ["@context"] = "https://schema.org",
@@ -62,17 +62,17 @@
                 : null,
             ["mainEntityOfPage"] = root is null ? null : $"{root}/blog/{y.Slug}",
             ["image"] = root is not null && y.KapakVar ? $"{root}/blog-kapak/{y.Id}" : null,
-            ["publisher"] = string.IsNullOrWhiteSpace(Marka?.Marka) ? null : new Dictionary<string, object?>
+            ["publisher"] = string.IsNullOrWhiteSpace(Branding?.BrandName) ? null : new Dictionary<string, object?>
             {
                 ["@type"] = "Organization",
                 // Ana sayfadaki AutoRental düğümüyle AYNI varlık.
                 ["@id"] = root is null ? null : root + "/#firma",
-                ["name"] = Marka!.Marka,
-                ["logo"] = root is not null && !string.IsNullOrEmpty(Marka.LogoSurum)
+                ["name"] = Branding!.BrandName,
+                ["logo"] = root is not null && !string.IsNullOrEmpty(Branding.LogoVersion)
                     ? new Dictionary<string, object?>
                     {
                         ["@type"] = "ImageObject",
-                        ["url"] = $"{root}/marka/logo?v={Uri.EscapeDataString(Marka.LogoSurum)}",
+                        ["url"] = $"{root}/marka/logo?v={Uri.EscapeDataString(Branding.LogoVersion)}",
                     }
                     : null,
             },

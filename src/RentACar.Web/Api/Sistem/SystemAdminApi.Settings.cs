@@ -152,7 +152,6 @@ public static partial class SystemAdminApi
             WhatsAppNumarasi = m.WhatsAppNumarasi, WhatsAppGunlukOzet = m.WhatsAppGunlukOzet,
             WebSitesiAcik = m.PublicSiteEnabled, WebSitesiAdresi = m.PublicSiteHost,
             Domainler = m.CustomDomains.Select(d => new DomainDto(d.Host, d.Kind, d.Durum, d.DogrulamaKaydi, d.DogrulamaDegeri)).ToList(),
-            YeniArayuzPilot = raw?.YeniArayuzPilot == true,
             TwilioTanimli = !string.IsNullOrWhiteSpace(cfg["Twilio:AccountSid"]),
             WhatsAppGonderimleri = wa.Select(x => new WhatsAppDeliveryDto(x.Gun, x.Tur, x.Alici, x.Basarili, x.HataMesaji,
                 x.OlusturmaTarihi.ToUniversalTime())).ToList(),
@@ -171,8 +170,8 @@ public static partial class SystemAdminApi
     private static readonly IReadOnlyList<SiteThemePalettesDto> SitePaletteCatalog =
     [
         .. SiteThemeKeys.All.Select(theme => new SiteThemePalettesDto(theme,
-            [.. SitePaletteKeys.For(theme).Select(p => new SitePaletteOptionDto(p.Key, p.Ad, p.Zemin, p.Murekkep, p.Ana,
-                p.Vurgu, p.GeceZemin))])),
+            [.. SitePaletteKeys.For(theme).Select(p => new SitePaletteOptionDto(p.Key, p.Name, p.Background, p.Ink, p.Primary,
+                p.Accent, p.NightBackground))])),
     ];
 
     private static TenantSettingsModel ToModel(SettingsRequest i) => new()

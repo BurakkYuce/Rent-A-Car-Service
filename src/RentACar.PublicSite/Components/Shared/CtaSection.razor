@@ -1,6 +1,6 @@
 @using RentACar.Application.Common
 @* PR-19 — kapanış çağrısı. Metin sabit, iletişim kanalları TENANT'tan (T1).
-   Telefon yoksa "ara" düğmesi basılmaz; hiçbir kanal yoksa yalnız müsaitlik CTA'sı kalır (T2).
+   Phone yoksa "ara" düğmesi basılmaz; hiçbir kanal yoksa yalnız müsaitlik CTA'sı kalır (T2).
    Görünüm: ters zemin (base.css .cta-bant); temanın süsü tema css'inde (tarife: kesikli yol çizgisi). *@
 
 <section class="cta-bant" aria-labelledby="cta-baslik">
@@ -11,11 +11,11 @@
         </div>
         <div class="cta-dugmeler">
             <a class="btn btn-ters" href="/musaitlik">Müsait araçları gör</a>
-            @if (PhoneLink.Tel(Telefon) is { } tel)
+            @if (PhoneLink.Tel(Phone) is { } tel)
             {
-                <a class="btn btn-ters-cizgi" href="@tel">@Telefon</a>
+                <a class="btn btn-ters-cizgi" href="@tel">@Phone</a>
             }
-            @if (PhoneLink.Wa(WhatsApp ?? Telefon, "Merhaba, araç kiralama hakkında bilgi almak istiyorum.") is { } wa)
+            @if (PhoneLink.Wa(WhatsApp ?? Phone, "Merhaba, araç kiralama hakkında bilgi almak istiyorum.") is { } wa)
             {
                 <a class="btn btn-ters-cizgi" href="@wa" target="_blank" rel="noopener noreferrer">WhatsApp</a>
             }
@@ -24,6 +24,6 @@
 </section>
 
 @code {
-    [Parameter] public string? Telefon { get; set; }
+    [Parameter] public string? Phone { get; set; }
     [Parameter] public string? WhatsApp { get; set; }
 }

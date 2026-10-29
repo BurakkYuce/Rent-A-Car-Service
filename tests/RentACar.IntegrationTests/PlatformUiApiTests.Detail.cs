@@ -38,7 +38,7 @@ public sealed partial class PlatformUiApiTests
         {
             "aktifKira", "ad", "aracSayisi", "domainler", "eposta", "gelir30Gun", "guncelleme", "halkaAcikSite", "id",
             "kapanisTarihi", "kod", "kullaniciSayisi", "logo", "notlar", "olusturma", "plan", "sonGiris", "surum",
-            "telefon", "toplamKira", "webSitesiModulu", "yeniArayuzPilot", "yetkiliAd", "durum",
+            "telefon", "toplamKira", "webSitesiModulu", "yetkiliAd", "durum",
         }.OrderBy(x => x, StringComparer.Ordinal).ToArray(), keys);
         Assert.Equal(1, j.GetProperty("kullaniciSayisi").GetInt32()); // the first admin only
         Assert.False(j.GetProperty("logo").GetProperty("var").GetBoolean());
