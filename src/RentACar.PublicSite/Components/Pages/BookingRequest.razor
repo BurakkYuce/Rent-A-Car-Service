@@ -5,7 +5,7 @@
 @inject FleetShowcaseService Showcase
 @inject BranchService BranchSvc
 
-@* Talep formu. Alan adları (adSoyad/telefon/email/bas/bit/sube/not/ilanId/website) POST ucunun
+@* Talep formu. Alan adları (adSoyad/telefon/email/bas/bit/basSaat/bitSaat/sube/not/ilanId/website) POST ucunun
    (PublicBookingRequestEndpoints) sözleşmesidir — DEĞİŞTİRİLMEZ.
 
    Düzen: iki grup (Tarihler, İletişim), telefonda tek sütun; seçilen ilan yanda özet kartı olarak
@@ -38,6 +38,10 @@
                 <label class="alan"><span>İade tarihi <span class="zorunlu">(zorunlu)</span></span>
                     <input name="bit" type="date" value="@End" min="@Today" required />
                 </label>
+            </div>
+            <div class="iki-sutun">
+                <label class="alan">Alış saati<input name="basSaat" type="time" value="@FormTime(StartTime)" /></label>
+                <label class="alan">İade saati<input name="bitSaat" type="time" value="@FormTime(EndTime)" /></label>
             </div>
             @if (_branches.Count > 0)
             {
@@ -117,6 +121,9 @@
     [SupplyParameterFromQuery(Name = "ilan")] public string? Listing { get; set; }
     [SupplyParameterFromQuery(Name = "bas")] public string? Start { get; set; }
     [SupplyParameterFromQuery(Name = "bit")] public string? End { get; set; }
+    /// <summary>Aramadan gelen alış/iade saati ("HH:mm", İstanbul); biçimsiz ya da boşsa formda varsayılan.</summary>
+    [SupplyParameterFromQuery(Name = "basSaat")] public string? StartTime { get; set; }
+    [SupplyParameterFromQuery(Name = "bitSaat")] public string? EndTime { get; set; }
     [SupplyParameterFromQuery(Name = "sube")] public string? Branch { get; set; }
     [SupplyParameterFromQuery(Name = "fiyat")] public string? Price { get; set; }
     [SupplyParameterFromQuery(Name = "hata")] public string? Error { get; set; }
@@ -132,6 +139,8 @@
     private FleetShowcaseDetail? _listing; // PR-14: slug'dan çözülen ilan (yayında değilse null)
 
     private static string Today => SiteDate.TodayIso;
+
+    private static string FormTime(string? value) => SiteDate.ParseTime(value) is null ? SiteDate.DefaultTime : value!;
 
     protected override async Task OnInitializedAsync()
     {

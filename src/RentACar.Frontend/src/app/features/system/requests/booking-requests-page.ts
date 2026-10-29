@@ -22,7 +22,7 @@ import type { CeviriAnahtari } from '@core/i18n/ceviri-anahtarlari';
 import { translationFunction } from '@core/i18n/ceviri';
 import { MenuRefresh } from '@core/sayac/menu-refresh';
 import { TemelStore } from '@core/veri/temel-store';
-import { MoneyPipe, DatePipe, DateTimePipe } from '@shared/bicim/bicim-pipe';
+import { MoneyPipe, DateTimePipe } from '@shared/bicim/bicim-pipe';
 import { Alan } from '@shared/form/alan/alan';
 import { formSubmission } from '@shared/form/form-submission';
 import { FormErrors } from '@shared/form/form-errors';
@@ -91,7 +91,6 @@ interface RequestQuery {
     RouterLink,
     TranslocoPipe,
     MoneyPipe,
-    DatePipe,
     DateTimePipe,
     Alan,
     FormErrors,
