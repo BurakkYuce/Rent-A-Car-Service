@@ -94,6 +94,22 @@ public sealed class TenantSettingsModel
     /// <summary>Halka açık site palet seti (<see cref="SitePaletteKeys"/>; null = temanın varsayılan seti).</summary>
     public string? SitePaleti { get; set; }
 
+    // V0 halka açık site bilgileri (kurallar SiteInfoRules'ta)
+    public decimal? SiteDepozitoTutari { get; set; }
+    public string? SiteDepozitoAciklama { get; set; }
+    public int? SiteGunlukKmSiniri { get; set; }
+    public bool SiteKmSinirsiz { get; set; }
+    public int? SiteMinYas { get; set; }
+    public int? SiteMinEhliyetYili { get; set; }
+    public string? SiteSigortaOzeti { get; set; }
+    public string? SiteIptalKosulu { get; set; }
+    public decimal? SiteGooglePuani { get; set; }
+    public int? SiteGoogleYorumSayisi { get; set; }
+    public string? SiteGoogleProfilUrl { get; set; }
+    public int? SiteKurulusYili { get; set; }
+    /// <summary>Yalnız GÖRÜNTÜLEME: puanın girildiği an (sunucu yazar, kayıt yok sayar).</summary>
+    public DateTimeOffset? SiteGooglePuanTarihiUtc { get; set; }
+
     // PR-2: public-site — yalnız GÖRÜNTÜLEME (SaveAsync bunları yazmaz; OpenPublicSiteAsync yazar).
     public bool PublicSiteEnabled { get; set; }
     public string? PublicSiteHost { get; set; }

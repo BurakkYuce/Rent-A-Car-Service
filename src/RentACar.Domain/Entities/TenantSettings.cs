@@ -259,6 +259,37 @@ public class TenantSettings : ITenantOwned, IAuditable
     /// </summary>
     public bool KabisTeslimiEngelle { get; set; }
 
+    // ---- Halka açık firma sitesi bilgileri (V0; additive, hepsi boş/false varsayılan) ----
+    // Müşterinin karar verdiği bilgiler: firma kendisi yazar, site boş alanı BASMAZ (T2). Hiçbiri hesaba bağlı değil.
+    // Çalışma saatleri burada YOK — şubede (Branch.CalismaSaatleri / HaftalikCalismaSaatleri) zaten var.
+
+    /// <summary>Depozito tutarı (TL, "₺5.000'den"); null = sitede depozito satırı yok.</summary>
+    public decimal? SiteDepozitoTutari { get; set; }
+    /// <summary>Depozito açıklaması ("Kredi kartı şart değil, nakit depozito olur" gibi).</summary>
+    public string? SiteDepozitoAciklama { get; set; }
+    /// <summary>Günlük km sınırı; <see cref="SiteKmSinirsiz"/> ile birlikte dolu olamaz.</summary>
+    public int? SiteGunlukKmSiniri { get; set; }
+    /// <summary>true = sınırsız km.</summary>
+    public bool SiteKmSinirsiz { get; set; }
+    /// <summary>Asgari sürücü yaşı.</summary>
+    public int? SiteMinYas { get; set; }
+    /// <summary>Asgari ehliyet yılı.</summary>
+    public int? SiteMinEhliyetYili { get; set; }
+    /// <summary>Sigorta özeti ("Kasko dahil, muafiyet ₺10.000" gibi; firmanın metni).</summary>
+    public string? SiteSigortaOzeti { get; set; }
+    /// <summary>İptal koşulu, tek cümle ("48 saat öncesine kadar ücretsiz iptal" gibi; firmanın metni).</summary>
+    public string? SiteIptalKosulu { get; set; }
+    /// <summary>Google puanı (1,0–5,0; elle girilir, dış API yok). Doluysa profil bağlantısı zorunlu.</summary>
+    public decimal? SiteGooglePuani { get; set; }
+    /// <summary>Google yorum sayısı (elle girilir). Doluysa puan ve bağlantı zorunlu.</summary>
+    public int? SiteGoogleYorumSayisi { get; set; }
+    /// <summary>Google işletme profili bağlantısı (yalnız https ve Google alan adları).</summary>
+    public string? SiteGoogleProfilUrl { get; set; }
+    /// <summary>Puan ya da yorum sayısı en son ne zaman girildi (sunucu yazar; sitede "Ekim 2026 itibarıyla").</summary>
+    public DateTimeOffset? SiteGooglePuanTarihiUtc { get; set; }
+    /// <summary>Firmanın kuruluş yılı ("2012'den beri").</summary>
+    public int? SiteKurulusYili { get; set; }
+
     public DateTimeOffset CreatedAtUtc { get; set; } = DateTimeOffset.UtcNow;
     public DateTimeOffset? UpdatedAtUtc { get; set; }
 }

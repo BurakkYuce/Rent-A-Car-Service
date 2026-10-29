@@ -33057,6 +33057,27 @@ export interface components {
       yeniArayuzPilot?: boolean;
       twilioTanimli?: boolean;
       whatsAppGonderimleri?: components['schemas']['WhatsAppDeliveryDto'][];
+      /** Format: double */
+      siteDepozitoTutari?: null | number | string;
+      siteDepozitoAciklama?: null | string;
+      /** Format: int32 */
+      siteGunlukKmSiniri?: null | number | string;
+      siteKmSinirsiz?: boolean;
+      /** Format: int32 */
+      siteMinYas?: null | number | string;
+      /** Format: int32 */
+      siteMinEhliyetYili?: null | number | string;
+      siteSigortaOzeti?: null | string;
+      siteIptalKosulu?: null | string;
+      /** Format: double */
+      siteGooglePuani?: null | number | string;
+      /** Format: int32 */
+      siteGoogleYorumSayisi?: null | number | string;
+      siteGoogleProfilUrl?: null | string;
+      /** Format: date-time */
+      siteGooglePuanTarihi?: null | string;
+      /** Format: int32 */
+      siteKurulusYili?: null | number | string;
       surum?: null | string;
     };
     SettingsRequest: {
@@ -33129,6 +33150,25 @@ export interface components {
       faturaSeriKodu?: null | string;
       whatsAppNumarasi?: null | string;
       whatsAppGunlukOzet?: null | boolean;
+      /** Format: double */
+      siteDepozitoTutari?: null | number | string;
+      siteDepozitoAciklama?: null | string;
+      /** Format: int32 */
+      siteGunlukKmSiniri?: null | number | string;
+      siteKmSinirsiz?: boolean;
+      /** Format: int32 */
+      siteMinYas?: null | number | string;
+      /** Format: int32 */
+      siteMinEhliyetYili?: null | number | string;
+      siteSigortaOzeti?: null | string;
+      siteIptalKosulu?: null | string;
+      /** Format: double */
+      siteGooglePuani?: null | number | string;
+      /** Format: int32 */
+      siteGoogleYorumSayisi?: null | number | string;
+      siteGoogleProfilUrl?: null | string;
+      /** Format: int32 */
+      siteKurulusYili?: null | number | string;
       surum?: null | string;
     };
     ShiftDay: {

@@ -95,6 +95,10 @@ const MAX_LENGTH: Readonly<Partial<Record<string, number>>> = {
   whatsAppNumarasi: 32,
   ...Object.fromEntries(COLOR_FIELDS.map((c) => [c, 7])),
   siteVurguRengi: 7,
+  siteDepozitoAciklama: 256,
+  siteSigortaOzeti: 512,
+  siteIptalKosulu: 256,
+  siteGoogleProfilUrl: 512,
 };
 
 /**
