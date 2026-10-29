@@ -30,18 +30,23 @@ public sealed partial class PublicSiteThemeContractTests
         // Aylık tablo: Clio satırında 32.000, Egea satırında teklif bağlantısı.
         Assert.Contains("Aylık fiyatlar", home);
         Assert.Matches($@"href=""/araclar/{Regex.Escape(weeklyOnly)}"">[^<]*</a></th>\s*<td>\s*<a href=""/rezervasyon-talebi\?ilan={Regex.Escape(weeklyOnly)}", home);
-        // Kurumsal bölüm: GET formu mevcut talep sayfasına (yeni uç yok), not alanı taşınır.
+        // Kurumsal bölüm: GET formu mevcut talep sayfasına (yeni uç yok). KVKK: GET formunda serbest metin alanı YOK —
+        // adrese yalnız tarihler ve kurumsal işareti girer.
         Assert.Contains("id=\"kurumsal\"", home);
-        Assert.Matches(@"<form method=""get"" action=""/rezervasyon-talebi""[^>]*aria-label=""Kurumsal teklif""", home);
-        Assert.Contains("<textarea name=\"not\"", home);
+        var corporate = Regex.Match(home, @"<form method=""get"" action=""/rezervasyon-talebi""[^>]*aria-label=""Kurumsal teklif"">(?<body>.*?)</form>",
+            RegexOptions.Singleline);
+        Assert.True(corporate.Success, "kurumsal GET formu yok");
+        var fields = Regex.Matches(corporate.Groups["body"].Value, @"name=""(?<n>[^""]+)""").Select(m => m.Groups["n"].Value);
+        Assert.Equal(["bas", "bit", "kurumsal"], fields);
+        Assert.DoesNotContain("<textarea", corporate.Groups["body"].Value);
         Assert.Single(Regex.Matches(home, @"<h1[\s>]"));
 
-        // Talep formu not alanını ön doldurur; içerik Razor'ca kaçışlanır (etiket enjekte edilemez).
-        var request = await client.GetStringAsync("/rezervasyon-talebi?bas=" + Day(10) + "&bit=" + Day(40)
-                                                  + "&not=" + Uri.EscapeDataString("5 araç, 12 ay <b>İzmir</b>"));
-        Assert.Contains("5 araç, 12 ay <b>İzmir</b></textarea>", WebUtility.HtmlDecode(request)); // görünen metin
-        Assert.Contains("&lt;b&gt;", request);                                                    // ham HTML'de kaçışlı
-        Assert.DoesNotMatch(@"<b>[^<]*zmir</b>", request);
+        // Talep sayfası: kurumsal=1 başlığı değiştirir; adresle gelen serbest metin (not) ön doldurulmaz.
+        var request = WebUtility.HtmlDecode(await client.GetStringAsync(
+            $"/rezervasyon-talebi?bas={Day(10)}&bit={Day(40)}&kurumsal=1&not=" + Uri.EscapeDataString("5 araç İzmir")));
+        Assert.Contains("<h1>Kurumsal teklif</h1>", request);
+        Assert.Contains("maxlength=\"2000\"", request);
+        Assert.DoesNotContain("5 araç İzmir", request);
 
         // Liste: aylık toplamı olan ilan "/ ay" ile; olmayan günlük fiyatla.
         var list = WebUtility.HtmlDecode(await client.GetStringAsync("/musaitlik"));

@@ -8,8 +8,9 @@
      3. Aylık fiyat tablosu — her ilanın 30 günlük toplamı ve günlük fiyatı; aylık toplamı girilmemiş ilanda
         "Teklif alın" (fiyat uydurulmaz). Hiçbir ilanda aylık toplam yoksa tablo yok.
      4. Kiralama koşulları — firmanın beyanları (boş alan satır üretmez; hepsi boşsa yok)
-     5. Kurumsal teklif (koyu bant, id="kurumsal") — mevcut talep formuna GET ile geçer: başlangıç/bitiş tarihi ve
-        not alanı ön doldurulur (/rezervasyon-talebi?bas&bit&not). YENİ POST UCU YOK; gönderim talep formunun kendisi.
+     5. Kurumsal teklif (koyu bant, id="kurumsal") — mevcut talep formuna GET ile geçer: YALNIZ başlangıç/bitiş tarihi
+        ve kurumsal işareti (/rezervasyon-talebi?bas&bit&kurumsal=1). Serbest metin (araç adedi, şehir, firma) adrese
+        GİRMEZ (KVKK); talep sayfasının POST formundaki not alanına yazılır. YENİ POST UCU YOK.
      6. Teslim noktaları (bugünkü saat), SSS.
    Sarmalayıcı öğe YOK: bölümler doğrudan <main>'in çocuğu. Animasyon yok. *@
 
@@ -72,7 +73,7 @@
     <div class="wrap pk-kurumsal-ic">
         <div>
             <h2 id="kurumsal-baslik">Şirketiniz için teklif</h2>
-            <p>Araç adedini, süreyi ve şehri yazın; teklif formunda iletişim bilgilerinizi ekleyip gönderin.</p>
+            <p>Başlangıç ve bitiş tarihini seçin; teklif formunda araç adedini, şehri ve iletişim bilgilerinizi yazıp gönderin.</p>
             @if (_contact.TelLink is not null)
             {
                 <p>Doğrudan konuşmak için: <a href="@_contact.TelLink">@_contact.Phone</a></p>
@@ -83,9 +84,8 @@
                 <label class="alan">Başlangıç<input name="bas" type="date" value="@_start" min="@_today" required /></label>
                 <label class="alan">Bitiş<input name="bit" type="date" value="@_end" min="@_today" required /></label>
             </div>
-            <label class="alan">Kısa bilgi
-                <textarea name="not" rows="3" maxlength="500" placeholder="Örnek: 5 araç, 12 ay, İstanbul; firma adı"></textarea>
-            </label>
+            @* KVKK: serbest metin bu GET formunda YOK (adrese girerdi); yalnız tarihler + kurumsal işareti. *@
+            <input type="hidden" name="kurumsal" value="1" />
             <button type="submit" class="btn">Teklif formuna geç</button>
         </form>
     </div>
