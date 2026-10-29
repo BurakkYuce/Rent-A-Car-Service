@@ -146,7 +146,7 @@ public static class EDocumentDispatcher
         {
             EInvoiceStatusResult status;
             bool foundLive;
-            try { (status, foundLive) = await conn.QueryPreviousAttemptAsync(doc, now, ct); }
+            try { (status, foundLive) = await conn.QueryPreviousAttemptAsync(doc, Clock(now), ct); }
             catch (Exception ex) when (ex is not OperationCanceledException)
             {
                 return Outcome.Retry(EDocumentPolicy.Sanitize("Entegratörde durum sorgulanamadı: " + ex.Message)!);
@@ -160,7 +160,7 @@ public static class EDocumentDispatcher
         // bizde: bundan sonra commit edilmek istenen bir iade kilidi görüp reddedilir (EDocumentQueue.SettleSourceOnRefundAsync).
         // Kesinleşmemiş canlı deneme (adversarial N1): tek "bulunamadı" ile iptal edilmez, süre dolunca yeniden sorulur.
         if (await db.Invoices.AsNoTracking().AnyAsync(i => i.KaynakFaturaId == doc.InvoiceId, ct))
-            return EDocumentPolicy.LiveAttemptMayStillLand(doc, now) ? Outcome.Retry(EDocumentPolicy.RefundedAwaitingSettle) : Outcome.Refunded;
+            return EDocumentPolicy.LiveAttemptMayStillLand(doc, Clock(now)) ? Outcome.Retry(EDocumentPolicy.RefundedAwaitingSettle) : Outcome.Refunded;
 
         // (2) Veri — fatura değişmez; müşteri TCKN'si yalnız bellekte çözülür.
         var invoice = await db.Invoices.AsNoTracking().Include(i => i.Lines)
@@ -198,8 +198,8 @@ public static class EDocumentDispatcher
 
         // Önceki CANLI deneme kesinleşmeden tür ya da ortam değişmez (adversarial N1/N3): yeni numara/ortam kaydı önceki
         // denemenin izini silerdi; geç kabul edilen canlı belge sonra test kabulü ya da başka türle gizlenebilirdi.
-        if (doc.SonDenemeCanli == true && (doc.Tur != kind || !live) && EDocumentPolicy.LiveAttemptMayStillLand(doc, now))
-            return Outcome.Retry(EDocumentPolicy.AttemptNotSettled(doc, now));
+        if (doc.SonDenemeCanli == true && (doc.Tur != kind || !live) && EDocumentPolicy.LiveAttemptMayStillLand(doc, Clock(now)))
+            return Outcome.Retry(EDocumentPolicy.AttemptNotSettled(doc, Clock(now)));
 
         // (4) Belge — tutar kilidi: üreticinin toplamları faturanın kayıtlı toplamlarıyla birebir. Veri hatası numara
         // almadan önce yakalanır.
@@ -222,7 +222,7 @@ public static class EDocumentDispatcher
         var marked = await db.EDocuments
             .Where(d => d.Id == doc.Id && d.KilitBitisUtc == lease)
             .ExecuteUpdateAsync(s => s
-                .SetProperty(d => d.SonDenemeUtc, now)
+                .SetProperty(d => d.SonDenemeUtc, Clock(now)) // gerçek deneme anı (#410 adversarial M2)
                 .SetProperty(d => d.SonDenemeCanli, live)
                 .SetProperty(d => d.BelgeNo, number)
                 .SetProperty(d => d.DenemeSayisi, d => d.DenemeSayisi + 1)
@@ -281,10 +281,16 @@ public static class EDocumentDispatcher
     /// </summary>
     private static DateTimeOffset LeaseUntil(DateTimeOffset now)
     {
-        var start = now > DateTimeOffset.UtcNow ? now : DateTimeOffset.UtcNow;
-        var end = start.ToUniversalTime() + EDocumentPolicy.Lease;
+        var end = Clock(now).ToUniversalTime() + EDocumentPolicy.Lease;
         return new DateTimeOffset(end.Ticks - end.Ticks % TimeSpan.TicksPerSecond, TimeSpan.Zero);
     }
+
+    /// <summary>
+    /// Koşu anı ile GERÇEK saatin büyüğü. İş <c>now</c>'u koşu başında bir kez alır; yavaş entegratörde partinin sonundaki
+    /// belgeye dakikalar sonra sıra gelir. Deneme izi ve "kesinleşti mi" (<see cref="EDocumentPolicy.AttemptSettle"/>)
+    /// kararı bayat koşu anıyla yapılsaydı gerçek denemeden hemen sonra 30 dk "dolmuş" sayılırdı (#410 adversarial M2).
+    /// </summary>
+    private static DateTimeOffset Clock(DateTimeOffset now) => now > DateTimeOffset.UtcNow ? now : DateTimeOffset.UtcNow;
 
     private static async Task<bool> ClaimAsync(AppDbContext db, Guid id, DateTimeOffset now, DateTimeOffset lease, CancellationToken ct)
         => await db.EDocuments

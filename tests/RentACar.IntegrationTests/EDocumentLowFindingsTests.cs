@@ -162,6 +162,21 @@ public sealed class EDocumentLowFindingsTests(PostgresFixture fx)
         return () => late;
     }
 
+    /// <summary>İstemci zaman aşımı; sunucu tarafı CANLI kabulü testin seçtiği anda (dönen eylem) gerçekleşir — süre
+    /// yarışına bağlı değil.</summary>
+    private static Func<Task> ArmClientTimeoutWithManualLiveAccept(Ctx c)
+    {
+        EInvoiceSubmission? pending = null;
+        EInvoiceCredentials? creds = null;
+        c.Fake.OnSend = sub =>
+        {
+            pending = sub; creds = c.Fake.LastCredentials;
+            c.Fake.OnSend = null;
+            throw new TaskCanceledException("İstemci zaman aşımı (HttpClient.Timeout).");
+        };
+        return () => c.Fake.SendAsync(creds! with { CanliOrtam = true }, pending!);
+    }
+
     // ===================================================================== N1 — istemci zaman aşımı + geç kabul
 
     [Fact]
@@ -466,8 +481,7 @@ public sealed class EDocumentLowFindingsTests(PostgresFixture fx)
     [InlineData("–")]          // en-dash (#410 L3)
     [InlineData(" – ")]
     [InlineData("_")]
-    [InlineData(",")]
-    [InlineData(" , ")]
+    [InlineData("—")]          // em-dash
     [InlineData("​")]          // sıfır genişlikli boşluk
     public void N4_tckn_with_unusual_separators_is_masked(string sep)
     {
@@ -485,7 +499,77 @@ public sealed class EDocumentLowFindingsTests(PostgresFixture fx)
     [InlineData("ETTN 3F2504E0-4F89-11D3-9A0C-0305E82C3301 bulunamadı")]
     [InlineData("VKN 1234567890 kayıtlı değil")]
     [InlineData("VKN 123 456 78 90, tarih 2026-10-17 kalır")]
+    [InlineData("Satır sırası 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11 hatalı")] // #410 L5: virgül ayraç değil
+    [InlineData("Tutar uyuşmuyor 200,00 / 1.250,00")]
+    [InlineData("Kod 12345 (678901) geçersiz")]
+    [InlineData("Kalem 1.000,00 + 2.500,00 KDV")]
     public void N4_non_personal_numbers_are_kept(string text) => Assert.Equal(text, EDocumentPolicy.Sanitize(text));
+
+    /// <summary>#410 L6: tam genişlikli rakamlar NFKC ile ASCII'ye indirilip maskelenir.</summary>
+    [Fact]
+    public void N4_full_width_tckn_is_masked()
+    {
+        var t = TestNationalId.New();
+        var fullWidth = new string([.. t.Select(ch => (char)(ch - '0' + '０'))]);
+        Assert.Equal("Alıcı *********** bulunamadı", EDocumentPolicy.Sanitize($"Alıcı {fullWidth} bulunamadı"));
+    }
+
+    // ===================================================================== #410 M2 — bayat koşu anı
+
+    /// <summary>İş koşusunun <c>now</c>'u bayat (35 dk önce başlamış koşu, yavaş entegratör). Deneme izi GERÇEK saatle
+    /// yazılır: gerçek denemeden hemen sonra 30 dk dolmuş sayılmaz, tek "bulunamadı" ile yerel iptal yok.</summary>
+    [Fact]
+    public async Task M2_stale_run_clock_does_not_defeat_the_settle_window_for_local_cancel()
+    {
+        using var c = New();
+        await ConnectAsync(c);
+        var id = await InvoiceAsync(c, await IndividualAsync(c));
+        var land = ArmClientTimeoutWithManualLiveAccept(c);
+        var before = DateTimeOffset.UtcNow;
+        await DispatchAsync(c, before.AddMinutes(-35));
+        Assert.True((await DocAsync(c, id)).SonDenemeUtc >= before.AddSeconds(-1)); // gerçek saat, koşu anı değil
+
+        Assert.StartsWith("red: " + NotSettledPrefix, await CancelAsync(c, id, "Vazgeçildi"), StringComparison.Ordinal);
+        await land();
+        Assert.NotEqual(EDocumentStatus.Iptal, (await DocAsync(c, id)).Durum);
+    }
+
+    [Fact]
+    public async Task M2_stale_run_clock_does_not_defeat_the_refund_deferral()
+    {
+        using var c = New();
+        await ConnectAsync(c);
+        var id = await InvoiceAsync(c, await IndividualAsync(c));
+        var land = ArmClientTimeoutWithManualLiveAccept(c);
+        await DispatchAsync(c, DateTimeOffset.UtcNow.AddMinutes(-35));
+        await RefundAsync(c, id);
+        await DispatchAsync(c, DateTimeOffset.UtcNow); // iade dalı: canlı deneme saniyeler önce → ertele
+        await land();
+        var doc = await DocAsync(c, id);
+        Assert.Equal((EDocumentStatus.Gonderilecek, RefundedAwaitingSettle), (doc.Durum, doc.SonMesaj));
+        Assert.True(c.Fake.AcceptedLive(doc.Ettn));
+    }
+
+    // ===================================================================== #410 M3 — gönderilmiş e-Arşiv iptali canlıya
+
+    [Fact]
+    public async Task M3_sent_live_e_archive_is_cancelled_in_live_even_after_switching_to_test()
+    {
+        using var c = New();
+        await ConnectAsync(c, live: false);
+        var id = await InvoiceAsync(c, await IndividualAsync(c));
+        var t0 = DateTimeOffset.UtcNow;
+        await DispatchAsync(c, t0); // test kabulü (aynı ETTN test ortamında da var)
+        await SwitchAsync(c, live: true);
+        using (var s = c.Scope()) await s.ServiceProvider.GetRequiredService<EDocumentService>().QueueAsync(id);
+        await DispatchAsync(c, t0.AddMinutes(1));
+        Assert.Equal(EDocumentStatus.Gonderildi, (await DocAsync(c, id)).Durum);
+
+        await SwitchAsync(c, live: false);
+        await RefundAsync(c, id);
+        Assert.Equal("Iptal", await CancelAsync(c, id, "İade edildi"));
+        Assert.Equal([true], c.Fake.CancelCallsLive.ToArray()); // iptal canlı ortama gitti
+    }
 
     // ===================================================================== E5 — e-Fatura / e-Arşiv ayrı seri
 
@@ -576,6 +660,13 @@ public sealed class EDocumentLowFindingsTests(PostgresFixture fx)
         Assert.Equal(((string?)null, (string?)null), (saved.EFaturaSeriKodu, saved.EArsivSeriKodu)); // değişmedi
 
         await settings.SaveAsync(Settings(null, true, "XFA", "XAR")); // kullanılmamış yeni seriler serbest
+        await settings.SaveAsync(Settings(null, true, "XFA", "EAR")); // aynı türe geri dönüş serbest
+
+        // #410 L7: iç fatura serisi geçmişte GİB numarası vermiş seriye çekilemez.
+        var internalToGib = Settings(null, true, "XFA", "XAR");
+        internalToGib.FaturaSeriKodu = "EAR";
+        var ex = await Assert.ThrowsAsync<ValidationException>(() => settings.SaveAsync(internalToGib));
+        Assert.Equal("faturaSeriKodu", ex.Alan);
     }
 
     [Fact]

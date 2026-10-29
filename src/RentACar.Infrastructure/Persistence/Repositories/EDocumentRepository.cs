@@ -27,11 +27,12 @@ public sealed class EDocumentRepository(IDbContextFactory<AppDbContext> factory)
         return await db.EDocuments.AsNoTracking().Where(d => ids.Contains(d.InvoiceId)).ToDictionaryAsync(d => d.InvoiceId, ct);
     }
 
-    public async Task<bool> SeriesUsedByOtherKindAsync(string series, EDocumentKind kind, CancellationToken ct = default)
+    public async Task<bool> SeriesUsedByOtherKindAsync(string series, EDocumentKind? kind, CancellationToken ct = default)
     {
         await using var db = await factory.CreateDbContextAsync(ct);
-        return await db.EDocuments.AsNoTracking()
-            .AnyAsync(d => d.BelgeNo != null && d.BelgeNo.StartsWith(series) && d.Tur != kind, ct);
+        var used = db.EDocuments.AsNoTracking().Where(d => d.BelgeNo != null && d.BelgeNo.StartsWith(series));
+        if (kind is { } k) used = used.Where(d => d.Tur != k);
+        return await used.AnyAsync(ct);
     }
 
     public Task<EDocumentStatus> QueueAsync(Guid invoiceId, DateTimeOffset now, CancellationToken ct = default)

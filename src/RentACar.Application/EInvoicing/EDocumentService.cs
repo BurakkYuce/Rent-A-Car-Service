@@ -176,7 +176,9 @@ public sealed class EDocumentService(
                 var conn = EInvoiceConnection.Resolve(await settings.GetAsync(ct), catalog, secrets);
                 if (!conn.Ready) throw new ValidationException(EInvoiceReadiness.NotConnected(conn.Gap!));
                 EInvoiceCancelResult result;
-                try { result = await conn.Integrator!.CancelAsync(conn.Credentials!, doc.Ettn, EDocumentKind.EArsiv, why, ct); }
+                // Gönderildi = CANLI kabul: iptal canlıya gider, ortam sonradan teste çevrilmiş olsa da (#410 adversarial M3 —
+                // test ortamı aynı ETTN'i eski test kabulünden tanıyıp "iptal edildi" der, canlı belge yaşamaya devam ederdi).
+                try { result = await conn.Integrator!.CancelAsync(conn.Credentials! with { CanliOrtam = true }, doc.Ettn, EDocumentKind.EArsiv, why, ct); }
                 catch (Exception ex) when (ex is not OperationCanceledException)
                 {
                     result = new EInvoiceCancelResult(false, ex.Message);
@@ -222,6 +224,7 @@ public interface IEDocumentRepository
     Task<bool> MarkSentAsync(Guid id, IReadOnlyCollection<EDocumentStatus> expected, string? integratorRef, string? integratorStatus,
         bool liveEnvironment, DateTimeOffset now, CancellationToken ct = default);
 
-    /// <summary>Bu seriyle <paramref name="kind"/> DIŞINDA bir türde belge numarası verilmiş mi (seri takası koruması).</summary>
-    Task<bool> SeriesUsedByOtherKindAsync(string series, EDocumentKind kind, CancellationToken ct = default);
+    /// <summary>Bu seriyle <paramref name="kind"/> DIŞINDA bir türde GİB belge numarası verilmiş mi (seri takası koruması).
+    /// <paramref name="kind"/> null → herhangi bir türde (iç fatura serisi için).</summary>
+    Task<bool> SeriesUsedByOtherKindAsync(string series, EDocumentKind? kind, CancellationToken ct = default);
 }

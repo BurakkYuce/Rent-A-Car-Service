@@ -67,6 +67,13 @@ public sealed class TenantSettingsService(
     private async Task EnsureSeriesKeepTheirKindAsync(TenantSettingsModel m, CancellationToken ct)
     {
         if (edocuments is null) return;
+        // #410 adversarial L7: iç fatura serisi de geçmişte GİB numarası vermiş bir seriye çekilemez — aynı metin hem iç
+        // fatura numarası hem GİB belge numarası olarak iki ayrı faturayı gösterirdi.
+        var internalSeries = Trim(m.FaturaSeriKodu)?.ToUpperInvariant();
+        if (internalSeries is not null && DocumentNo.IsSeriesValid(internalSeries)
+            && await edocuments.SeriesUsedByOtherKindAsync(internalSeries, null, ct))
+            throw new ValidationException(
+                $"Fatura seri kodu {internalSeries} daha önce GİB e-belge numaralarında kullanıldı; başka bir kod seçin.", "faturaSeriKodu");
         (string? Value, RentACar.Domain.Enums.EDocumentKind Kind, string Field, string Label, string Other)[] rows =
         [
             (m.EFaturaSeriKodu, RentACar.Domain.Enums.EDocumentKind.EFatura, "eFaturaSeriKodu", "e-Fatura", "e-Arşiv"),

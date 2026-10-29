@@ -134,10 +134,21 @@ public static class EDocumentPolicy
         _ => TimeSpan.FromHours(4),
     };
 
-    /// <summary>Hane arası en çok 3 karakterlik HARF/RAKAM DIŞI ayraç (gruplu yazım: "123 456 789 01", "123 – 456",
-    /// "123_456", "123,456", "123/456"). Görünmez biçim karakterleri (U+200B vb.) önce silinir, boşluklar tek ' 'e
-    /// indirilir (adversarial N4, #410 L3). İki nokta HARİÇ: saat ("08:30:15") tarihle birleşip 11 hane sayılmasın.</summary>
-    private const string DigitSeparator = @"[^\p{L}0-9:]{0,3}";
+    /// <summary>
+    /// Hane arası en çok 3 karakterlik ayraç: boşluk, nokta, eğik çizgi, alt çizgi, tire, en/em tire ("123 456 789 01",
+    /// "123 – 456", "123_456", "123/456"). Önce NFKC (tam genişlikli "１２３" → "123"), görünmez biçim karakterleri (U+200B
+    /// vb.) silinir, boşluklar tek ' 'e indirilir (adversarial N4, #410 L3/L5/L6).
+    /// <para>Bilinçli DIŞARIDA kalanlar (yanlış pozitif dengesi, #410 L5/L6):</para>
+    /// <list type="bullet">
+    /// <item><b>Virgül, artı, parantez:</b> Türkçe tutar biçimi ("200,00 / 1.250,00", "1.000,00 + 2.500,00") ve listeler
+    /// 11 haneye birleşip maskelenirdi; virgüllü TCKN gruplaması ("123,456,789,01") yakalanmaz.</item>
+    /// <item><b>İki nokta:</b> saat ("15.10.2026 08:30:15") tarihle birleşip 11 hane sayılırdı.</item>
+    /// <item><b>4+ karakterlik ayraç</b> (" -- "): üst sınır 3; genişletmek tarih/tutar dizilerini birleştirirdi.</item>
+    /// </list>
+    /// Bilinen sır (çözülmüş TCKN) verilirse aynı ayraç kuralıyla ayrıca maskelenir; asıl savunma entegratör mesajına
+    /// kişisel veri koymamaktır (port sözleşmesi).
+    /// </summary>
+    private const string DigitSeparator = @"[\s./_\-–—]{0,3}";
 
     private static readonly Regex FormatChars = new(@"\p{Cf}", RegexOptions.CultureInvariant);
 
@@ -153,7 +164,8 @@ public static class EDocumentPolicy
     {
         if (string.IsNullOrWhiteSpace(text)) return null;
         // Önce boşluk normalizasyonu: NBSP / dar boşluk / sekme / satır sonu → tek ' ' (char.IsWhiteSpace).
-        var s = string.Join(' ', FormatChars.Replace(text, string.Empty).Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries));
+        var s = string.Join(' ', FormatChars.Replace(text.Normalize(System.Text.NormalizationForm.FormKC), string.Empty)
+            .Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries));
         foreach (var secret in secrets ?? [])
         {
             if (string.IsNullOrWhiteSpace(secret) || secret.Length < 4) continue;
