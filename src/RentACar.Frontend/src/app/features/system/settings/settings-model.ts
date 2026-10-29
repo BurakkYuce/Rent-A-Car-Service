@@ -46,6 +46,25 @@ export const COLOR_FIELDS = [
   'renkKiralanmayan',
 ] as const;
 
+/**
+ * Halka açık sitenin "kiralamadan önce" bilgileri (`SiteInfoRules`; boş alan sitede basılmaz). Google puanı elle girilir,
+ * doluysa profil bağlantısı zorunlu (sunucu doğrular).
+ */
+export const SITE_INFO_FIELDS = [
+  'siteKurulusYili',
+  'siteDepozitoTutari',
+  'siteDepozitoAciklama',
+  'siteGunlukKmSiniri',
+  'siteKmSinirsiz',
+  'siteMinYas',
+  'siteMinEhliyetYili',
+  'siteSigortaOzeti',
+  'siteIptalKosulu',
+  'siteGooglePuani',
+  'siteGoogleYorumSayisi',
+  'siteGoogleProfilUrl',
+] as const satisfies readonly (keyof SettingsRequest)[];
+
 /** Tam değiştirme PUT'unun alanları (`SettingsRequest`, `surum` hariç) — form bu listeden kurulur. */
 export const SETTINGS_FIELDS = [
   'firmaUnvan',
@@ -98,6 +117,7 @@ export const SETTINGS_FIELDS = [
   'faturaSeriKodu',
   'whatsAppNumarasi',
   'whatsAppGunlukOzet',
+  ...SITE_INFO_FIELDS,
 ] as const satisfies readonly (keyof SettingsRequest)[];
 
 export type SettingsField = (typeof SETTINGS_FIELDS)[number];
@@ -108,6 +128,7 @@ const REQUIRED_BOOLEANS: readonly SettingsField[] = [
   'donemselFaturalamaJob',
   'donemselOtomatikTahsilat',
   'eFaturaCanliOrtam',
+  'siteKmSinirsiz',
 ];
 
 /** e-Fatura senaryoları (`EInvoiceReadiness.Scenarios`); boş = TEMELFATURA. e-Arşiv alıcıda senaryo otomatik. */

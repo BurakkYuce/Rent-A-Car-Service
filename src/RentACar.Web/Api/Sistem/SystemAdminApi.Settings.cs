@@ -155,6 +155,13 @@ public static partial class SystemAdminApi
             TwilioTanimli = !string.IsNullOrWhiteSpace(cfg["Twilio:AccountSid"]),
             WhatsAppGonderimleri = wa.Select(x => new WhatsAppDeliveryDto(x.Gun, x.Tur, x.Alici, x.Basarili, x.HataMesaji,
                 x.OlusturmaTarihi.ToUniversalTime())).ToList(),
+            SiteDepozitoTutari = m.SiteDepozitoTutari, SiteDepozitoAciklama = m.SiteDepozitoAciklama,
+            SiteGunlukKmSiniri = m.SiteGunlukKmSiniri, SiteKmSinirsiz = m.SiteKmSinirsiz,
+            SiteMinYas = m.SiteMinYas, SiteMinEhliyetYili = m.SiteMinEhliyetYili,
+            SiteSigortaOzeti = m.SiteSigortaOzeti, SiteIptalKosulu = m.SiteIptalKosulu,
+            SiteGooglePuani = m.SiteGooglePuani, SiteGoogleYorumSayisi = m.SiteGoogleYorumSayisi,
+            SiteGoogleProfilUrl = m.SiteGoogleProfilUrl, SiteGooglePuanTarihi = m.SiteGooglePuanTarihiUtc,
+            SiteKurulusYili = m.SiteKurulusYili,
             Surum = version,
         };
     }
@@ -193,5 +200,11 @@ public static partial class SystemAdminApi
         SmtpHost = i.SmtpHost, SmtpPort = i.SmtpPort, SmtpKullanici = i.SmtpKullanici, SmtpSifre = i.SmtpSifre,
         SmtpSsl = i.SmtpSsl, SmtpGonderenAdres = i.SmtpGonderenAdres, SmtpGonderenAd = i.SmtpGonderenAd,
         FaturaSeriKodu = i.FaturaSeriKodu, WhatsAppNumarasi = i.WhatsAppNumarasi, WhatsAppGunlukOzet = i.WhatsAppGunlukOzet,
+        SiteDepozitoTutari = i.SiteDepozitoTutari, SiteDepozitoAciklama = i.SiteDepozitoAciklama,
+        SiteGunlukKmSiniri = i.SiteGunlukKmSiniri, SiteKmSinirsiz = i.SiteKmSinirsiz,
+        SiteMinYas = i.SiteMinYas, SiteMinEhliyetYili = i.SiteMinEhliyetYili,
+        SiteSigortaOzeti = i.SiteSigortaOzeti, SiteIptalKosulu = i.SiteIptalKosulu,
+        SiteGooglePuani = i.SiteGooglePuani, SiteGoogleYorumSayisi = i.SiteGoogleYorumSayisi,
+        SiteGoogleProfilUrl = i.SiteGoogleProfilUrl, SiteKurulusYili = i.SiteKurulusYili,
     };
 }

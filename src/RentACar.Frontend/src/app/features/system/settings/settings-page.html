@@ -314,6 +314,82 @@
         }
       </section>
 
+      <section class="rc-bolum" aria-labelledby="ayar-site-bilgi">
+        <h2 id="ayar-site-bilgi">{{ 'sistem.ayarlar.siteBilgi.baslik' | transloco }}</h2>
+        <p class="not">{{ 'sistem.ayarlar.siteBilgi.aciklama' | transloco }}</p>
+        <div class="rc-form-izgara">
+          <rc-alan [etiket]="'sistem.ayarlar.alan.siteKurulusYili' | transloco">
+            <rc-sayi-girdisi formControlName="siteKurulusYili" yerTutucu="2012" />
+          </rc-alan>
+          <rc-alan
+            [etiket]="'sistem.ayarlar.alan.siteDepozitoTutari' | transloco"
+            [ipucu]="'sistem.ayarlar.siteBilgi.depozitoIpucu' | transloco"
+          >
+            <rc-sayi-girdisi formControlName="siteDepozitoTutari" [kesir]="2" />
+          </rc-alan>
+          <rc-alan [etiket]="'sistem.ayarlar.alan.siteDepozitoAciklama' | transloco">
+            <rc-metin-girdisi
+              formControlName="siteDepozitoAciklama"
+              [azamiUzunluk]="256"
+              [yerTutucu]="'sistem.ayarlar.siteBilgi.depozitoOrnek' | transloco"
+            />
+          </rc-alan>
+          <rc-alan [etiket]="'sistem.ayarlar.alan.siteGunlukKmSiniri' | transloco">
+            <rc-sayi-girdisi formControlName="siteGunlukKmSiniri" yerTutucu="300" />
+          </rc-alan>
+          <rc-onay-kutusu formControlName="siteKmSinirsiz">
+            {{ 'sistem.ayarlar.alan.siteKmSinirsiz' | transloco }}
+          </rc-onay-kutusu>
+          <rc-alan [etiket]="'sistem.ayarlar.alan.siteMinYas' | transloco">
+            <rc-sayi-girdisi formControlName="siteMinYas" yerTutucu="21" />
+          </rc-alan>
+          <rc-alan [etiket]="'sistem.ayarlar.alan.siteMinEhliyetYili' | transloco">
+            <rc-sayi-girdisi formControlName="siteMinEhliyetYili" yerTutucu="2" />
+          </rc-alan>
+          <rc-alan
+            class="rc-form-izgara__genis"
+            [etiket]="'sistem.ayarlar.alan.siteSigortaOzeti' | transloco"
+          >
+            <rc-metin-girdisi
+              formControlName="siteSigortaOzeti"
+              [azamiUzunluk]="512"
+              [yerTutucu]="'sistem.ayarlar.siteBilgi.sigortaOrnek' | transloco"
+            />
+          </rc-alan>
+          <rc-alan
+            class="rc-form-izgara__genis"
+            [etiket]="'sistem.ayarlar.alan.siteIptalKosulu' | transloco"
+          >
+            <rc-metin-girdisi
+              formControlName="siteIptalKosulu"
+              [azamiUzunluk]="256"
+              [yerTutucu]="'sistem.ayarlar.siteBilgi.iptalOrnek' | transloco"
+            />
+          </rc-alan>
+          <rc-alan
+            [etiket]="'sistem.ayarlar.alan.siteGooglePuani' | transloco"
+            [ipucu]="'sistem.ayarlar.siteBilgi.puanIpucu' | transloco"
+          >
+            <rc-sayi-girdisi formControlName="siteGooglePuani" [kesir]="1" yerTutucu="4,8" />
+          </rc-alan>
+          <rc-alan [etiket]="'sistem.ayarlar.alan.siteGoogleYorumSayisi' | transloco">
+            <rc-sayi-girdisi formControlName="siteGoogleYorumSayisi" />
+          </rc-alan>
+          <rc-alan
+            class="rc-form-izgara__genis"
+            [etiket]="'sistem.ayarlar.alan.siteGoogleProfilUrl' | transloco"
+            [ipucu]="'sistem.ayarlar.siteBilgi.baglantiIpucu' | transloco"
+          >
+            <rc-metin-girdisi
+              formControlName="siteGoogleProfilUrl"
+              tur="url"
+              [azamiUzunluk]="512"
+              yerTutucu="https://maps.app.goo.gl/…"
+            />
+          </rc-alan>
+        </div>
+      </section>
+
       <section class="rc-bolum" aria-labelledby="ayar-smtp">
         <h2 id="ayar-smtp">{{ 'sistem.ayarlar.smtp' | transloco }}</h2>
         <p class="not">{{ 'sistem.ayarlar.smtpAciklama' | transloco }}</p>

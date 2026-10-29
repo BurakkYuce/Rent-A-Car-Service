@@ -84,6 +84,21 @@ public sealed class SettingsDto
     /// <summary>Sunucu Twilio yapılandırması var mı (SMS/WhatsApp test düğmeleri için bilgi; kimlik değeri dönmez).</summary>
     public bool TwilioTanimli { get; init; }
     public IReadOnlyList<WhatsAppDeliveryDto> WhatsAppGonderimleri { get; init; } = [];
+    // Halka açık site bilgileri (V0) — boş alan sitede basılmaz.
+    public decimal? SiteDepozitoTutari { get; init; }
+    public string? SiteDepozitoAciklama { get; init; }
+    public int? SiteGunlukKmSiniri { get; init; }
+    public bool SiteKmSinirsiz { get; init; }
+    public int? SiteMinYas { get; init; }
+    public int? SiteMinEhliyetYili { get; init; }
+    public string? SiteSigortaOzeti { get; init; }
+    public string? SiteIptalKosulu { get; init; }
+    public decimal? SiteGooglePuani { get; init; }
+    public int? SiteGoogleYorumSayisi { get; init; }
+    public string? SiteGoogleProfilUrl { get; init; }
+    /// <summary>Puan/yorum sayısının en son girildiği an (sunucu yazar; salt okunur).</summary>
+    public DateTimeOffset? SiteGooglePuanTarihi { get; init; }
+    public int? SiteKurulusYili { get; init; }
     public string? Surum { get; init; }
 }
 
@@ -184,6 +199,26 @@ public sealed class SettingsRequest
     public string? FaturaSeriKodu { get; init; }
     public string? WhatsAppNumarasi { get; init; }
     public bool? WhatsAppGunlukOzet { get; init; }
+    /// <summary>Depozito (TL, 0–10.000.000, en çok 2 ondalık) ya da boş.</summary>
+    public decimal? SiteDepozitoTutari { get; init; }
+    public string? SiteDepozitoAciklama { get; init; }
+    /// <summary>Günlük km sınırı (1–10.000); <c>siteKmSinirsiz</c> ile birlikte dolu olamaz.</summary>
+    public int? SiteGunlukKmSiniri { get; init; }
+    public bool SiteKmSinirsiz { get; init; }
+    /// <summary>Asgari yaş (18–99).</summary>
+    public int? SiteMinYas { get; init; }
+    /// <summary>Asgari ehliyet yılı (0–60).</summary>
+    public int? SiteMinEhliyetYili { get; init; }
+    public string? SiteSigortaOzeti { get; init; }
+    public string? SiteIptalKosulu { get; init; }
+    /// <summary>Google puanı (1,0–5,0, bir ondalık); doluysa <c>siteGoogleProfilUrl</c> zorunlu.</summary>
+    public decimal? SiteGooglePuani { get; init; }
+    /// <summary>Google yorum sayısı; doluysa puan zorunlu.</summary>
+    public int? SiteGoogleYorumSayisi { get; init; }
+    /// <summary>Google işletme profili: yalnız https ve Google alan adları (google.com[.tr], g.page, maps.app.goo.gl …).</summary>
+    public string? SiteGoogleProfilUrl { get; init; }
+    /// <summary>Kuruluş yılı (1900–bu yıl).</summary>
+    public int? SiteKurulusYili { get; init; }
     public string? Surum { get; init; }
 }
 

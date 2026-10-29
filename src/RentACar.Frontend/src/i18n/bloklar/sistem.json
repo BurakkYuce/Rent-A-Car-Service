@@ -504,6 +504,16 @@
           "aciklama": "Editoryal ve ferah: büyük başlık, dikey fotoğraf ve numaralı fiyat listesi. Tatil bölgesinde, havalimanı ve otel teslimi yapan firmalar için."
         }
       },
+      "siteBilgi": {
+        "baslik": "Web sitesi bilgileri",
+        "aciklama": "Müşterinin kiralamadan önce sorduğu bilgiler. Firmanızın halka açık web sitesinde gösterilir; boş bıraktığınız bilgi sitede hiç görünmez. Metinleri siz yazarsınız, sistem sizin adınıza taahhüt yazmaz. Çalışma saatleri şube kartından gelir.",
+        "depozitoIpucu": "Sitede \"Depozito ₺5.000'den\" gibi görünür.",
+        "depozitoOrnek": "Kredi kartı şart değil, nakit depozito olur",
+        "sigortaOrnek": "Kasko dahil, hasar muafiyeti 10.000 TL",
+        "iptalOrnek": "48 saat öncesine kadar ücretsiz iptal",
+        "puanIpucu": "1,0 ile 5,0 arası, elle girilir. Puan girerseniz profil bağlantısı zorunludur; ziyaretçi puanı oradan doğrulayabilmeli.",
+        "baglantiIpucu": "Yalnız https ile başlayan Google adresleri: google.com, g.page, maps.app.goo.gl."
+      },
       "smtp": "SMTP (e-posta gönderimi)",
       "smtpAciklama": "Müşteriye giden e-postalar bu sunucudan gönderilir. Port 465 örtük SSL, 587 STARTTLS olarak bağlanır; şifreli olmayan bağlantıda parola gönderilmez. Sunucu yalnız 25, 465, 587 ve 2525 portlarını kabul eder.",
       "smtpSifreIpucu": "Sunucu, port ya da kullanıcı değişirse şifre yeniden girilmelidir.",
@@ -576,7 +586,19 @@
         "smtpSsl": "SSL/TLS zorunlu",
         "faturaSeriKodu": "Fatura seri kodu",
         "whatsAppNumarasi": "WhatsApp no (E.164)",
-        "whatsAppGunlukOzet": "Günlük özet gönderilsin"
+        "whatsAppGunlukOzet": "Günlük özet gönderilsin",
+        "siteKurulusYili": "Kuruluş yılı",
+        "siteDepozitoTutari": "Depozito (TL)",
+        "siteDepozitoAciklama": "Depozito açıklaması",
+        "siteGunlukKmSiniri": "Günlük km sınırı",
+        "siteKmSinirsiz": "Sınırsız km",
+        "siteMinYas": "Asgari sürücü yaşı",
+        "siteMinEhliyetYili": "Asgari ehliyet yılı",
+        "siteSigortaOzeti": "Sigorta özeti",
+        "siteIptalKosulu": "İptal koşulu",
+        "siteGooglePuani": "Google puanı",
+        "siteGoogleYorumSayisi": "Google yorum sayısı",
+        "siteGoogleProfilUrl": "Google işletme profili bağlantısı"
       },
       "logo": {
         "baslik": "PDF logo (sözleşme / fatura / makbuz başlığı)",
