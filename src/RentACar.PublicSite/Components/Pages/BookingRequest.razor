@@ -1,6 +1,7 @@
 @page "/rezervasyon-talebi"
 @using RentACar.Application.Branches
 @using RentACar.Application.Fleet
+@using RentACar.Application.PublicSite
 @using RentACar.PublicSite.Components.Shared
 @inject FleetShowcaseService Showcase
 @inject BranchService BranchSvc
@@ -26,7 +27,7 @@
     <form method="post" action="/rezervasyon-talebi/gonder" class="talep-form"><AntiforgeryToken />
         @if (!string.IsNullOrEmpty(Error))
         {
-            <p class="not-kutu hata" role="alert">@Error</p>
+            <p class="not-kutu hata" role="alert">@BookingRequestException.MessageFor(Error)</p>
         }
 
         <fieldset>
@@ -126,6 +127,7 @@
     [SupplyParameterFromQuery(Name = "bitSaat")] public string? EndTime { get; set; }
     [SupplyParameterFromQuery(Name = "sube")] public string? Branch { get; set; }
     [SupplyParameterFromQuery(Name = "fiyat")] public string? Price { get; set; }
+    /// <summary>Talep ucunun ret KODU (<see cref="BookingRequestException"/>); metin koddan basılır, adresteki serbest metin basılmaz.</summary>
     [SupplyParameterFromQuery(Name = "hata")] public string? Error { get; set; }
     /// <summary>Kurumsal teklif (Paket temasının kurumsal formundan, <c>?kurumsal=1</c>): başlık ve not ipucu değişir.
     /// KVKK: serbest metin ADRESTE taşınmaz — kurumsal bilgi (araç adedi, süre, şehir) yalnız bu sayfanın POST

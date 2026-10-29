@@ -104,8 +104,8 @@ public sealed class PublicBookingRequestTimeTests(PostgresFixture fx)
         { "10:00", "10:00", 0, 7, 0, 0, 7, 0 },       // 10:00 İstanbul = 07:00Z
         { "00:00", "23:59", -1, 21, 0, 0, 20, 59 },   // gece yarısı sınırı: alış önceki UTC gününe düşer
         { null, null, 0, 0, 0, 0, 0, 0 },             // saat yok → eski davranış (UTC gece yarısı)
-        { "25:00", "10:00", 0, 0, 0, 0, 0, 0 },       // bozuk saat → eski davranış
         { "10:00", null, 0, 0, 0, 0, 0, 0 },          // tek saat → eski davranış (/musaitlik ile aynı kural)
+        { " ", "10:00", 0, 0, 0, 0, 0, 0 },           // boşluk = BOŞ alan → eski davranış (biçimsiz DOLU saat reddedilir, aşağıda)
     };
 
     [Theory]
@@ -143,6 +143,77 @@ public sealed class PublicBookingRequestTimeTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         Assert.Single(await ListAsync(host, a));
         Assert.Empty(await ListAsync(host, b));
+    }
+
+    /// <summary>PR #412 adversarial L1 (Probe_E): saatli aramada 7 gün 3 saat → 8 gün haftalık kademe gösterilir; talep
+    /// formunda saat metin kutusuna düşüp "10.00" yazılırsa saat eskiden SESSİZCE düşüyor, talep 7 gün günlük kademeyle
+    /// gösterilenden farklı fiyata dönüşüyordu. Artık DOLU ama biçimsiz saat kodla reddedilir, talep YAZILMAZ.</summary>
+    [Theory]
+    [InlineData("10.00", "13:00")]
+    [InlineData("10:00", "25:00")]
+    [InlineData("10:00Z", "13:00")]
+    [InlineData(" 10:00", "13:00")]
+    [InlineData("10:00:00", "13:00")]
+    [InlineData("10:00", "x")]
+    public async Task POST_dolu_ama_bicimsiz_saat_kodla_reddedilir_talep_yazilmaz(string fromTime, string toTime)
+    {
+        var tenant = await SeedTenantAsync();
+        using var host = new TestHost(fx.AppConnectionString);
+        var (listingId, _) = await SeedListingAsync(host, tenant);
+        using var factory = new PublicSiteFactory(fx, tenant);
+        var client = factory.Client();
+
+        using var r = await PostFormAsync(client, ("bas", Iso(IstanbulDay(5))), ("bit", Iso(IstanbulDay(12))),
+            ("basSaat", fromTime), ("bitSaat", toTime), ("ilanId", listingId.ToString()));
+        Assert.Equal(HttpStatusCode.Redirect, r.StatusCode);
+        Assert.Equal("/rezervasyon-talebi?hata=saat_bicim", r.Headers.Location?.OriginalString);
+        Assert.Empty(await ListAsync(host, tenant));
+
+        var page = WebUtility.HtmlDecode(await client.GetStringAsync(r.Headers.Location!.OriginalString));
+        Assert.Contains("Saat biçimi geçersiz", page);
+    }
+
+    [Fact]
+    public async Task POST_gecmis_tarihli_talep_kodla_reddedilir_adresteki_serbest_metin_basilmaz()
+    {
+        var tenant = await SeedTenantAsync();
+        using var factory = new PublicSiteFactory(fx, tenant);
+        var client = factory.Client();
+
+        using var r = await PostFormAsync(client, ("bas", Iso(IstanbulDay(-1))), ("bit", Iso(IstanbulDay(2))));
+        Assert.Equal("/rezervasyon-talebi?hata=tarih_gecmis", r.Headers.Location?.OriginalString);
+        using var host = new TestHost(fx.AppConnectionString);
+        Assert.Empty(await ListAsync(host, tenant));
+        Assert.Contains("Alış zamanı geçmiş olamaz",
+            WebUtility.HtmlDecode(await client.GetStringAsync(r.Headers.Location!.OriginalString)));
+
+        // Adreste serbest metin: basılmaz, genel metin basılır (içerik sahteciliği).
+        var spoofed = WebUtility.HtmlDecode(await client.GetStringAsync("/rezervasyon-talebi?hata=Hesabiniz%20askiya%20alindi"));
+        Assert.DoesNotContain("Hesabiniz askiya alindi", spoofed);
+        Assert.Contains("Talebiniz gönderilemedi", spoofed);
+    }
+
+    [Fact]
+    public async Task Musaitlik_dolu_ama_bicimsiz_saatte_hata_gosterir_tarihleri_korur_fiyat_hesaplamaz()
+    {
+        var tenant = await SeedTenantAsync();
+        using var host = new TestHost(fx.AppConnectionString);
+        await SeedListingAsync(host, tenant);
+        using var factory = new PublicSiteFactory(fx, tenant);
+        var (bas, bit) = (Iso(IstanbulDay(5)), Iso(IstanbulDay(12)));
+
+        // Kontrol: geçerli saatle aynı aralık aranır ve özet basılır (aşağıdaki DoesNotContain anlamlı olsun).
+        var valid = WebUtility.HtmlDecode(await factory.Client().GetStringAsync($"/musaitlik?bas={bas}&bit={bit}&basSaat=10:00&bitSaat=13:00"));
+        Assert.Contains("araç müsait", valid);
+        Assert.DoesNotContain("Saat biçimi geçersiz", valid);
+
+        using var r = await factory.Client().GetAsync($"/musaitlik?bas={bas}&bit={bit}&basSaat=10.00&bitSaat=13:00");
+        Assert.Equal(HttpStatusCode.OK, r.StatusCode);
+        var html = WebUtility.HtmlDecode(await r.Content.ReadAsStringAsync());
+        Assert.Contains("Saat biçimi geçersiz", html);
+        Assert.Equal(bas, InputValue(html, "bas"));
+        Assert.Equal(bit, InputValue(html, "bit"));
+        Assert.DoesNotContain("araç müsait", html); // aralık fiyatı hesaplanmadı; filo tarihsiz listelenir
     }
 
     [Fact]
@@ -201,7 +272,7 @@ public sealed class PublicBookingRequestTimeTests(PostgresFixture fx)
     {
         var tenant = await SeedTenantAsync();
         using var host = new TestHost(fx.AppConnectionString);
-        var slug = await SeedListingAsync(host, tenant);
+        var (_, slug) = await SeedListingAsync(host, tenant);
         using var factory = new PublicSiteFactory(fx, tenant);
         var client = factory.Client();
         var (bas, bit) = (Iso(IstanbulDay(20)), Iso(IstanbulDay(23)));
@@ -222,7 +293,7 @@ public sealed class PublicBookingRequestTimeTests(PostgresFixture fx)
         Assert.DoesNotContain("basSaat=", plain);
     }
 
-    private static async Task<string> SeedListingAsync(TestHost host, Guid t)
+    private static async Task<(Guid Id, string Slug)> SeedListingAsync(TestHost host, Guid t)
     {
         using var s = host.ScopeFor(t);
         var vehicles = s.ServiceProvider.GetRequiredService<VehicleService>();
@@ -238,6 +309,6 @@ public sealed class PublicBookingRequestTimeTests(PostgresFixture fx)
         var listingId = await listings.StepOneSignatureAsync([signature]);
         await listings.StepTwoAsync(listingId, 1500m, null, null, true);
         await listings.StepThreeAsync(listingId, [new OzellikSatiri("Marka", "Fiat")]);
-        return (await listings.GetAsync(listingId))!.Ilan.Slug;
+        return (listingId, (await listings.GetAsync(listingId))!.Ilan.Slug);
     }
 }

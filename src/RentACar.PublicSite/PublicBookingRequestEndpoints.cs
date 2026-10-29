@@ -20,9 +20,12 @@ public static class PublicBookingRequestEndpoints
         app.MapPost("/rezervasyon-talebi/gonder", async (HttpRequest req, PublicBookingRequestService svc) =>
         {
             var f = req.Form;
+            if (SiteDate.IsMalformedTime(f["basSaat"].ToString()) || SiteDate.IsMalformedTime(f["bitSaat"].ToString()))
+                return Results.Redirect("/rezervasyon-talebi?hata=" + BookingRequestException.InvalidTime);
             var (start, end) = (ParseDate(f["bas"].ToString()), ParseDate(f["bit"].ToString()));
             // Saat yalnız İKİ tarih ve İKİ saat de geçerliyse kullanılır (/musaitlik ile aynı kural): İstanbul gün+saati
-            // → UTC (Npgsql timestamptz yalnız UTC yazar). Biri bile yoksa ESKİ davranış: günün UTC gece yarısı.
+            // → UTC (Npgsql timestamptz yalnız UTC yazar). Biri bile BOŞSA ESKİ davranış: günün UTC gece yarısı
+            // (dolu ama biçimsiz saat yukarıda reddedildi).
             var hasTime = false;
             if (start is not null && end is not null
                 && SiteDate.ParseTime(f["basSaat"].ToString()) is { } fromTime
@@ -58,7 +61,9 @@ public static class PublicBookingRequestEndpoints
             }
             catch (ValidationException ex)
             {
-                return Results.Redirect("/rezervasyon-talebi?hata=" + Uri.EscapeDataString(ex.Message));
+                // Adrese yalnız KOD (serbest metin içerik sahteciliğine açık); sayfa metni koddan basar.
+                return Results.Redirect("/rezervasyon-talebi?hata="
+                    + (ex is BookingRequestException known ? known.Code : BookingRequestException.Generic));
             }
         }).RequireRateLimiting("booking-request");
 

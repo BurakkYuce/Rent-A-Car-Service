@@ -70,9 +70,11 @@ public sealed class PublicBookingRequestService(
 
         var fullName = (input.AdSoyad ?? string.Empty).Trim();
         var phone = (input.Telefon ?? string.Empty).Trim();
-        if (string.IsNullOrWhiteSpace(fullName)) throw new ValidationException("Ad soyad zorunludur.");
-        if (string.IsNullOrWhiteSpace(phone)) throw new ValidationException("Telefon zorunludur.");
-        if (input.BitTar <= input.BasTar) throw new ValidationException("İade tarihi alış tarihinden sonra olmalıdır.");
+        // Ret KODLU (BookingRequestException): site ucu adrese yalnız kodu yazar.
+        if (string.IsNullOrWhiteSpace(fullName)) throw new BookingRequestException(BookingRequestException.NameRequired);
+        if (string.IsNullOrWhiteSpace(phone)) throw new BookingRequestException(BookingRequestException.PhoneRequired);
+        if (input.BitTar <= input.BasTar) throw new BookingRequestException(BookingRequestException.EndBeforeStart);
+        DatePolicy.BookingRequest(input.BasTar, input.BitTar, input.HasTime);
 
         // PR-14: ilanı SUNUCUDAN çöz. Başlık ve fiyat snapshot'ı buradan alınır — ziyaretçinin
         // gönderdiği değerlere GÜVENİLMEZ (artık sözleşme fiyatına akıyorlar). İlan yayından

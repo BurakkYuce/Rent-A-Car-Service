@@ -3,6 +3,7 @@
 @using RentACar.Application.Branches
 @using RentACar.Application.Common
 @using RentACar.Application.Fleet
+@using RentACar.Application.PublicSite
 @using RentACar.PublicSite.Components.Shared
 @inject FleetShowcaseService Showcase
 @inject BranchService BranchSvc
@@ -175,6 +176,15 @@
         _canonicalRoot = await Showcase.GetCanonicalRootAsync();
         _crumbRoot = _canonicalRoot;
         _branches = (await BranchSvc.ListActiveAsync()).Select(s => s.Ad).ToList();
+
+        // Dolu ama biçimsiz saat ("10.00") sessizce düşseydi fiyat saatsiz aralıktan hesaplanır, ziyaretçi farkı görmezdi:
+        // hata gösterilir, form (tarihler) korunur, filo listelenir.
+        if (SiteDate.IsMalformedTime(StartTime) || SiteDate.IsMalformedTime(EndTime))
+        {
+            _error = BookingRequestException.MessageFor(BookingRequestException.InvalidTime);
+            _fleet = PinFirst(await Showcase.ListShowcaseGroupsAsync(), k => k.Slug);
+            return;
+        }
 
         _start = ParseDate(Start);
         _end = ParseDate(End);
