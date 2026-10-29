@@ -45,6 +45,31 @@ public static class DatePolicy
             throw new ValidationException("Gerçek dönüş tarihi en fazla 1 yıl ileri olabilir.");
     }
 
+    /// <summary>Saatli site talebinde alış anı için form doldurma payı (10:00 seçip 10:20'de gönderen reddedilmez).</summary>
+    public static readonly TimeSpan BookingRequestTolerance = TimeSpan.FromHours(1);
+
+    /// <summary>
+    /// Site talebi (anonim lead; PR #412 adversarial L2): sunucu tarafında sınır yoktu, geçmiş tarihli ya da 0001-01-01
+    /// çöp talep kabul ediliyordu. Gün İSTANBUL günüdür (sitenin tarih alanlarındaki <c>min</c> ile aynı; UTC değil —
+    /// gece yarısından sonraki üç saatte UTC hâlâ dünü gösterir). Alış günü bugünden önce olamaz; saatli talepte alış
+    /// anı <see cref="BookingRequestTolerance"/> payıyla şimdiden önce olamaz; alış ≤ +1 yıl (rezervasyon ufku);
+    /// süre ≤ <see cref="MaxRentalYears"/> yıl (kirayla aynı anti-typo — talep kiraya dönüşür). Ret KODLA döner.
+    /// </summary>
+    public static void BookingRequest(DateTimeOffset start, DateTimeOffset end, bool hasTime)
+    {
+        var now = Now;
+        // Üst sınır ÖNCE: 9999-12-31 gibi bir an İstanbul'a çevrilirken DateTimeOffset aralığını taşardı.
+        if (start > now.AddYears(1))
+            throw new PublicSite.BookingRequestException(PublicSite.BookingRequestException.StartTooFar);
+        var zone = Periods.PeriodLock.Zone;
+        if (DateOnly.FromDateTime(TimeZoneInfo.ConvertTime(start, zone).DateTime)
+                < DateOnly.FromDateTime(TimeZoneInfo.ConvertTime(now, zone).DateTime)
+            || (hasTime && start < now - BookingRequestTolerance))
+            throw new PublicSite.BookingRequestException(PublicSite.BookingRequestException.StartInPast);
+        if (end > start.AddYears(MaxRentalYears))
+            throw new PublicSite.BookingRequestException(PublicSite.BookingRequestException.TooLong);
+    }
+
     public static void ReservationStart(DateTimeOffset start)
     {
         if (start < Now.AddDays(-1))

@@ -91,14 +91,88 @@ public sealed class PublicBookingRequestTests(PostgresFixture fx)
         var svc = pub.ServiceProvider.GetRequiredService<PublicBookingRequestService>();
 
         var unnamed = Input(name: "  ");
-        await Assert.ThrowsAsync<ValidationException>(() => svc.CreateAsync(unnamed));
+        Assert.Equal("ad_soyad", (await Assert.ThrowsAsync<BookingRequestException>(() => svc.CreateAsync(unnamed))).Code);
 
         var wireless = Input(tel: " ");
-        await Assert.ThrowsAsync<ValidationException>(() => svc.CreateAsync(wireless));
+        Assert.Equal("telefon", (await Assert.ThrowsAsync<BookingRequestException>(() => svc.CreateAsync(wireless))).Code);
 
         var reverseDate = Input();
         (reverseDate.BasTar, reverseDate.BitTar) = (Bit, Start);
-        await Assert.ThrowsAsync<ValidationException>(() => svc.CreateAsync(reverseDate));
+        Assert.Equal("tarih_sirasi", (await Assert.ThrowsAsync<BookingRequestException>(() => svc.CreateAsync(reverseDate))).Code);
+    }
+
+    // ---- PR #412 adversarial L2: talep tarih sınırları. ORACLE: İstanbul günü testte ayrıca hesaplanır (UTC+3 bölgesi),
+    // sınırlar elle: alış günü < bugün → red; saatli alış şimdiden 2 sa önce → red; alış > +1 yıl → red; süre > 5 yıl → red.
+    private static readonly TimeZoneInfo IstanbulZone = TimeZoneInfo.FindSystemTimeZoneById("Europe/Istanbul");
+
+    /// <summary>İstanbul'da bugünden <paramref name="offset"/> gün sonrası, saatsiz talebin yazıldığı biçimde (günün UTC gece yarısı).</summary>
+    private static DateTimeOffset IstanbulDayAsUtcMidnight(int offset)
+    {
+        var day = DateOnly.FromDateTime(TimeZoneInfo.ConvertTime(DateTimeOffset.UtcNow, IstanbulZone).DateTime).AddDays(offset);
+        return new DateTimeOffset(day.Year, day.Month, day.Day, 0, 0, 0, TimeSpan.Zero);
+    }
+
+    public static TheoryData<string, string> RejectedDates() => new()
+    {
+        { "dun_saatsiz", "tarih_gecmis" },
+        { "iki_saat_once_saatli", "tarih_gecmis" },
+        { "0001_01_01", "tarih_gecmis" },
+        { "bir_yil_iki_gun_sonra", "tarih_ileri" },
+        { "9999_12_31", "tarih_ileri" },
+        { "bes_yil_bir_gun_sure", "sure_uzun" },
+        { "bitis_9999", "sure_uzun" },
+    };
+
+    [Theory]
+    [MemberData(nameof(RejectedDates))]
+    public async Task Talep_tarihi_gecmiste_cok_ileride_ya_da_cok_uzunsa_kodla_reddedilir_yazilmaz(string scenario, string expectedCode)
+    {
+        var now = DateTimeOffset.UtcNow;
+        var (start, end, hasTime) = scenario switch
+        {
+            "dun_saatsiz" => (IstanbulDayAsUtcMidnight(-1), IstanbulDayAsUtcMidnight(2), false),
+            "iki_saat_once_saatli" => (now.AddHours(-2), now.AddDays(3), true),
+            "0001_01_01" => (DateTimeOffset.MinValue, IstanbulDayAsUtcMidnight(3), false),
+            "bir_yil_iki_gun_sonra" => (now.AddYears(1).AddDays(2), now.AddYears(1).AddDays(5), false),
+            "9999_12_31" => (DateTimeOffset.MaxValue.AddMinutes(-1), DateTimeOffset.MaxValue, true),
+            "bes_yil_bir_gun_sure" => (IstanbulDayAsUtcMidnight(10), IstanbulDayAsUtcMidnight(10).AddYears(5).AddDays(1), false),
+            "bitis_9999" => (IstanbulDayAsUtcMidnight(10), DateTimeOffset.MaxValue, false),
+            _ => throw new ArgumentOutOfRangeException(nameof(scenario)),
+        };
+        using var host = new TestHost(fx.AppConnectionString);
+        var tenantId = Guid.NewGuid();
+        using (var pub = host.ScopeFor(tenantId, role: null))
+        {
+            var input = Input();
+            (input.BasTar, input.BitTar, input.HasTime) = (start, end, hasTime);
+            var ex = await Assert.ThrowsAsync<BookingRequestException>(
+                () => pub.ServiceProvider.GetRequiredService<PublicBookingRequestService>().CreateAsync(input));
+            Assert.Equal(expectedCode, ex.Code);
+        }
+
+        using var scope = host.ScopeFor(tenantId);
+        Assert.Empty(await scope.ServiceProvider.GetRequiredService<PublicBookingRequestService>().ListAsync());
+    }
+
+    [Fact]
+    public async Task Talep_bugun_saatsiz_ve_bir_saat_sonra_saatli_kabul_edilir()
+    {
+        using var host = new TestHost(fx.AppConnectionString);
+        var tenantId = Guid.NewGuid();
+        using (var pub = host.ScopeFor(tenantId, role: null))
+        {
+            var svc = pub.ServiceProvider.GetRequiredService<PublicBookingRequestService>();
+            var today = Input();
+            (today.BasTar, today.BitTar) = (IstanbulDayAsUtcMidnight(0), IstanbulDayAsUtcMidnight(3));
+            await svc.CreateAsync(today);
+
+            var timed = Input(tel: "0555 999 88 77");
+            (timed.BasTar, timed.BitTar, timed.HasTime) = (DateTimeOffset.UtcNow.AddHours(1), DateTimeOffset.UtcNow.AddDays(3), true);
+            await svc.CreateAsync(timed);
+        }
+
+        using var scope = host.ScopeFor(tenantId);
+        Assert.Equal(2, (await scope.ServiceProvider.GetRequiredService<PublicBookingRequestService>().ListAsync()).Count);
     }
 
     [Fact]
@@ -206,15 +280,17 @@ public sealed class PublicBookingRequestTests(PostgresFixture fx)
         var tenantId = Guid.NewGuid();
         var vehicleId = await SeedVehicleAsync(host, tenantId);
 
-        // GERÇEKÇİ hata senaryosu: talep GEÇMİŞ tarihlerle gelmiş (ziyaretçi eski tarih seçmiş ya da
-        // talep bekletilirken tarihi geçmiş). Talep kaydı buna izin verir (lead, rezervasyon değil) ama
-        // dönüştürme `TarihPolitikasi.RezervasyonBaslangic` ile REDDEDİLİR → claim GERİ ALINMALI.
+        // GERÇEKÇİ hata senaryosu: talep bekletilirken tarihi GEÇMİŞ. Dönüştürme `DatePolicy.ReservationStart` ile
+        // REDDEDİLİR → claim GERİ ALINMALI. Talep doğrudan repoya yazılır: geçmiş tarihli talep artık site
+        // yolundan (CreateAsync) giremiyor (PR #412 L2), ama bekleyen talebin tarihi zamanla yine geçer.
         using (var pub = host.ScopeFor(tenantId, role: null))
         {
-            var history = Input();
-            history.BasTar = new DateTimeOffset(DateTime.UtcNow.Date.AddDays(-30), TimeSpan.Zero);
-            history.BitTar = new DateTimeOffset(DateTime.UtcNow.Date.AddDays(-27), TimeSpan.Zero);
-            await pub.ServiceProvider.GetRequiredService<PublicBookingRequestService>().CreateAsync(history);
+            await pub.ServiceProvider.GetRequiredService<IPublicBookingRequestRepository>().AddAsync(new PublicBookingRequest
+            {
+                AdSoyad = "Ayşe Yılmaz", Telefon = "0555 111 22 33", Durum = PublicBookingRequestDurum.Yeni,
+                BasTar = new DateTimeOffset(DateTime.UtcNow.Date.AddDays(-30), TimeSpan.Zero),
+                BitTar = new DateTimeOffset(DateTime.UtcNow.Date.AddDays(-27), TimeSpan.Zero),
+            });
         }
         var request = await SingleRequestAsync(host, tenantId);
 

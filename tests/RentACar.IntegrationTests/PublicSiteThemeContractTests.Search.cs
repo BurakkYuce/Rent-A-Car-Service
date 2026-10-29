@@ -61,9 +61,12 @@ public sealed partial class PublicSiteThemeContractTests
         Assert.Equal("10:00", InputValue(timed, "basSaat"));
         Assert.Equal("14:00", InputValue(timed, "bitSaat"));
 
-        // Biçimsiz saat yok sayılır (eski davranış), formda varsayılan basılır.
+        // Dolu ama biçimsiz saat SESSİZCE düşmez (PR #412 L1): hata görünür, aralık fiyatı hesaplanmaz, tarihler
+        // formda korunur; saat alanı biçimsiz değeri basamaz → varsayılan.
         var bad = WebUtility.HtmlDecode(await client.GetStringAsync(dated + "&basSaat=25:00&bitSaat=x"));
-        Assert.Contains(", 3 gün.", bad);
+        Assert.Contains("Saat biçimi geçersiz", bad);
+        Assert.DoesNotContain(", 3 gün.", bad);
+        Assert.Equal(Day(30), InputValue(bad, "bas"));
         Assert.Equal("10:00", InputValue(bad, "basSaat"));
     }
 }

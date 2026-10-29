@@ -31,6 +31,10 @@ public static class SiteDate
     public static TimeOnly? ParseTime(string? s)
         => TimeOnly.TryParseExact(s, "HH:mm", CultureInfo.InvariantCulture, DateTimeStyles.None, out var t) ? t : null;
 
+    /// <summary>Saat alanı DOLU ama biçimsiz mi (ör. "10.00")? Boş alan eski davranıştır (saatsiz), biçimsiz değer
+    /// sessizce düşerse talep/arama sitede gösterilen fiyattan saptığı için reddedilir (PR #412 adversarial L1).</summary>
+    public static bool IsMalformedTime(string? s) => !string.IsNullOrWhiteSpace(s) && ParseTime(s) is null;
+
     /// <summary>İstanbul'daki gün + saat → mutlak an (ofset İstanbul'un o andaki ofseti).</summary>
     public static DateTimeOffset At(DateOnly day, TimeOnly time)
     {
