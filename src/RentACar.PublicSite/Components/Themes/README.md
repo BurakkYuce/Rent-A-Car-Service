@@ -127,6 +127,12 @@ Parametre adları ve tipleri değişmez:
 | | `Sayfalar` | `IReadOnlyList<SiteLink>` | Ana sayfa + menü + firmanın içerik sayfaları |
 | | `YasalSayfalar` | `IReadOnlyList<SiteLink>` | Yayındaki yasal sayfalar (boşsa sütun yok) |
 
+Ortak `<AramaFormu>` alanları DOLU açılır (alış yarın İstanbul günü, iade +3 gün, saatler 10:00); alan adları
+`bas`/`bit`/`sube` + EK `basSaat`/`bitSaat` (`HH:mm`, İstanbul). `/musaitlik` iki saat de geçerliyse aramayı o
+saatlerle yapar (gün sayısı saatle), biri bile yoksa eski davranış (yalnız günler). `ListingCard.WaLinki` /
+`DetailHeroModel.WaLinki` "WhatsApp'tan sor" bağlantısıdır: `WhatsAppAsk` (araç + seçilen tarih/saatle hazır mesaj,
+numara `PhoneLink` ile); numara yoksa null → düğme basılmaz.
+
 Kurallar (tüm slotlar): arama için ORTAK `<AramaFormu>` (alan adları/doğrulama tek kaynak, T4); firma işareti
 için ORTAK `<BrandMark>`; fiyat için `PriceText`. `Kart.Gun is null` / `Model.Tarih is null` iken "müsait"
 DENMEZ (T1). Veri yoksa bölüm basılmaz (T2). Firma adına taahhüt metni yazılmaz (T1). JS eklenmez (CSP

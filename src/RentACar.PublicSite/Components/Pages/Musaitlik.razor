@@ -22,7 +22,8 @@
 
     @* PR-19: form ORTAK bileşen (T4) — Hero ile aynı alan adları/doğrulama. GET-querystring: JS yok,
        paylaşılabilir/geri-tuşuna dost URL. `ilan` taşınır: ilan detayından gelindiyse o araç öne alınır. *@
-    <AramaFormu Satir="true" Bas="@Bas" Bit="@Bit" Sube="@Sube" Ilan="@Ilan" Subeler="_branches" ButonMetni="Ara" />
+    <AramaFormu Satir="true" Bas="@Bas" Bit="@Bit" BasSaat="@BasSaat" BitSaat="@BitSaat" Sube="@Sube" Ilan="@Ilan"
+                Subeler="_branches" ButonMetni="Ara" />
 
     @if (!string.IsNullOrEmpty(_error))
     {
@@ -46,6 +47,10 @@
 
     [SupplyParameterFromQuery(Name = "bas")] public string? Bas { get; set; }
     [SupplyParameterFromQuery(Name = "bit")] public string? Bit { get; set; }
+    /// <summary>V0: alış/iade saati ("HH:mm", İstanbul). İkisi de geçerliyse arama o saatlerle yapılır; biri bile
+    /// yoksa ESKİ davranış (yalnız günler) — saatsiz eski bağlantılar ve paylaşılmış adresler aynı sonucu verir.</summary>
+    [SupplyParameterFromQuery(Name = "basSaat")] public string? BasSaat { get; set; }
+    [SupplyParameterFromQuery(Name = "bitSaat")] public string? BitSaat { get; set; }
     [SupplyParameterFromQuery(Name = "sube")] public string? Sube { get; set; }
     /// <summary>İlan detayından gelindiyse o ilanın slug'ı — sonuçta öne alınır.</summary>
     [SupplyParameterFromQuery(Name = "ilan")] public string? Ilan { get; set; }
@@ -65,6 +70,7 @@
     private string? _requestedTitle;
     private bool _requestedAvailable;
     private DateTimeOffset? _start, _end;
+    private TimeOnly? _fromTime, _toTime;
     /// <summary>Fleet slotunun modeli (sonuç ya da tarihsiz filo); null → liste alanı boş.</summary>
     private FleetModel? _list;
 
@@ -87,8 +93,12 @@
         {
             // ---- (a) TARİH SEÇİLMİŞ: gerçek müsaitlik + dönem toplamı. Gün sayısı aralığın kendisinden
             // (BookingMath) — tüm sonuçlarda aynı.
+            var (fromDay, toDay) = (DateOnly.FromDateTime(_start!.Value.Date), DateOnly.FromDateTime(_end!.Value.Date));
             var cards = _results.Select((r, i) => ListingCard.From(r, QuoteLink.Build(r.Slug, Bas, Bit, Sube, r.GunlukFiyat),
-                r.Slug == Ilan ? "Baktığınız araç" : null, i == 0)).ToList();
+                r.Slug == Ilan ? "Baktığınız araç" : null, i == 0) with
+            {
+                WaLinki = WhatsAppAsk.Link(_branding, r.Baslik, fromDay, toDay, _fromTime, _toTime),
+            }).ToList();
             return new FleetModel(cards, FleetPlacement.Availability)
             {
                 Tarih = _results.Count > 0 ? new StayDates(_start!.Value, _end!.Value, _results[0].Gun) : null,
@@ -112,7 +122,7 @@
         // ---- (b) TARİH YOK: misafir filoyu serbestçe geziyor. BURADA "müsait" DENMEZ: tarih olmadan hangi aracın
         // boşta olduğu bilinemez. Kart adet etiketi de "9 araç" der, "9 araç müsait" demez (ListingCard, Card slotu).
         var fleet = _fleet.Select((k, i) => ListingCard.From(k, QuoteLink.Build(k.Slug, Bas, Bit, Sube, k.GunlukFiyat),
-            k.Slug == Ilan ? "Baktığınız araç" : null, i == 0)).ToList();
+            k.Slug == Ilan ? "Baktığınız araç" : null, i == 0) with { WaLinki = WhatsAppAsk.Link(_branding, k.Baslik) }).ToList();
         return new FleetModel(fleet, FleetPlacement.Availability)
         {
             Ozet = new FleetSummary($"Filoda {_fleet.Count} araç",
@@ -132,6 +142,14 @@
 
         _start = ParseDate(Bas);
         _end = ParseDate(Bit);
+        if (_start is not null && _end is not null && SiteDate.ParseTime(BasSaat) is { } fromTime
+            && SiteDate.ParseTime(BitSaat) is { } toTime)
+        {
+            _fromTime = fromTime;
+            _toTime = toTime;
+            _start = SiteDate.At(DateOnly.FromDateTime(_start.Value.Date), fromTime);
+            _end = SiteDate.At(DateOnly.FromDateTime(_end.Value.Date), toTime);
+        }
 
         // İKİ tarih de girilmemişse (ya da yalnız biri girilmişse) müsaitlik HESAPLANMAZ — tek
         // tarihten aralık uydurmak ziyaretçinin niyetini varsaymak olurdu. Bunun yerine filo
@@ -145,7 +163,8 @@
         _searched = true;
         try
         {
-            var results = await Showcase.SearchAvailabilityAsync(_start.Value, _end.Value,
+            // Saatli aralık İstanbul ofsetini taşır (ekranda doğru gün); veritabanı yalnız UTC kabul eder.
+            var results = await Showcase.SearchAvailabilityAsync(_start.Value.ToUniversalTime(), _end.Value.ToUniversalTime(),
                 string.IsNullOrWhiteSpace(Sube) ? null : Sube);
             _requestedAvailable = !string.IsNullOrWhiteSpace(Ilan) && results.Any(r => r.Slug == Ilan);
             if (!string.IsNullOrWhiteSpace(Ilan) && !_requestedAvailable)

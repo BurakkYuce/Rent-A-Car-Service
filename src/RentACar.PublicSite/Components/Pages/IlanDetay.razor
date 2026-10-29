@@ -132,8 +132,7 @@
 
         if (await Showcase.GetCanonicalHostAsync() is { } host) _canonicalRoot = $"https://{host}";
         var branches = (await Subeler.ListActiveAsync()).Select(s => s.Ad).ToList();
-        var waLink = PhoneLink.Wa(string.IsNullOrWhiteSpace(_branding.WhatsApp) ? _branding.MobilTel : _branding.WhatsApp,
-            $"Merhaba, {_detail.Baslik} için bilgi almak istiyorum.");
+        var waLink = WhatsAppAsk.Link(_branding, _detail.Baslik);
 
         _hero = new DetailHeroModel(_detail, Rates(_detail),
             QuoteLink.Build(_detail.Slug, dailyPrice: _detail.GunlukFiyat), branches)
