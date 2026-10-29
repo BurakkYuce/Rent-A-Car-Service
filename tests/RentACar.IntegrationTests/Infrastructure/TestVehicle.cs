@@ -21,5 +21,9 @@ public static class TestVehicle
         return await NewAsync(s.ServiceProvider, plate);
     }
 
-    private static string RandomPlate() => "34T" + Random.Shared.Next(10000, 99999);
+    // Rastgele başlangıç + süreç içi sayaç: aynı kiracıda iki plaka asla çakışmaz (salt rastgele 90 bin aralıkta
+    // CI'da çakıştı: "34T19610 zaten kayıtlı"). Başlangıç rastgele kalır ki ayrı koşular farklı plakalar görsün.
+    private static int _next = Random.Shared.Next(10000, 60000);
+
+    private static string RandomPlate() => "34T" + Interlocked.Increment(ref _next);
 }
