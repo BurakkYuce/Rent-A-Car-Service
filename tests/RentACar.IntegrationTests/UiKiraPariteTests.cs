@@ -75,7 +75,6 @@ public sealed class UiKiraPariteTests(WebFixture fx)
             }
             await db.SaveChangesAsync();
         }
-        await fx.MakePilotAsync(o.TenantId, true);
 
         var customer = new Customer { Tip = CustomerType.Bireysel, Ad = "Deniz", Soyad = "Yılmaz" };
         var gps = new EkHizmetTanim { Kod = "GPS", Ad = "Navigasyon", BirimUcret = 50m, KdvOrani = 0.20m, Aktif = true };

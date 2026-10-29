@@ -154,7 +154,6 @@ export const settings = (extra: Record<string, unknown> = {}) => ({
       dogrulamaDegeri: 'racar-0123456789abcdef',
     },
   ],
-  yeniArayuzPilot: true,
   twilioTanimli: false,
   whatsAppGonderimleri: [],
   surum: 'v1',

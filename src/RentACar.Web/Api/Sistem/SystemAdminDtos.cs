@@ -3,7 +3,6 @@ namespace RentACar.Web.Api.Sistem;
 /// <summary>
 /// Firma ayarları (GET). SIR alanları (e-Fatura şifresi, SMS API anahtarı, POS API anahtarı, SMTP şifresi) HİÇBİR
 /// yanıtta dönmez — yalnız <c>*Tanimli</c> bayrağı. Logo baytları ayrı uçtan (<c>/ayarlar/logo</c>) okunur.
-/// <c>YeniArayuzPilot</c> salt okunur (platform konsolu yazar).
 /// </summary>
 public sealed class SettingsDto
 {
@@ -80,7 +79,6 @@ public sealed class SettingsDto
     public bool WebSitesiAcik { get; init; }
     public string? WebSitesiAdresi { get; init; }
     public IReadOnlyList<DomainDto> Domainler { get; init; } = [];
-    public bool YeniArayuzPilot { get; init; }
     /// <summary>Sunucu Twilio yapılandırması var mı (SMS/WhatsApp test düğmeleri için bilgi; kimlik değeri dönmez).</summary>
     public bool TwilioTanimli { get; init; }
     public IReadOnlyList<WhatsAppDeliveryDto> WhatsAppGonderimleri { get; init; } = [];

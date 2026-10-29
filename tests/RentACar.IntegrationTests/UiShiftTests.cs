@@ -71,7 +71,6 @@ public sealed class UiShiftTests(WebFixture fx)
             }
             await db.SaveChangesAsync();
         }
-        await fx.MakePilotAsync(e.TenantId, true);
 
         using var host = new TestHost(fx.Pg.AppConnectionString);
         using var scope = host.ScopeFor(e.TenantId);

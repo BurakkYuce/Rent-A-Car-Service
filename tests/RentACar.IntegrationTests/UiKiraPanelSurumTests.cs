@@ -57,7 +57,6 @@ public sealed class UiKiraPanelSurumTests(WebFixture fx)
             db.Users.Add(u);
             await db.SaveChangesAsync();
         }
-        await fx.MakePilotAsync(tenantId, true);
         var customer = new Customer { Tip = CustomerType.Bireysel, Ad = "Deniz", Soyad = "Yılmaz" };
         await WriteDataAsync(tenantId, db => db.Customers.Add(customer));
         return new Ortam(tenantId, code, user, password, customer.Id);

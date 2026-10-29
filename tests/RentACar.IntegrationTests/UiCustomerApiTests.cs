@@ -75,7 +75,6 @@ public sealed partial class UiCustomerApiTests(WebFixture fx)
             }
             await db.SaveChangesAsync();
         }
-        await fx.MakePilotAsync(e.TenantId, true);
         return e;
     }
 

@@ -30315,7 +30315,6 @@ export interface components {
       /** Format: double */
       gelir30Gun: number | string;
       webSitesiModulu: boolean;
-      yeniArayuzPilot: boolean;
       halkaAcikSite: boolean;
       domainler: components['schemas']['PlatformDomainDto'][];
       logo: components['schemas']['PlatformLogoDto'];
@@ -33054,7 +33053,6 @@ export interface components {
       webSitesiAcik?: boolean;
       webSitesiAdresi?: null | string;
       domainler?: components['schemas']['DomainDto'][];
-      yeniArayuzPilot?: boolean;
       twilioTanimli?: boolean;
       whatsAppGonderimleri?: components['schemas']['WhatsAppDeliveryDto'][];
       /** Format: double */

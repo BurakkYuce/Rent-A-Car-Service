@@ -53,7 +53,7 @@ public sealed class UiKiraPanelTests(WebFixture fx)
     /// <summary>Tam saniyeye hizalı "şimdi" (Mac µs / Linux tick farkı DB eşitliğini bozmasın).</summary>
     private static DateTimeOffset Now() => DateTimeOffset.FromUnixTimeSeconds(DateTimeOffset.UtcNow.ToUnixTimeSeconds());
 
-    private async Task<Ortam> SetUpEnvironmentAsync(bool pilot = true)
+    private async Task<Ortam> SetUpEnvironmentAsync()
     {
         var o = new Ortam
         {
@@ -82,7 +82,6 @@ public sealed class UiKiraPanelTests(WebFixture fx)
             }
             await db.SaveChangesAsync();
         }
-        await fx.MakePilotAsync(o.TenantId, pilot);
 
         var customer = new Customer { Tip = CustomerType.Bireysel, Ad = "Deniz", Soyad = "Yılmaz", CepTel = "05320001122", Email = "deniz@ornek.test" };
         var gps = new EkHizmetTanim { Kod = "GPS", Ad = "Navigasyon", BirimUcret = 50m, KdvOrani = 0.20m, Aktif = true };
@@ -458,16 +457,6 @@ public sealed class UiKiraPanelTests(WebFixture fx)
             HttpStatusCode.Forbidden, UiError.Forbidden);
 
         await ExpectProblem(await op.C.GetAsync($"{Rental}/{id}/karne-ozeti"), HttpStatusCode.Forbidden, UiError.Forbidden);
-    }
-
-    /// <summary>F13.1b: pilot kapısı kalktı — bayrağı kapalı firma da kira listesini ve paneli okur.</summary>
-    [Fact]
-    public async Task Pilot_bayragi_kapali_firma_da_kira_ve_panel_okur()
-    {
-        var o = await SetUpEnvironmentAsync(pilot: false);
-        var s = await LoginAsync(o, Kim.Admin);
-        Assert.Equal(HttpStatusCode.OK, (await s.C.GetAsync(Rental)).StatusCode);
-        Assert.Equal(HttpStatusCode.OK, (await s.C.GetAsync(V1 + "/panel/ozet")).StatusCode);
     }
 
     [Fact]
