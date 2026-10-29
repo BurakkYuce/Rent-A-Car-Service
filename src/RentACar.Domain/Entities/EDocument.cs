@@ -40,6 +40,17 @@ public class EDocument : ITenantOwned, IAuditable
     /// durum sorulur — önceki deneme ulaşmış olabilir, aynı ETTN ikinci kez gönderilmez.</summary>
     public int DenemeSayisi { get; set; }
     public DateTimeOffset? SonDenemeUtc { get; set; }
+    /// <summary>Son denemenin yapıldığı entegratör ortamı (true = canlı, false = test; null = deneme yok / kolon
+    /// öncesi). Ortam değiştiğinde önceki canlı denemenin akıbeti canlı ortamda sorulur — test ortamının "bulunamadı"
+    /// yanıtı canlıya ulaşmış bir belgeyi gizlemesin (adversarial N3).</summary>
+    public bool? SonDenemeCanli { get; set; }
+    /// <summary>
+    /// GİB belge numarası (3 seri + 4 yıl + 9 sıra). Faturanın iç numarasından AYRIDIR: GİB e-Arşiv kılavuzu e-Arşiv
+    /// faturalarda e-Fatura'dakinden farklı birim (seri) kodu ister ve tür ancak gönderimde (alıcı sorgusu) belli olur.
+    /// Bu yüzden ilk denemede türün serisinden ve ortamın sayacından alınır; aynı tür + ortamdaki her yeniden denemede
+    /// AYNI numara kullanılır (aynı ETTN gibi).
+    /// </summary>
+    public string? BelgeNo { get; set; }
     /// <summary>Geçici hatadan sonra bir sonraki denemenin en erken anı (geri çekilme).</summary>
     public DateTimeOffset? SonrakiDenemeUtc { get; set; }
     /// <summary>Gönderim kilidi (kiralama süresi): işi alan çalışan bu ana kadar satırın sahibidir. Çökmede süre dolar,

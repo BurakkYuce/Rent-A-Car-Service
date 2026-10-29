@@ -132,6 +132,7 @@
     "eBelge": {
       "baslik": "e-Belge (e-Fatura / e-Arşiv)",
       "turEtiket": "Tür",
+      "belgeNo": "GİB belge no",
       "ettn": "ETTN",
       "gonderimTarihi": "Gönderim",
       "sonrakiDeneme": "Sonraki deneme",

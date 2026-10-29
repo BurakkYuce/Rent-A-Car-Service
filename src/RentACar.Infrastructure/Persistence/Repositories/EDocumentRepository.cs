@@ -27,13 +27,21 @@ public sealed class EDocumentRepository(IDbContextFactory<AppDbContext> factory)
         return await db.EDocuments.AsNoTracking().Where(d => ids.Contains(d.InvoiceId)).ToDictionaryAsync(d => d.InvoiceId, ct);
     }
 
+    public async Task<bool> SeriesUsedByOtherKindAsync(string series, EDocumentKind? kind, CancellationToken ct = default)
+    {
+        await using var db = await factory.CreateDbContextAsync(ct);
+        var used = db.EDocuments.AsNoTracking().Where(d => d.BelgeNo != null && d.BelgeNo.StartsWith(series));
+        if (kind is { } k) used = used.Where(d => d.Tur != k);
+        return await used.AnyAsync(ct);
+    }
+
     public Task<EDocumentStatus> QueueAsync(Guid invoiceId, DateTimeOffset now, CancellationToken ct = default)
         => PgRetry.RunAsync(async () =>
         {
             await using var db = await factory.CreateDbContextAsync(ct);
             await using var tx = await db.Database.BeginTransactionAsync(ct);
-            await db.Database.ExecuteSqlRawAsync(
-                "SELECT 1 FROM \"EBelgeler\" WHERE \"InvoiceId\" = {0} FOR UPDATE", [invoiceId], ct);
+            // Fatura kilidi (advisory + satır): kayıt yokken de iadeyle serileşir (adversarial N2).
+            await EDocumentQueue.LockAsync(db, invoiceId, ct);
             // İadesi olan fatura kuyruğa GİRMEZ (adversarial M1) — kilit altında yeniden bakılır: servis ön-kontrolünden
             // sonra commit eden bir iade de görülür.
             if (await db.Invoices.AsNoTracking().AnyAsync(i => i.KaynakFaturaId == invoiceId, ct))
@@ -84,9 +92,11 @@ public sealed class EDocumentRepository(IDbContextFactory<AppDbContext> factory)
             }
             catch (DbUpdateException ex) when (ex.InnerException is PostgresException { SqlState: PostgresErrorCodes.UniqueViolation })
             {
-                // Eşzamanlı ikinci istek kaydı bizden önce açtı → aynı sonuç (kuyrukta).
+                // Kaydı bizden önce başka bir işlem açtı (kilidi almayan bir yol). "Kuyrukta" varsayılmaz — o kayıt bir
+                // iadenin İptal kaydı olabilir (adversarial N2): baştan koşulur, durum kilit altında yeniden okunur
+                // (ikinci koşu kaydı bulur, ekleme yapmaz → döngü yok).
                 await tx.RollbackAsync(ct);
-                return EDocumentStatus.Gonderilecek;
+                return await QueueAsync(invoiceId, now, ct);
             }
             return EDocumentStatus.Gonderilecek;
         }, ct);

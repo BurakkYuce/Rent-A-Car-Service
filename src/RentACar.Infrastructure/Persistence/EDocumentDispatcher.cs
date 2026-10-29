@@ -141,23 +141,26 @@ public static class EDocumentDispatcher
         var credentials = conn.Credentials!;
 
         // (1) Önceki deneme entegratöre ulaşmış olabilir → önce sor; biliyorsa YENİDEN GÖNDERME.
+        // Ortam canlıdan teste çevrildiyse önceki canlı deneme canlıda da sorulur (adversarial N3).
         if (doc.SonDenemeUtc is not null)
         {
             EInvoiceStatusResult status;
-            try { status = await integrator.QueryStatusAsync(credentials, doc.Ettn, doc.Tur ?? EDocumentKind.EArsiv, ct); }
+            bool foundLive;
+            try { (status, foundLive) = await conn.QueryPreviousAttemptAsync(doc, Clock(now), ct); }
             catch (Exception ex) when (ex is not OperationCanceledException)
             {
                 return Outcome.Retry(EDocumentPolicy.Sanitize("Entegratörde durum sorgulanamadı: " + ex.Message)!);
             }
             if (!status.Sorgulandi)
                 return Outcome.Retry(EDocumentPolicy.Sanitize("Entegratörde durum sorgulanamadı: " + status.Hata)!);
-            if (status.Bulundu) return Outcome.Sent(credentials.CanliOrtam, status.EntegratorRef, status.Durum);
+            if (status.Bulundu) return Outcome.Sent(foundLive, status.EntegratorRef, status.Durum);
         }
 
         // (1b) İadesi kesilmiş fatura GÖNDERİLMEZ (adversarial M1): defterde geri alınmış satış GİB'e gitmesin. Kilit
         // bizde: bundan sonra commit edilmek istenen bir iade kilidi görüp reddedilir (EDocumentQueue.SettleSourceOnRefundAsync).
+        // Kesinleşmemiş canlı deneme (adversarial N1): tek "bulunamadı" ile iptal edilmez, süre dolunca yeniden sorulur.
         if (await db.Invoices.AsNoTracking().AnyAsync(i => i.KaynakFaturaId == doc.InvoiceId, ct))
-            return Outcome.Refunded;
+            return EDocumentPolicy.LiveAttemptMayStillLand(doc, Clock(now)) ? Outcome.Retry(EDocumentPolicy.RefundedAwaitingSettle) : Outcome.Refunded;
 
         // (2) Veri — fatura değişmez; müşteri TCKN'si yalnız bellekte çözülür.
         var invoice = await db.Invoices.AsNoTracking().Include(i => i.Lines)
@@ -191,27 +194,45 @@ public static class EDocumentDispatcher
             }
         }
         var kind = profile == UblProfile.EArsivFatura ? EDocumentKind.EArsiv : EDocumentKind.EFatura;
+        var live = credentials.CanliOrtam;
 
-        // (4) Belge — tutar kilidi: üreticinin toplamları faturanın kayıtlı toplamlarıyla birebir.
+        // Önceki CANLI deneme kesinleşmeden tür ya da ortam değişmez (adversarial N1/N3): yeni numara/ortam kaydı önceki
+        // denemenin izini silerdi; geç kabul edilen canlı belge sonra test kabulü ya da başka türle gizlenebilirdi.
+        if (doc.SonDenemeCanli == true && (doc.Tur != kind || !live) && EDocumentPolicy.LiveAttemptMayStillLand(doc, Clock(now)))
+            return Outcome.Retry(EDocumentPolicy.AttemptNotSettled(doc, Clock(now)));
+
+        // (4) Belge — tutar kilidi: üreticinin toplamları faturanın kayıtlı toplamlarıyla birebir. Veri hatası numara
+        // almadan önce yakalanır.
         var input = EDocumentInputFactory.Create(new EDocumentSource(invoice, customer, tckn, settings, doc.Ettn), profile, tz);
-        var built = UblInvoiceBuilder.Build(input);
+
+        // (5) GİB numarası + deneme izi TEK transaction'da, gönderimden ÖNCE kalıcı: buradan sonra çöküş → sonraki koşu
+        // önce durum sorar. Numara faturanın iç numarası DEĞİL, türün kendi serisinden (e-Arşiv ≠ e-Fatura; GİB e-Arşiv
+        // kılavuzu v1.18 §6); aynı tür + ortamdaki yeniden denemede aynı numara. Kilit kaybedilirse rollback numarayı geri
+        // alır (boşluk yok).
+        await using var tx = await db.Database.BeginTransactionAsync(ct);
+        var number = doc.BelgeNo is { } kept && doc.Tur == kind && doc.SonDenemeCanli == live
+            ? kept
+            : await NextDocumentNoAsync(db, doc.TenantId, settings, kind, live, TimeZoneInfo.ConvertTime(invoice.Tarih, tz).Year, ct);
+        var built = UblInvoiceBuilder.Build(input with { No = number });
         if (built.Toplamlar.Net != invoice.NetTutar || built.Toplamlar.Kdv != invoice.KdvTutar
             || built.Toplamlar.Odenecek != invoice.GenelToplam)
             return Outcome.Failed("e-Belge toplamı fatura toplamıyla tutmuyor; gönderilmedi (tutarlar değiştirilmez).");
 
-        // (5) Deneme izi gönderimden ÖNCE kalıcı: buradan sonra çöküş → sonraki koşu önce durum sorar.
         var hash = Convert.ToHexString(SHA256.HashData(built.Xml)).ToLowerInvariant();
         var marked = await db.EDocuments
             .Where(d => d.Id == doc.Id && d.KilitBitisUtc == lease)
             .ExecuteUpdateAsync(s => s
-                .SetProperty(d => d.SonDenemeUtc, now)
+                .SetProperty(d => d.SonDenemeUtc, Clock(now)) // gerçek deneme anı (#410 adversarial M2)
+                .SetProperty(d => d.SonDenemeCanli, live)
+                .SetProperty(d => d.BelgeNo, number)
                 .SetProperty(d => d.DenemeSayisi, d => d.DenemeSayisi + 1)
                 .SetProperty(d => d.Tur, kind)
                 .SetProperty(d => d.Profil, UblInvoiceBuilder.ProfileId(profile))
                 .SetProperty(d => d.FaturaTipi, UblInvoiceBuilder.TypeCode(input.Tip))
                 .SetProperty(d => d.XmlOzet, hash)
                 .SetProperty(d => d.UpdatedAtUtc, now), ct);
-        if (marked != 1) return Outcome.Lost; // kilit süresi doldu ve başka koşu aldı → gönderme, sonucu da yazma
+        if (marked != 1) return Outcome.Lost; // kilit süresi doldu ve başka koşu aldı → gönderme, sonucu da yazma (rollback)
+        await tx.CommitAsync(ct);
         doc.DenemeSayisi++;
 
         // (6) Gönderim.
@@ -219,7 +240,7 @@ public static class EDocumentDispatcher
         try
         {
             result = await integrator.SendAsync(credentials,
-                new EInvoiceSubmission(doc.Ettn, invoice.No, kind, UblInvoiceBuilder.ProfileId(profile), input.Alici.VknTckn,
+                new EInvoiceSubmission(doc.Ettn, number, kind, UblInvoiceBuilder.ProfileId(profile), input.Alici.VknTckn,
                     recipientAlias, built.Xml), ct);
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
@@ -239,6 +260,18 @@ public static class EDocumentDispatcher
         };
     }
 
+    /// <summary>Türün serisinden, ortamın sayacından sıradaki GİB numarası (yıl = fatura tarihinin yılı, sıra her yıl
+    /// 1'den). Çağıran aktif transaction'da olmalı. Seri biçimsizse (ayar dışından yazılmış) gürültülü red.</summary>
+    private static async Task<string> NextDocumentNoAsync(
+        AppDbContext db, Guid tenantId, TenantSettings settings, EDocumentKind kind, bool live, int year, CancellationToken ct)
+    {
+        var series = EDocumentPolicy.Series(settings, kind);
+        if (!Domain.Common.DocumentNo.IsSeriesValid(series))
+            throw new EDocumentDataException($"e-Belge seri kodu geçersiz: '{series}'. Ayarlar ekranından düzeltin.");
+        var n = await SequenceAllocator.NextAsync(db, tenantId, EDocumentPolicy.DocumentCounterKey(series, year, live), ct);
+        return Domain.Common.DocumentNo.FormatInvoice(series, year, n);
+    }
+
     // ------------------------------------------------------------------ kilit + sonuç
 
     /// <summary>
@@ -248,10 +281,16 @@ public static class EDocumentDispatcher
     /// </summary>
     private static DateTimeOffset LeaseUntil(DateTimeOffset now)
     {
-        var start = now > DateTimeOffset.UtcNow ? now : DateTimeOffset.UtcNow;
-        var end = start.ToUniversalTime() + EDocumentPolicy.Lease;
+        var end = Clock(now).ToUniversalTime() + EDocumentPolicy.Lease;
         return new DateTimeOffset(end.Ticks - end.Ticks % TimeSpan.TicksPerSecond, TimeSpan.Zero);
     }
+
+    /// <summary>
+    /// Koşu anı ile GERÇEK saatin büyüğü. İş <c>now</c>'u koşu başında bir kez alır; yavaş entegratörde partinin sonundaki
+    /// belgeye dakikalar sonra sıra gelir. Deneme izi ve "kesinleşti mi" (<see cref="EDocumentPolicy.AttemptSettle"/>)
+    /// kararı bayat koşu anıyla yapılsaydı gerçek denemeden hemen sonra 30 dk "dolmuş" sayılırdı (#410 adversarial M2).
+    /// </summary>
+    private static DateTimeOffset Clock(DateTimeOffset now) => now > DateTimeOffset.UtcNow ? now : DateTimeOffset.UtcNow;
 
     private static async Task<bool> ClaimAsync(AppDbContext db, Guid id, DateTimeOffset now, DateTimeOffset lease, CancellationToken ct)
         => await db.EDocuments

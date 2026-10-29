@@ -26,6 +26,26 @@ public sealed record EInvoiceConnection(IEInvoiceIntegrator? Integrator, EInvoic
                 s.EFaturaCanliOrtam), null);
     }
 
+    /// <summary>
+    /// Önceki denemenin (<see cref="EDocument.SonDenemeUtc"/>) entegratöre ulaşıp ulaşmadığını sorar. Ortam canlıdan
+    /// teste çevrildiyse önce CANLI ortamda da sorulur (adversarial N3): test ortamının "bulunamadı"sı canlıdaki belgeyi
+    /// bilemez. Önceki deneme testte, şimdiki ortam canlıysa yalnız canlıda sorulur — test kabulü GİB'e ulaşmadı.
+    /// Dönen <c>Live</c>: belgenin bulunduğu (bulunmadıysa sorulan) ortam. İstisnalar çağırana geçer.
+    /// <para>Canlı deneme KESİNLEŞMEDEN (<see cref="EDocumentPolicy.LiveAttemptMayStillLand"/>) canlının "bulunamadı"sı
+    /// olduğu gibi döner, test ortamına SORULMAZ (#410 adversarial M1): test → canlı → test geçişinde aynı ETTN'in eski test
+    /// kabulü bulunup belge "test gönderildi" sayılır, ardından geç gelen canlı kabul yerel iptalle gizlenirdi.</para>
+    /// </summary>
+    public async Task<(EInvoiceStatusResult Status, bool Live)> QueryPreviousAttemptAsync(EDocument doc, DateTimeOffset now, CancellationToken ct)
+    {
+        var kind = doc.Tur ?? EDocumentKind.EArsiv;
+        if (doc.SonDenemeCanli == true && !Credentials!.CanliOrtam)
+        {
+            var live = await Integrator!.QueryStatusAsync(Credentials with { CanliOrtam = true }, doc.Ettn, kind, ct);
+            if (!live.Sorgulandi || live.Bulundu || EDocumentPolicy.LiveAttemptMayStillLand(doc, now)) return (live, true);
+        }
+        return (await Integrator!.QueryStatusAsync(Credentials!, doc.Ettn, kind, ct), Credentials!.CanliOrtam);
+    }
+
     public override string ToString() => $"EInvoiceConnection {{ Ready = {Ready}, Gap = {Gap} }}";
 }
 
@@ -87,7 +107,8 @@ public sealed class EDocumentService(
     /// <item><b>Test ortamına gönderilmiş</b> → yerel iptal (GİB'e ulaşmadı).</item>
     /// <item><b>Gönderilmiş e-Fatura</b> → reddedilir: e-Fatura gönderenin tek taraflı iptaliyle geri alınamaz.</item>
     /// <item><b>Gönderilmemiş</b> (Taslak/Hata/Gönderilecek) → yerel iptal: belge bir daha gönderilmez. Gönderim işi o
-    /// an satırı tutuyorsa (kilit) reddedilir — yarışta "iptal edildi" deyip arkadan gönderilmesin.</item>
+    /// an satırı tutuyorsa (kilit) reddedilir — yarışta "iptal edildi" deyip arkadan gönderilmesin. Önceki canlı deneme
+    /// varsa entegratöre sorulur; "bulunamadı" ancak <see cref="EDocumentPolicy.AttemptSettle"/> dolduysa yeterlidir.</item>
     /// </list>
     /// </summary>
     public async Task<EDocumentActionResult> CancelAsync(Guid invoiceId, string? reason, CancellationToken ct = default)
@@ -111,18 +132,22 @@ public sealed class EDocumentService(
                 throw new ValidationException(
                     "Bu belge için daha önce gönderim denendi; entegratör bağlı olmadan sonucu doğrulanamaz, yerel iptal yapılamaz.");
             EInvoiceStatusResult status;
-            try { status = await conn.Integrator!.QueryStatusAsync(conn.Credentials!, doc.Ettn, doc.Tur ?? EDocumentKind.EArsiv, ct); }
+            var live = conn.Credentials!.CanliOrtam;
+            try { (status, live) = await conn.QueryPreviousAttemptAsync(doc, now, ct); }
             catch (Exception ex) when (ex is not OperationCanceledException) { status = new EInvoiceStatusResult(false, false, null, null, ex.Message); }
             if (!status.Sorgulandi)
                 throw new ValidationException(EDocumentPolicy.Sanitize(
                     "Önceki gönderim denemesinin sonucu entegratörden alınamadı; daha sonra yeniden deneyin: " + status.Hata)!);
             if (status.Bulundu)
             {
-                if (!await repository.MarkSentAsync(doc.Id, [doc.Durum], status.EntegratorRef, status.Durum,
-                        conn.Credentials!.CanliOrtam, now, ct))
+                if (!await repository.MarkSentAsync(doc.Id, [doc.Durum], status.EntegratorRef, status.Durum, live, now, ct))
                     throw new ValidationException("e-Belge şu anda gönderiliyor; birkaç dakika sonra yeniden deneyin.");
                 doc = await repository.FindByInvoiceAsync(invoiceId, ct) ?? doc;
             }
+            // Tek "bulunamadı" yanıtı, istemci zaman aşımından sonra sunucunun geç kabul ettiği belgeyi göremez
+            // (adversarial N1): canlı deneme kesinleşmeden yerel iptal yok.
+            else if (EDocumentPolicy.LiveAttemptMayStillLand(doc, now))
+                throw new ValidationException(EDocumentPolicy.AttemptNotSettled(doc, now));
         }
 
         switch (doc.Durum)
@@ -132,6 +157,9 @@ public sealed class EDocumentService(
 
             case EDocumentStatus.TestGonderildi:
             {
+                // Test kabulünden önce kesinleşmemiş bir canlı deneme varsa yerel iptal yok (#410 adversarial M1).
+                if (doc.SonDenemeCanli == true && EDocumentPolicy.LiveAttemptMayStillLand(doc, now))
+                    throw new ValidationException(EDocumentPolicy.AttemptNotSettled(doc, now));
                 var message = EDocumentPolicy.Sanitize("Test ortamına gönderilmiş e-belge iptal edildi (GİB'e ulaşmamıştı): " + why);
                 if (!await repository.MarkCancelledAsync(doc.Id, [EDocumentStatus.TestGonderildi], requireLeaseFree: true, message, now, ct))
                     throw new ValidationException("e-Belge durumu bu sırada değişti; sayfayı yenileyin.");
@@ -148,7 +176,9 @@ public sealed class EDocumentService(
                 var conn = EInvoiceConnection.Resolve(await settings.GetAsync(ct), catalog, secrets);
                 if (!conn.Ready) throw new ValidationException(EInvoiceReadiness.NotConnected(conn.Gap!));
                 EInvoiceCancelResult result;
-                try { result = await conn.Integrator!.CancelAsync(conn.Credentials!, doc.Ettn, EDocumentKind.EArsiv, why, ct); }
+                // Gönderildi = CANLI kabul: iptal canlıya gider, ortam sonradan teste çevrilmiş olsa da (#410 adversarial M3 —
+                // test ortamı aynı ETTN'i eski test kabulünden tanıyıp "iptal edildi" der, canlı belge yaşamaya devam ederdi).
+                try { result = await conn.Integrator!.CancelAsync(conn.Credentials! with { CanliOrtam = true }, doc.Ettn, EDocumentKind.EArsiv, why, ct); }
                 catch (Exception ex) when (ex is not OperationCanceledException)
                 {
                     result = new EInvoiceCancelResult(false, ex.Message);
@@ -193,4 +223,8 @@ public interface IEDocumentRepository
     /// <paramref name="expected"/> içinde ve gönderim kilidi boş. Koşul tutmazsa false.</summary>
     Task<bool> MarkSentAsync(Guid id, IReadOnlyCollection<EDocumentStatus> expected, string? integratorRef, string? integratorStatus,
         bool liveEnvironment, DateTimeOffset now, CancellationToken ct = default);
+
+    /// <summary>Bu seriyle <paramref name="kind"/> DIŞINDA bir türde GİB belge numarası verilmiş mi (seri takası koruması).
+    /// <paramref name="kind"/> null → herhangi bir türde (iç fatura serisi için).</summary>
+    Task<bool> SeriesUsedByOtherKindAsync(string series, EDocumentKind? kind, CancellationToken ct = default);
 }

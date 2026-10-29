@@ -25,6 +25,7 @@ public static class EDocumentQueue
     /// İade kesilirken (iadeyi yazan transaction İÇİNDE) kaynak faturanın e-belgesini sonuçlandırır (adversarial M1):
     /// defterde geri alınmış bir satış GİB'e gönderilmesin.
     /// <list type="bullet">
+    /// <item>Kayıt yok (özellik öncesi fatura) → İptal kaydı eklenir.</item>
     /// <item>Gönderilmemiş ve hiç denenmemiş (Taslak/Gönderilecek/Hata) ya da yalnız TEST ortamına gitmiş → yerel iptal.</item>
     /// <item>Gönderim işi satırı şu an tutuyorsa (kilit) → iade REDDEDİLİR: belge o an entegratöre gidiyor olabilir.</item>
     /// <item>Daha önce denenmiş ama sonucu belirsiz (kayıp yanıt) → dokunulmaz: belge entegratöre ulaşmış olabilir.
@@ -37,18 +38,44 @@ public static class EDocumentQueue
     /// </summary>
     public static async Task SettleSourceOnRefundAsync(AppDbContext db, Guid sourceInvoiceId, DateTimeOffset now, CancellationToken ct)
     {
-        await db.Database.ExecuteSqlRawAsync(
-            "SELECT 1 FROM \"EBelgeler\" WHERE \"InvoiceId\" = {0} FOR UPDATE", [sourceInvoiceId], ct);
+        await LockAsync(db, sourceInvoiceId, ct);
         var doc = await db.EDocuments.FirstOrDefaultAsync(d => d.InvoiceId == sourceInvoiceId, ct);
-        if (doc is null || doc.Durum is EDocumentStatus.Gonderildi or EDocumentStatus.Iptal) return;
+        if (doc is null)
+        {
+            // Özellik öncesi fatura (kayıt yok): İptal kaydı açılır (adversarial N2). Kuyruğa alma aynı fatura kilidini
+            // bekler ve iade commit edince iadeyi görüp reddeder; kayıt yoksa sonradan "Gönderime al" yine yeni kayıt açardı.
+            db.EDocuments.Add(new EDocument
+            {
+                TenantId = db.TenantId, InvoiceId = sourceInvoiceId, Ettn = Guid.NewGuid(), Durum = EDocumentStatus.Iptal,
+                SonMesaj = EDocumentPolicy.RefundedSourceCancelled, CreatedAtUtc = now,
+            });
+            return;
+        }
+        if (doc.Durum is EDocumentStatus.Gonderildi or EDocumentStatus.Iptal) return;
         if (doc.KilitBitisUtc is { } lease && lease >= now)
             throw new ValidationException("Kaynak faturanın e-belgesi şu anda gönderiliyor; birkaç dakika sonra yeniden deneyin.");
         if (doc.SonDenemeUtc is not null && doc.Durum != EDocumentStatus.TestGonderildi) return;
+        // Son deneme kesinleşmemiş bir CANLI denemeyse test kabulü de "ulaşmadı" sayılmaz (#410 adversarial M1): dokunulmaz,
+        // kullanıcı iptali süre dolunca yapılır (EDocumentService.CancelAsync aynı kuralla bekletir).
+        if (doc.SonDenemeCanli == true && EDocumentPolicy.LiveAttemptMayStillLand(doc, now)) return;
 
         doc.Durum = EDocumentStatus.Iptal;
         doc.SonMesaj = EDocumentPolicy.RefundedSourceCancelled;
         doc.KilitBitisUtc = null;
         doc.SonrakiDenemeUtc = null;
         doc.UpdatedAtUtc = now;
+    }
+
+    /// <summary>
+    /// Faturanın e-belge kilidi (aktif transaction'da): <c>ebelge:{tenant}:{fatura}</c> advisory kilidi + varsa satırın
+    /// <c>FOR UPDATE</c>'i. Satır YOKKEN de serileştirir — iade ile kuyruğa alma kayıtsız faturada birbirini beklesin
+    /// (adversarial N2; satır kilidi var olmayan satırı kilitleyemez). Sıra: önce advisory, sonra satır.
+    /// </summary>
+    internal static async Task LockAsync(AppDbContext db, Guid invoiceId, CancellationToken ct)
+    {
+        await db.Database.ExecuteSqlRawAsync(
+            "SELECT pg_advisory_xact_lock(hashtextextended({0}, 42))", [$"ebelge:{db.TenantId}:{invoiceId}"], ct);
+        await db.Database.ExecuteSqlRawAsync(
+            "SELECT 1 FROM \"EBelgeler\" WHERE \"InvoiceId\" = {0} FOR UPDATE", [invoiceId], ct);
     }
 }

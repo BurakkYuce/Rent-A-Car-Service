@@ -78,8 +78,12 @@ public sealed class FakeEInvoiceIntegrator : IEInvoiceIntegrator
             : new EInvoiceStatusResult(true, false, null, null, null));
     }
 
+    /// <summary>Her iptal çağrısının ortamı (true = canlı).</summary>
+    public ConcurrentQueue<bool> CancelCallsLive { get; } = new();
+
     public Task<EInvoiceCancelResult> CancelAsync(EInvoiceCredentials credentials, Guid ettn, EDocumentKind kind, string reason, CancellationToken ct = default)
     {
+        CancelCallsLive.Enqueue(credentials.CanliOrtam);
         if (!_acceptedIn.ContainsKey((ettn, credentials.CanliOrtam))) return Task.FromResult(new EInvoiceCancelResult(false, "Belge bulunamadı."));
         Cancelled.Enqueue((ettn, reason));
         return Task.FromResult(new EInvoiceCancelResult(true, null));

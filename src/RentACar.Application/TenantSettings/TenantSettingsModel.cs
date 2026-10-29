@@ -62,6 +62,9 @@ public sealed class TenantSettingsModel
 
     /// <summary>GİB fatura numarası seri kodu (tam 3 karakter, A-Z veya 0-9).</summary>
     public string? FaturaSeriKodu { get; set; }
+    /// <summary>GİB e-Fatura / e-Arşiv belge numarası seri kodları (boş = EFA / EAR).</summary>
+    public string? EFaturaSeriKodu { get; set; }
+    public string? EArsivSeriKodu { get; set; }
 
     // WhatsApp günlük operasyon özeti
     public string? WhatsAppNumarasi { get; set; }

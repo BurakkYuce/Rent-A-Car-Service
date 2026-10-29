@@ -54,6 +54,47 @@ public static class EDocumentPolicy
     }
 
     /// <summary>
+    /// Sonucu belirsiz bir CANLI denemenin "entegratörde yok" sayılabilmesi için geçmesi gereken süre (adversarial N1).
+    /// İstemci zaman aşımında (HttpClient iptali) istek sunucuya ulaşmış olabilir ve sunucu onu bizden sonra işler: o
+    /// arada gelen tek bir "bulunamadı" yanıtı kesin değildir. Bizim taraftaki çağrı <see cref="CallBudget"/> ile kilit
+    /// süresinin (10 dk) altında kesilir; sunucu tarafının işleme süresi bilinmediğinden kilidin üç katı (30 dk)
+    /// beklenir. Bu süre dolmadan yerel iptal reddedilir, iade edilmiş belgenin iptali ve tür/ortam değişikliği ertelenir.
+    /// Test ortamı denemesi GİB'e ulaşmadığından bekletilmez.
+    /// </summary>
+    public static readonly TimeSpan AttemptSettle = TimeSpan.FromMinutes(30);
+
+    /// <summary>Son deneme canlıda (ya da ortamı bilinmiyor) ve üzerinden <see cref="AttemptSettle"/> geçmedi.</summary>
+    public static bool LiveAttemptMayStillLand(EDocument doc, DateTimeOffset now)
+        => doc.SonDenemeCanli != false && doc.SonDenemeUtc is { } at && now - at < AttemptSettle;
+
+    public static string AttemptNotSettled(EDocument doc, DateTimeOffset now)
+    {
+        var minutes = Math.Max(1, (int)Math.Ceiling((doc.SonDenemeUtc!.Value + AttemptSettle - now).TotalMinutes));
+        return $"Önceki gönderim denemesinin sonucu henüz kesinleşmedi (entegratör isteği geç işleyebilir); {minutes} dakika sonra yeniden deneyin.";
+    }
+
+    /// <summary>İade edilmiş fatura, canlı denemesi kesinleşene kadar bekletilir (sonra iptal edilir).</summary>
+    public const string RefundedAwaitingSettle =
+        "Fatura iade edildi; önceki gönderim denemesinin sonucu kesinleşince e-belge iptal edilecek.";
+
+    /// <summary>Varsayılan GİB e-belge serileri (ayar boşsa). İç fatura serisinden (RNT) ve birbirinden farklı.</summary>
+    public const string EInvoiceSeriesDefault = "EFA";
+    public const string EArchiveSeriesDefault = "EAR";
+
+    /// <summary>
+    /// Belge türünün GİB seri kodu. GİB e-Arşiv kılavuzu v1.18 §6: "e-Arşiv kapsamında düzenledikleri faturalarda
+    /// e-fatura uygulamasında kullandıkları birim kodlardan farklı birim kodları belirleyerek kullanacaklardır."
+    /// </summary>
+    public static string Series(Domain.Entities.TenantSettings? s, EDocumentKind kind) => kind == EDocumentKind.EFatura
+        ? s?.EFaturaSeriKodu ?? EInvoiceSeriesDefault
+        : s?.EArsivSeriKodu ?? EArchiveSeriesDefault;
+
+    /// <summary>Belge numarası sayacı: seri + yıl + ORTAM. Test ortamı ayrı sayaç kullanır — test gönderimleri canlı
+    /// serisinde boşluk bırakmasın. Önek iç fatura sayacından (<c>F:</c>) ayrıdır.</summary>
+    public static string DocumentCounterKey(string series, int year, bool live)
+        => $"EB:{series}:{year:D4}" + (live ? "" : ":test");
+
+    /// <summary>
     /// Yeni kesilen fatura için e-belge kaydı. Fatura ile AYNI transaction'da yazılır (fatura var ↔ e-belge kaydı var).
     /// Ayarlar hazırsa <see cref="EDocumentStatus.Gonderilecek"/>; değilse <see cref="EDocumentStatus.Taslak"/> +
     /// "bağlı değil" sebebi. İade faturası hiçbir zaman otomatik kuyruğa girmez.
@@ -93,8 +134,23 @@ public static class EDocumentPolicy
         _ => TimeSpan.FromHours(4),
     };
 
-    /// <summary>Hane arası boşluk/nokta/tire (gruplu yazım: "123 456 789 01").</summary>
-    private const string DigitSeparator = @"[ .\-]?";
+    /// <summary>
+    /// Hane arası en çok 3 karakterlik ayraç: boşluk, nokta, eğik çizgi, alt çizgi, tire, en/em tire ("123 456 789 01",
+    /// "123 – 456", "123_456", "123/456"). Önce NFKC (tam genişlikli "１２３" → "123"), görünmez biçim karakterleri (U+200B
+    /// vb.) silinir, boşluklar tek ' 'e indirilir (adversarial N4, #410 L3/L5/L6).
+    /// <para>Bilinçli DIŞARIDA kalanlar (yanlış pozitif dengesi, #410 L5/L6):</para>
+    /// <list type="bullet">
+    /// <item><b>Virgül, artı, parantez:</b> Türkçe tutar biçimi ("200,00 / 1.250,00", "1.000,00 + 2.500,00") ve listeler
+    /// 11 haneye birleşip maskelenirdi; virgüllü TCKN gruplaması ("123,456,789,01") yakalanmaz.</item>
+    /// <item><b>İki nokta:</b> saat ("15.10.2026 08:30:15") tarihle birleşip 11 hane sayılırdı.</item>
+    /// <item><b>4+ karakterlik ayraç</b> (" -- "): üst sınır 3; genişletmek tarih/tutar dizilerini birleştirirdi.</item>
+    /// </list>
+    /// Bilinen sır (çözülmüş TCKN) verilirse aynı ayraç kuralıyla ayrıca maskelenir; asıl savunma entegratör mesajına
+    /// kişisel veri koymamaktır (port sözleşmesi).
+    /// </summary>
+    private const string DigitSeparator = @"[\s./_\-–—]{0,3}";
+
+    private static readonly Regex FormatChars = new(@"\p{Cf}", RegexOptions.CultureInvariant);
 
     private static readonly Regex ElevenDigits = new(
         @"(?<![0-9])[0-9](?:" + DigitSeparator + @"[0-9]){10}(?![0-9])", RegexOptions.CultureInvariant);
@@ -107,7 +163,9 @@ public static class EDocumentPolicy
     public static string? Sanitize(string? text, params string?[] secrets)
     {
         if (string.IsNullOrWhiteSpace(text)) return null;
-        var s = text;
+        // Önce boşluk normalizasyonu: NBSP / dar boşluk / sekme / satır sonu → tek ' ' (char.IsWhiteSpace).
+        var s = string.Join(' ', FormatChars.Replace(text.Normalize(System.Text.NormalizationForm.FormKC), string.Empty)
+            .Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries));
         foreach (var secret in secrets ?? [])
         {
             if (string.IsNullOrWhiteSpace(secret) || secret.Length < 4) continue;
@@ -117,7 +175,6 @@ public static class EDocumentPolicy
                     new string('*', secret.Length), RegexOptions.CultureInvariant);
         }
         s = ElevenDigits.Replace(s, "***********");
-        s = string.Join(' ', s.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries));
         return s.Length <= MessageMax ? s : s[..(MessageMax - 3)] + "...";
     }
 }

@@ -60,6 +60,8 @@ public static partial class SystemAdminApi
         RentalLimits.Text(i.SmtpGonderenAdres, 256, "smtpGonderenAdres", "Gönderen adresi");
         RentalLimits.Text(i.SmtpGonderenAd, 128, "smtpGonderenAd", "Gönderen adı");
         RentalLimits.Text(i.FaturaSeriKodu, 3, "faturaSeriKodu", "Fatura seri kodu");
+        RentalLimits.Text(i.EFaturaSeriKodu, 3, "eFaturaSeriKodu", "e-Fatura seri kodu");
+        RentalLimits.Text(i.EArsivSeriKodu, 3, "eArsivSeriKodu", "e-Arşiv seri kodu");
         RentalLimits.Text(i.WhatsAppNumarasi, 32, "whatsAppNumarasi", "WhatsApp numarası");
         RentalLimits.Text(i.SiteTemasi, 20, "siteTemasi", "Site teması");
         // Halka açık site bilgileri (V0): kolon sınırları; aralık/biçim kuralları serviste (SiteInfoRules).

@@ -13,7 +13,8 @@ namespace RentACar.Application.TenantSettings;
 public sealed class TenantSettingsService(
     ITenantSettingsRepository repository, ICurrentUser currentUser, ISecretProtector secrets, ScreenPermissionService screens,
     ITenantDomainRepository domains, ITenantContext tenant, ITenantSettingsVersionStore? versionStore = null,
-    IDnsTxtResolver? dnsTxt = null, EInvoicing.EInvoiceIntegratorCatalog? einvoiceCatalog = null)
+    IDnsTxtResolver? dnsTxt = null, EInvoicing.EInvoiceIntegratorCatalog? einvoiceCatalog = null,
+    EInvoicing.IEDocumentRepository? edocuments = null)
 {
     /// <summary>
     /// F11.1b güvenlik M6 — özel alan adının sahiplik doğrulaması: <c>_racar-verify.&lt;alan adı&gt;</c> TXT kaydında
@@ -54,7 +55,39 @@ public sealed class TenantSettingsService(
     {
         PermissionGuard.Require(currentUser, Permission.ManageUsers);
         await screens.EnsureScreenAccessAsync("ayarlar", Permission.ManageUsers, ct);
+        await EnsureSeriesKeepTheirKindAsync(m, ct);
         await Versions.UpsertAsync(s => Apply(s, m), expectedVersion, ct);
+    }
+
+    /// <summary>
+    /// #410 adversarial L1 — seri takası: bir seri (ör. EAR) e-Arşiv numarası vermişse sonradan e-Fatura serisi yapılamaz
+    /// (ve tersi). Ayar üç kodun farklı olmasını sağlar ama takas edilen kod, sayacı aynı olduğundan aynı seride iki türü
+    /// karıştırırdı (GİB e-Arşiv kılavuzu v1.18 §6). Yıl ayrımı yapılmaz: daha katı ve geçmiş yıl belgeleriyle karışmaz.
+    /// </summary>
+    private async Task EnsureSeriesKeepTheirKindAsync(TenantSettingsModel m, CancellationToken ct)
+    {
+        if (edocuments is null) return;
+        // #410 adversarial L7: iç fatura serisi de geçmişte GİB numarası vermiş bir seriye çekilemez — aynı metin hem iç
+        // fatura numarası hem GİB belge numarası olarak iki ayrı faturayı gösterirdi.
+        var internalSeries = Trim(m.FaturaSeriKodu)?.ToUpperInvariant();
+        if (internalSeries is not null && DocumentNo.IsSeriesValid(internalSeries)
+            && await edocuments.SeriesUsedByOtherKindAsync(internalSeries, null, ct))
+            throw new ValidationException(
+                $"Fatura seri kodu {internalSeries} daha önce GİB e-belge numaralarında kullanıldı; başka bir kod seçin.", "faturaSeriKodu");
+        (string? Value, RentACar.Domain.Enums.EDocumentKind Kind, string Field, string Label, string Other)[] rows =
+        [
+            (m.EFaturaSeriKodu, RentACar.Domain.Enums.EDocumentKind.EFatura, "eFaturaSeriKodu", "e-Fatura", "e-Arşiv"),
+            (m.EArsivSeriKodu, RentACar.Domain.Enums.EDocumentKind.EArsiv, "eArsivSeriKodu", "e-Arşiv", "e-Fatura"),
+        ];
+        foreach (var r in rows)
+        {
+            var series = Trim(r.Value)?.ToUpperInvariant() ?? (r.Kind == RentACar.Domain.Enums.EDocumentKind.EFatura
+                ? EInvoicing.EDocumentPolicy.EInvoiceSeriesDefault : EInvoicing.EDocumentPolicy.EArchiveSeriesDefault);
+            if (DocumentNo.IsSeriesValid(series) && await edocuments.SeriesUsedByOtherKindAsync(series, r.Kind, ct))
+                throw new ValidationException(
+                    $"{r.Label} seri kodu {series} daha önce {r.Other} belgelerinde kullanıldı; GİB e-Arşiv ve e-Fatura için " +
+                    "farklı seri ister. Başka bir kod seçin.", r.Field);
+        }
     }
 
     private ITenantSettingsVersionStore Versions => versionStore
@@ -127,6 +160,8 @@ public sealed class TenantSettingsService(
             SmtpGonderenAdres = s.SmtpGonderenAdres,
             SmtpGonderenAd = s.SmtpGonderenAd,
             FaturaSeriKodu = s.FaturaSeriKodu,
+            EFaturaSeriKodu = s.EFaturaSeriKodu,
+            EArsivSeriKodu = s.EArsivSeriKodu,
             WhatsAppNumarasi = s.WhatsAppNumarasi,
             WhatsAppGunlukOzet = s.WhatsAppGunlukOzet,
             // V0 halka açık site bilgileri
@@ -223,6 +258,7 @@ public sealed class TenantSettingsService(
     {
         PermissionGuard.Require(currentUser, Permission.ManageUsers);
         await screens.EnsureScreenAccessAsync("ayarlar", Permission.ManageUsers, ct);
+        await EnsureSeriesKeepTheirKindAsync(m, ct);
         await repository.UpsertAsync(s => Apply(s, m), ct);
     }
 
@@ -356,6 +392,21 @@ public sealed class TenantSettingsService(
                     "Fatura seri kodu tam 3 karakter olmalı ve yalnız büyük harf (A-Z) veya rakam " +
                     "içermelidir (Türkçe karakter kabul edilmez). Örnek: RNT");
             s.FaturaSeriKodu = series;
+            // GİB e-belge serileri (e-Arşiv kılavuzu v1.18 §6: e-Arşiv, e-Fatura'dan farklı birim kodu). İç fatura
+            // serisinden de farklı olmalı: aynı metin iki ayrı faturayı gösterirdi.
+            s.EFaturaSeriKodu = DocumentSeries(m.EFaturaSeriKodu, "eFaturaSeriKodu", "e-Fatura");
+            s.EArsivSeriKodu = DocumentSeries(m.EArsivSeriKodu, "eArsivSeriKodu", "e-Arşiv");
+            var effective = new[]
+            {
+                series ?? RentACar.Domain.Common.DocumentNo.DefaultSeries,
+                EInvoicing.EDocumentPolicy.Series(s, RentACar.Domain.Enums.EDocumentKind.EFatura),
+                EInvoicing.EDocumentPolicy.Series(s, RentACar.Domain.Enums.EDocumentKind.EArsiv),
+            };
+            if (effective.Distinct(StringComparer.Ordinal).Count() != effective.Length)
+                throw new ValidationException(
+                    $"Fatura ({effective[0]}), e-Fatura ({effective[1]}) ve e-Arşiv ({effective[2]}) seri kodları birbirinden " +
+                    "farklı olmalıdır (GİB: e-Arşiv, e-Fatura'dan farklı seri kullanır).",
+                    effective[1] == effective[0] ? "eFaturaSeriKodu" : "eArsivSeriKodu");
             s.WhatsAppNumarasi = Trim(m.WhatsAppNumarasi);
             s.WhatsAppGunlukOzet = m.WhatsAppGunlukOzet ?? false;
             SiteInfoRules.Apply(s, m, DateTimeOffset.UtcNow);
@@ -426,4 +477,15 @@ public sealed class TenantSettingsService(
     }
 
     private static string? Trim(string? s) => string.IsNullOrWhiteSpace(s) ? null : s.Trim();
+
+    /// <summary>Boş = varsayılan seri (null). Dolu ama biçimsiz → alan hatası (fatura serisiyle aynı kural).</summary>
+    private static string? DocumentSeries(string? value, string field, string label)
+    {
+        var series = Trim(value)?.ToUpperInvariant();
+        if (series is not null && !DocumentNo.IsSeriesValid(series))
+            throw new ValidationException(
+                $"{label} seri kodu tam 3 karakter olmalı ve yalnız büyük harf (A-Z) veya rakam içermelidir " +
+                "(Türkçe karakter kabul edilmez).", field);
+        return series;
+    }
 }
