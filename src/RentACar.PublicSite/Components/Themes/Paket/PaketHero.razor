@@ -1,6 +1,6 @@
 @using RentACar.Application.Fleet
 
-@* Tema "paket" — Hero slotu. İmza SABİT (Components/Themes/README.md): Marka, Branding, Subeler, Kartlar, Sehir.
+@* Tema "paket" — Hero slotu. İmza SABİT (Components/Themes/README.md): BrandName, Branding, Branches, Cards, Area.
 
    İlk ekranın işi "aylık paketi seç": geniş tipografik başlık, en düşük AYLIK fiyat (yalnız ilanlarda girilmiş 30 günlük
    toplamlardan; hiç yoksa en düşük günlük fiyat — aylık fiyat uydurulmaz), iki eylem (araçlar, teklif) ve yanda
@@ -10,10 +10,10 @@
 <section class="pk-hero" aria-labelledby="hero-baslik">
     <div class="wrap pk-hero-ic">
         <div class="pk-hero-metin">
-            <h1 id="hero-baslik">@(string.IsNullOrWhiteSpace(Sehir) ? "Aylık ve uzun dönem araç kiralama" : $"{Sehir} bölgesinde aylık ve uzun dönem araç kiralama")</h1>
-            @if (!string.IsNullOrWhiteSpace(Marka) || _founded is not null)
+            <h1 id="hero-baslik">@(string.IsNullOrWhiteSpace(Area) ? "Aylık ve uzun dönem araç kiralama" : $"{Area} bölgesinde aylık ve uzun dönem araç kiralama")</h1>
+            @if (!string.IsNullOrWhiteSpace(BrandName) || _founded is not null)
             {
-                <p class="pk-kunye">@(string.Join(", ", new[] { Marka, _founded }.Where(x => !string.IsNullOrWhiteSpace(x))))</p>
+                <p class="pk-kunye">@(string.Join(", ", new[] { BrandName, _founded }.Where(x => !string.IsNullOrWhiteSpace(x))))</p>
             }
             @if (_lead is { } lead)
             {
@@ -30,22 +30,22 @@
         </div>
         <div class="pk-hero-form">
             <h2 class="pk-hero-form-baslik">Tarihinize göre toplam</h2>
-            <AramaFormu Hedef="/musaitlik" Subeler="Subeler" ButonMetni="Toplamı gör" AriaLabel="Tarihe göre araç ve fiyat ara" />
+            <SearchForm Action="/musaitlik" Branches="Branches" ButtonText="Toplamı gör" AriaLabel="Tarihe göre araç ve fiyat ara" />
         </div>
     </div>
 </section>
 
 @code {
     /// <summary>Marka adı (künyede).</summary>
-    [Parameter] public string? Marka { get; set; }
+    [Parameter] public string? BrandName { get; set; }
     /// <summary>Firma bilgisi (kuruluş yılı, koşullar).</summary>
     [Parameter] public FleetBranding? Branding { get; set; }
     /// <summary>Aktif şube adları (arama formunun seçim kutusu).</summary>
-    [Parameter] public IReadOnlyList<string> Subeler { get; set; } = [];
+    [Parameter] public IReadOnlyList<string> Branches { get; set; } = [];
     /// <summary>Yayındaki ilanlar (en düşük aylık/günlük fiyat).</summary>
-    [Parameter] public IReadOnlyList<FleetShowcaseCard> Kartlar { get; set; } = [];
+    [Parameter] public IReadOnlyList<FleetShowcaseCard> Cards { get; set; } = [];
     /// <summary>Hizmet bölgesi; null → başlık bölgesiz.</summary>
-    [Parameter] public string? Sehir { get; set; }
+    [Parameter] public string? Area { get; set; }
 
     private sealed record Lead(string Label, decimal Amount, string Unit, bool Vat);
 
@@ -54,9 +54,9 @@
 
     protected override void OnParametersSet()
     {
-        _founded = SiteFactsText.Founded(Branding?.Bilgi);
-        var monthly = Kartlar.Where(k => k.AylikToplam is > 0m).MinBy(k => k.AylikToplam);
-        var daily = Kartlar.MinBy(k => k.GunlukFiyat);
+        _founded = SiteFactsText.Founded(Branding?.Facts);
+        var monthly = Cards.Where(k => k.AylikToplam is > 0m).MinBy(k => k.AylikToplam);
+        var daily = Cards.MinBy(k => k.GunlukFiyat);
         _lead = monthly is not null ? new Lead("En düşük aylık fiyat", monthly.AylikToplam!.Value, " / ay", monthly.KdvDahil)
             : daily is not null ? new Lead("En düşük günlük fiyat", daily.GunlukFiyat, " / gün", daily.KdvDahil)
             : null;

@@ -13,7 +13,7 @@ namespace RentACar.PublicSite;
 /// <para><b>Tenant:</b> uç uzantısız olduğu için <see cref="TenantHostResolutionMiddleware"/>'den GEÇER; logo
 /// isteğin Host'undan çözülen firmanın RLS bağlamında okunur. Başka firmanın logosu bu yoldan okunamaz.</para>
 ///
-/// <para><b>Önbellek:</b> sayfa adresi sürüm taşır (<see cref="FleetBranding.LogoSurum"/>). Sorgudaki sürüm
+/// <para><b>Önbellek:</b> sayfa adresi sürüm taşır (<see cref="FleetBranding.LogoVersion"/>). Sorgudaki sürüm
 /// güncelse yanıt bir yıl <c>immutable</c>; eski/eksik sürümle gelen istek 5 dakika — logo değişince yeni
 /// adres zaten yeni sürümle basılır. ETag ile koşullu istek 304 döner.</para>
 ///
@@ -31,26 +31,26 @@ public static class BrandEndpoints
             // ÖNCE yalnız sürüm damgası (bayt YOK): 304 ve önbellek isabeti LogoBytes'ı (1 MB'a kadar) DB'den
             // hiç çekmeden döner. Baytlar yalnız önbellek kaçırmada, tek uçuşta okunur.
             var branding = await showcase.GetBrandingAsync(ct);
-            if (branding.LogoSurum is not { } surum) return Results.NotFound();
+            if (branding.LogoVersion is not { } version) return Results.NotFound();
 
-            var etag = $"\"logo-{surum}\"";
-            var current = string.Equals(req.Query["v"], surum, StringComparison.Ordinal);
+            var etag = $"\"logo-{version}\"";
+            var current = string.Equals(req.Query["v"], version, StringComparison.Ordinal);
             res.Headers.CacheControl = current ? "public, max-age=31536000, immutable" : "public, max-age=300";
             if (EntityTagHeaderValue.TryParseList(req.Headers.IfNoneMatch, out var tags) && tags.Any(t => t.Tag == etag))
                 return Results.StatusCode(StatusCodes.Status304NotModified);
 
-            var logo = await cache.GetOrCreateAsync(tenant.TenantIdOrThrow(), surum, showcase.GetLogoAsync);
+            var logo = await cache.GetOrCreateAsync(tenant.TenantIdOrThrow(), version, showcase.GetLogoAsync);
             if (logo is null)
             {
                 // Logo arada silinmiş ya da çözme bütçesini aşıyor (kural sıkılaşmadan önce kaydedilmiş dev logo).
                 res.Headers.CacheControl = "public, max-age=300";
                 return Results.NotFound();
             }
-            if (logo.Surum != surum)
+            if (logo.Version != version)
             {
                 // Damga okunduktan sonra logo değişti: yeni içerik eski sürüm adresine uzun süre yapışmasın.
                 res.Headers.CacheControl = "public, max-age=300";
-                etag = $"\"logo-{logo.Surum}\"";
+                etag = $"\"logo-{logo.Version}\"";
             }
             return Results.Bytes(logo.Bytes, logo.ContentType, entityTag: new EntityTagHeaderValue(etag));
         });
@@ -59,7 +59,7 @@ public static class BrandEndpoints
 }
 
 /// <summary>Servis edilecek web logosu (küçültülmüş PNG ya da küçükse özgün dosya) ve hangi sürümden üretildiği.</summary>
-public sealed record WebLogo(byte[] Bytes, string ContentType, string Surum);
+public sealed record WebLogo(byte[] Bytes, string ContentType, string Version);
 
 /// <summary>Küçültülmüş logo önbelleği — CachedPublicTenantResolver'daki gibi DEDİKE MemoryCache (paylaşımlı
 /// IMemoryCache'e SizeLimit koymak diğer tüketicileri etkilerdi). Boyut bayt cinsinden, üst sınır 16 MB.
@@ -81,12 +81,12 @@ public sealed class WebLogoCache(Func<byte[], byte[]?>? resize = null, Func<byte
     private readonly Func<byte[], byte[]?> _resize = resize ?? (b => ImageProcessing.TryCreateWebLogo(b));
     private readonly Func<byte[], bool> _fitsBudget = fitsBudget ?? ImageProcessing.FitsWebLogoBudget;
 
-    /// <summary><paramref name="surum"/> için web logosu; önbellekte yoksa <paramref name="load"/> ile baytlar
+    /// <summary><paramref name="version"/> için web logosu; önbellekte yoksa <paramref name="load"/> ile baytlar
     /// okunur. Logo yoksa ya da servis edilemezse null.</summary>
-    public async Task<WebLogo?> GetOrCreateAsync(Guid tenantId, string surum,
+    public async Task<WebLogo?> GetOrCreateAsync(Guid tenantId, string version,
         Func<CancellationToken, Task<PublicLogo?>> load)
     {
-        var key = (tenantId, surum);
+        var key = (tenantId, version);
         if (TryGet(key, out var hit)) return hit;
 
         var flight = _inflight.GetOrAdd(key, k => new Lazy<Task<WebLogo?>>(() => BuildAsync(k.Item1, k, load)));
@@ -113,11 +113,11 @@ public sealed class WebLogoCache(Func<byte[], byte[]?>? resize = null, Func<byte
             // eski kayıtlarda JPEG logo olabilir (PNG zorunluluğu sonradan geldi).
             var resized = _resize(logo.Bytes);
             entry = resized is not null
-                ? new WebLogo(resized, "image/png", logo.Surum)
+                ? new WebLogo(resized, "image/png", logo.Version)
                 : new WebLogo(logo.Bytes,
-                    ImageValidation.Detect(logo.Bytes) == ImageKind.Jpeg ? "image/jpeg" : "image/png", logo.Surum);
+                    ImageValidation.Detect(logo.Bytes) == ImageKind.Jpeg ? "image/jpeg" : "image/png", logo.Version);
         }
-        _cache.Set((tenantId, logo.Surum), entry, new MemoryCacheEntryOptions
+        _cache.Set((tenantId, logo.Version), entry, new MemoryCacheEntryOptions
         {
             Size = Math.Max(1, entry.Bytes.Length),
             SlidingExpiration = TimeSpan.FromHours(6),

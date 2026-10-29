@@ -320,7 +320,7 @@ public sealed partial class PublicSiteThemeContractTests
             if (path is "/" or "/musaitlik" || path == dated)
                 Assert.Contains($"href=\"/araclar/{slug}\"", html); // Home/Fleet ilanı basıldı
             if (path == dated)
-                Assert.Contains("role=\"status\"", html);            // arama sonucu duyurulur (FleetSummary.Canli)
+                Assert.Contains("role=\"status\"", html);            // arama sonucu duyurulur (FleetSummary.Live)
             if (path == "/")
             {
                 // SEO L-4: görünen SSS = FAQPage JSON-LD (ana sayfa özeti 4; 5. ve 6. yalnız /sss'te).

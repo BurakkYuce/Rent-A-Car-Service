@@ -2,7 +2,7 @@
 @using RentACar.Application.Common
 @using RentACar.Application.Fleet
 @using RentACar.Application.SiteIcerik
-@inject SiteContentService Icerik
+@inject SiteContentService Content
 @inject FleetShowcaseService Showcase
 
 @* PR-16 — firmanın yazdığı içerik sayfası, KÖK adreste (/hakkimizda).
@@ -65,21 +65,21 @@
     /// tenant middleware'ini atlar) sorgu <b>500</b> ile patladı. Asıl hata düzeltildi, ama bu yol
     /// bir daha 500 üretmemeli.</para>
     /// </summary>
-    private bool DosyaGibi => Slug.Contains('.');
+    private bool LooksLikeFile => Slug.Contains('.');
 
     protected override async Task OnInitializedAsync()
     {
-        if (DosyaGibi)
+        if (LooksLikeFile)
         {
             if (Http is not null) Http.Response.StatusCode = StatusCodes.Status404NotFound;
             return;
         }
 
-        _page = await Icerik.PageAsync(Slug);
+        _page = await Content.PageAsync(Slug);
         if (_page is null && Http is not null)
             Http.Response.StatusCode = StatusCodes.Status404NotFound; // GERÇEK 404 (soft-404 değil)
 
-        try { _brand = (await Showcase.GetBrandingAsync()).Marka; }
+        try { _brand = (await Showcase.GetBrandingAsync()).BrandName; }
         catch { /* marka çözülemezse sayfa yine basılır */ }
     }
 }

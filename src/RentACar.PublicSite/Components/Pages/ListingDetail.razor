@@ -4,7 +4,7 @@
 @using RentACar.Application.Fleet
 @using RentACar.PublicSite.Components.Shared
 @inject FleetShowcaseService Showcase
-@inject BranchService Subeler
+@inject BranchService BranchSvc
 
 @* PR-20 — araç detayı: arama motorundan gelen ziyaretçinin İNDİĞİ sayfa; karar noktası.
 
@@ -15,32 +15,32 @@
    TARİFE: günlük/haftalık/aylık ilandan (uydurulmaz); haftalık/aylık TOPLAMIN yanında gün başı karşılığı
    — ziyaretçi kademe farkını hesap yapmadan görsün. Yuvarlama burada (Rates), tema yalnız basar. *@
 
-<PageTitle>@(_detail?.Baslik ?? "Araç") — @(_branding?.Marka ?? "RentPro")</PageTitle>
+<PageTitle>@(_detail?.Baslik ?? "Araç") — @(_branding?.BrandName ?? "RentPro")</PageTitle>
 
 @if (_detail is not null && _hero is not null)
 {
-    <YapisalVeriArac Detay="_detail" KanonikKok="@_canonicalRoot" />
+    <VehicleStructuredData Detail="_detail" CanonicalRoot="@_canonicalRoot" />
     @* Araç detayı SEO iniş sayfasıdır: açıklama ilan verisinden kurulur (başlık + yıl + fiyat + adet). *@
-    <SayfaMeta Baslik="@($"{_detail.Baslik} — {_branding?.Marka ?? "RentPro"}")"
-               Aciklama="@AracAciklama" Yol="@($"/araclar/{_detail.Slug}")"
-               Marka="_branding" KanonikKok="@_canonicalRoot"
-               Gorsel="@(_detail.PhotoIds.Count > 0 ? $"/foto/{_detail.PhotoIds[0]}/thumb" : null)" />
+    <PageMeta Title="@($"{_detail.Baslik} — {_branding?.BrandName ?? "RentPro"}")"
+              Description="@VehicleDescription" Path="@($"/araclar/{_detail.Slug}")"
+              Branding="_branding" CanonicalRoot="@_canonicalRoot"
+              Image="@(_detail.PhotoIds.Count > 0 ? $"/foto/{_detail.PhotoIds[0]}/thumb" : null)" />
 
-    <Breadcrumbs Items="@Crumbs(_detail)" KanonikKok="@_canonicalRoot" />
+    <Breadcrumbs Items="@Crumbs(_detail)" CanonicalRoot="@_canonicalRoot" />
 
     <ThemedDetailHero Model="_hero" />
 
-    @if (_detail.Ozellikler.Count > 0 || _similar.Count > 0)
+    @if (_detail.Features.Count > 0 || _similar.Count > 0)
     {
         <div class="wrap">
             @* Teknik özellikler: sihirbazda "sitede görünsün" işaretlenen satırlar. Boşsa bölüm YOK (T2). *@
-            @if (_detail.Ozellikler.Count > 0)
+            @if (_detail.Features.Count > 0)
             {
                 <section class="bolum-ic" aria-labelledby="ozellik-baslik">
                     <h2 id="ozellik-baslik">Teknik özellikler</h2>
                     <table class="ozellik-tablo">
                         <tbody>
-                            @foreach (var o in _detail.Ozellikler)
+                            @foreach (var o in _detail.Features)
                             {
                                 <tr><th scope="row">@o.Etiket</th><td>@o.Deger</td></tr>
                             }
@@ -60,8 +60,8 @@
     }
 
     @* Ana sayfayla AYNI bileşenler — anlatı tek yerde, iki sayfada kopyalanmıyor. *@
-    <BolumGuvenSeridi />
-    <BolumCta Telefon="@_branding?.Tel" WhatsApp="@_branding?.WhatsApp" />
+    <TrustSection />
+    <CtaSection Phone="@_branding?.Phone" WhatsApp="@_branding?.WhatsApp" />
 }
 
 @code {
@@ -88,9 +88,9 @@
     private static string? MetaLine(FleetShowcaseDetail d)
     {
         var parts = new List<string>(2);
-        if (!string.IsNullOrWhiteSpace(d.YilAralik)) parts.Add($"{d.YilAralik} model");
+        if (!string.IsNullOrWhiteSpace(d.YearRange)) parts.Add($"{d.YearRange} model");
         // "adet" bir MÜSAİTLİK vaadi değil, ilana bağlı araç sayısı.
-        if (d.Adet > 1) parts.Add($"filoda {d.Adet} araç");
+        if (d.VehicleCount > 1) parts.Add($"filoda {d.VehicleCount} araç");
         return parts.Count == 0 ? null : string.Join(", ", parts);
     }
 
@@ -104,14 +104,14 @@
     }
 
     /// <summary>Araç açıklaması — ilan verisinden; sabit pazarlama cümlesi YAZILMAZ (her tenant farklı).</summary>
-    private string AracAciklama
+    private string VehicleDescription
     {
         get
         {
             if (_detail is null) return "";
-            var year = string.IsNullOrWhiteSpace(_detail.YilAralik) ? "" : $"{_detail.YilAralik} model ";
+            var year = string.IsNullOrWhiteSpace(_detail.YearRange) ? "" : $"{_detail.YearRange} model ";
             var vat = _detail.KdvDahil ? "KDV dahil" : "+ KDV";
-            var count = _detail.Adet > 1 ? $" Filoda {_detail.Adet} adet." : "";
+            var count = _detail.VehicleCount > 1 ? $" Filoda {_detail.VehicleCount} adet." : "";
             return $"{_detail.Baslik} {year}kiralama — günlük {_detail.GunlukFiyat:N0} TL ({vat})."
                  + $"{count} Tarih seçerek müsaitliği ve toplam tutarı görün.";
         }
@@ -131,14 +131,14 @@
         }
 
         if (await Showcase.GetCanonicalHostAsync() is { } host) _canonicalRoot = $"https://{host}";
-        var branches = (await Subeler.ListActiveAsync()).Select(s => s.Ad).ToList();
+        var branches = (await BranchSvc.ListActiveAsync()).Select(s => s.Ad).ToList();
         var waLink = WhatsAppAsk.Link(_branding, _detail.Baslik);
 
         _hero = new DetailHeroModel(_detail, Rates(_detail),
             QuoteLink.Build(_detail.Slug, dailyPrice: _detail.GunlukFiyat), branches)
         {
-            MetaSatiri = MetaLine(_detail),
-            WaLinki = waLink,
+            MetaLine = MetaLine(_detail),
+            WhatsAppLink = waLink,
             Branding = _branding,
         };
 

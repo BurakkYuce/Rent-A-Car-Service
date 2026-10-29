@@ -4,25 +4,25 @@
 @using RentACar.Application.SiteIcerik
 @using RentACar.PublicSite.Components.Shared
 @inject FleetShowcaseService Showcase
-@inject SiteContentService Icerik
-@inject BranchService Subeler
+@inject SiteContentService Content
+@inject BranchService BranchSvc
 
 @* Ana sayfa: veriyi TOPLAYAN ve SEO'yu basan ince sayfa. Gövde (bölümlerin seçimi ve sırası) aktif temanın Home
    slotunda (Components/Themes/README.md); her ortak bölüm kendi bileşeninde (Components/Shared). *@
 
-<PageTitle>@(_branding?.Marka ?? "RentPro") — Araç Kiralama</PageTitle>
+<PageTitle>@(_branding?.BrandName ?? "RentPro") — Araç Kiralama</PageTitle>
 
-@* DİKKAT: `KanonikKok="_kanonik"` yazmak Razor'da DÜZ METİN geçirir (string tipli
+@* DİKKAT: `CanonicalRoot="_canonicalRoot"` yazmak Razor'da DÜZ METİN geçirir (string tipli
    parametrede tırnak içi literaldir). İlk yazımda öyleydi ve JSON-LD'ye `"url":"_kanonik"`
    basılıyordu — arama motorlarına çöp adres yayınlanacaktı. İfade için `@@` ZORUNLU.
-   FAQPage yalnız sayfada GÖRÜNEN sorular (Home slotu BolumSss'e aynı adedi verir — SEO L-4). *@
-<YapisalVeri Marka="_branding" Sorular="@(_faq.Take(FaqSummaryCount).ToList())" KanonikKok="@_canonicalRoot"
-             Subeler="_activeBranches" Kartlar="@(_cards ?? [])" />
+   FAQPage yalnız sayfada GÖRÜNEN sorular (Home slotu FaqSection'a aynı adedi verir — SEO L-4). *@
+<StructuredData Branding="_branding" Questions="@(_faq.Take(FaqSummaryCount).ToList())" CanonicalRoot="@_canonicalRoot"
+                Branches="_activeBranches" Cards="@(_cards ?? [])" />
 @* Açıklama tenant verisinden KURULUR, sabit metin yazılmaz: her firma için farklı olmalı
    (çok-kiracılı site). Filo sayısı varsa cümleye girer — "3 araçlık filo" somut bir bilgi. *@
-<SayfaMeta Baslik="@($"{_branding?.Marka ?? "RentPro"} — Araç Kiralama")"
-           Aciklama="@MainDescription" Yol="/" Marka="_branding"
-           KanonikKok="@_canonicalRoot" Gorsel="@CoverImage" />
+<PageMeta Title="@($"{_branding?.BrandName ?? "RentPro"} — Araç Kiralama")"
+          Description="@MainDescription" Path="/" Branding="_branding"
+          CanonicalRoot="@_canonicalRoot" Image="@CoverImage" />
 
 @if (_model is not null)
 {
@@ -46,10 +46,10 @@
     {
         get
         {
-            var brand = _branding?.Marka ?? "Firmamız";
+            var brand = _branding?.BrandName ?? "Firmamız";
             var count = _cards?.Count ?? 0;
             var fleet = count > 0 ? $"{count} araç seçeneğiyle " : "";
-            var place = string.IsNullOrWhiteSpace(_branding?.Adres) ? "" : $"{_branding!.Adres} ve çevresinde ";
+            var place = string.IsNullOrWhiteSpace(_branding?.Address) ? "" : $"{_branding!.Address} ve çevresinde ";
             return $"{brand} {place}{fleet}günlük ve uzun dönem araç kiralama. "
                  + "Tarihlerinizi girin, müsait araçları ve net fiyatı görün.";
         }
@@ -68,14 +68,14 @@
     {
         _branding = await Showcase.GetBrandingAsync();
         _cards = await Showcase.ListShowcaseGroupsAsync();
-        _faq = await Icerik.PublishedFaqAsync();
+        _faq = await Content.PublishedFaqAsync();
 
-        // Şube listesi Hero'daki arama kutusu için; boşsa AramaFormu seçim kutusunu hiç basmaz.
+        // Şube listesi Hero'daki arama kutusu için; boşsa SearchForm seçim kutusunu hiç basmaz.
         // YALNIZ aktif şubeler (pasif şube ne aramada ne hizmet bölgesinde görünmeli — SEO L-1).
         // Hizmet bölgesi (il/ilçe) de buradan: yerel arama ifadesi tenant verisinden, sabit metin değil.
         try
         {
-            var active = await Subeler.ListActiveAsync();
+            var active = await BranchSvc.ListActiveAsync();
             _activeBranches = active;
             _branches = [.. active.Select(b => b.Ad)];
             _area = ServiceArea.Describe(active.Select(b => (b.Il, b.Ilce)));
@@ -85,19 +85,19 @@
         // og:image/JSON-LD mutlak adres ister; kanonik KÖK (sondaki eğik çizgisiz) tek yardımcıdan.
         _canonicalRoot = await Showcase.GetCanonicalRootAsync();
 
-        var pages = await Icerik.PublishedPagesAsync();
+        var pages = await Content.PublishedPagesAsync();
         var termsPage = pages.FirstOrDefault(s => ConditionSlugs.Contains(s.Slug)) is { } k
             ? $"/{k.Slug}" : null;
 
         // Filo bölümü /musaitlik ile AYNI kart verisi (tarihsiz mod); sunumu temanın Fleet slotu seçer.
         var fleet = new FleetModel(
             [.. _cards.Select(c => ListingCard.From(c, QuoteLink.Build(c.Slug, dailyPrice: c.GunlukFiyat))
-                with { WaLinki = WhatsAppAsk.Link(_branding, c.Baslik) })],
+                with { WhatsAppLink = WhatsAppAsk.Link(_branding, c.Baslik) })],
             FleetPlacement.Home)
         {
-            Baslik = "Filomuz",
-            BaslikId = "filo-baslik",
-            Bilgi = _branding.Bilgi,
+            Title = "Filomuz",
+            TitleId = "filo-baslik",
+            Facts = _branding.Facts,
         };
 
         _model = new HomeModel(_branding, _cards, fleet, _faq, FaqSummaryCount, _branches, _activeBranches,

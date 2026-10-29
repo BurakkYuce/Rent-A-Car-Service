@@ -11,52 +11,52 @@
    Tek giriş noktası olunca yeni sayfa eklendiğinde tek satır yeter. *@
 
 <HeadContent>
-    @if (!string.IsNullOrWhiteSpace(Aciklama))
+    @if (!string.IsNullOrWhiteSpace(Description))
     {
-        <meta name="description" content="@Aciklama" />
-        <meta property="og:description" content="@Aciklama" />
-        <meta name="twitter:description" content="@Aciklama" />
+        <meta name="description" content="@Description" />
+        <meta property="og:description" content="@Description" />
+        <meta name="twitter:description" content="@Description" />
     }
-    <meta property="og:type" content="@(Tur ?? "website")" />
-    <meta property="og:title" content="@Baslik" />
-    <meta name="twitter:title" content="@Baslik" />
-    @if (!string.IsNullOrWhiteSpace(Marka?.Marka))
+    <meta property="og:type" content="@(Type ?? "website")" />
+    <meta property="og:title" content="@Title" />
+    <meta name="twitter:title" content="@Title" />
+    @if (!string.IsNullOrWhiteSpace(Branding?.BrandName))
     {
-        <meta property="og:site_name" content="@Marka!.Marka" />
+        <meta property="og:site_name" content="@Branding!.BrandName" />
     }
     @* Görsel varsa büyük kart, yoksa küçük — görselsiz "summary_large_image" boş bir kutu bastırır. *@
-    <meta name="twitter:card" content="@(Gorsel is { Length: > 0 } ? "summary_large_image" : "summary")" />
-    @if (KanonikKok is { Length: > 0 })
+    <meta name="twitter:card" content="@(Image is { Length: > 0 } ? "summary_large_image" : "summary")" />
+    @if (CanonicalRoot is { Length: > 0 })
     {
-        <meta property="og:url" content="@($"{KanonikKok}{Yol}")" />
-        @if (Gorsel is { Length: > 0 })
+        <meta property="og:url" content="@($"{CanonicalRoot}{Path}")" />
+        @if (Image is { Length: > 0 })
         {
-            <meta property="og:image" content="@($"{KanonikKok}{Gorsel}")" />
-            <meta name="twitter:image" content="@($"{KanonikKok}{Gorsel}")" />
+            <meta property="og:image" content="@($"{CanonicalRoot}{Image}")" />
+            <meta name="twitter:image" content="@($"{CanonicalRoot}{Image}")" />
         }
     }
 </HeadContent>
 
 @code {
     /// <summary>Paylaşım başlığı (sekme başlığından AYRI olabilir; sayfa ne verirse).</summary>
-    [Parameter, EditorRequired] public string Baslik { get; set; } = "";
+    [Parameter, EditorRequired] public string Title { get; set; } = "";
 
     /// <summary>Arama sonucu açıklaması. Boşsa hiçbir açıklama etiketi BASILMAZ —
     /// boş bir description, olmayandan daha kötüdür (arama motoru onu da gösterebilir).</summary>
-    [Parameter] public string? Aciklama { get; set; }
+    [Parameter] public string? Description { get; set; }
 
     /// <summary>og:type — varsayılan "website"; blog yazısı "article" verir.</summary>
-    [Parameter] public string? Tur { get; set; }
+    [Parameter] public string? Type { get; set; }
 
     /// <summary>Bu sayfanın yolu ("/", "/musaitlik", "/araclar/x"). og:url için.</summary>
-    [Parameter] public string Yol { get; set; } = "/";
+    [Parameter] public string Path { get; set; } = "/";
 
     /// <summary>Paylaşım görselinin GÖRECELİ yolu ("/foto/{id}/thumb"). Yoksa görsel etiketi yok.</summary>
-    [Parameter] public string? Gorsel { get; set; }
+    [Parameter] public string? Image { get; set; }
 
-    [Parameter] public FleetBranding? Marka { get; set; }
+    [Parameter] public FleetBranding? Branding { get; set; }
 
     /// <summary>Kanonik kök (https://host). Yoksa mutlak adres isteyen etiketler atlanır —
     /// og:image GÖRECELİ yolu kabul etmez, yarım etiket basmaktansa hiç basmamak doğrusu.</summary>
-    [Parameter] public string? KanonikKok { get; set; }
+    [Parameter] public string? CanonicalRoot { get; set; }
 }
