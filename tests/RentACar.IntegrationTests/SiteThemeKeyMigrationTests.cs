@@ -73,6 +73,73 @@ public sealed class SiteThemeKeyMigrationTests(PostgresFixture fx)
             Assert.Equal(seeds[i].Up, await ReadAsync(tenants[i]));
     }
 
+    /// <summary>
+    /// <c>RetireOldSiteThemes</c> (T4): eski temalar yeni karşılığına (pazar/tarife → anahtar, rota/kontuar → kiyas,
+    /// vitrin → paket); yeni temanın setlerinden olmayan palet NULL (teması boş satır anahtar sayılır); yeni temada da
+    /// bulunan anahtar korunur; FORCE geri gelir; ikinci koşu bir şey değiştirmez. Beklenenler elle.
+    /// </summary>
+    [Fact]
+    public async Task Eski_temalar_yeni_temaya_cevrilir_ait_olmayan_palet_bosalir()
+    {
+        var seeds = new (string? Theme, string? Palette, string? Theme2, string? Palette2)[]
+        {
+            ("pazar", "domates", "anahtar", null),
+            (" Vitrin ", "grafit", "paket", "grafit"),       // paket'te de "grafit" seti var → korunur
+            ("rota", "gece-mavisi", "kiyas", null),
+            ("kontuar", "deniz", "kiyas", null),
+            ("tarife", null, "anahtar", null),
+            ("kiyas", "mavi", "kiyas", "mavi"),
+            ("anahtar", "visne", "anahtar", "visne"),
+            (null, "kobalt", null, null),                    // boş tema = anahtar; kobalt anahtar'da yok
+            (null, "zumrut", null, "zumrut"),
+        };
+        var tenants = new List<Guid>();
+        foreach (var (theme, palette, _, _) in seeds)
+        {
+            var t = await CreateTenantWithSettingsAsync();
+            await WriteRawAsync(t, theme, palette);
+            tenants.Add(t);
+        }
+
+        var migration = new RetireOldSiteThemes();
+        await RunAsync(migration.UpOperations);
+        for (var i = 0; i < seeds.Length; i++)
+            Assert.Equal((seeds[i].Theme2, seeds[i].Palette2), await ReadBothAsync(tenants[i]));
+        await AssertForcedAsync();
+
+        await RunAsync(migration.UpOperations);
+        for (var i = 0; i < seeds.Length; i++)
+            Assert.Equal((seeds[i].Theme2, seeds[i].Palette2), await ReadBothAsync(tenants[i]));
+        Assert.Empty(migration.DownOperations);
+    }
+
+    private async Task WriteRawAsync(Guid tenant, string? theme, string? palette)
+    {
+        await WriteRawAsync(tenant, theme);
+        await using var conn = new NpgsqlConnection(fx.AppConnectionString);
+        await conn.OpenAsync();
+        await using var tx = await conn.BeginTransactionAsync();
+        await SetTenantAsync(conn, tx, tenant);
+        await using var cmd = new NpgsqlCommand("update \"Ayarlar\" set \"SitePaleti\" = @v where \"TenantId\" = @t", conn, tx);
+        cmd.Parameters.Add(new NpgsqlParameter("v", NpgsqlTypes.NpgsqlDbType.Varchar) { Value = (object?)palette ?? DBNull.Value });
+        cmd.Parameters.AddWithValue("t", tenant);
+        Assert.Equal(1, await cmd.ExecuteNonQueryAsync());
+        await tx.CommitAsync();
+    }
+
+    private async Task<(string?, string?)> ReadBothAsync(Guid tenant)
+    {
+        await using var conn = new NpgsqlConnection(fx.AppConnectionString);
+        await conn.OpenAsync();
+        await using var tx = await conn.BeginTransactionAsync();
+        await SetTenantAsync(conn, tx, tenant);
+        await using var cmd = new NpgsqlCommand("select \"SiteTemasi\", \"SitePaleti\" from \"Ayarlar\" where \"TenantId\" = @t", conn, tx);
+        cmd.Parameters.AddWithValue("t", tenant);
+        await using var r = await cmd.ExecuteReaderAsync();
+        Assert.True(await r.ReadAsync(), "ayar satırı görünmüyor");
+        return (r.IsDBNull(0) ? null : r.GetString(0), r.IsDBNull(1) ? null : r.GetString(1));
+    }
+
     /// <summary>Migration'ın SQL işlemleri owner bağlantısında tek transaction'da (EF migrator'ı gibi).</summary>
     private async Task RunAsync(IReadOnlyList<MigrationOperation> operations)
     {
