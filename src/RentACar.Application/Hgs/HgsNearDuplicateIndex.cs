@@ -13,8 +13,8 @@ namespace RentACar.Application.Hgs;
 /// ve ikincil olur — ancak o aday bu satırın dosyasından başka bir satırla zaten eşlenmemişse (bir satır her diğer
 /// dosyada en çok bir satırla eşleşir; zincirleme yok). Yeni içe aktarımlar öncelikte daima sonra geldiğinden önceki
 /// kararlar yeni dosyayla değişmez.</item>
-/// <item>Elle onaylanmış satır (<see cref="HgsCrossingRef.Approved"/>) iki kuraldan da muaftır ve kimseyi ikincil
-/// yapmaz.</item>
+/// <item>Elle onaylanmış satır (<see cref="HgsCrossingRef.Approved"/>) yalnız KENDİSİ ikincil olmaktan muaftır; başka
+/// satırlar için asıl/aday olmaya devam eder (sonraki kopyaları ikincil kalır).</item>
 /// </list>
 /// Sorgu aralığı <see cref="HgsResolution.LookAround"/> (±12 sa) olmalıdır.
 /// </summary>
@@ -41,15 +41,29 @@ public sealed class HgsNearDuplicateIndex
     /// satırlar (yansıtma kilidi altında).
     /// </summary>
     public bool IsSecondary(HgsCrossingRef c, Func<HgsCrossingRef, bool>? reflected = null)
+        => SecondaryNote(c, reflected) is not null;
+
+    /// <summary>
+    /// İkincilse gerekçe notu (<see cref="HgsResolution.NearDuplicateNote"/> 60 sn, öncelikli;
+    /// <see cref="HgsResolution.SameStationNote"/> geniş kural), değilse null. Onay yalnız satırın KENDİSİNİ muaf tutar:
+    /// onaylı komşu yine asıl/aday sayılır (#407 tur 2 A9 — onaylı geçişin sonraki kopyası ikincil kalmalı).
+    /// </summary>
+    public string? SecondaryNote(HgsCrossingRef c, Func<HgsCrossingRef, bool>? reflected = null)
     {
-        if (c.Approved) return false;
+        if (c.Approved) return null;
         bool Charged(HgsCrossingRef d) => d.Status == HgsCrossingStatus.Yansitildi || (reflected?.Invoke(d) ?? false);
-        if (Within(c, HgsResolution.NearDuplicateWindow)
-            .Any(d => !d.Approved && HgsResolution.AreNearDuplicates(c, d) && (Charged(d) || HgsResolution.Precedence(d, c) < 0)))
-            return true;
+        if (HasSixtySecondPrimary(c, Charged)) return HgsResolution.NearDuplicateNote;
         _pairs ??= BuildPairs();
-        return _pairs.TryGetValue(c.Id, out var p) && (p.Secondary || Charged(p.Partner));
+        return _pairs.TryGetValue(c.Id, out var p) && (p.Secondary || Charged(p.Partner)) ? HgsResolution.SameStationNote : null;
     }
+
+    /// <summary>
+    /// 60 sn kuralında asılı (yansıtılmış ya da öncelikte önce gelen bir eşi) var mı — onaydan BAĞIMSIZ. "Ayrı geçiş"
+    /// onayı bu satırlara verilmez: neredeyse aynı an, neredeyse kesin aynı geçiş (#407 tur 2 A10).
+    /// </summary>
+    public bool HasSixtySecondPrimary(HgsCrossingRef c, Func<HgsCrossingRef, bool>? charged = null)
+        => Within(c, HgsResolution.NearDuplicateWindow).Any(d => HgsResolution.AreNearDuplicates(c, d)
+            && ((charged?.Invoke(d) ?? d.Status == HgsCrossingStatus.Yansitildi) || HgsResolution.Precedence(d, c) < 0));
 
     private Dictionary<Guid, (HgsCrossingRef, bool)> BuildPairs()
     {

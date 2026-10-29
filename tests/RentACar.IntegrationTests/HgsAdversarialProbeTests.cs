@@ -795,6 +795,7 @@ public sealed class HgsAdversarialProbeTests(PostgresFixture fx)
         await Svc(s).ImportAsync(Exits(("Avrasya Tüneli", Wall(3, 9), "12,40")), "gun1.csv");
         Assert.Equal(1, (await Svc(s).ImportAsync(Exits(("Avrasya Tüneli", Wall(3, 12), "12,40")), "gun2.csv")).OlasiMukerrer);
         var pending = Assert.Single(await AllAsync(s), c => c.Durum == HgsCrossingStatus.Belirsiz);
+        Assert.Equal(HgsResolution.SameStationNote, pending.EslesmeNotu);
         var eslesti = Assert.Single(await AllAsync(s), c => c.Durum == HgsCrossingStatus.Eslesti);
 
         // Olası mükerrer olmayan satır onaylanamaz; onay para yazmaz.
@@ -810,6 +811,52 @@ public sealed class HgsAdversarialProbeTests(PostgresFixture fx)
         Assert.All(await AllAsync(s), c => Assert.Equal(HgsCrossingStatus.Eslesti, c.Durum));
         Assert.Equal(2, (await ReflectAllAsync(s)).Yansitilan);
         Assert.Equal(24.80m, await BalanceAsync(s, w.CustomerB));
+    }
+
+    /// <summary>
+    /// #407 tur 2 A9: onaylı satır kendi SONRAKİ kopyalarının asılıdır. a (08:00:37) ve b (11:00:37) iki ayrı dökümde
+    /// iki gerçek geçiş; b onaylanıp ikisi yansıtıldı (24,80). Aynı geçişlerin saniyesiz aylık dökümü (a' 08:00,
+    /// b' 11:00) gelir → ikisi de olası mükerrer (60 sn). Oracle: A hâlâ 24,80.
+    /// </summary>
+    [Fact]
+    public async Task A9_reexport_after_confirmation_does_not_double_charge()
+    {
+        using var host = new TestHost(fx.AppConnectionString);
+        var w = await HgsImportTests.SetUpAsync(host);
+        using var s = host.ScopeFor(w.Tenant);
+        await Svc(s).ImportAsync(Exits(("Avrasya Tüneli", Wall(0, 8, 0, 37), "12,40")), "gun-a.csv");
+        await Svc(s).ImportAsync(Exits(("Avrasya Tüneli", Wall(0, 11, 0, 37), "12,40")), "gun-b.csv");
+        var b = Assert.Single(await AllAsync(s), c => c.Durum == HgsCrossingStatus.Belirsiz).Id;
+        Assert.Equal(1, (await Svc(s).ConfirmAsync([b])).Onaylanan);
+        Assert.Equal(2, (await ReflectAllAsync(s)).Yansitilan);
+        Assert.Equal(24.80m, await BalanceAsync(s, w.CustomerA));
+
+        var monthly = await Svc(s).ImportAsync(Exits(("Avrasya Tüneli", Wall(0, 8, 0, 0, "dd.MM.yyyy HH:mm"), "12,40"),
+            ("Avrasya Tüneli", Wall(0, 11, 0, 0, "dd.MM.yyyy HH:mm"), "12,40")), "aylik.csv");
+        Assert.Equal(2, monthly.OlasiMukerrer);
+        await Svc(s).RematchAsync();
+        Assert.Equal(0, (await ReflectAllAsync(s)).Yansitilan);
+        Assert.Equal(24.80m, await BalanceAsync(s, w.CustomerA));
+    }
+
+    /// <summary>
+    /// #407 tur 2 A10: 60 sn içinde YANSITILMIŞ eşi olan satır (aynı geçişin saniyesiz kopyası, Δt 37 sn) "ayrı geçiş"
+    /// onaylanamaz; notu geniş kuralınkinden ayrıdır. Oracle: onaylanan 0, uygunsuz 1, A 995,00.
+    /// </summary>
+    [Fact]
+    public async Task A10_sixty_second_copy_cannot_be_confirmed()
+    {
+        using var host = new TestHost(fx.AppConnectionString);
+        var w = await HgsImportTests.SetUpAsync(host);
+        using var s = host.ScopeFor(w.Tenant);
+        await Svc(s).ImportAsync(Exits(("Bursa", Wall(0, 11, 0, 37), "995,00")), "a.xlsx");
+        await ReflectAllAsync(s);
+        await Svc(s).ImportAsync(Exits(("Bursa", Wall(0, 11, 0, 0, "dd.MM.yyyy HH:mm"), "995,00")), "a.csv");
+        var copy = Assert.Single(await AllAsync(s), c => c.Durum == HgsCrossingStatus.Belirsiz);
+        Assert.Equal(HgsResolution.NearDuplicateNote, copy.EslesmeNotu);
+        Assert.Equal(new HgsConfirmResult(0, 1), await Svc(s).ConfirmAsync([copy.Id]));
+        await ReflectAllAsync(s);
+        Assert.Equal(995.00m, await BalanceAsync(s, w.CustomerA));
     }
 
     /// <summary>Onay FinanceWrite ister; şubeli kullanıcı başka şubenin kirasına bağlı satırı onaylayamaz (kilit altında 403).</summary>

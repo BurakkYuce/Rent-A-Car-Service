@@ -71,7 +71,8 @@ public sealed class HgsCrossingService(
     }
 
     /// <summary>
-    /// Olası mükerrer satırı "ayrı geçiş" olarak onaylar (#407 M1-d): yalnız olası mükerrer notlu Belirsiz satır, kirası
+    /// Olası mükerrer satırı "ayrı geçiş" olarak onaylar (#407 M1-d): yalnız GENİŞ kural notlu Belirsiz satır (60 sn
+    /// içinde asıl eşi olan satır neredeyse kesin aynı geçiştir, onaylanmaz — tur 2 A10), kirası
     /// kilit altında hâlâ geçiş anını kapsıyorsa Eslesti olur ve iki mükerrer kuralından kalıcı olarak muaf tutulur
     /// (<c>OnayZamani</c>). Para yazmaz — borç ayrı yansıtma adımıdır. Değişiklik denetim kaydına düşer (IAuditable).
     /// </summary>
@@ -168,7 +169,7 @@ public sealed class HgsCrossingService(
                 pending.Add((p, me, vehicleId, match));
             }
             foreach (var (p, me, vehicleId, match) in pending)
-                classified.Add((p, me.Id, vehicleId, HgsResolution.WithNearDuplicate(match, near.IsSecondary(me))));
+                classified.Add((p, me.Id, vehicleId, HgsResolution.WithNearDuplicate(match, near.SecondaryNote(me))));
         }
 
         // (4) yaz (onaylı adım). Depo kilit altında tam mükerrer ve olası mükerrer kararını yeniden verir; varlığın
@@ -225,7 +226,7 @@ public sealed class HgsCrossingService(
             Eslesen: counted.Count(r => r.Durum == HgsImportRowStatus.Eslesti),
             KiraDisi: counted.Count(r => r.Durum == HgsImportRowStatus.KiraDisi),
             Belirsiz: counted.Count(r => r.Durum == HgsImportRowStatus.Belirsiz),
-            OlasiMukerrer: counted.Count(r => r.Durum == HgsImportRowStatus.Belirsiz && r.Hata == HgsResolution.NearDuplicateNote),
+            OlasiMukerrer: counted.Count(r => r.Durum == HgsImportRowStatus.Belirsiz && HgsResolution.IsNearDuplicateNote(r.Hata)),
             AracBulunamadi: counted.Count(r => r.AracBulunamadi),
             Mukerrer: results.Count(r => r.Durum == HgsImportRowStatus.Mukerrer),
             Hatali: results.Count(r => r.Durum == HgsImportRowStatus.Hatali),

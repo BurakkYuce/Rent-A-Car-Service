@@ -94,8 +94,15 @@ public static class HgsResolution
     /// başka bir satırla eşleşip eşleşmediğine (onların ±6 sa komşularına) bakar.</summary>
     public static readonly TimeSpan LookAround = SameStationWindow * 2;
 
+    /// <summary>60 sn kuralı notu: neredeyse aynı an → neredeyse kesin aynı geçiş; "ayrı geçiş" onayı verilmez.</summary>
     public const string NearDuplicateNote =
-        "Olası mükerrer: aynı plaka ve tutarla 60 saniye içinde ya da başka bir dökümde aynı istasyon ve kirayla 6 saat içinde başka bir geçiş var; otomatik yansıtılmaz. Ayrı geçişse 'Ayrı geçiş olarak onayla' ile onaylayın.";
+        "Olası mükerrer: aynı plaka ve tutarla 60 saniye içinde başka bir geçiş var (neredeyse aynı an; aynı geçişin farklı biçimli dökümü); otomatik yansıtılmaz.";
+
+    /// <summary>Geniş kural notu: farklı dökümde aynı istasyon/tutar/kira, 6 sa içinde → "ayrı geçiş" onaylanabilir.</summary>
+    public const string SameStationNote =
+        "Olası mükerrer: başka bir dökümde aynı plaka, tutar, istasyon ve kirayla 6 saat içinde başka bir geçiş var (farklı zaman anlamı olabilir); otomatik yansıtılmaz. Ayrı geçişse 'Ayrı geçiş olarak onayla' ile onaylayın.";
+
+    public static bool IsNearDuplicateNote(string? note) => note is NearDuplicateNote or SameStationNote;
 
     public const string UnknownPlateNote = "Plaka filoda bulunamadı (firma gideri).";
 
@@ -121,13 +128,14 @@ public static class HgsResolution
            && (a.At - b.At).Duration() < NearDuplicateWindow;
 
     /// <summary>
-    /// Geniş kural adayı mı (#407 M1 + L1): ikisi de onaysız; FARKLI içe aktarım (aynı dosyadaki iki satır aynı kaynak
+    /// Geniş kural adayı mı (#407 M1 + L1): İKİNCİL olacak taraf (<paramref name="a"/>) onaysız — onaylı satır kendi
+    /// sonraki kopyalarının asılı olabilir (#407 tur 2 A9); FARKLI içe aktarım (aynı dosyadaki iki satır aynı kaynak
     /// ve aynı zaman anlamıdır → gerçek iki geçiş); AYNI kira (sonraki müşterinin geçişi önceki müşterinin kopyası
     /// olamaz); aynı plaka + tutar; |Δt| &lt; 6 sa; çıkış istasyonu dolu ve aynı, giriş istasyonu İKİSİNDE de doluysa
     /// o da aynı (tek istasyon sütunlu banka dökümü = çıkış/geçiş yeri).
     /// </summary>
     public static bool AreWideCandidates(HgsCrossingRef a, HgsCrossingRef b)
-        => a.Id != b.Id && !a.Approved && !b.Approved && a.Batch != b.Batch
+        => a.Id != b.Id && !a.Approved && a.Batch != b.Batch
            && a.RentalId is { } rental && rental == b.RentalId
            && string.Equals(a.Plate, b.Plate, StringComparison.Ordinal)
            && decimal.Round(a.Amount, 2) == decimal.Round(b.Amount, 2)
@@ -174,6 +182,6 @@ public static class HgsResolution
     }
 
     /// <summary>Eşleşmeyi olası mükerrer kararıyla birleştirir: ikincil satır Belirsiz olur (kira bağı bilgi için kalır).</summary>
-    public static HgsMatch WithNearDuplicate(HgsMatch match, bool secondary)
-        => secondary ? new HgsMatch(HgsCrossingStatus.Belirsiz, match.Rental, NearDuplicateNote) : match;
+    public static HgsMatch WithNearDuplicate(HgsMatch match, string? nearDuplicateNote)
+        => nearDuplicateNote is null ? match : new HgsMatch(HgsCrossingStatus.Belirsiz, match.Rental, nearDuplicateNote);
 }

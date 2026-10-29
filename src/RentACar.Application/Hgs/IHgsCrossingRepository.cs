@@ -44,7 +44,7 @@ public interface IHgsCrossingRepository
     /// (kapsam kontrolünden sonra değişmiş) tüm istek reddedilir.
     /// </summary>
     /// <summary>
-    /// Kilit + satır kilidi altında olası mükerrer notlu Belirsiz satırları, kirası hâlâ geçiş anını kapsıyorsa
+    /// Kilit + satır kilidi altında geniş kural notlu (60 sn içinde asıl eşi olmayan) Belirsiz satırları, kirası hâlâ geçiş anını kapsıyorsa
     /// Eslesti yapar ve <c>OnayZamani</c>'nı yazar. Kiranın şubesi <paramref name="scope"/> dışındaysa tüm istek reddedilir.
     /// </summary>
     Task<HgsConfirmResult> ConfirmAsync(

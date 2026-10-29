@@ -109,10 +109,10 @@ public sealed class HgsCrossingRepository(IDbContextFactory<AppDbContext> factor
             // Karar, dosyanın tüm satırları dizine girdikten SONRA (geniş kuralın bire bir eşleşmesi sıraya bağlı olmasın).
             foreach (var r in added)
             {
-                if (r.Durum != HgsCrossingStatus.Yansitildi && near.IsSecondary(HgsCrossingRef.Of(r)))
+                if (r.Durum != HgsCrossingStatus.Yansitildi && near.SecondaryNote(HgsCrossingRef.Of(r)) is { } note)
                 {
                     r.Durum = HgsCrossingStatus.Belirsiz;
-                    r.EslesmeNotu = HgsResolution.NearDuplicateNote;
+                    r.EslesmeNotu = note;
                 }
             }
             try
@@ -182,7 +182,7 @@ public sealed class HgsCrossingRepository(IDbContextFactory<AppDbContext> factor
             foreach (var c in open)
             {
                 var (vehicleId, match) = resolved[c.Id];
-                match = HgsResolution.WithNearDuplicate(match, near.IsSecondary(Current(HgsCrossingRef.Of(c))));
+                match = HgsResolution.WithNearDuplicate(match, near.SecondaryNote(Current(HgsCrossingRef.Of(c))));
                 var rentalId = match.Rental?.RentalId;
                 if (c.VehicleId == vehicleId && c.RentalId == rentalId && c.Durum == match.Status
                     && c.EslesmeNotu == match.Note) continue;
@@ -220,11 +220,14 @@ public sealed class HgsCrossingRepository(IDbContextFactory<AppDbContext> factor
                 if (!BranchScope.InScope(scope, r.CikisSubeId, r.CikisOfisi))
                     throw new NoPermissionException("Bu kayıt şube kapsamınız dışında.");
 
+            // 60 sn kuralı kilit altında yeniden: neredeyse aynı anda yansıtılmış/asıl eşi olan satır onaylanmaz (A10).
+            var near = rows.Count == 0 ? new HgsNearDuplicateIndex([]) : new HgsNearDuplicateIndex(await RefsAroundAsync(db, rows, ct));
             int confirmed = 0, unfit = idArray.Length - rows.Count;
             foreach (var c in rows)
             {
-                // Yalnız olası mükerrer gerekçeli Belirsiz satır; kira GÜNCEL hâliyle geçiş anını hâlâ kapsamalı.
-                if (c.Durum != HgsCrossingStatus.Belirsiz || c.EslesmeNotu != HgsResolution.NearDuplicateNote
+                // Yalnız GENİŞ kural gerekçeli Belirsiz satır; kira GÜNCEL hâliyle geçiş anını hâlâ kapsamalı.
+                if (c.Durum != HgsCrossingStatus.Belirsiz || c.EslesmeNotu != HgsResolution.SameStationNote
+                    || near.HasSixtySecondPrimary(HgsCrossingRef.Of(c))
                     || c.RentalId is not { } rid || !rentals.TryGetValue(rid, out var rental)
                     || rental.Durum == RentalStatus.Iptal || rental.VehicleId != c.VehicleId
                     || HgsCrossingMatcher.Match(c.GecisZamani, [WindowOf(rental)]).Status != HgsCrossingStatus.Eslesti)
