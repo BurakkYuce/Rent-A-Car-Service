@@ -124,8 +124,8 @@ olabilir). Açık PR yoksa "Sırada" listesinin ilk maddesi.
     #385/#392 düzeltmeler. #386 slot genişletme + anahtar göçü (tarife→pazar, kontuar→rota), **#387 palet altyapısı**
     (tema başına hazır renk setleri + firmanın kendi ana rengi), #388–#390 Rota/Pazar/Vitrin. #399 firma bilgi alanları,
     #400 dolu + saatli arama formu ve WhatsApp'tan sor. Yeni temalar: #401 **Anahtar** (yeni varsayılan), #403
-    **Kıyas**, #404 **Paket**. Eski temaların (Pazar/Rota/Vitrin) sökümü + kalıcı eşleme + veri migration'ı **#405
-    (açık)**. Tema sözleşmesi: `src/RentACar.PublicSite/Components/Themes/README.md`.
+    **Kıyas**, #404 **Paket**. #405: eski temalar (Pazar/Rota/Vitrin) söküldü; kayıtlı değerler kalıcı eşleme + veri
+    migration'ıyla yeni temalara geçer. Tema sözleşmesi: `src/RentACar.PublicSite/Components/Themes/README.md`.
   - **Kabul testi düzeltme serisi (2026-10-04, #361–#383):** sitede gösterilen fiyat rezervasyon/kira/faturaya birebir
     (#361); PARA: TL tarife dövizli kirada kurla (#362), tarife-aktar tüm sütunlar (#365), adla kayıtlı araç grubu
     (#368); araç durumu korumaları (#364), km limiti snapshot (#366), geç dönüş (#372, #376), yaşlandırma FIFO (#367),
@@ -143,7 +143,8 @@ olabilir). Açık PR yoksa "Sırada" listesinin ilk maddesi.
   - Satış (pazarlama) sitesi ayrı repoda: `github.com/BurakkYuce/rentpro-site` — bu repoda değil.
 
 ### ⏳ Açık PR
-- #405 eski site temalarının sökümü (T4). Gerçek durum için `rtk gh pr list --state open`.
+- 2026-10-29: #406 (bu belge), #407 (HGS #391 L1), #408 (site kod adları İngilizce), #409 (`YeniArayuzPilot` düşür).
+  Gerçek durum için `rtk gh pr list --state open`.
 
 ### ⬜ Sırada (başlamadı)
 1. ~~F12 kesiş~~ ve ~~F13 söküm~~ **BİTTİ (2026-09-26).** Yayın öncesi (kullanıcıda): F2.2 sunucu adımları → `/app`
