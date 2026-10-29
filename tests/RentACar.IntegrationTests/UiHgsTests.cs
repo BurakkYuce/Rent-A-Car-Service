@@ -60,7 +60,6 @@ public sealed class UiHgsTests(WebFixture fx)
             }
             await db.SaveChangesAsync();
         }
-        await fx.MakePilotAsync(tenantId, true);
         using var host = new TestHost(fx.Pg.AppConnectionString);
         var world = await HgsImportTests.SetUpAsync(host, tenantId);
         return new Env(tenantId, code, password, users, world);

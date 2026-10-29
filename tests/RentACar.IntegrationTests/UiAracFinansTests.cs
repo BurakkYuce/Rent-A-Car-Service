@@ -69,7 +69,6 @@ public sealed partial class UiAracFinansTests(WebFixture fx)
             }
             await db.SaveChangesAsync();
         }
-        await fx.MakePilotAsync(o.TenantId, true);
         var m = new Customer { Tip = CustomerType.Bireysel, Ad = "Deniz", Soyad = "Ak", CepTel = "05321112244" };
         await WriteDataAsync(o.TenantId, db => db.Customers.Add(m));
         o.MusteriId = m.Id;

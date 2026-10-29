@@ -245,14 +245,13 @@ public sealed class UiApiTests(WebFixture fx)
     }
 
     /// <summary>
-    /// F13.1b: pilot kapısı kalktı — eski pilot bayrağı KAPALI (ya da ayar satırı olmayan) firmanın kullanıcısı da
-    /// /api/ui'yi kullanır; <c>ben.pilot</c> hep true (alan eski istemci için sözleşmede).
+    /// F13.1b: pilot kapısı kalktı — ayar satırı olmayan yeni firmanın kullanıcısı da /api/ui'yi kullanır;
+    /// <c>ben.pilot</c> hep true (alan eski istemci için sözleşmede; pilot kolonu düştü).
     /// </summary>
     [Fact]
     public async Task Pilot_kapisi_yok_bayrak_kapali_firma_da_api_kullanir()
     {
         var k = await fx.CompanyAndUserAsync("Pilot Kapısı Yok Firması");
-        await fx.MakePilotAsync(await fx.TenantIdAsync(k.Firma), false);
         var (c, _, after) = await DoLogin(k);
 
         Assert.Equal(HttpStatusCode.OK, (await c.GetAsync("/api/ui/v1/test/tamam")).StatusCode);

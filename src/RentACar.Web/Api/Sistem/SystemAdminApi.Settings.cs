@@ -151,7 +151,6 @@ public static partial class SystemAdminApi
             FaturaSeriKodu = m.FaturaSeriKodu, WhatsAppNumarasi = m.WhatsAppNumarasi, WhatsAppGunlukOzet = m.WhatsAppGunlukOzet,
             WebSitesiAcik = m.PublicSiteEnabled, WebSitesiAdresi = m.PublicSiteHost,
             Domainler = m.CustomDomains.Select(d => new DomainDto(d.Host, d.Kind, d.Durum, d.DogrulamaKaydi, d.DogrulamaDegeri)).ToList(),
-            YeniArayuzPilot = raw?.YeniArayuzPilot == true,
             TwilioTanimli = !string.IsNullOrWhiteSpace(cfg["Twilio:AccountSid"]),
             WhatsAppGonderimleri = wa.Select(x => new WhatsAppDeliveryDto(x.Gun, x.Tur, x.Alici, x.Basarili, x.HataMesaji,
                 x.OlusturmaTarihi.ToUniversalTime())).ToList(),

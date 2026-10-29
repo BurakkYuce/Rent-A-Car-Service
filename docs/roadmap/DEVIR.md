@@ -22,7 +22,7 @@ açık kararıyla ve `docs/roadmap/DEGISIKLIKLER.md` kaydıyla olur. Çekirdekte
 Güncelleme: 2026-09-26. **ANGULAR GEÇİŞİ KODDA KAPANDI: F4–F12 ve F13 söküm main'de** (#348 F13.0 karar + F12 kesiş,
 #349 F13.1a sayfalar + form uçları, #350 F13.1b kabuk + pilot kapısı + 301, F13.2 belgeler). Web'de Blazor yok (`@page`
 = 0); arayüz yalnız `/app` (Angular), veri yalnız `/api/ui/v1`; eski adresler herkes için 301. Pilot kapısı kalktı
-(`YeniArayuzPilot` kolonu kullanılmıyor, ayrı migration'la düşecek). **CANLIYA YAYIN YOK** — F2.2 sunucu adımları
+(`YeniArayuzPilot` kolonu `DropYeniArayuzPilot` migration'ıyla düştü). **CANLIYA YAYIN YOK** — F2.2 sunucu adımları
 (`docs/ops/f2-2-sunucu-adimlari.md`) ve `/app` üretim doğrulaması kullanıcıda; yayından önce canlı duman testi (README
 "Doğrulama"). Ajanlar `deploy/yayinla.sh` çalıştırmaz. Kalan: Low'lar (§6), aşağıdaki "Sırada".
 
@@ -125,7 +125,7 @@ olabilir). Açık PR yoksa "Sırada" listesinin ilk maddesi.
 ### ⬜ Sırada (başlamadı)
 1. ~~F12 kesiş~~ ve ~~F13 söküm~~ **BİTTİ (2026-09-26).** Yayın öncesi (kullanıcıda): F2.2 sunucu adımları → `/app`
    üretim doğrulaması → canlı duman testi (README "Doğrulama"; 301'ler, giriş, 403/404 bandı, platform konsolu). Ayrı
-   küçük temizlikler: SPA'daki ölü `ben.pilot === false` dalı; `YeniArayuzPilot` kolonunu düşüren migration;
+   küçük temizlikler: SPA'daki ölü `ben.pilot === false` dalı; ~~`YeniArayuzPilot` kolonunu düşüren migration~~ (bitti);
    `PlatformIsolation` atlama listesindeki `/_blazor|_framework|_content`.
 2. **Low kalıntıları** (§6 "2026-09-25 Low'ları" — kalanlar: #320 L2 tekrar-öncesi doğrulama ile POST arası TOCTOU
    [kalıcı çözüm sunucuda beklenen kullanıcı başlığı], #331 L1 başarısız sekmeler arası yenilemede yeniden deneme yok,

@@ -42,7 +42,6 @@ export function tenantDetail(
     sonGiris: '2026-09-20T08:30:00Z',
     gelir30Gun: 125400.5,
     webSitesiModulu: false,
-    yeniArayuzPilot: false,
     halkaAcikSite: true,
     domainler: [{ host: `${code}.ornek.test`, tur: 'Alt alan', durum: 'Aktif' }],
     logo: {

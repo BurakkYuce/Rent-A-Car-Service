@@ -37,7 +37,7 @@ public sealed class UiSecimMenuTests(WebFixture fx)
     private static string RandomText(string prefix) => prefix + Guid.NewGuid().ToString("N")[..10];
 
     /// <summary>Firma + her rolden kullanıcı (rastgele ad/şifre) + kullanıcı-bazlı istisnalar. Owner bağlantısı (platform tabloları).</summary>
-    private async Task<Ortam> SetUpEnvironmentAsync(bool pilot = true, bool website = false)
+    private async Task<Ortam> SetUpEnvironmentAsync(bool website = false)
     {
         var environment = new Ortam
         {
@@ -73,7 +73,6 @@ public sealed class UiSecimMenuTests(WebFixture fx)
             }
             await db.SaveChangesAsync();
         }
-        await fx.MakePilotAsync(environment.TenantId, pilot);
         return environment;
     }
 
@@ -263,16 +262,6 @@ public sealed class UiSecimMenuTests(WebFixture fx)
                 Assert.Equal(Permission.OperationsWrite, tek!.Izin);
             }
         }
-    }
-
-    /// <summary>F13.1b: pilot kapısı kalktı — bayrağı kapalı firma da seçim ve menü uçlarını kullanır.</summary>
-    [Fact]
-    public async Task Pilot_bayragi_kapali_firma_da_secim_ve_menu_okur()
-    {
-        var o = await SetUpEnvironmentAsync(pilot: false);
-        var c = await LoginAsync(o, Kim.Admin);
-        Assert.Equal(HttpStatusCode.OK, (await c.GetAsync($"{V1}/secim/musteri")).StatusCode);
-        Assert.Equal(HttpStatusCode.OK, (await c.GetAsync($"{V1}/menu")).StatusCode);
     }
 
     // ------------------------------------------------------------ şube kapsamı + alan kümeleri
