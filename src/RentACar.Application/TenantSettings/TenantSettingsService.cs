@@ -128,6 +128,8 @@ public sealed class TenantSettingsService(
             SmtpGonderenAdres = s.SmtpGonderenAdres,
             SmtpGonderenAd = s.SmtpGonderenAd,
             FaturaSeriKodu = s.FaturaSeriKodu,
+            EFaturaSeriKodu = s.EFaturaSeriKodu,
+            EArsivSeriKodu = s.EArsivSeriKodu,
             WhatsAppNumarasi = s.WhatsAppNumarasi,
             WhatsAppGunlukOzet = s.WhatsAppGunlukOzet,
             // V0 halka açık site bilgileri
@@ -354,6 +356,21 @@ public sealed class TenantSettingsService(
                     "Fatura seri kodu tam 3 karakter olmalı ve yalnız büyük harf (A-Z) veya rakam " +
                     "içermelidir (Türkçe karakter kabul edilmez). Örnek: RNT");
             s.FaturaSeriKodu = series;
+            // GİB e-belge serileri (e-Arşiv kılavuzu v1.18 §6: e-Arşiv, e-Fatura'dan farklı birim kodu). İç fatura
+            // serisinden de farklı olmalı: aynı metin iki ayrı faturayı gösterirdi.
+            s.EFaturaSeriKodu = DocumentSeries(m.EFaturaSeriKodu, "eFaturaSeriKodu", "e-Fatura");
+            s.EArsivSeriKodu = DocumentSeries(m.EArsivSeriKodu, "eArsivSeriKodu", "e-Arşiv");
+            var effective = new[]
+            {
+                series ?? RentACar.Domain.Common.DocumentNo.DefaultSeries,
+                EInvoicing.EDocumentPolicy.Series(s, RentACar.Domain.Enums.EDocumentKind.EFatura),
+                EInvoicing.EDocumentPolicy.Series(s, RentACar.Domain.Enums.EDocumentKind.EArsiv),
+            };
+            if (effective.Distinct(StringComparer.Ordinal).Count() != effective.Length)
+                throw new ValidationException(
+                    $"Fatura ({effective[0]}), e-Fatura ({effective[1]}) ve e-Arşiv ({effective[2]}) seri kodları birbirinden " +
+                    "farklı olmalıdır (GİB: e-Arşiv, e-Fatura'dan farklı seri kullanır).",
+                    effective[1] == effective[0] ? "eFaturaSeriKodu" : "eArsivSeriKodu");
             s.WhatsAppNumarasi = Trim(m.WhatsAppNumarasi);
             s.WhatsAppGunlukOzet = m.WhatsAppGunlukOzet ?? false;
             SiteInfoRules.Apply(s, m, DateTimeOffset.UtcNow);
@@ -424,4 +441,15 @@ public sealed class TenantSettingsService(
     }
 
     private static string? Trim(string? s) => string.IsNullOrWhiteSpace(s) ? null : s.Trim();
+
+    /// <summary>Boş = varsayılan seri (null). Dolu ama biçimsiz → alan hatası (fatura serisiyle aynı kural).</summary>
+    private static string? DocumentSeries(string? value, string field, string label)
+    {
+        var series = Trim(value)?.ToUpperInvariant();
+        if (series is not null && !DocumentNo.IsSeriesValid(series))
+            throw new ValidationException(
+                $"{label} seri kodu tam 3 karakter olmalı ve yalnız büyük harf (A-Z) veya rakam içermelidir " +
+                "(Türkçe karakter kabul edilmez).", field);
+        return series;
+    }
 }

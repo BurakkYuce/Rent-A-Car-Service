@@ -69,6 +69,8 @@ internal sealed class TenantSettingsConfig : IEntityTypeConfiguration<TenantSett
         e.Property(x => x.SmtpGonderenAdres).HasMaxLength(256);
         e.Property(x => x.SmtpGonderenAd).HasMaxLength(128);
         e.Property(x => x.FaturaSeriKodu).HasMaxLength(3);   // GİB: tam 3 karakter
+        e.Property(x => x.EFaturaSeriKodu).HasMaxLength(3);
+        e.Property(x => x.EArsivSeriKodu).HasMaxLength(3);
         e.Property(x => x.WhatsAppNumarasi).HasMaxLength(32);
         // KABİS (additive): kurum enum ADI, kullanıcı düz metin, şifre cipher.
         e.Property(x => x.KabisKurum).HasMaxLength(16);

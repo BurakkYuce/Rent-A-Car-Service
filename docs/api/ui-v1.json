@@ -41754,6 +41754,12 @@
           },
           "iptalEdilebilir": {
             "type": "boolean"
+          },
+          "belgeNo": {
+            "type": [
+              "null",
+              "string"
+            ]
           }
         }
       },
@@ -71749,6 +71755,18 @@
               "string"
             ]
           },
+          "eFaturaSeriKodu": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "eArsivSeriKodu": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
           "whatsAppNumarasi": {
             "type": [
               "null",
@@ -72243,6 +72261,18 @@
             ]
           },
           "faturaSeriKodu": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "eFaturaSeriKodu": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "eArsivSeriKodu": {
             "type": [
               "null",
               "string"

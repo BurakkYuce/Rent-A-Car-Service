@@ -115,6 +115,8 @@ export const SETTINGS_FIELDS = [
   'smtpGonderenAd',
   'smtpSsl',
   'faturaSeriKodu',
+  'eFaturaSeriKodu',
+  'eArsivSeriKodu',
   'whatsAppNumarasi',
   'whatsAppGunlukOzet',
   ...SITE_INFO_FIELDS,

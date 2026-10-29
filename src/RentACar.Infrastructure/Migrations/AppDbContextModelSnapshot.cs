@@ -2386,6 +2386,10 @@ namespace RentACar.Infrastructure.Migrations
                     b.Property<Guid>("Id")
                         .HasColumnType("uuid");
 
+                    b.Property<string>("BelgeNo")
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)");
+
                     b.Property<DateTimeOffset>("CreatedAtUtc")
                         .HasColumnType("timestamp with time zone");
 
@@ -2423,6 +2427,9 @@ namespace RentACar.Infrastructure.Migrations
                         .HasMaxLength(16)
                         .HasColumnType("character varying(16)");
 
+                    b.Property<bool?>("SonDenemeCanli")
+                        .HasColumnType("boolean");
+
                     b.Property<DateTimeOffset?>("SonDenemeUtc")
                         .HasColumnType("timestamp with time zone");
 
@@ -2457,6 +2464,10 @@ namespace RentACar.Infrastructure.Migrations
                         .IsUnique();
 
                     b.HasIndex("TenantId", "Durum", "SonrakiDenemeUtc");
+
+                    b.HasIndex("TenantId", "SonDenemeCanli", "BelgeNo")
+                        .IsUnique()
+                        .HasFilter("\"BelgeNo\" IS NOT NULL");
 
                     b.ToTable("EBelgeler", (string)null);
                 });
@@ -7593,6 +7604,10 @@ namespace RentACar.Infrastructure.Migrations
                     b.Property<bool?>("DropMesafeYokIseSifir")
                         .HasColumnType("boolean");
 
+                    b.Property<string>("EArsivSeriKodu")
+                        .HasMaxLength(3)
+                        .HasColumnType("character varying(3)");
+
                     b.Property<bool>("EFaturaCanliOrtam")
                         .HasColumnType("boolean");
 
@@ -7615,6 +7630,10 @@ namespace RentACar.Infrastructure.Migrations
                     b.Property<string>("EFaturaSenaryo")
                         .HasMaxLength(16)
                         .HasColumnType("character varying(16)");
+
+                    b.Property<string>("EFaturaSeriKodu")
+                        .HasMaxLength(3)
+                        .HasColumnType("character varying(3)");
 
                     b.Property<string>("EFaturaSifreEnc")
                         .HasMaxLength(1024)

@@ -18,6 +18,8 @@ public sealed record InvoiceListRow(
 /// <list type="bullet">
 /// <item><c>ettn</c> YALNIZ entegratör belgeyi kabul ettiyse döner (<c>gonderimTarihi</c> dolu) — gönderilmemiş belgenin
 /// UUID'si "e-Fatura numarası" gibi görünmesin (dürüst stub kuralı).</item>
+/// <item><c>belgeNo</c>: GİB belge numarası (türün kendi serisinden; faturanın iç numarasından AYRI). ETTN gibi yalnız
+/// entegratör kabulünden sonra dolu.</item>
 /// <item><c>durum</c> <c>TestGonderildi</c>: entegratörün TEST ortamı kabul etti, GİB'e ulaşmadı (gönderildi sayılmaz).</item>
 /// <item><c>gonderilebilir</c>: Taslak/Hata/TestGonderildi durumunda (ya da kaydı olmayan eski faturada), entegratör
 /// bağlıyken ve fatura iade edilmemişken kuyruğa alınabilir; <c>iptalEdilebilir</c>: gönderilmemiş ya da test ortamına
@@ -27,7 +29,7 @@ public sealed record InvoiceListRow(
 public sealed record EDocumentDto(
     string? Durum, string? Tur, string? Profil, string? FaturaTipi, string? Ettn, DateTimeOffset? GonderimTarihi,
     int DenemeSayisi, DateTimeOffset? SonrakiDeneme, string? Mesaj, bool EntegratorBagli, bool Gonderilebilir,
-    bool IptalEdilebilir);
+    bool IptalEdilebilir, string? BelgeNo = null);
 
 /// <summary>e-Belge iptal gövdesi — gerekçe zorunlu (en çok 256 karakter).</summary>
 public sealed record EDocumentCancelRequest(string? Gerekce);

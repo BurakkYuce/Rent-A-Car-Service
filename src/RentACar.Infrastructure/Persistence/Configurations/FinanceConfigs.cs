@@ -211,6 +211,9 @@ internal sealed class EDocumentConfig : IEntityTypeConfiguration<EDocument>
         // İdempotency ŞEMADA: fatura başına tek e-belge, ETTN tenant içinde tekil.
         e.HasIndex(x => new { x.TenantId, x.InvoiceId }).IsUnique();
         e.HasIndex(x => new { x.TenantId, x.Ettn }).IsUnique();
+        // GİB belge numarası ortam içinde tekil (test ve canlı ayrı sayaçlardan aynı metni üretebilir).
+        e.Property(x => x.BelgeNo).HasMaxLength(16);
+        e.HasIndex(x => new { x.TenantId, x.SonDenemeCanli, x.BelgeNo }).IsUnique().HasFilter("\"BelgeNo\" IS NOT NULL");
         // Gönderim kuyruğu taraması (Durum = Gönderilecek, vadesi gelmiş).
         e.HasIndex(x => new { x.TenantId, x.Durum, x.SonrakiDenemeUtc });
     }

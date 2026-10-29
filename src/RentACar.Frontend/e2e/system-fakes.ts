@@ -155,6 +155,8 @@ export const settings = (extra: Record<string, unknown> = {}) => ({
   smtpGonderenAdres: null,
   smtpGonderenAd: null,
   faturaSeriKodu: 'RNT',
+  eFaturaSeriKodu: null,
+  eArsivSeriKodu: null,
   whatsAppNumarasi: null,
   whatsAppGunlukOzet: false,
   webSitesiAcik: true,

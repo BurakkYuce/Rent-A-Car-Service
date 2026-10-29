@@ -449,6 +449,22 @@
           >
             <rc-metin-girdisi formControlName="faturaSeriKodu" [azamiUzunluk]="3" yerTutucu="RNT" />
           </rc-alan>
+          <rc-alan
+            [etiket]="'sistem.ayarlar.alan.eFaturaSeriKodu' | transloco"
+            [ipucu]="'sistem.ayarlar.eBelgeSeriIpucu' | transloco"
+          >
+            <rc-metin-girdisi
+              formControlName="eFaturaSeriKodu"
+              [azamiUzunluk]="3"
+              yerTutucu="EFA"
+            />
+          </rc-alan>
+          <rc-alan
+            [etiket]="'sistem.ayarlar.alan.eArsivSeriKodu' | transloco"
+            [ipucu]="'sistem.ayarlar.eBelgeSeriIpucu' | transloco"
+          >
+            <rc-metin-girdisi formControlName="eArsivSeriKodu" [azamiUzunluk]="3" yerTutucu="EAR" />
+          </rc-alan>
         </div>
       </section>
 

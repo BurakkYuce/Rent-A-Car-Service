@@ -32,8 +32,8 @@ public sealed class EDocumentRepository(IDbContextFactory<AppDbContext> factory)
         {
             await using var db = await factory.CreateDbContextAsync(ct);
             await using var tx = await db.Database.BeginTransactionAsync(ct);
-            await db.Database.ExecuteSqlRawAsync(
-                "SELECT 1 FROM \"EBelgeler\" WHERE \"InvoiceId\" = {0} FOR UPDATE", [invoiceId], ct);
+            // Fatura kilidi (advisory + satır): kayıt yokken de iadeyle serileşir (adversarial N2).
+            await EDocumentQueue.LockAsync(db, invoiceId, ct);
             // İadesi olan fatura kuyruğa GİRMEZ (adversarial M1) — kilit altında yeniden bakılır: servis ön-kontrolünden
             // sonra commit eden bir iade de görülür.
             if (await db.Invoices.AsNoTracking().AnyAsync(i => i.KaynakFaturaId == invoiceId, ct))
@@ -84,9 +84,11 @@ public sealed class EDocumentRepository(IDbContextFactory<AppDbContext> factory)
             }
             catch (DbUpdateException ex) when (ex.InnerException is PostgresException { SqlState: PostgresErrorCodes.UniqueViolation })
             {
-                // Eşzamanlı ikinci istek kaydı bizden önce açtı → aynı sonuç (kuyrukta).
+                // Kaydı bizden önce başka bir işlem açtı (kilidi almayan bir yol). "Kuyrukta" varsayılmaz — o kayıt bir
+                // iadenin İptal kaydı olabilir (adversarial N2): baştan koşulur, durum kilit altında yeniden okunur
+                // (ikinci koşu kaydı bulur, ekleme yapmaz → döngü yok).
                 await tx.RollbackAsync(ct);
-                return EDocumentStatus.Gonderilecek;
+                return await QueueAsync(invoiceId, now, ct);
             }
             return EDocumentStatus.Gonderilecek;
         }, ct);

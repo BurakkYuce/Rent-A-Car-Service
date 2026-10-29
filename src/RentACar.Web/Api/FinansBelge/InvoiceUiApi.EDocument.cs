@@ -73,6 +73,8 @@ public static partial class InvoiceUiApi
                             && doc.Durum is EDocumentStatus.Taslak or EDocumentStatus.Hata or EDocumentStatus.TestGonderildi,
             IptalEdilebilir: doc.Durum is EDocumentStatus.Taslak or EDocumentStatus.Hata or EDocumentStatus.Gonderilecek
                                  or EDocumentStatus.TestGonderildi
-                             || (doc.Durum == EDocumentStatus.Gonderildi && doc.Tur == EDocumentKind.EArsiv && refunded));
+                             || (doc.Durum == EDocumentStatus.Gonderildi && doc.Tur == EDocumentKind.EArsiv && refunded),
+            // GİB numarası faturanın iç numarasından ayrıdır (e-Arşiv ≠ e-Fatura serisi); ETTN gibi yalnız kabulden sonra.
+            BelgeNo: doc.GonderimUtc is null ? null : doc.BelgeNo);
     }
 }

@@ -89,6 +89,15 @@ public class TenantSettings : ITenantOwned, IAuditable
     /// </summary>
     public string? FaturaSeriKodu { get; set; }
 
+    /// <summary>
+    /// GİB'e giden e-belge numarasının seri kodları (3 karakter; boşsa <c>EFA</c> / <c>EAR</c>). GİB e-Arşiv kılavuzu
+    /// (v1.18, §6) e-Arşiv faturalarda e-Fatura'dakinden FARKLI birim kodu ister; tür gönderimde belli olduğundan numara
+    /// faturanın iç numarasından (<see cref="FaturaSeriKodu"/>) ayrı, türün kendi boşluksuz sayacından alınır. Üçü
+    /// birbirinden farklı olmalıdır.
+    /// </summary>
+    public string? EFaturaSeriKodu { get; set; }
+    public string? EArsivSeriKodu { get; set; }
+
     // ---- WhatsApp günlük operasyon özeti (additive) ----
     /// <summary>Günlük özetin gideceği WhatsApp no (E.164; boşsa gönderilmez).</summary>
     public string? WhatsAppNumarasi { get; set; }

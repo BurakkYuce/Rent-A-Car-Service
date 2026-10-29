@@ -210,7 +210,11 @@ public sealed class EDocumentFlowTests(PostgresFixture fx)
 
         var invoice = await DbAsync(c, db => db.Invoices.AsNoTracking().SingleAsync(i => i.Id == id));
         var xml = XDocument.Parse(Encoding.UTF8.GetString(sent.Xml)).Root!;
-        Assert.Equal(invoice.No, xml.Element(UblInvoiceBuilder.Cbc + "ID")!.Value);
+        // GİB numarası iç fatura numarasından AYRI: e-Fatura serisi (varsayılan EFA), fatura yılı, sıra 1.
+        var year = TimeZoneInfo.ConvertTime(invoice.Tarih, TimeZoneInfo.FindSystemTimeZoneById("Europe/Istanbul")).Year;
+        Assert.Equal($"EFA{year}000000001", xml.Element(UblInvoiceBuilder.Cbc + "ID")!.Value);
+        Assert.Equal($"EFA{year}000000001", sent.FaturaNo);
+        Assert.StartsWith("RNT", invoice.No, StringComparison.Ordinal); // iç numara değişmedi
         Assert.Equal(sent.Ettn.ToString("D").ToUpperInvariant(), xml.Element(UblInvoiceBuilder.Cbc + "UUID")!.Value);
         Assert.Equal("1200.00", xml.Element(UblInvoiceBuilder.Cac + "LegalMonetaryTotal")!.Element(UblInvoiceBuilder.Cbc + "PayableAmount")!.Value);
         Assert.Equal((1000m, 200m, 1200m), (invoice.NetTutar, invoice.KdvTutar, invoice.GenelToplam)); // dokunulmadı
@@ -219,6 +223,7 @@ public sealed class EDocumentFlowTests(PostgresFixture fx)
         Assert.Equal(EDocumentStatus.Gonderildi, doc.Durum);
         Assert.Equal(now, doc.GonderimUtc!.Value, TimeSpan.FromSeconds(1));
         Assert.Equal((EDocumentKind.EFatura, "TEMELFATURA", "SATIS", 1), (doc.Tur, doc.Profil, doc.FaturaTipi, doc.DenemeSayisi));
+        Assert.Equal(($"EFA{year}000000001", (bool?)true), (doc.BelgeNo, doc.SonDenemeCanli));
         Assert.Equal(Convert.ToHexString(SHA256.HashData(sent.Xml)).ToLowerInvariant(), doc.XmlOzet);
         Assert.StartsWith("REF-", doc.EntegratorRef);
         Assert.Null(doc.KilitBitisUtc);

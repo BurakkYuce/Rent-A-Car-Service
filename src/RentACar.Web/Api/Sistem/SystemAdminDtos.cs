@@ -75,6 +75,10 @@ public sealed class SettingsDto
     public string? SmtpGonderenAdres { get; init; }
     public string? SmtpGonderenAd { get; init; }
     public string? FaturaSeriKodu { get; init; }
+    /// <summary>GİB e-Fatura belge seri kodu (boş = EFA).</summary>
+    public string? EFaturaSeriKodu { get; init; }
+    /// <summary>GİB e-Arşiv belge seri kodu (boş = EAR); e-Fatura ve fatura serisinden farklı olmalı.</summary>
+    public string? EArsivSeriKodu { get; init; }
     public string? WhatsAppNumarasi { get; init; }
     public bool? WhatsAppGunlukOzet { get; init; }
     public bool WebSitesiAcik { get; init; }
@@ -197,6 +201,10 @@ public sealed class SettingsRequest
     public string? SmtpGonderenAdres { get; init; }
     public string? SmtpGonderenAd { get; init; }
     public string? FaturaSeriKodu { get; init; }
+    /// <summary>GİB e-Fatura belge seri kodu (boş = EFA).</summary>
+    public string? EFaturaSeriKodu { get; init; }
+    /// <summary>GİB e-Arşiv belge seri kodu (boş = EAR); e-Fatura ve fatura serisinden farklı olmalı.</summary>
+    public string? EArsivSeriKodu { get; init; }
     public string? WhatsAppNumarasi { get; init; }
     public bool? WhatsAppGunlukOzet { get; init; }
     /// <summary>Depozito (TL, 0–10.000.000, en çok 2 ondalık) ya da boş.</summary>

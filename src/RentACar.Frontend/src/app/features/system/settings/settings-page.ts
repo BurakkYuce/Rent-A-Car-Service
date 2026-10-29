@@ -92,6 +92,8 @@ const MAX_LENGTH: Readonly<Partial<Record<string, number>>> = {
   smtpGonderenAdres: 256,
   smtpGonderenAd: 128,
   faturaSeriKodu: 3,
+  eFaturaSeriKodu: 3,
+  eArsivSeriKodu: 3,
   whatsAppNumarasi: 32,
   ...Object.fromEntries(COLOR_FIELDS.map((c) => [c, 7])),
   siteVurguRengi: 7,

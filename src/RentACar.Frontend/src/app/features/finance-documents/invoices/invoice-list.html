@@ -203,6 +203,12 @@
                 <dd>{{ kind | transloco }} · {{ d.eBelge.profil }}</dd>
               </div>
             }
+            @if (d.eBelge.belgeNo) {
+              <div>
+                <dt>{{ 'finansBelge.eBelge.belgeNo' | transloco }}</dt>
+                <dd>{{ d.eBelge.belgeNo }}</dd>
+              </div>
+            }
             @if (d.eBelge.ettn) {
               <div>
                 <dt>{{ 'finansBelge.eBelge.ettn' | transloco }}</dt>

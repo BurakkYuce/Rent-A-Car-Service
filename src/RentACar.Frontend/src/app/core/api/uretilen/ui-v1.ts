@@ -26421,6 +26421,7 @@ export interface components {
       entegratorBagli: boolean;
       gonderilebilir: boolean;
       iptalEdilebilir: boolean;
+      belgeNo?: null | string;
     };
     EInvoiceIntegratorOptionDto: {
       anahtar: string;
@@ -33049,6 +33050,8 @@ export interface components {
       smtpGonderenAdres?: null | string;
       smtpGonderenAd?: null | string;
       faturaSeriKodu?: null | string;
+      eFaturaSeriKodu?: null | string;
+      eArsivSeriKodu?: null | string;
       whatsAppNumarasi?: null | string;
       whatsAppGunlukOzet?: null | boolean;
       webSitesiAcik?: boolean;
@@ -33148,6 +33151,8 @@ export interface components {
       smtpGonderenAdres?: null | string;
       smtpGonderenAd?: null | string;
       faturaSeriKodu?: null | string;
+      eFaturaSeriKodu?: null | string;
+      eArsivSeriKodu?: null | string;
       whatsAppNumarasi?: null | string;
       whatsAppGunlukOzet?: null | boolean;
       /** Format: double */
