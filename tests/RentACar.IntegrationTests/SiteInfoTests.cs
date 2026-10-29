@@ -7,7 +7,7 @@ using RentACar.IntegrationTests.Infrastructure;
 namespace RentACar.IntegrationTests;
 
 /// <summary>
-/// V0 — halka açık site bilgileri ziyaretçiye (<c>role: null</c>) <see cref="FleetBranding.Bilgi"/> ile ulaşır ve başka
+/// V0 — halka açık site bilgileri ziyaretçiye (<c>role: null</c>) <see cref="FleetBranding.Facts"/> ile ulaşır ve başka
 /// kiracıya sızmaz (<c>racar_app</c> + RLS). Google bağlantısı izin listesi saf fonksiyonda kilitli. Değerler elle yazıldı.
 /// </summary>
 [Collection("postgres")]
@@ -39,7 +39,7 @@ public sealed class SiteInfoTests(PostgresFixture fx)
         using (var visitor = host.ScopeFor(tenant, role: null))
         {
             var b = await visitor.ServiceProvider.GetRequiredService<FleetShowcaseService>().GetBrandingAsync();
-            var f = b.Bilgi!;
+            var f = b.Facts!;
             Assert.Equal(7500m, f.DepozitoTutari);
             Assert.Equal("Nakit depozito olur.", f.DepozitoAciklama);
             Assert.True(f.KmSinirsiz);
@@ -55,7 +55,7 @@ public sealed class SiteInfoTests(PostgresFixture fx)
 
         using (var other = host.ScopeFor(Guid.NewGuid(), role: null))
         {
-            var f = (await other.ServiceProvider.GetRequiredService<FleetShowcaseService>().GetBrandingAsync()).Bilgi!;
+            var f = (await other.ServiceProvider.GetRequiredService<FleetShowcaseService>().GetBrandingAsync()).Facts!;
             Assert.Equal(new SiteFacts(), f);
         }
     }

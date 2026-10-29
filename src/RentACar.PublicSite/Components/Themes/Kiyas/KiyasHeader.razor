@@ -8,7 +8,7 @@
 <header class="bar">
     <div class="wrap ky-bar-ic">
         <a class="ky-marka" href="/" aria-label="@($"{Name} ana sayfa")">
-            <BrandMark Name="@Name" LogoVersion="@Branding?.LogoSurum" />
+            <BrandMark Name="@Name" LogoVersion="@Branding?.LogoVersion" />
         </a>
         <nav class="ky-nav" aria-label="Ana menü">
             @foreach (var n in Nav) { <a href="@n.Href">@n.Label</a> }
@@ -38,7 +38,7 @@
     [Parameter] public IReadOnlyList<SiteLink> Nav { get; set; } = [];
 
     private ContactLinks _contact = ContactLinks.From(null);
-    private string Name => string.IsNullOrWhiteSpace(Branding?.Marka) ? "RentPro" : Branding!.Marka!;
+    private string Name => string.IsNullOrWhiteSpace(Branding?.BrandName) ? "RentPro" : Branding!.BrandName!;
 
     protected override void OnParametersSet() => _contact = ContactLinks.From(Branding, Name);
 }

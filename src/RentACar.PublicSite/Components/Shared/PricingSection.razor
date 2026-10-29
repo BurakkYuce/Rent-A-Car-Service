@@ -20,13 +20,13 @@
             <ul class="madde">
                 @foreach (var m in Items) { <li>@m</li> }
             </ul>
-            @if (KosulSayfasi is { Length: > 0 } path)
+            @if (TermsPage is { Length: > 0 } path)
             {
                 <p class="linkler"><a href="@path">Kiralama koşullarımızın tamamı</a></p>
             }
         </div>
 
-        @if (Ornek is { } o)
+        @if (Example is { } o)
         {
             <aside class="ornek-fis" aria-labelledby="ornek-baslik">
                 <h3 id="ornek-baslik">Örnek hesap</h3>
@@ -47,10 +47,10 @@
     private const int ExampleDays = 3;
 
     /// <summary>Firmanın kendi yazdığı koşullar sayfası (varsa). Yoksa bağlantı basılmaz (T2).</summary>
-    [Parameter] public string? KosulSayfasi { get; set; }
+    [Parameter] public string? TermsPage { get; set; }
 
     /// <summary>Örnek hesabın ilanı (genelde en uygun fiyatlı). Null → fiş yok.</summary>
-    [Parameter] public FleetShowcaseCard? Ornek { get; set; }
+    [Parameter] public FleetShowcaseCard? Example { get; set; }
 
     private static readonly string[] Items =
     [

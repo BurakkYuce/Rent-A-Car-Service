@@ -72,7 +72,7 @@ public sealed partial class PublicSiteThemeContractTests
                 new FactLine("İptal", "48 saat öncesine kadar ücretsiz."),
             ],
             SiteFactsText.Lines(full));
-        Assert.Equal(["Depozito", "Kilometre", "İptal"], SiteFactsText.Short(full).Select(l => l.Etiket));
+        Assert.Equal(["Depozito", "Kilometre", "İptal"], SiteFactsText.Short(full).Select(l => l.Label));
         Assert.Equal(["Depozito ₺5.000", "Günlük 300 km", "En az 21 yaş"], SiteFactsText.Chips(full));
         Assert.Equal("2012 yılından beri", SiteFactsText.Founded(full));
         Assert.Equal("4,8", SiteFactsText.Rating(full));

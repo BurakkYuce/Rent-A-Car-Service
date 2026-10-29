@@ -8,7 +8,7 @@
 
 @* Sekme/arama başlığı SEO başlığından kurulur; verilmemişse görünen başlığa düşer (karar
    BlogDetail.AramaBasligi'nde TEK yerde). *@
-<PageTitle>@(_post?.AramaBasligi ?? "Yazı") — @(_branding?.Marka ?? "RentPro")</PageTitle>
+<PageTitle>@(_post?.AramaBasligi ?? "Yazı") — @(_branding?.BrandName ?? "RentPro")</PageTitle>
 
 @if (_post is { } seo)
 {
@@ -57,14 +57,14 @@
             <meta property="article:modified_time" content="@mt.UtcDateTime.ToString("yyyy-MM-dd'T'HH:mm:ss'Z'", System.Globalization.CultureInfo.InvariantCulture)" />
         }
     </HeadContent>
-    <YapisalVeriBlog Yazi="_post" Marka="_branding" KanonikKok="@_canonicalRoot" />
+    <BlogStructuredData Post="_post" Branding="_branding" CanonicalRoot="@_canonicalRoot" />
 }
 
 @* Yazı yoksa gövde basılmaz: durum kodu 404 ve /not-found kabukla yeniden yürütülür (Program.cs). *@
 @if (_post is not null)
 {
     <Breadcrumbs Items="@(new Breadcrumbs.Item[] { new("Ana sayfa", "/"), new("Blog", "/blog"), new(_post.Baslik, $"/blog/{_post.Slug}") })"
-                 KanonikKok="@_canonicalRoot" />
+                 CanonicalRoot="@_canonicalRoot" />
 
     <div class="wrap sayfa-ust">
         <h1>@_post.Baslik</h1>

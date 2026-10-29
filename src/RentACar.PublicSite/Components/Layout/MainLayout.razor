@@ -4,7 +4,7 @@
 @using RentACar.Application.SiteIcerik
 @inject FleetShowcaseService Showcase
 @inject BlogService Blog
-@inject SiteContentService Icerik
+@inject SiteContentService Content
 @inject ThemeAccessor Themes
 
 @* Site kabuğu. Veri (marka, menü, sayfalar) BURADA toplanır; üst bar ve alt bilgi aktif temanın
@@ -65,8 +65,8 @@
     private Dictionary<string, object?> FooterParams => new()
     {
         ["Branding"] = _branding,
-        ["Sayfalar"] = _pages,
-        ["YasalSayfalar"] = _legal,
+        ["Pages"] = _pages,
+        ["LegalPages"] = _legal,
     };
 
     protected override async Task OnInitializedAsync()
@@ -77,18 +77,18 @@
         try
         {
             _branding = await Showcase.GetBrandingAsync();
-            _contact = ContactLinks.From(_branding, string.IsNullOrWhiteSpace(_branding.Marka) ? "RentPro" : _branding.Marka);
+            _contact = ContactLinks.From(_branding, string.IsNullOrWhiteSpace(_branding.BrandName) ? "RentPro" : _branding.BrandName);
             _altbar = _contact.TelLink is not null || _contact.WaLink is not null;
 
             var nav = new List<SiteLink> { new("/musaitlik", "Araçlar ve fiyatlar") };
-            if ((await Icerik.PublishedFaqAsync()).Count > 0) nav.Add(new("/sss", "Sık sorulanlar"));
+            if ((await Content.PublishedFaqAsync()).Count > 0) nav.Add(new("/sss", "Sık sorulanlar"));
             if ((await Blog.ListPublishedAsync()).Count > 0) nav.Add(new("/blog", "Blog"));
             nav.Add(new("/iletisim", "İletişim"));
             _nav = nav;
 
             // Yayındaki içerik sayfaları İKİYE ayrılır: yasal metinler kendi sütununda (görünürlük + çerez
-            // şeridinin hedefi), gerisi "Sayfalar"da.
-            var pages = await Icerik.PublishedPagesAsync();
+            // şeridinin hedefi), gerisi "Pages"te.
+            var pages = await Content.PublishedPagesAsync();
             _legal = [.. pages.Where(LegalPages.Legal).Select(s => new SiteLink($"/{s.Slug}", s.Baslik))];
             _pages = [new("/", "Ana sayfa"), .. _nav,
                 .. pages.Where(s => !LegalPages.Legal(s)).Select(s => new SiteLink($"/{s.Slug}", s.Baslik))];

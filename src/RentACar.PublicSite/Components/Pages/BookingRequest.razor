@@ -3,7 +3,7 @@
 @using RentACar.Application.Fleet
 @using RentACar.PublicSite.Components.Shared
 @inject FleetShowcaseService Showcase
-@inject BranchService Subeler
+@inject BranchService BranchSvc
 
 @* Talep formu. Alan adları (adSoyad/telefon/email/bas/bit/sube/not/ilanId/website) POST ucunun
    (PublicBookingRequestEndpoints) sözleşmesidir — DEĞİŞTİRİLMEZ.
@@ -12,7 +12,7 @@
    durur — ziyaretçi neyi istediğini görerek doldurur. Tarayıcı otomatik doldurma ipuçları
    (autocomplete/inputmode) mobilde yazmayı kısaltır. Zorunlu alanlar yazıyla da belirtilir. *@
 
-<PageTitle>Teklif İste — @(_branding?.Marka ?? "RentPro")</PageTitle>
+<PageTitle>Teklif İste — @(_branding?.BrandName ?? "RentPro")</PageTitle>
 
 <Breadcrumbs Items="Crumbs" />
 
@@ -24,19 +24,19 @@
 
 <div class="wrap talep">
     <form method="post" action="/rezervasyon-talebi/gonder" class="talep-form"><AntiforgeryToken />
-        @if (!string.IsNullOrEmpty(Hata))
+        @if (!string.IsNullOrEmpty(Error))
         {
-            <p class="not-kutu hata" role="alert">@Hata</p>
+            <p class="not-kutu hata" role="alert">@Error</p>
         }
 
         <fieldset>
             <legend>Tarihler</legend>
             <div class="iki-sutun">
                 <label class="alan"><span>Alış tarihi <span class="zorunlu">(zorunlu)</span></span>
-                    <input name="bas" type="date" value="@Bas" min="@Today" required />
+                    <input name="bas" type="date" value="@Start" min="@Today" required />
                 </label>
                 <label class="alan"><span>İade tarihi <span class="zorunlu">(zorunlu)</span></span>
-                    <input name="bit" type="date" value="@Bit" min="@Today" required />
+                    <input name="bit" type="date" value="@End" min="@Today" required />
                 </label>
             </div>
             @if (_branches.Count > 0)
@@ -46,7 +46,7 @@
                         <option value="">Fark etmez</option>
                         @foreach (var s in _branches)
                         {
-                            <option value="@s" selected="@(s == Sube)">@s</option>
+                            <option value="@s" selected="@(s == Branch)">@s</option>
                         }
                     </select>
                 </label>
@@ -77,7 +77,7 @@
            okur; yayından kalkmışsa taşınmaz (talep yine oluşur, personel teyit eder). *@
         @if (_listing is not null)
         {
-            <input type="hidden" name="ilanId" value="@_listing.IlanId" />
+            <input type="hidden" name="ilanId" value="@_listing.ListingId" />
         }
 
         @* HONEYPOT: CSS ile gizli; gerçek kullanıcı görmez/doldurmaz, bot doldurursa istek sessizce yutulur. *@
@@ -114,18 +114,18 @@
         [new("Ana sayfa", "/"), new("Teklif iste", "/rezervasyon-talebi")];
 
     /// <summary>PR-14: aramadan gelen ilan adresi (slug).</summary>
-    [SupplyParameterFromQuery(Name = "ilan")] public string? Ilan { get; set; }
-    [SupplyParameterFromQuery(Name = "bas")] public string? Bas { get; set; }
-    [SupplyParameterFromQuery(Name = "bit")] public string? Bit { get; set; }
-    [SupplyParameterFromQuery(Name = "sube")] public string? Sube { get; set; }
-    [SupplyParameterFromQuery(Name = "fiyat")] public string? Fiyat { get; set; }
-    [SupplyParameterFromQuery(Name = "hata")] public string? Hata { get; set; }
+    [SupplyParameterFromQuery(Name = "ilan")] public string? Listing { get; set; }
+    [SupplyParameterFromQuery(Name = "bas")] public string? Start { get; set; }
+    [SupplyParameterFromQuery(Name = "bit")] public string? End { get; set; }
+    [SupplyParameterFromQuery(Name = "sube")] public string? Branch { get; set; }
+    [SupplyParameterFromQuery(Name = "fiyat")] public string? Price { get; set; }
+    [SupplyParameterFromQuery(Name = "hata")] public string? Error { get; set; }
     /// <summary>Kurumsal teklif (Paket temasının kurumsal formundan, <c>?kurumsal=1</c>): başlık ve not ipucu değişir.
     /// KVKK: serbest metin ADRESTE taşınmaz — kurumsal bilgi (araç adedi, süre, şehir) yalnız bu sayfanın POST
     /// formundaki not alanına yazılır. POST sözleşmesi aynı, yeni uç yok.</summary>
-    [SupplyParameterFromQuery(Name = "kurumsal")] public string? Kurumsal { get; set; }
+    [SupplyParameterFromQuery(Name = "kurumsal")] public string? Corporate { get; set; }
 
-    private bool IsCorporate => Kurumsal == "1";
+    private bool IsCorporate => Corporate == "1";
 
     private FleetBranding? _branding;
     private IReadOnlyList<string> _branches = [];
@@ -136,7 +136,7 @@
     protected override async Task OnInitializedAsync()
     {
         _branding = await Showcase.GetBrandingAsync();
-        _branches = (await Subeler.ListActiveAsync()).Select(s => s.Ad).ToList();
-        if (!string.IsNullOrWhiteSpace(Ilan)) _listing = await Showcase.GetListingDetailAsync(Ilan);
+        _branches = (await BranchSvc.ListActiveAsync()).Select(s => s.Ad).ToList();
+        if (!string.IsNullOrWhiteSpace(Listing)) _listing = await Showcase.GetListingDetailAsync(Listing);
     }
 }

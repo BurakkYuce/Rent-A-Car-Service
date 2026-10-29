@@ -6,53 +6,53 @@
    yok (hemen altta "Kiralamadan önce" bölümü var). Kapsayıcıyı çağıran verir; kart yoksa yalnız sayfanın verdiği boş
    durum, o da yoksa hiçbir şey (T2). *@
 
-@if (Model.Kartlar.Count > 0)
+@if (Model.Cards.Count > 0)
 {
-    @if (Model.Baslik is { Length: > 0 } title)
+    @if (Model.Title is { Length: > 0 } title)
     {
         <div class="an-bolum-bas">
-            <h2 id="@Model.BaslikId" class="bolum-baslik">@title</h2>
-            @if (Model.Yer == FleetPlacement.Home)
+            <h2 id="@Model.TitleId" class="bolum-baslik">@title</h2>
+            @if (Model.Placement == FleetPlacement.Home)
             {
                 <p class="an-bolum-not">@RangeText</p>
             }
         </div>
     }
-    @if (Model.Ozet is { } summary)
+    @if (Model.Summary is { } summary)
     {
-        <div class="sonuc-ozet" role="@(summary.Canli ? "status" : null)">
-            <strong>@summary.Vurgu</strong>
-            <span class="muted">@summary.Aciklama</span>
+        <div class="sonuc-ozet" role="@(summary.Live ? "status" : null)">
+            <strong>@summary.Headline</strong>
+            <span class="muted">@summary.Description</span>
         </div>
     }
-    @if (Model.Yer == FleetPlacement.Availability && SiteFactsText.Chips(Model.Bilgi) is { Count: > 0 } chips)
+    @if (Model.Placement == FleetPlacement.Availability && SiteFactsText.Chips(Model.Facts) is { Count: > 0 } chips)
     {
         <ul class="an-cipler an-liste-cipler" aria-label="Tüm araçlarda geçerli koşullar">
             @foreach (var c in chips) { <li>@c</li> }
         </ul>
     }
-    @if (Model.Uyari is { Length: > 0 } note)
+    @if (Model.Notice is { Length: > 0 } note)
     {
         <p class="not-kutu">@note</p>
     }
-    <ul class="an-ilanlar @(Model.Yer == FleetPlacement.Availability ? "an-yer-liste" : "an-yer-izgara")">
-        @foreach (var card in Model.Kartlar)
+    <ul class="an-ilanlar @(Model.Placement == FleetPlacement.Availability ? "an-yer-liste" : "an-yer-izgara")">
+        @foreach (var card in Model.Cards)
         {
             <li>
-                <ThemedCard Kart="card" Tarih="Model.Tarih" />
+                <ThemedCard Card="card" Dates="Model.Dates" />
             </li>
         }
     </ul>
 }
-else if (Model.Bos is { } empty)
+else if (Model.Empty is { } empty)
 {
-    <div class="bos-durum" role="@(empty.Canli ? "status" : null)">
-        <h2>@empty.Baslik</h2>
-        <p>@empty.Metin</p>
-        @if (empty.Linkler.Count > 0)
+    <div class="bos-durum" role="@(empty.Live ? "status" : null)">
+        <h2>@empty.Title</h2>
+        <p>@empty.Text</p>
+        @if (empty.Links.Count > 0)
         {
             <ul class="linkler">
-                @foreach (var l in empty.Linkler) { <li><a href="@l.Href">@l.Label</a></li> }
+                @foreach (var l in empty.Links) { <li><a href="@l.Href">@l.Label</a></li> }
             </ul>
         }
     </div>
@@ -66,9 +66,9 @@ else if (Model.Bos is { } empty)
     {
         get
         {
-            var min = Model.Kartlar.Min(c => c.GunlukFiyat);
-            var max = Model.Kartlar.Max(c => c.GunlukFiyat);
-            var models = $"{PriceText.Count(Model.Kartlar.Count)} model";
+            var min = Model.Cards.Min(c => c.GunlukFiyat);
+            var max = Model.Cards.Max(c => c.GunlukFiyat);
+            var models = $"{PriceText.Count(Model.Cards.Count)} model";
             return min == max
                 ? $"{models}, günlük {PriceText.Tl(min)}"
                 : $"{models}, günlük {PriceText.Tl(min)} ile {PriceText.Tl(max)} arası";

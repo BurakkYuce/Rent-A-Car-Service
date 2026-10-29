@@ -3,42 +3,42 @@
    Az sayıda büyük kart: iki sütun (telefonda bir). Başlık (varsa) + ana sayfada "Tüm araçlar" bağlantısı, özet,
    uyarı, ızgara. Kapsayıcıyı çağıran verir; kart yoksa yalnız sayfanın verdiği boş durum, o da yoksa hiçbir şey (T2). *@
 
-@if (Model.Kartlar.Count > 0)
+@if (Model.Cards.Count > 0)
 {
-    @if (Model.Baslik is { Length: > 0 } title)
+    @if (Model.Title is { Length: > 0 } title)
     {
         <div class="pk-bolum-bas">
-            <h2 id="@Model.BaslikId" class="bolum-baslik">@title</h2>
-            @if (Model.Yer == FleetPlacement.Home) { <a href="/musaitlik">Tüm araçlar ve tarihle fiyat</a> }
+            <h2 id="@Model.TitleId" class="bolum-baslik">@title</h2>
+            @if (Model.Placement == FleetPlacement.Home) { <a href="/musaitlik">Tüm araçlar ve tarihle fiyat</a> }
         </div>
     }
-    @if (Model.Ozet is { } summary)
+    @if (Model.Summary is { } summary)
     {
-        <div class="sonuc-ozet" role="@(summary.Canli ? "status" : null)">
-            <strong>@summary.Vurgu</strong>
-            <span class="muted">@summary.Aciklama</span>
+        <div class="sonuc-ozet" role="@(summary.Live ? "status" : null)">
+            <strong>@summary.Headline</strong>
+            <span class="muted">@summary.Description</span>
         </div>
     }
-    @if (Model.Uyari is { Length: > 0 } note)
+    @if (Model.Notice is { Length: > 0 } note)
     {
         <p class="not-kutu">@note</p>
     }
     <ul class="pk-ilanlar">
-        @foreach (var card in Model.Kartlar)
+        @foreach (var card in Model.Cards)
         {
-            <li><ThemedCard Kart="card" Tarih="Model.Tarih" /></li>
+            <li><ThemedCard Card="card" Dates="Model.Dates" /></li>
         }
     </ul>
 }
-else if (Model.Bos is { } empty)
+else if (Model.Empty is { } empty)
 {
-    <div class="bos-durum" role="@(empty.Canli ? "status" : null)">
-        <h2>@empty.Baslik</h2>
-        <p>@empty.Metin</p>
-        @if (empty.Linkler.Count > 0)
+    <div class="bos-durum" role="@(empty.Live ? "status" : null)">
+        <h2>@empty.Title</h2>
+        <p>@empty.Text</p>
+        @if (empty.Links.Count > 0)
         {
             <ul class="linkler">
-                @foreach (var l in empty.Linkler) { <li><a href="@l.Href">@l.Label</a></li> }
+                @foreach (var l in empty.Links) { <li><a href="@l.Href">@l.Label</a></li> }
             </ul>
         }
     </div>

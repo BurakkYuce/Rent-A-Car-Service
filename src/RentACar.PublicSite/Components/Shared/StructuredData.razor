@@ -25,15 +25,15 @@
 }
 
 @code {
-    [Parameter] public FleetBranding? Marka { get; set; }
+    [Parameter] public FleetBranding? Branding { get; set; }
     /// <summary>Basılacak SSS — sayfada GÖRÜNEN sorular (ana sayfada özet kadar; yönerge: işaretlenen içerik görünür olmalı).</summary>
-    [Parameter] public IReadOnlyList<SssSatiri> Sorular { get; set; } = [];
+    [Parameter] public IReadOnlyList<SssSatiri> Questions { get; set; } = [];
     /// <summary>Kanonik kök (https://host). Yoksa mutlak adres isteyen alanlar (url, @id, logo) atlanır.</summary>
-    [Parameter] public string? KanonikKok { get; set; }
+    [Parameter] public string? CanonicalRoot { get; set; }
     /// <summary>Aktif şubeler (geo, çalışma saatleri, il/ilçe). Boşsa bu alanlar yok.</summary>
-    [Parameter] public IReadOnlyList<Branch> Subeler { get; set; } = [];
+    [Parameter] public IReadOnlyList<Branch> Branches { get; set; } = [];
     /// <summary>Yayındaki ilanlar (priceRange). Boşsa alan yok.</summary>
-    [Parameter] public IReadOnlyList<FleetShowcaseCard> Kartlar { get; set; } = [];
+    [Parameter] public IReadOnlyList<FleetShowcaseCard> Cards { get; set; } = [];
 
     private string? _json;
 
@@ -51,18 +51,18 @@
     protected override void OnParametersSet()
     {
         var nodes = new List<object>();
-        var root = string.IsNullOrWhiteSpace(KanonikKok) ? null : KanonikKok.TrimEnd('/');
+        var root = string.IsNullOrWhiteSpace(CanonicalRoot) ? null : CanonicalRoot.TrimEnd('/');
 
-        if (!string.IsNullOrWhiteSpace(Marka?.Marka))
-            nodes.Add(Business(Marka!, root));
+        if (!string.IsNullOrWhiteSpace(Branding?.BrandName))
+            nodes.Add(Business(Branding!, root));
 
-        if (Sorular.Count > 0)
+        if (Questions.Count > 0)
         {
             nodes.Add(new Dictionary<string, object?>
             {
                 ["@context"] = "https://schema.org",
                 ["@type"] = "FAQPage",
-                ["mainEntity"] = Sorular.Select(s => new Dictionary<string, object?>
+                ["mainEntity"] = Questions.Select(s => new Dictionary<string, object?>
                 {
                     ["@type"] = "Question",
                     ["name"] = s.Soru,
@@ -85,19 +85,19 @@
 
     private Dictionary<string, object?> Business(FleetBranding b, string? root)
     {
-        var cities = Subeler.Select(s => Empty(s.Il)).Where(x => x is not null).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
-        var districts = Subeler.Select(s => Empty(s.Ilce)).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
-        var oneCity = cities.Count == 1 && Subeler.All(s => Empty(s.Il) is not null);
-        var geoBranch = Subeler.FirstOrDefault(s => s.Enlem is not null && s.Boylam is not null);
-        var hours = Subeler.Select(s => Empty(s.CalismaSaatleri)).FirstOrDefault(h => h is not null && OpeningHours.IsMatch(h));
+        var cities = Branches.Select(s => Empty(s.Il)).Where(x => x is not null).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+        var districts = Branches.Select(s => Empty(s.Ilce)).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+        var oneCity = cities.Count == 1 && Branches.All(s => Empty(s.Il) is not null);
+        var geoBranch = Branches.FirstOrDefault(s => s.Enlem is not null && s.Boylam is not null);
+        var hours = Branches.Select(s => Empty(s.CalismaSaatleri)).FirstOrDefault(h => h is not null && OpeningHours.IsMatch(h));
 
         object? address = null;
-        if (Empty(b.Adres) is not null || oneCity)
+        if (Empty(b.Address) is not null || oneCity)
         {
             address = new Dictionary<string, object?>
             {
                 ["@type"] = "PostalAddress",
-                ["streetAddress"] = Empty(b.Adres),
+                ["streetAddress"] = Empty(b.Address),
                 ["addressLocality"] = oneCity && districts.Count == 1 ? districts[0] : null,
                 ["addressRegion"] = oneCity ? cities[0] : null,
                 ["addressCountry"] = "TR",
@@ -109,11 +109,11 @@
             ["@context"] = "https://schema.org",
             ["@type"] = "AutoRental",   // LocalBusiness'ın araç kiralamaya özel alt tipi
             ["@id"] = root is null ? null : root + "/#firma",
-            ["name"] = b.Marka,
+            ["name"] = b.BrandName,
             ["url"] = root is null ? null : root + "/",
-            ["logo"] = root is not null && !string.IsNullOrEmpty(b.LogoSurum)
-                ? $"{root}/marka/logo?v={Uri.EscapeDataString(b.LogoSurum)}" : null,
-            ["telephone"] = Empty(b.Tel) ?? Empty(b.MobilTel),
+            ["logo"] = root is not null && !string.IsNullOrEmpty(b.LogoVersion)
+                ? $"{root}/marka/logo?v={Uri.EscapeDataString(b.LogoVersion)}" : null,
+            ["telephone"] = Empty(b.Phone) ?? Empty(b.MobilePhone),
             ["email"] = Empty(b.Email),
             ["address"] = address,
             ["geo"] = geoBranch is null ? null : new Dictionary<string, object?>
@@ -123,10 +123,10 @@
                 ["longitude"] = geoBranch.Boylam,
             },
             ["openingHours"] = hours,
-            ["priceRange"] = Kartlar.Count == 0 ? null
-                : Kartlar.Min(c => c.GunlukFiyat) == Kartlar.Max(c => c.GunlukFiyat)
-                    ? PriceText.Tl(Kartlar.Min(c => c.GunlukFiyat))
-                    : $"{PriceText.Tl(Kartlar.Min(c => c.GunlukFiyat))}–{PriceText.Tl(Kartlar.Max(c => c.GunlukFiyat))}",
+            ["priceRange"] = Cards.Count == 0 ? null
+                : Cards.Min(c => c.GunlukFiyat) == Cards.Max(c => c.GunlukFiyat)
+                    ? PriceText.Tl(Cards.Min(c => c.GunlukFiyat))
+                    : $"{PriceText.Tl(Cards.Min(c => c.GunlukFiyat))}–{PriceText.Tl(Cards.Max(c => c.GunlukFiyat))}",
         };
     }
 

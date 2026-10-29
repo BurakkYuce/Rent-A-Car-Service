@@ -33,10 +33,10 @@ public sealed record SchemeColors(string Bg, string Surface, string Ink, string 
 /// ile aynı olmalı (yapısal test). Temanın İLK seti varsayılandır.
 /// </summary>
 /// <param name="Key">Kalıcı anahtar.</param>
-/// <param name="Ad">ERP'de görünen ad.</param>
+/// <param name="Name">ERP'de görünen ad.</param>
 /// <param name="Light">Açık şema (<c>prefers-color-scheme: light</c>).</param>
 /// <param name="Dark">Koyu şema.</param>
-public sealed record SitePalette(string Key, string Ad, SchemeColors Light, SchemeColors Dark)
+public sealed record SitePalette(string Key, string Name, SchemeColors Light, SchemeColors Dark)
 {
     /// <summary>
     /// KOYU KİMLİK: açık şema da koyu zeminlidir (ör. Vitrin'in sinematik setleri — açık tercihli ziyaretçi de koyu
