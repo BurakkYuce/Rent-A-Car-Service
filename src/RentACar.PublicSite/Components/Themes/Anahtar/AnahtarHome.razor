@@ -1,0 +1,128 @@
+@* Tema "anahtar" — Home slotu. İmza SABİT (Components/Themes/README.md): Model (HomeModel).
+
+   Sıra (telefonla/WhatsApp'la çalışan yerel firma; müşteri önce "kim bunlar, açıklar mı, nasıl ulaşırım" diye bakar):
+     1. Hero — firma adı, yıl, Google puanı, bugünkü saat, WhatsApp + Ara, kompakt arama (tezgâh)
+     2. Araçlar ve günlük fiyatlar (ilan yoksa bölüm yok, T2)
+     3. Kiralamadan önce — firmanın KENDİ beyanları: depozito, km, sürücü, sigorta, iptal (boş alan satır üretmez;
+        hepsi boşsa bölüm yok) + kiralama koşulları sayfası bağlantısı (varsa)
+     4. Google yorumları — tek satır, profile bağlantılı (puan yoksa yok)
+     5. Ofis / şubeler — adres, bugünkü saat, çalışma saatleri, telefon, "Haritada aç"
+     6. SSS (görünen adet = FAQPage adedi, SEO L-4)
+   Kalıp bölümler (üç adım, "neden biz", kapanış bandı) bilinçli olarak YOK: iletişim zaten her ekranda.
+   Sarmalayıcı öğe YOK: bölümler doğrudan <main>'in çocuğu. *@
+
+<CascadingValue Name="AnahtarBugun" Value="_today" IsFixed="true">
+    <ThemedHero Marka="@Model.Marka" Branding="Model.Branding" Subeler="Model.SubeAdlari" Kartlar="Model.Kartlar" Sehir="@Model.Sehir" />
+</CascadingValue>
+
+@if (Model.Filo.Kartlar.Count > 0)
+{
+    <section class="bolum an-filo" id="filo" aria-labelledby="@Model.Filo.BaslikId">
+        <div class="wrap">
+            <ThemedFleet Model="Model.Filo" />
+        </div>
+    </section>
+}
+
+@if (_facts.Count > 0)
+{
+    <section class="bolum an-kosullar" id="kosullar" aria-labelledby="kosul-baslik">
+        <div class="wrap">
+            <h2 id="kosul-baslik" class="bolum-baslik">Kiralamadan önce</h2>
+            <dl class="an-kosul-liste">
+                @foreach (var f in _facts)
+                {
+                    <div><dt>@f.Etiket</dt><dd>@f.Metin</dd></div>
+                }
+            </dl>
+            @if (Model.KosulSayfasi is { Length: > 0 } terms)
+            {
+                <p class="linkler"><a href="@terms">Kiralama koşullarının tamamı</a></p>
+            }
+        </div>
+    </section>
+}
+
+@if (_rating is not null && Model.Branding?.Bilgi is { } facts)
+{
+    <section class="an-yorum" aria-labelledby="yorum-baslik">
+        <div class="wrap an-yorum-ic">
+            <h2 id="yorum-baslik" class="an-yorum-baslik">
+                <span class="an-yildiz" aria-hidden="true">★</span> @_rating
+                <span class="an-yorum-sayi">@AnahtarFacts.RatingNote(facts)</span>
+            </h2>
+            <p>
+                <a href="@facts.GoogleProfilUrl" target="_blank" rel="noopener noreferrer">Yorumları Google'da okuyun</a>
+                @if (AnahtarFacts.RatingMonth(facts) is { } month) { <span class="muted"> (@month itibarıyla)</span> }
+            </p>
+        </div>
+    </section>
+}
+
+@if (_offices.Count > 0)
+{
+    <section class="bolum an-ofis" id="ofis" aria-labelledby="ofis-baslik">
+        <div class="wrap">
+            <h2 id="ofis-baslik" class="bolum-baslik">@(_offices.Count == 1 ? "Ofisimiz" : "Şubelerimiz")</h2>
+            <ul class="an-ofisler">
+                @foreach (var (office, today) in _offices)
+                {
+                    <li>
+                        <h3>@office.Name</h3>
+                        @if (office.Address is not null) { <p class="an-ofis-adres">@office.Address</p> }
+                        @if (today is not null) { <p class="an-guven-acik">Bugün @today açık</p> }
+                        @if (office.Hours.Count > 0)
+                        {
+                            <p class="an-ofis-saat">
+                                <span class="an-ofis-etiket">Çalışma saatleri</span>
+                                @foreach (var line in office.Hours) { <span>@line</span> }
+                            </p>
+                        }
+                        @if (office.TelLink is not null || office.MapLink is not null)
+                        {
+                            <p class="an-ofis-eylem">
+                                @if (office.TelLink is not null) { <a class="btn btn-cizgi" href="@office.TelLink">@office.Phone</a> }
+                                @if (office.MapLink is not null)
+                                {
+                                    @* Dış bağlantı: kullanıcının kendi harita uygulamasında açılır (gömme YOK — CSP). *@
+                                    <a class="btn btn-cizgi" href="@office.MapLink" target="_blank" rel="noopener noreferrer">Haritada aç</a>
+                                }
+                            </p>
+                        }
+                    </li>
+                }
+            </ul>
+        </div>
+    </section>
+}
+
+@* Görünen soru adedi = FAQPage JSON-LD adedi (SEO L-4): Model.SssAdet değiştirilmez. *@
+<BolumSss Sorular="Model.Sss" Adet="Model.SssAdet" />
+
+@code {
+    /// <summary>Ofis bloğunda en fazla kaç şube.</summary>
+    private const int MaxOffices = 3;
+
+    [Parameter, EditorRequired] public HomeModel Model { get; set; } = default!;
+
+    private string? _today;
+    private string? _rating;
+    private IReadOnlyList<FactLine> _facts = [];
+    private IReadOnlyList<(BranchOffice Office, string? Today)> _offices = [];
+
+    protected override void OnParametersSet()
+    {
+        var day = SiteDate.TodayDayOfWeek;
+        _facts = AnahtarFacts.Lines(Model.Branding?.Bilgi);
+        _rating = AnahtarFacts.Rating(Model.Branding?.Bilgi);
+
+        var branches = BranchOffices.Ordered(Model.Subeler).ToList();
+        _offices = [.. BranchOffices.Build(branches, Model.Branding, MaxOffices)
+            .Select(o => (o, o.Source is { } b ? BranchOffices.TodayHours(b, day) : null))];
+
+        // Hero: ilk saatli şube. Birden çok şube varsa hangisi olduğu söylenir.
+        var first = branches.Select(b => (Branch: b, Hours: BranchOffices.TodayHours(b, day))).FirstOrDefault(x => x.Hours is not null);
+        _today = first.Hours is null ? null
+            : branches.Count > 1 ? $"{BranchOffices.NameOf(first.Branch)} bugün {first.Hours} açık" : $"Bugün {first.Hours} açık";
+    }
+}

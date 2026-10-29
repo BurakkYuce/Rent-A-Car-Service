@@ -1,0 +1,77 @@
+@* Tema "anahtar" — Fleet slotu. İmza SABİT (Components/Themes/README.md): Model (FleetModel).
+
+   Ana sayfada, benzer araçlarda ve 404'te dikey kart ızgarası (3/2/1 sütun); müsaitlik sayfasında YATAY liste kartı
+   (genişte iki sütun) — kart aynı, yerleşim `an-yer-*` sınıfından. Müsaitlikte özetin altında firmanın koşul çipleri
+   (depozito, km, yaş) BİR KEZ basılır: firma geneli bir beyanı her kartta tekrarlamak bilgi eklemez. Ana sayfada çip
+   yok (hemen altta "Kiralamadan önce" bölümü var). Kapsayıcıyı çağıran verir; kart yoksa yalnız sayfanın verdiği boş
+   durum, o da yoksa hiçbir şey (T2). *@
+
+@if (Model.Kartlar.Count > 0)
+{
+    @if (Model.Baslik is { Length: > 0 } title)
+    {
+        <div class="an-bolum-bas">
+            <h2 id="@Model.BaslikId" class="bolum-baslik">@title</h2>
+            @if (Model.Yer == FleetPlacement.Home)
+            {
+                <p class="an-bolum-not">@RangeText</p>
+            }
+        </div>
+    }
+    @if (Model.Ozet is { } summary)
+    {
+        <div class="sonuc-ozet" role="@(summary.Canli ? "status" : null)">
+            <strong>@summary.Vurgu</strong>
+            <span class="muted">@summary.Aciklama</span>
+        </div>
+    }
+    @if (Model.Yer == FleetPlacement.Availability && AnahtarFacts.Chips(Model.Bilgi) is { Count: > 0 } chips)
+    {
+        <ul class="an-cipler an-liste-cipler" aria-label="Tüm araçlarda geçerli koşullar">
+            @foreach (var c in chips) { <li>@c</li> }
+        </ul>
+    }
+    @if (Model.Uyari is { Length: > 0 } note)
+    {
+        <p class="not-kutu">@note</p>
+    }
+    <ul class="an-ilanlar @(Model.Yer == FleetPlacement.Availability ? "an-yer-liste" : "an-yer-izgara")">
+        @foreach (var card in Model.Kartlar)
+        {
+            <li>
+                <ThemedCard Kart="card" Tarih="Model.Tarih" />
+            </li>
+        }
+    </ul>
+}
+else if (Model.Bos is { } empty)
+{
+    <div class="bos-durum" role="@(empty.Canli ? "status" : null)">
+        <h2>@empty.Baslik</h2>
+        <p>@empty.Metin</p>
+        @if (empty.Linkler.Count > 0)
+        {
+            <ul class="linkler">
+                @foreach (var l in empty.Linkler) { <li><a href="@l.Href">@l.Label</a></li> }
+            </ul>
+        }
+    </div>
+}
+
+@code {
+    [Parameter, EditorRequired] public FleetModel Model { get; set; } = default!;
+
+    /// <summary>"4 model, günlük ₺1.250 ile ₺3.400 arası" — kartların ilandaki günlük fiyatından.</summary>
+    private string RangeText
+    {
+        get
+        {
+            var min = Model.Kartlar.Min(c => c.GunlukFiyat);
+            var max = Model.Kartlar.Max(c => c.GunlukFiyat);
+            var models = $"{PriceText.Count(Model.Kartlar.Count)} model";
+            return min == max
+                ? $"{models}, günlük {PriceText.Tl(min)}"
+                : $"{models}, günlük {PriceText.Tl(min)} ile {PriceText.Tl(max)} arası";
+        }
+    }
+}

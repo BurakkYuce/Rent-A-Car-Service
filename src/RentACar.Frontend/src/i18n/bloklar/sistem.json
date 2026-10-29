@@ -491,6 +491,10 @@
         "onizleAciklama": "Önizleme bağlantısı kaydetmeden, sitenizi seçilen tema, renk seti ve ana renkle yeni sekmede açar. Önizleme arama motorlarına kapalıdır.",
         "onizle": "{{ad}} temasını önizle",
         "onizleSecili": "Seçili görünümü önizle",
+        "anahtar": {
+          "ad": "Anahtar",
+          "aciklama": "İletişim önce: firma adı, kuruluş yılı, Google puanı, bugünkü çalışma saati ve WhatsApp ile Ara düğmeleri ilk ekranda. Fotoğrafsız da düzgün görünür; telefonla çalışan yerel firma için."
+        },
         "pazar": {
           "ad": "Pazar",
           "aciklama": "Kalın başlıklar, asılı fiyat etiketleri ve öne çıkan telefon ile WhatsApp; yerel firma ve bütçe kiralaması için."

@@ -1,0 +1,112 @@
+@* Tema "anahtar" — DetailHero slotu. İmza SABİT (Components/Themes/README.md): Model (DetailHeroModel).
+
+   MOBİL İLK EKRAN: ad → günlük fiyat → firmanın kısa koşulları (depozito, km, iptal; yalnız girilmişse) → iki düğme
+   (Rezervasyon talebi, WhatsApp'tan sor). Görsel bunlardan SONRA. Geniş ekranda solda görsel, sağda yapışkan panel:
+   tarife (sayfadan; tema hesap yapmaz), düğmeler, koşulların tamamı, tarih formu.
+
+   GÖRSEL: kapak LCP adayı (tembel değil, yüksek öncelik, boyut öznitelikleri 4:3). Fotoğraf yoksa silüet + (WhatsApp
+   varsa) "Gerçek fotoğrafı WhatsApp'tan isteyin". *@
+
+<div class="wrap">
+    <div class="detay an-detay">
+        <header class="detay-bas">
+            <h1>@Model.Ilan.Baslik</h1>
+            @if (Model.MetaSatiri is { Length: > 0 } meta) { <p>@meta</p> }
+            <div class="detay-hizli an-hizli">
+                <p class="an-fiyat"><span class="an-tutar">@PriceText.Tl(Model.Ilan.GunlukFiyat)</span> <span class="an-birim">/ gün</span> <span class="kdv">@Model.KdvMetni</span></p>
+                @if (_short.Count > 0)
+                {
+                    <dl class="an-kosul-kisa">
+                        @foreach (var f in _short) { <div><dt>@f.Etiket</dt><dd>@f.Metin</dd></div> }
+                    </dl>
+                }
+                <div class="an-eylem-cift">
+                    <a class="btn btn-brand" href="@Model.TeklifLinki">Rezervasyon talebi</a>
+                    @if (Model.WaLinki is not null)
+                    {
+                        <a class="btn btn-wa" href="@Model.WaLinki" target="_blank" rel="noopener noreferrer">WhatsApp'tan sor</a>
+                    }
+                </div>
+            </div>
+        </header>
+
+        <figure class="detay-kapak an-kapak">
+            @if (Model.Ilan.PhotoIds.Count > 0)
+            {
+                var cover = Model.Ilan.PhotoIds[0];
+                <img src="@($"/foto/{cover}")"
+                     srcset="@($"/foto/{cover}/thumb 400w, /foto/{cover} 1600w")"
+                     sizes="(min-width: 960px) 700px, 100vw"
+                     width="1200" height="900" alt="@Model.Ilan.Baslik" fetchpriority="high" decoding="async" />
+            }
+            else
+            {
+                <div class="an-kapak-bos"><AnahtarSilhouette /></div>
+                @if (Model.WaLinki is not null)
+                {
+                    <figcaption><a href="@Model.WaLinki" target="_blank" rel="noopener noreferrer">Gerçek fotoğrafı WhatsApp'tan isteyin</a></figcaption>
+                }
+            }
+        </figure>
+
+        <aside class="panel an-panel" aria-labelledby="tarife-baslik">
+            <h2 id="tarife-baslik">Fiyatlar</h2>
+            <table class="tarife-tablo">
+                <caption class="gorunmez">@Model.Ilan.Baslik kiralama fiyatları</caption>
+                <tbody>
+                    @foreach (var rate in Model.Tarife)
+                    {
+                        <tr>
+                            <th scope="row">@rate.Etiket</th>
+                            <td><strong>@PriceText.Tl(rate.Tutar)</strong><small>@(rate.GunBasi is { } perDay ? $"gün başı {PriceText.Tl(perDay)}" : Model.KdvMetni)</small></td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+            <div class="panel-eylem">
+                <a class="btn btn-brand btn-genis" href="@Model.TeklifLinki">Rezervasyon talebi</a>
+                @if (Model.WaLinki is not null)
+                {
+                    <a class="btn btn-wa btn-genis" href="@Model.WaLinki" target="_blank" rel="noopener noreferrer">WhatsApp'tan sor</a>
+                }
+            </div>
+            @if (_all.Count > 0)
+            {
+                <dl class="an-kosul-panel" aria-label="Kiralama koşulları">
+                    @foreach (var f in _all) { <div><dt>@f.Etiket</dt><dd>@f.Metin</dd></div> }
+                </dl>
+            }
+            <AramaFormu Hedef="/musaitlik" Ilan="@Model.Ilan.Slug" Subeler="Model.SubeAdlari"
+                        ButonMetni="Tarihlerime göre fiyatı gör" AriaLabel="Bu araç için tarih seç" />
+        </aside>
+
+        @if (Model.Ilan.PhotoIds.Count > 1)
+        {
+            <ul class="galeri" aria-label="Diğer fotoğraflar">
+                @for (var i = 1; i < Model.Ilan.PhotoIds.Count; i++)
+                {
+                    var id = Model.Ilan.PhotoIds[i];
+                    <li>
+                        <a href="@($"/foto/{id}")">
+                            <img src="@($"/foto/{id}/thumb")" alt="@($"{Model.Ilan.Baslik}, fotoğraf {i + 1}")"
+                                 width="400" height="300" loading="lazy" decoding="async" />
+                        </a>
+                    </li>
+                }
+            </ul>
+        }
+    </div>
+</div>
+
+@code {
+    [Parameter, EditorRequired] public DetailHeroModel Model { get; set; } = default!;
+
+    private IReadOnlyList<FactLine> _short = [];
+    private IReadOnlyList<FactLine> _all = [];
+
+    protected override void OnParametersSet()
+    {
+        _short = AnahtarFacts.Short(Model.Branding?.Bilgi);
+        _all = AnahtarFacts.Lines(Model.Branding?.Bilgi);
+    }
+}

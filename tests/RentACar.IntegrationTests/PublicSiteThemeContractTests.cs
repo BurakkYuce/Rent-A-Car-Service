@@ -43,7 +43,24 @@ public sealed partial class PublicSiteThemeContractTests(PostgresFixture fx)
         ["--ticket-drop"] = "koyu modda kupon gölgesi saf siyah (palete bağlı değil)",
         ["--mask-on"] = "maske yalnız alfa kanalı taşır, görünen renk değil",
         ["--mask-off"] = "maske yalnız alfa kanalı taşır, görünen renk değil",
+        ["--wa-bg"] = "WhatsApp düğmesi markanın sabit koyu yeşili (palete bağlı değil); beyaz yazıyla AA ayrıca ölçülür",
+        ["--wa-ink"] = "WhatsApp düğmesinin yazısı sabit beyaz; --wa-bg üstünde AA ayrıca ölçülür",
     };
+
+    /// <summary>Anahtar'ın WhatsApp düğmesi: #25d366 üstünde beyaz 1,98:1 geçmezdi (araştırma); temanın sabit tonu
+    /// beyaz yazıyla 4.5:1'i iki şemada da tutar. Beklenen eşik elle; renkler css'ten çözülür.</summary>
+    [Fact]
+    public void Anahtar_WhatsApp_dugmesi_AA()
+    {
+        var css = ReadCss(ThemeFile(SiteThemes.Anahtar));
+        foreach (var dark in new[] { false, true })
+        {
+            var map = Tokens(css, dark);
+            var c = Contrast(ResolveHex(map, "--wa-ink"), ResolveHex(map, "--wa-bg"));
+            Assert.True(c >= 4.5, $"{(dark ? "koyu" : "açık")}: --wa-ink/--wa-bg = {c:0.00}");
+        }
+        Assert.NotEqual("#25d366", ResolveHex(Tokens(css, false), "--wa-bg"));
+    }
 
     public static readonly string[] ComponentTokens =
     [
@@ -83,11 +100,12 @@ public sealed partial class PublicSiteThemeContractTests(PostgresFixture fx)
     public void Kayit_ve_ayar_anahtarlari_ayni()
     {
         // Beklenen anahtarlar elle (oracle): kayıt ve ayar listesi ikisi de buna eşit, aynı sırada.
-        Assert.Equal(["pazar", "vitrin", "rota"], SiteThemeKeys.All);
+        Assert.Equal(["anahtar", "pazar", "vitrin", "rota"], SiteThemeKeys.All);
         Assert.Equal(SiteThemeKeys.All, SiteThemes.All.Select(t => t.Key));
-        Assert.Equal("pazar", SiteThemeKeys.Default);
-        Assert.Equal("pazar", SiteThemes.Resolve(null).Key);
-        Assert.Equal("pazar", SiteThemes.Resolve("olmayan").Key);
+        Assert.Equal("anahtar", SiteThemeKeys.Default);
+        Assert.Equal("anahtar", SiteThemes.Resolve(null).Key);
+        Assert.Equal("anahtar", SiteThemes.Resolve("olmayan").Key);
+        Assert.Same(SiteThemes.Pazar, SiteThemes.Resolve("pazar")); // kayıtlı eski tema varsayılana düşmez
         Assert.Same(SiteThemes.Vitrin, SiteThemes.Resolve(" VITRIN "));
         foreach (var t in SiteThemes.All)
         {
@@ -207,7 +225,7 @@ public sealed partial class PublicSiteThemeContractTests(PostgresFixture fx)
     {
         Assert.Null(SiteThemeKeys.Normalize(input));
         Assert.False(SiteThemes.IsKnown(input));
-        Assert.Equal("pazar", SiteThemes.Resolve(input).Key);
+        Assert.Equal("anahtar", SiteThemes.Resolve(input).Key);
     }
 
     [Fact]

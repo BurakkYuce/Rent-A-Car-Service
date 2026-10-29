@@ -101,6 +101,7 @@
             }).ToList();
             return new FleetModel(cards, FleetPlacement.Availability)
             {
+                Bilgi = _branding?.Bilgi,
                 Tarih = _results.Count > 0 ? new StayDates(_start!.Value, _end!.Value, _results[0].Gun) : null,
                 Ozet = _results.Count > 0
                     ? new FleetSummary($"{_results.Count} araç müsait",
@@ -125,6 +126,7 @@
             k.Slug == Ilan ? "Baktığınız araç" : null, i == 0) with { WaLinki = WhatsAppAsk.Link(_branding, k.Baslik) }).ToList();
         return new FleetModel(fleet, FleetPlacement.Availability)
         {
+            Bilgi = _branding?.Bilgi,
             Ozet = new FleetSummary($"Filoda {_fleet.Count} araç",
                 "Günlük fiyatlar aşağıda. Tarih girerseniz o aralıkta gerçekten boşta olanları ve toplam tutarı gösteririz."),
             Bos = new FleetEmptyState("Şu anda sitede yayınlanmış araç yok",
