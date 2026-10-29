@@ -1,15 +1,15 @@
 @using RentACar.Application.Fleet
 
-@* Tema "paket" — Footer slotu. İmza SABİT (Components/Themes/README.md): Branding, Sayfalar, YasalSayfalar.
+@* Tema "paket" — Footer slotu. İmza SABİT (Components/Themes/README.md): Branding, Pages, LegalPages.
    Koyu bant (açık şemanın mürekkebi üstünde zemin rengi yazı; iki modda aynı): künye, iletişim, sayfalar, yasal
    (yalnız varsa, T2). *@
 
 <footer class="alt pk-alt">
     <div class="wrap pk-alt-ic">
         <div class="pk-alt-marka">
-            <a class="pk-marka" href="/"><BrandMark Name="@Name" LogoVersion="@Branding?.LogoSurum" /></a>
-            @if (SiteFactsText.Founded(Branding?.Bilgi) is { } founded) { <p>@founded</p> }
-            @if (!string.IsNullOrWhiteSpace(Branding?.Adres)) { <p>@Branding!.Adres</p> }
+            <a class="pk-marka" href="/"><BrandMark Name="@Name" LogoVersion="@Branding?.LogoVersion" /></a>
+            @if (SiteFactsText.Founded(Branding?.Facts) is { } founded) { <p>@founded</p> }
+            @if (!string.IsNullOrWhiteSpace(Branding?.Address)) { <p>@Branding!.Address</p> }
         </div>
         @if (_contact.TelLink is not null || _contact.WaLink is not null || _contact.Email is not null)
         {
@@ -25,15 +25,15 @@
         <div>
             <p class="pk-alt-baslik">Sayfalar</p>
             <ul>
-                @foreach (var s in Sayfalar) { <li><a href="@s.Href">@s.Label</a></li> }
+                @foreach (var s in Pages) { <li><a href="@s.Href">@s.Label</a></li> }
             </ul>
         </div>
-        @if (YasalSayfalar.Count > 0)
+        @if (LegalPages.Count > 0)
         {
             <div>
                 <p class="pk-alt-baslik">Yasal</p>
                 <ul>
-                    @foreach (var s in YasalSayfalar) { <li><a href="@s.Href">@s.Label</a></li> }
+                    @foreach (var s in LegalPages) { <li><a href="@s.Href">@s.Label</a></li> }
                 </ul>
             </div>
         }
@@ -45,12 +45,12 @@
     /// <summary>Firma bilgisi (ad, adres, logo sürümü, iletişim, kuruluş yılı). Null → nötr kabuk.</summary>
     [Parameter] public FleetBranding? Branding { get; set; }
     /// <summary>Ana sayfa + menü + firmanın kendi içerik sayfaları (yasal olanlar HARİÇ).</summary>
-    [Parameter] public IReadOnlyList<SiteLink> Sayfalar { get; set; } = [];
+    [Parameter] public IReadOnlyList<SiteLink> Pages { get; set; } = [];
     /// <summary>Yayındaki yasal sayfalar; boşsa sütun yok.</summary>
-    [Parameter] public IReadOnlyList<SiteLink> YasalSayfalar { get; set; } = [];
+    [Parameter] public IReadOnlyList<SiteLink> LegalPages { get; set; } = [];
 
     private ContactLinks _contact = ContactLinks.From(null);
-    private string Name => string.IsNullOrWhiteSpace(Branding?.Marka) ? "RentPro" : Branding!.Marka!;
+    private string Name => string.IsNullOrWhiteSpace(Branding?.BrandName) ? "RentPro" : Branding!.BrandName!;
 
     protected override void OnParametersSet() => _contact = ContactLinks.From(Branding, Name);
 }

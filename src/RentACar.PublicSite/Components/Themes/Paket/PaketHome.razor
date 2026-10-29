@@ -14,18 +14,18 @@
      6. Teslim noktaları (bugünkü saat), SSS.
    Sarmalayıcı öğe YOK: bölümler doğrudan <main>'in çocuğu. Animasyon yok. *@
 
-<ThemedHero Marka="@Model.Marka" Branding="Model.Branding" Subeler="Model.SubeAdlari" Kartlar="Model.Kartlar" Sehir="@Model.Sehir" />
+<ThemedHero BrandName="@Model.BrandName" Branding="Model.Branding" Branches="Model.BranchNames" Cards="Model.Cards" Area="@Model.Area" />
 
-@if (Model.Filo.Kartlar.Count > 0)
+@if (Model.Fleet.Cards.Count > 0)
 {
-    <section class="bolum pk-filo" id="filo" aria-labelledby="@Model.Filo.BaslikId">
+    <section class="bolum pk-filo" id="filo" aria-labelledby="@Model.Fleet.TitleId">
         <div class="wrap">
-            <ThemedFleet Model="Model.Filo" />
+            <ThemedFleet Model="Model.Fleet" />
         </div>
     </section>
 }
 
-@if (Model.Filo.Kartlar.Any(k => k.AylikToplam is not null))
+@if (Model.Fleet.Cards.Any(k => k.AylikToplam is not null))
 {
     <section class="bolum pk-aylik" id="aylik" aria-labelledby="aylik-baslik">
         <div class="wrap">
@@ -34,13 +34,13 @@
                 <table class="pk-aylik-tablo">
                     <thead><tr><th scope="col">Araç</th><th scope="col">30 gün</th><th scope="col">Günlük</th></tr></thead>
                     <tbody>
-                        @foreach (var k in Model.Filo.Kartlar)
+                        @foreach (var k in Model.Fleet.Cards)
                         {
                             <tr>
-                                <th scope="row"><a href="@k.DetayLinki">@k.Baslik</a></th>
+                                <th scope="row"><a href="@k.DetailUrl">@k.Baslik</a></th>
                                 <td>
                                     @if (k.AylikToplam is { } month) { <span class="pk-tablo-tutar">@PriceText.Tl(month)</span> }
-                                    else { <a href="@k.TeklifLinki">Teklif alın</a> }
+                                    else { <a href="@k.QuoteUrl">Teklif alın</a> }
                                 </td>
                                 <td>@PriceText.Tl(k.GunlukFiyat)</td>
                             </tr>
@@ -48,7 +48,7 @@
                     </tbody>
                 </table>
             </div>
-            <p class="pk-not">@(Model.Filo.Kartlar.All(k => k.KdvDahil) ? "Fiyatlar KDV dahil." : "KDV durumu her aracın sayfasında yazılı.")</p>
+            <p class="pk-not">@(Model.Fleet.Cards.All(k => k.KdvDahil) ? "Fiyatlar KDV dahil." : "KDV durumu her aracın sayfasında yazılı.")</p>
         </div>
     </section>
 }
@@ -59,9 +59,9 @@
         <div class="wrap">
             <h2 id="kosul-baslik" class="bolum-baslik">Kiralama koşulları</h2>
             <dl class="pk-kosul-liste">
-                @foreach (var f in _facts) { <div><dt>@f.Etiket</dt><dd>@f.Metin</dd></div> }
+                @foreach (var f in _facts) { <div><dt>@f.Label</dt><dd>@f.Text</dd></div> }
             </dl>
-            @if (Model.KosulSayfasi is { Length: > 0 } terms)
+            @if (Model.TermsPage is { Length: > 0 } terms)
             {
                 <p class="linkler"><a href="@terms">Kiralama koşullarının tamamı</a></p>
             }
@@ -121,8 +121,8 @@
     </section>
 }
 
-@* Görünen soru adedi = FAQPage JSON-LD adedi (SEO L-4): Model.SssAdet değiştirilmez. *@
-<BolumSss Sorular="Model.Sss" Adet="Model.SssAdet" />
+@* Görünen soru adedi = FAQPage JSON-LD adedi (SEO L-4): Model.FaqCount değiştirilmez. *@
+<FaqSection Questions="Model.Faq" Count="Model.FaqCount" />
 
 @code {
     private const int MaxOffices = 4;
@@ -136,10 +136,10 @@
 
     protected override void OnParametersSet()
     {
-        _facts = SiteFactsText.Lines(Model.Branding?.Bilgi);
+        _facts = SiteFactsText.Lines(Model.Branding?.Facts);
         _contact = ContactLinks.From(Model.Branding);
         var day = SiteDate.TodayDayOfWeek;
-        _offices = [.. BranchOffices.Build(Model.Subeler, Model.Branding, MaxOffices)
+        _offices = [.. BranchOffices.Build(Model.Branches, Model.Branding, MaxOffices)
             .Select(o => (o, o.Source is { } b ? BranchOffices.TodayHours(b, day) : null))];
 
         // Kurumsal form: başlangıç yarın (İstanbul), bitiş bir ay sonrası — aylık kiralamanın doğal varsayılanı.

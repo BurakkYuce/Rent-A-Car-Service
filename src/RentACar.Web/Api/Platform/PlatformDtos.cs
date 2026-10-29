@@ -38,7 +38,7 @@ public sealed record PlatformTenantDetailDto(
     DateTimeOffset? Guncelleme, string Surum,
     string? YetkiliAd, string? Eposta, string? Telefon, string? Notlar, string? Plan,
     int KullaniciSayisi, int AracSayisi, int AktifKira, int ToplamKira, DateTimeOffset? SonGiris, decimal Gelir30Gun,
-    bool WebSitesiModulu, bool YeniArayuzPilot, bool HalkaAcikSite, IReadOnlyList<PlatformDomainDto> Domainler,
+    bool WebSitesiModulu, bool HalkaAcikSite, IReadOnlyList<PlatformDomainDto> Domainler,
     PlatformLogoDto Logo);
 
 /// <summary>New tenant + first Admin user. The password is hashed and never echoed or audited.</summary>

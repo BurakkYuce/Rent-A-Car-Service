@@ -49,7 +49,7 @@ Halka açık firma sitesi üç temadan birini kullanır: `anahtar` (varsayılan)
 `SiteThemes.cs`:
 
 ```csharp
-public sealed record SiteTheme(string Key, string Ad, string Aciklama, string CssPath,
+public sealed record SiteTheme(string Key, string Name, string Description, string CssPath,
     IReadOnlyList<string> FontPreloads, Type Hero, Type Card, Type Header, Type Footer,
     Type Home, Type Fleet, Type DetailHero)
 {
@@ -69,44 +69,48 @@ Her slot `DynamicComponent` ile aktif temanın bileşenine dağıtılır; sarmal
 | Header, Footer | kabuk (`Layout/MainLayout.razor`) | doğrudan `DynamicComponent` | aşağıdaki tablo |
 | Home | `Pages/Home.razor` | `ThemedHome` | `Model` : `HomeModel` |
 | Fleet | Home slotu (filo bölümü), `/musaitlik`, ilan detayındaki benzer araçlar, 404 | `ThemedFleet` | `Model` : `FleetModel` |
-| DetailHero | `Pages/IlanDetay.razor` | `ThemedDetailHero` | `Model` : `DetailHeroModel` |
+| DetailHero | `Pages/ListingDetail.razor` | `ThemedDetailHero` | `Model` : `DetailHeroModel` |
 | Hero | Home slotu (temanın tercihi) | `ThemedHero` | aşağıdaki tablo |
 | Card | Fleet slotu (temanın tercihi) | `ThemedCard` | aşağıdaki tablo |
 
 Veri mantığı SAYFADA kalır (servis çağrıları, sıralama, işaret, teklif bağlantısı, metin/sayı hesapları);
-slotlar yalnız sunar. SEO (`PageTitle`, `SayfaMeta`, JSON-LD, breadcrumb) sayfada kalır, temaya taşınmaz.
+slotlar yalnız sunar. SEO (`PageTitle`, `PageMeta`, JSON-LD, breadcrumb) sayfada kalır, temaya taşınmaz.
+
+Ad kuralı: sınıf/özellik/parametre adları İngilizce; yalnız domain/DB alanını birebir yansıtan adlar Türkçe kalır
+(`Baslik`, `GunlukFiyat`, `KdvDahil`, `AylikToplam`, `HaftalikToplam`, `SiteFacts` alanları, `FeatureItem.Etiket/Deger`)
+ve form/URL alan adları (`bas`, `bit`, `basSaat`, `sube`, `ilan`, `kurumsal`).
 
 ### Model slotlarının imzaları (SABİT — `SlotModels.cs`)
 
 ```csharp
 enum FleetPlacement { Home, Availability, Similar, NotFound }
-record FleetSummary(string Vurgu, string Aciklama, bool Canli = false);           // Canli → role="status"
-record FleetEmptyState(string Baslik, string Metin, IReadOnlyList<SiteLink> Linkler, bool Canli = false);
-record FleetModel(IReadOnlyList<ListingCard> Kartlar, FleetPlacement Yer)
+record FleetSummary(string Headline, string Description, bool Live = false);       // Live → role="status"
+record FleetEmptyState(string Title, string Text, IReadOnlyList<SiteLink> Links, bool Live = false);
+record FleetModel(IReadOnlyList<ListingCard> Cards, FleetPlacement Placement)
 {
-    StayDates? Tarih;          // tüm kartlar için aynı aralık; null → tarihsiz ("müsait" DENMEZ)
-    string? Baslik, BaslikId;  // h2 + id (yalnız Home kullanır; diğer yerlerde başlık sayfada)
-    FleetSummary? Ozet;        // yalnız kart varken
-    string? Uyari;             // yalnız kart varken (ör. "X bu tarihlerde müsait değil")
-    FleetEmptyState? Bos;      // kart yokken; null → hiçbir şey basılmaz (T2)
-    SiteFacts? Bilgi;          // firma beyanları (Home ve /musaitlik doldurur); tema isterse özet/çip basar
-    FleetFilterModel? Filtre;  // yalnız /musaitlik: süzgeç boyutları + taşınacak arama alanları (kartlar zaten süzülmüş)
+    StayDates? Dates;          // tüm kartlar için aynı aralık; null → tarihsiz ("müsait" DENMEZ)
+    string? Title, TitleId;    // h2 + id (yalnız Home kullanır; diğer yerlerde başlık sayfada)
+    FleetSummary? Summary;     // yalnız kart varken
+    string? Notice;            // yalnız kart varken (ör. "X bu tarihlerde müsait değil")
+    FleetEmptyState? Empty;    // kart yokken; null → hiçbir şey basılmaz (T2)
+    SiteFacts? Facts;          // firma beyanları (Home ve /musaitlik doldurur); tema isterse özet/çip basar
+    FleetFilterModel? Filter;  // yalnız /musaitlik: süzgeç boyutları + taşınacak arama alanları (kartlar zaten süzülmüş)
 }
 
-record HomeModel(FleetBranding? Branding, IReadOnlyList<FleetShowcaseCard> Kartlar, FleetModel Filo,
-    IReadOnlyList<SssSatiri> Sss, int SssAdet, IReadOnlyList<string> SubeAdlari, IReadOnlyList<Branch> Subeler,
-    IReadOnlyList<SiteLink> Sayfalar, string? Sehir, string? KosulSayfasi) { string? Marka; }
+record HomeModel(FleetBranding? Branding, IReadOnlyList<FleetShowcaseCard> Cards, FleetModel Fleet,
+    IReadOnlyList<SssSatiri> Faq, int FaqCount, IReadOnlyList<string> BranchNames, IReadOnlyList<Branch> Branches,
+    IReadOnlyList<SiteLink> Pages, string? Area, string? TermsPage) { string? BrandName; }
 
-record DetailRate(string Etiket, decimal Tutar, decimal? GunBasi);             // GunBasi null → günlük satır
-record DetailHeroModel(FleetShowcaseDetail Ilan, IReadOnlyList<DetailRate> Tarife, string TeklifLinki,
-    IReadOnlyList<string> SubeAdlari) { string? MetaSatiri; string? WaLinki; FleetBranding? Branding; string KdvMetni; }
+record DetailRate(string Label, decimal Amount, decimal? PerDay);                // PerDay null → günlük satır
+record DetailHeroModel(FleetShowcaseDetail Listing, IReadOnlyList<DetailRate> Rates, string QuoteUrl,
+    IReadOnlyList<string> BranchNames) { string? MetaLine; string? WhatsAppLink; FleetBranding? Branding; string VatText; }
 ```
 
 | Slot | Kurallar |
 |---|---|
-| Home | Bölümleri tema seçer ve sıralar; ortak bölümler (`BolumGuvenSeridi`, `BolumNasilCalisir`, `BolumFiyatNasil`, `BolumSss`, `BolumCta`, `AramaFormu`, `BrandMark`) istenirse kullanılır. **Sarmalayıcı öğe YOK**: bölümler doğrudan `<main>`'in çocuğudur (base.css `main > .cta-bant:last-child`). SSS basılıyorsa `BolumSss Adet="Model.SssAdet"` — görünen soru adedi FAQPage JSON-LD adediyle aynı kalır (SEO L-4; render testi kilitler). Filo bölümü `Model.Filo.Kartlar` boşsa basılmaz (T2). Tek `h1` Hero'dadır. |
-| Fleet | Kapsayıcıyı (`wrap`, `section`) ÇAĞIRAN verir; slot başlık (varsa), özet, uyarı ve listeyi ya da boş durumu basar. `Model.Yer` ile yerleşim seçilebilir (ör. Home'da yatay şerit, `Availability`'de ızgara). Kart başına `Model.Tarih` Card slotuna aynen geçer. İlk kartın `Oncelikli` işareti korunur (LCP). |
-| DetailHero | Kendi kapsayıcısını (`wrap`) basar — tam genişlik galeri mümkün. Tek `h1` (ilan adı) buradadır. Tarife satırları ve gün başı yuvarlaması sayfadan gelir; tema hesap yapmaz. Tarih formu ORTAK `<AramaFormu Hedef="/musaitlik" Ilan="@Model.Ilan.Slug" …/>`. Kapak LCP: tembel değil, `fetchpriority="high"`, boyut öznitelikleri. |
+| Home | Bölümleri tema seçer ve sıralar; ortak bölümler (`TrustSection`, `HowItWorksSection`, `PricingSection`, `FaqSection`, `CtaSection`, `SearchForm`, `BrandMark`) istenirse kullanılır. **Sarmalayıcı öğe YOK**: bölümler doğrudan `<main>`'in çocuğudur (base.css `main > .cta-bant:last-child`). SSS basılıyorsa `FaqSection Count="Model.FaqCount"` — görünen soru adedi FAQPage JSON-LD adediyle aynı kalır (SEO L-4; render testi kilitler). Filo bölümü `Model.Fleet.Cards` boşsa basılmaz (T2). Tek `h1` Hero'dadır. |
+| Fleet | Kapsayıcıyı (`wrap`, `section`) ÇAĞIRAN verir; slot başlık (varsa), özet, uyarı ve listeyi ya da boş durumu basar. `Model.Placement` ile yerleşim seçilebilir (ör. Home'da yatay şerit, `Availability`'de ızgara). Kart başına `Model.Dates` Card slotuna aynen geçer. İlk kartın `Priority` işareti korunur (LCP). |
+| DetailHero | Kendi kapsayıcısını (`wrap`) basar — tam genişlik galeri mümkün. Tek `h1` (ilan adı) buradadır. Tarife satırları ve gün başı yuvarlaması sayfadan gelir; tema hesap yapmaz. Tarih formu ORTAK `<SearchForm Action="/musaitlik" Listing="@Model.Listing.Slug" …/>`. Kapak LCP: tembel değil, `fetchpriority="high"`, boyut öznitelikleri. |
 
 ### Parametreli slotların imzaları (SABİT)
 
@@ -114,26 +118,26 @@ Parametre adları ve tipleri değişmez:
 
 | Slot | Parametre | Tip | Anlam |
 |---|---|---|---|
-| Hero | `Marka` | `string?` | Marka adı (boşsa "Filomuzdaki") |
+| Hero | `BrandName` | `string?` | Marka adı (boşsa "Filomuzdaki") |
 | | `Branding` | `FleetBranding?` | Firma bilgisi (iletişim, adres, logo sürümü) |
-| | `Subeler` | `IReadOnlyList<string>` | Aktif şube adları (arama formu) |
-| | `Kartlar` | `IReadOnlyList<FleetShowcaseCard>` | Yayındaki ilanlar |
-| | `Sehir` | `string?` | Hizmet bölgesi ("Esenyurt, İstanbul"); null → basılmaz |
-| Card | `Kart` | `ListingCard` | Kartın tüm verisi (fiyat, hesap, teklif bağlantısı, işaret, öncelik) |
-| | `Tarih` | `StayDates?` | Seçilen aralık (Bas, Bit, Gun); null → tarihsiz gezinti |
+| | `Branches` | `IReadOnlyList<string>` | Aktif şube adları (arama formu) |
+| | `Cards` | `IReadOnlyList<FleetShowcaseCard>` | Yayındaki ilanlar |
+| | `Area` | `string?` | Hizmet bölgesi ("Esenyurt, İstanbul"); null → basılmaz |
+| Card | `Card` | `ListingCard` | Kartın tüm verisi (fiyat, hesap, teklif bağlantısı, işaret, öncelik) |
+| | `Dates` | `StayDates?` | Seçilen aralık (Start, End, Days); null → tarihsiz gezinti |
 | Header | `Branding` | `FleetBranding?` | Firma bilgisi; iletişim için `ContactLinks.From(Branding)` |
 | | `Nav` | `IReadOnlyList<SiteLink>` | Ana menü ("Ana sayfa" hariç) |
 | Footer | `Branding` | `FleetBranding?` | Firma bilgisi |
-| | `Sayfalar` | `IReadOnlyList<SiteLink>` | Ana sayfa + menü + firmanın içerik sayfaları |
-| | `YasalSayfalar` | `IReadOnlyList<SiteLink>` | Yayındaki yasal sayfalar (boşsa sütun yok) |
+| | `Pages` | `IReadOnlyList<SiteLink>` | Ana sayfa + menü + firmanın içerik sayfaları |
+| | `LegalPages` | `IReadOnlyList<SiteLink>` | Yayındaki yasal sayfalar (boşsa sütun yok) |
 
-Ortak `<AramaFormu>` alanları DOLU açılır (alış yarın İstanbul günü, iade +3 gün, saatler 10:00); alan adları
+Ortak `<SearchForm>` alanları DOLU açılır (alış yarın İstanbul günü, iade +3 gün, saatler 10:00); alan adları
 `bas`/`bit`/`sube` + EK `basSaat`/`bitSaat` (`HH:mm`, İstanbul). `/musaitlik` iki saat de geçerliyse aramayı o
-saatlerle yapar (gün sayısı saatle), biri bile yoksa eski davranış (yalnız günler). `ListingCard.WaLinki` /
-`DetailHeroModel.WaLinki` "WhatsApp'tan sor" bağlantısıdır: `WhatsAppAsk` (araç + seçilen tarih/saatle hazır mesaj,
+saatlerle yapar (gün sayısı saatle), biri bile yoksa eski davranış (yalnız günler). `ListingCard.WhatsAppLink` /
+`DetailHeroModel.WhatsAppLink` "WhatsApp'tan sor" bağlantısıdır: `WhatsAppAsk` (araç + seçilen tarih/saatle hazır mesaj,
 numara `PhoneLink` ile); numara yoksa null → düğme basılmaz.
 
-`FleetBranding.Bilgi` (`SiteFacts`) firmanın "kiralamadan önce" beyanlarını taşır: depozito tutarı + açıklama,
+`FleetBranding.Facts` (`SiteFacts`) firmanın "kiralamadan önce" beyanlarını taşır: depozito tutarı + açıklama,
 günlük km sınırı / sınırsız, asgari yaş + ehliyet yılı, sigorta özeti, iptal koşulu, Google puanı + yorum sayısı +
 profil bağlantısı + puanın girildiği an, kuruluş yılı (ERP: `/app/ayarlar` → "Web sitesi bilgileri"). Repo daima
 doldurur, alanlar tek tek boş olabilir: boş alan basılmaz (T2). Google puanı doluysa bağlantı da doludur (yalnız
@@ -144,12 +148,12 @@ verilir, aralıkla yazılır (önbellekte de doğru kalır); tanınmayan metin �
 Ortak yardımcılar: `SiteFactsText` (firma beyanlarının satır/çip/rozet metinleri), `VehicleSilhouette` (fotoğrafsız
 ilan), `FleetFilter` (süzgeç: ilanın görünür özellik etiketlerinden vites/yakıt/koltuk/sınıf; en az iki değerli
 boyut sunulur; boyut içinde VEYA, arası VE; tanınmayan değer yok sayılır — `/musaitlik` `?vites=&yakit=&koltuk=&sinif=`
-ile süzer). `ListingCard.TumOzellikler` görünür özelliklerin tamamıdır (`Ozellikler` başlıkta geçeni atan kart çipleri).
+ile süzer). `ListingCard.AllFeatures` görünür özelliklerin tamamıdır (`Features` başlıkta geçeni atan kart çipleri).
 
-Kurallar (tüm slotlar): arama için ORTAK `<AramaFormu>` (alan adları/doğrulama tek kaynak, T4); firma işareti
-için ORTAK `<BrandMark>`; fiyat için `PriceText`. `Kart.Gun is null` / `Model.Tarih is null` iken "müsait"
+Kurallar (tüm slotlar): arama için ORTAK `<SearchForm>` (alan adları/doğrulama tek kaynak, T4); firma işareti
+için ORTAK `<BrandMark>`; fiyat için `PriceText`. `Card.Days is null` / `Model.Dates is null` iken "müsait"
 DENMEZ (T1). Veri yoksa bölüm basılmaz (T2). Firma adına taahhüt metni yazılmaz (T1). JS eklenmez (CSP
-`script-src 'self'`). Ham `FleetBranding.VurguRengi` hiçbir yere basılmaz.
+`script-src 'self'`). Ham `FleetBranding.AccentColor` hiçbir yere basılmaz.
 
 Slot dışı kalan sayfalar (iletişim, SSS, blog, içerik sayfası, talep formu, 404 metni) ORTAK markup'tır; temaya
 göre yalnız CSS ile değişir.
@@ -241,7 +245,7 @@ light-dark(var(--p-red), var(--p-red-light))`) — yapısal test light-dark'ı s
 
 ### Güvenlik
 
-`FleetBranding.VurguRengi`, `FleetBranding.Paleti` ve `?palet=` / `?renk=` ham değerdir; ASLA doğrudan
+`FleetBranding.AccentColor`, `FleetBranding.Palette` ve `?palet=` / `?renk=` ham değerdir; ASLA doğrudan
 stile/özniteliğe basılmaz — yalnız `SitePaletteCss` çıktısı basılır (renkler `Rgb`'den yeniden yazılır, palet
 anahtarı yalnız kayıt aramasında kullanılır). CSP `style-src 'unsafe-inline'` olduğundan tek savunma bu.
 
@@ -260,8 +264,8 @@ anahtarı yalnız kayıt aramasında kullanılır). CSP `style-src 'unsafe-inlin
    yazı) otomatik. Elle ince ayar istenirse init özellikleri: `BgAlt SurfaceRaised InkMuted InkSubtle Line
    LineStrong AccentInk` — bunlar da güvenceden geçer (tutmayan değer düzeltilir, basılmaz).
 4. Aynı satırı `Application/TenantSettings/SitePaletteKeys.cs` → `ByTheme[<tema anahtarı>]`'na ekle:
-   `new(Key, Ad, Zemin = Light.Bg, Murekkep = Light.Ink, Ana = Light.Primary, Vurgu = Light.Accent, GeceZemin =
-   Dark.Bg)` — ERP kartları ve API aitlik doğrulaması bunu kullanır. `Palet_setleri_ve_ayar_anahtarlari_ayni`
+   `new(Key, Name, Background = Light.Bg, Ink = Light.Ink, Primary = Light.Primary, Accent = Light.Accent,
+   NightBackground = Dark.Bg)` — ERP kartları ve API aitlik doğrulaması bunu kullanır. `Palet_setleri_ve_ayar_anahtarlari_ayni`
    uyuşmazlıkta beklenen satırı yazar.
 5. Tema css'indeki palet token yedekleri varsayılan setin değerleriyle aynı olmalı
    (`Tema_css_yedekleri_varsayilan_setle_ayni`); `--day-*`/`--night-*` yedekleri de.

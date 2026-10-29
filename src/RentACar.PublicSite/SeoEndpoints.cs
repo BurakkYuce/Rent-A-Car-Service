@@ -21,7 +21,7 @@ public static class SeoEndpoints
             Results.Text(RobotsText(await showcase.GetCanonicalRootAsync(ct)), "text/plain; charset=utf-8"));
 
         app.MapGet("/sitemap.xml", async (FleetShowcaseService showcase, BlogService blog,
-            RentACar.Application.SiteIcerik.SiteContentService icerik, CancellationToken ct) =>
+            RentACar.Application.SiteIcerik.SiteContentService content, CancellationToken ct) =>
         {
             var host = await showcase.GetCanonicalHostAsync(ct);
             if (host is null) return Results.NotFound(); // site hiç yayında değil
@@ -34,7 +34,7 @@ public static class SeoEndpoints
             // lastmod: ilanın (ya da özellik satırlarının) gerçek son değişikliği — uydurma "şimdi" DEĞİL;
             // her istekte değişen lastmod Google'ın bu alana güvenini düşürür.
             foreach (var g in await showcase.ListShowcaseGroupsAsync(ct))
-                urls.Add(Url(ns, $"{root}/araclar/{g.Slug}", g.GuncellemeUtc));
+                urls.Add(Url(ns, $"{root}/araclar/{g.Slug}", g.UpdatedAtUtc));
 
             // PR-16: iletişim her zaman var (kod üretimli); SSS ve içerik sayfaları varsa eklenir.
             urls.Add(Url(ns, root + "/iletisim"));
@@ -42,8 +42,8 @@ public static class SeoEndpoints
             // ve tamamen indekslenebilir statik SSR. Ana sayfadan link var ama sitemap'te
             // olmaması onu ikinci sınıf bir sayfa gibi gösteriyordu.
             urls.Add(Url(ns, root + "/musaitlik"));
-            if ((await icerik.PublishedFaqAsync(ct)).Count > 0) urls.Add(Url(ns, root + "/sss"));
-            foreach (var sf in await icerik.PublishedPagesAsync(ct))
+            if ((await content.PublishedFaqAsync(ct)).Count > 0) urls.Add(Url(ns, root + "/sss"));
+            foreach (var sf in await content.PublishedPagesAsync(ct))
                 urls.Add(Url(ns, $"{root}/{sf.Slug}", sf.GuncellemeUtc));
 
             // H-1: YALNIZ aranabilir yazılar. "Arama dışı" yazı detayında noindex basıyor; sitemap'te
@@ -70,7 +70,7 @@ public static class SeoEndpoints
         // Host `GetCanonicalHostAsync`'ten: robots/sitemap ile AYNI kural (bkz. sınıf özeti) —
         // ajanın alıntıladığı adres, sayfalardaki `canonical` etiketiyle çelişmemeli.
         app.MapGet("/llms.txt", async (FleetShowcaseService showcase, BlogService blog,
-            BranchService subeler, RentACar.Application.SiteIcerik.SiteContentService icerik,
+            BranchService branchService, RentACar.Application.SiteIcerik.SiteContentService content,
             CancellationToken ct) =>
         {
             var host = await showcase.GetCanonicalHostAsync(ct);
@@ -78,7 +78,7 @@ public static class SeoEndpoints
 
             var root = $"https://{host}";
             var b = await showcase.GetBrandingAsync(ct);
-            var brand = string.IsNullOrWhiteSpace(b.Marka) ? host : b.Marka!;
+            var brand = string.IsNullOrWhiteSpace(b.BrandName) ? host : b.BrandName!;
             var sb = new StringBuilder();
 
             sb.AppendLine($"# {brand}");
@@ -91,18 +91,18 @@ public static class SeoEndpoints
 
             // İletişim: yalnız DOLU alanlar — boş satır ("Telefon: ") ajanı yanıltır, hiç yazmamak dürüsttür.
             var contact = new List<string>();
-            Add(contact, "Telefon", b.Tel);
-            Add(contact, "Mobil telefon", b.MobilTel);
+            Add(contact, "Telefon", b.Phone);
+            Add(contact, "Mobil telefon", b.MobilePhone);
             Add(contact, "WhatsApp", b.WhatsApp);
             Add(contact, "E-posta", b.Email);
-            Add(contact, "Adres", b.Adres);
+            Add(contact, "Adres", b.Address);
             contact.Add($"- Web: {root}");
             sb.AppendLine().AppendLine("## İletişim").AppendLine();
             foreach (var s in contact) sb.AppendLine(s);
 
             // Şubeler = hizmet lokasyonları. `WebIsim` varsa o kazanır: kurumsal ad ile sitede
             // gösterilen ad kasıtlı olarak farklı olabilir (Branch.WebIsim'in var oluş nedeni).
-            var activeBranches = await subeler.ListActiveAsync(ct);
+            var activeBranches = await branchService.ListActiveAsync(ct);
             if (activeBranches.Count > 0)
             {
                 sb.AppendLine().AppendLine("## Şubeler / Hizmet Lokasyonları").AppendLine();
@@ -129,10 +129,10 @@ public static class SeoEndpoints
                 // ajanın okuduğu rakamı bozar. Adet = vitrindeki gösterim adedi, kapasite değil.
                 foreach (var i in listings)
                 {
-                    var year = string.IsNullOrWhiteSpace(i.YilAralik) ? "" : $" ({i.YilAralik})";
+                    var year = string.IsNullOrWhiteSpace(i.YearRange) ? "" : $" ({i.YearRange})";
                     var vat = i.KdvDahil ? "KDV dahil" : "KDV hariç";
                     sb.AppendLine($"- {i.Baslik}{year} — {i.GunlukFiyat.ToString("N0", tr)} TL/gün ({vat}) — "
-                        + $"{i.Adet} adet: {root}/araclar/{i.Slug}");
+                        + $"{i.VehicleCount} adet: {root}/araclar/{i.Slug}");
                 }
                 sb.AppendLine($"- Tarihe göre müsaitlik ve toplam fiyat: {root}/musaitlik");
             }
@@ -153,8 +153,8 @@ public static class SeoEndpoints
             if (posts.Count > 0) sb.AppendLine($"- Blog: {root}/blog");
             sb.AppendLine($"- İletişim: {root}/iletisim");
             // SSS ve serbest içerik sayfaları YAYINDAYSA listelenir — sitemap ile aynı kapı.
-            if ((await icerik.PublishedFaqAsync(ct)).Count > 0) sb.AppendLine($"- Sık sorulan sorular: {root}/sss");
-            foreach (var sf in await icerik.PublishedPagesAsync(ct))
+            if ((await content.PublishedFaqAsync(ct)).Count > 0) sb.AppendLine($"- Sık sorulan sorular: {root}/sss");
+            foreach (var sf in await content.PublishedPagesAsync(ct))
                 sb.AppendLine($"- {sf.Baslik}: {root}/{sf.Slug}");
 
             return Results.Text(sb.ToString(), "text/plain; charset=utf-8");

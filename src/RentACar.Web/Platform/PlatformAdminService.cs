@@ -23,9 +23,7 @@ public sealed record PlatformTenantDetay(
     int UserCount, int AracSayisi, int AktifKira, int ToplamKira, DateTimeOffset? SonGiris, decimal Gelir30Gun,
     bool PublicSiteEnabled, IReadOnlyList<PlatformTenantDomain> Domainler,
     /// <summary>PR-12: "Web Sitesi" modülü satın alındı mı (platform kararı).</summary>
-    bool WebSitesiModulu = false,
-    /// <summary>F4.6: yeni arayüz (Angular <c>/app</c>) pilotu açık mı (<c>TenantSettings.YeniArayuzPilot</c>).</summary>
-    bool YeniArayuzPilot = false)
+    bool WebSitesiModulu = false)
 {
     public string Durum => KapanisTarihiUtc is not null ? "Kapalı" : IsActive ? "Aktif" : "Pasif";
 }
@@ -160,7 +158,7 @@ public sealed class PlatformAdminService(
         var settings = await InTenantScope(db, tenantId, async () =>
             await db.TenantSettings.AsNoTracking().IgnoreQueryFilters()
                 .Where(x => x.TenantId == tenantId)
-                .Select(x => new { x.PublicSiteEnabled, x.YeniArayuzPilot }).FirstOrDefaultAsync(ct), ct);
+                .Select(x => new { x.PublicSiteEnabled }).FirstOrDefaultAsync(ct), ct);
         var isSiteOpen = settings?.PublicSiteEnabled == true;
 
         return new PlatformTenantDetay(t.Id, t.Code, t.Name, t.IsActive, t.KapanisTarihiUtc,
@@ -176,8 +174,7 @@ public sealed class PlatformAdminService(
                     TenantDomainStatus.Failed => "Başarısız",
                     _ => d.Status.ToString()
                 })).ToList(),
-            t.WebSitesiModulu, // PR-12
-            settings?.YeniArayuzPilot == true); // F4.6
+            t.WebSitesiModulu); // PR-12
     }
 
     /// <summary>
@@ -473,7 +470,7 @@ public sealed class PlatformAdminService(
     }
 
     // F13.1b: yeni arayüz PİLOT anahtarı (SetNewUiPilotAsync) kaldırıldı — pilot kapısı yok, yeni arayüz herkes için.
-    // TenantSettings.YeniArayuzPilot kolonu kullanılmıyor (ayrı migration'la düşer); detayda salt okunur gösterilir.
+    // TenantSettings.YeniArayuzPilot kolonu DropYeniArayuzPilot migration'ıyla düştü.
 
     /// <summary>Tenant erişimini aç/kapa — PASİF geçici askıya alma (+ anlık kesme).
     /// KAPALI tenant buradan AÇILAMAZ (Yeniden Aç ayrı ve bilinçli işlemdir).</summary>

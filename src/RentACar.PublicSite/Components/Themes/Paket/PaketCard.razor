@@ -1,53 +1,53 @@
 @using RentACar.Application.Fleet
 
-@* Tema "paket" — Card slotu. İmza SABİT (Components/Themes/README.md): Kart, Tarih.
+@* Tema "paket" — Card slotu. İmza SABİT (Components/Themes/README.md): Card, Dates.
 
    Büyük, sakin kart: 16:10 görsel (yoksa tipografik "tabela": büyük model adı + silüet), ad, teknik satır, fiyat.
    Fiyat önceliği: tarih SEÇİLMİŞSE seçilen günlerin toplamı ("₺X × N gün"); değilse ilanda AYLIK toplam girilmişse
    "₺38.500 / ay" büyük, günlük küçük; o da yoksa günlük fiyat. Aylık fiyat UYDURULMAZ (günlük × 30 yazılmaz).
-   "müsait" yalnız tarihliyken (T1). Kartın tamamı detaya gider; "Teklif alın" ve (WaLinki varsa) WhatsApp ayrı. *@
+   "müsait" yalnız tarihliyken (T1). Kartın tamamı detaya gider; "Teklif alın" ve (WhatsAppLink varsa) WhatsApp ayrı. *@
 
 <article class="pk-kart">
-    @if (!string.IsNullOrWhiteSpace(Kart.Isaret))
+    @if (!string.IsNullOrWhiteSpace(Card.Badge))
     {
-        <p class="pk-isaret">@Kart.Isaret</p>
+        <p class="pk-isaret">@Card.Badge</p>
     }
     <div class="pk-kart-foto">
-        @if (Kart.CoverPhotoId is { } photoId)
+        @if (Card.CoverPhotoId is { } photoId)
         {
-            <img src="@($"/foto/{photoId}/thumb")" alt="@Kart.Baslik" width="400" height="250"
-                 loading="@(Kart.Oncelikli ? "eager" : "lazy")" fetchpriority="@(Kart.Oncelikli ? "high" : null)" decoding="async" />
+            <img src="@($"/foto/{photoId}/thumb")" alt="@Card.Baslik" width="400" height="250"
+                 loading="@(Card.Priority ? "eager" : "lazy")" fetchpriority="@(Card.Priority ? "high" : null)" decoding="async" />
         }
         else
         {
-            <div class="pk-tabela" aria-hidden="true"><span>@Kart.Baslik</span><VehicleSilhouette /></div>
+            <div class="pk-tabela" aria-hidden="true"><span>@Card.Baslik</span><VehicleSilhouette /></div>
         }
     </div>
     <div class="pk-kart-govde">
-        <h3><a href="@Kart.DetayLinki">@Kart.Baslik</a></h3>
-        @if (Teknik is { Length: > 0 } spec) { <p class="pk-teknik">@spec</p> }
+        <h3><a href="@Card.DetailUrl">@Card.Baslik</a></h3>
+        @if (Spec is { Length: > 0 } spec) { <p class="pk-teknik">@spec</p> }
         <div class="pk-kart-fiyat">
-            @if (Kart.Gun is { } days && Kart.Toplam is { } total)
+            @if (Card.Days is { } days && Card.Total is { } total)
             {
                 <p class="pk-fiyat"><span class="pk-tutar">@PriceText.Tl(total)</span> <span class="pk-birim">@PriceText.Count(days) gün</span></p>
-                <p class="pk-fiyat-alt">@PriceText.Tl(Kart.GunlukFiyat) × @PriceText.Count(days) gün, @VatText</p>
+                <p class="pk-fiyat-alt">@PriceText.Tl(Card.GunlukFiyat) × @PriceText.Count(days) gün, @VatText</p>
             }
-            else if (Kart.AylikToplam is { } month)
+            else if (Card.AylikToplam is { } month)
             {
                 <p class="pk-fiyat"><span class="pk-tutar">@PriceText.Tl(month)</span> <span class="pk-birim">/ ay</span></p>
-                <p class="pk-fiyat-alt">Günlük @PriceText.Tl(Kart.GunlukFiyat), @VatText</p>
+                <p class="pk-fiyat-alt">Günlük @PriceText.Tl(Card.GunlukFiyat), @VatText</p>
             }
             else
             {
-                <p class="pk-fiyat"><span class="pk-tutar">@PriceText.Tl(Kart.GunlukFiyat)</span> <span class="pk-birim">/ gün</span></p>
+                <p class="pk-fiyat"><span class="pk-tutar">@PriceText.Tl(Card.GunlukFiyat)</span> <span class="pk-birim">/ gün</span></p>
                 <p class="pk-fiyat-alt">@VatText</p>
             }
         </div>
         <div class="pk-kart-eylem">
-            <a class="btn btn-brand" href="@Kart.TeklifLinki">Teklif alın</a>
-            @if (Kart.WaLinki is not null)
+            <a class="btn btn-brand" href="@Card.QuoteUrl">Teklif alın</a>
+            @if (Card.WhatsAppLink is not null)
             {
-                <a class="btn btn-cizgi" href="@Kart.WaLinki" target="_blank" rel="noopener noreferrer">WhatsApp<span class="gorunmez">'tan sor: @Kart.Baslik</span></a>
+                <a class="btn btn-cizgi" href="@Card.WhatsAppLink" target="_blank" rel="noopener noreferrer">WhatsApp<span class="gorunmez">'tan sor: @Card.Baslik</span></a>
             }
         </div>
     </div>
@@ -55,21 +55,21 @@
 
 @code {
     /// <summary>Kartın temadan bağımsız verisi (sayfa kurar).</summary>
-    [Parameter, EditorRequired] public ListingCard Kart { get; set; } = default!;
+    [Parameter, EditorRequired] public ListingCard Card { get; set; } = default!;
     /// <summary>Seçilen aralık; null → tarihsiz gezinti.</summary>
-    [Parameter] public StayDates? Tarih { get; set; }
+    [Parameter] public StayDates? Dates { get; set; }
 
-    private string VatText => Kart.KdvDahil ? "KDV dahil" : "KDV hariç";
+    private string VatText => Card.KdvDahil ? "KDV dahil" : "KDV hariç";
 
     /// <summary>"2024 model, Otomatik, Hibrit, 5 kişilik" — yıl + teknik satır (en çok 3 özellik), adet ayrı.</summary>
-    private string? Teknik
+    private string? Spec
     {
         get
         {
             var parts = new List<string>(3);
-            if (!string.IsNullOrWhiteSpace(Kart.YilAralik)) parts.Add($"{Kart.YilAralik} model");
-            if (FleetFilter.SpecLine(Kart) is { } spec) parts.Add(spec);
-            if (Kart.Adet > 1) parts.Add(Kart.Gun is null ? $"{Kart.Adet} araç" : $"{Kart.Adet} araç müsait");
+            if (!string.IsNullOrWhiteSpace(Card.YearRange)) parts.Add($"{Card.YearRange} model");
+            if (FleetFilter.SpecLine(Card) is { } spec) parts.Add(spec);
+            if (Card.VehicleCount > 1) parts.Add(Card.Days is null ? $"{Card.VehicleCount} araç" : $"{Card.VehicleCount} araç müsait");
             return parts.Count == 0 ? null : string.Join(", ", parts);
         }
     }

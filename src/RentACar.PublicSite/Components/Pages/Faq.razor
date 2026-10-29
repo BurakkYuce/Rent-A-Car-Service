@@ -2,7 +2,7 @@
 @using RentACar.Application.Common
 @using RentACar.Application.Fleet
 @using RentACar.Application.SiteIcerik
-@inject SiteContentService Icerik
+@inject SiteContentService Content
 @inject FleetShowcaseService Showcase
 
 @* PR-16 — sık sorulan sorular. Açılır-kapanır liste `<details>`/`<summary>` ile: JS GEREKMEZ
@@ -12,13 +12,13 @@
 
 @* FAQPage yapısal verisi: ana sayfada zaten basılıyordu ama ASIL SSS SAYFASINDA yoktu —
    arama motorunun "zengin sonuç" (açılır soru-cevap) çıkarabileceği tek sayfa burasıyken.
-   Mevcut YapisalVeri bileşeni yeniden kullanılıyor (ikinci bir JSON-LD üreticisi yazılmadı). *@
+   Mevcut StructuredData bileşeni yeniden kullanılıyor (ikinci bir JSON-LD üreticisi yazılmadı). *@
 @* İşletme düğümünün `url`'si SİTE KÖKÜ (işletme sitenin kendisi; SEO H-3 ek bulgu: eskiden "/sss" idi). *@
-<YapisalVeri Marka="_branding" Sorular="_questions" KanonikKok="@_canonicalRoot" />
-<SayfaMeta Baslik="@($"Sık Sorulan Sorular — {_brand ?? "RentPro"}")"
-           Aciklama="@SssAciklama" Yol="/sss" Marka="_branding" KanonikKok="@_canonicalRoot" />
+<StructuredData Branding="_branding" Questions="_questions" CanonicalRoot="@_canonicalRoot" />
+<PageMeta Title="@($"Sık Sorulan Sorular — {_brand ?? "RentPro"}")"
+          Description="@FaqDescription" Path="/sss" Branding="_branding" CanonicalRoot="@_canonicalRoot" />
 
-<Breadcrumbs Items="Crumbs" KanonikKok="@_canonicalRoot" />
+<Breadcrumbs Items="Crumbs" CanonicalRoot="@_canonicalRoot" />
 
 <div class="wrap sayfa-ust">
     <h1>Sık sorulan sorular</h1>
@@ -59,18 +59,18 @@
 
     /// <summary>Açıklama İLK SORUDAN kurulur — sabit cümle yerine sayfanın gerçek içeriğini
     /// yansıtır ve her tenant'ta farklı çıkar.</summary>
-    private string SssAciklama => _questions.Count > 0
+    private string FaqDescription =>_questions.Count > 0
         ? $"{_brand ?? "Firmamız"} araç kiralama hakkında sık sorulan sorular: "
           + string.Join(" ", _questions.Take(3).Select(x => x.Soru))
         : $"{_brand ?? "Firmamız"} araç kiralama hakkında sık sorulan sorular ve cevapları.";
 
     protected override async Task OnInitializedAsync()
     {
-        _questions = await Icerik.PublishedFaqAsync();
+        _questions = await Content.PublishedFaqAsync();
         try
         {
             _branding = await Showcase.GetBrandingAsync();
-            _brand = _branding.Marka;
+            _brand = _branding.BrandName;
         }
         catch { /* marka çözülemezse sayfa yine basılır */ }
 

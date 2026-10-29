@@ -25,7 +25,7 @@ public sealed record FleetFilterModel(IReadOnlyList<FilterFacet> Facets, IReadOn
 /// İlan süzgeci — vites, yakıt, koltuk, sınıf. Veri ilanın GÖRÜNÜR özellik satırlarından (etiket eşleşmesiyle;
 /// ayrı bir sınıf alanı yok); bir boyut ancak en az iki farklı değer varsa sunulur (tek seçenekli süzgeç gürültü).
 /// Boyut içinde VEYA, boyutlar arasında VE. Tanınmayan değer (elle yazılmış adres) yok sayılır: liste boşalmaz.
-/// Saf: sayfa (Musaitlik) çağırır, tema yalnız basar.
+/// Saf: sayfa (Availability) çağırır, tema yalnız basar.
 /// </summary>
 public static class FleetFilter
 {
@@ -43,7 +43,7 @@ public static class FleetFilter
     private static bool Same(string a, string b) => Tr.CompareInfo.Compare(a.Trim(), b.Trim(), CompareOptions.IgnoreCase) == 0;
 
     /// <summary>İlanın o boyuttaki değeri (ilk eşleşen etiket) ya da null.</summary>
-    public static string? ValueOf(IEnumerable<OzellikGoster> features, string key)
+    public static string? ValueOf(IEnumerable<FeatureItem> features, string key)
     {
         var labels = Dimensions.First(d => d.Key == key).Labels;
         return features.FirstOrDefault(f => !string.IsNullOrWhiteSpace(f.Deger)
@@ -61,7 +61,7 @@ public static class FleetFilter
     public static Dictionary<string, string[]> Effective(IReadOnlyList<ListingCard> all, IReadOnlyDictionary<string, string[]> selected)
         => Dimensions.ToDictionary(d => d.Key, d =>
         {
-            var values = all.Select(c => ValueOf(c.TumOzellikler, d.Key)).OfType<string>().ToList();
+            var values = all.Select(c => ValueOf(c.AllFeatures, d.Key)).OfType<string>().ToList();
             return selected.TryGetValue(d.Key, out var s)
                 ? s.Where(x => values.Any(v => Same(v, x))).ToArray()
                 : [];
@@ -70,7 +70,7 @@ public static class FleetFilter
     /// <summary>İlan seçime uyuyor mu (boyut içinde VEYA, boyutlar arasında VE).</summary>
     public static bool Matches(ListingCard card, IReadOnlyDictionary<string, string[]> effective)
         => effective.All(e => e.Value.Length == 0
-            || (ValueOf(card.TumOzellikler, e.Key) is { } v && e.Value.Any(x => Same(v, x))));
+            || (ValueOf(card.AllFeatures, e.Key) is { } v && e.Value.Any(x => Same(v, x))));
 
     /// <summary>Sunulacak boyutlar (en az iki değer); seçenek sayıları tüm ilanlar üzerinden.</summary>
     public static IReadOnlyList<FilterFacet> Facets(IReadOnlyList<ListingCard> all, IReadOnlyDictionary<string, string[]> effective)
@@ -79,7 +79,7 @@ public static class FleetFilter
         foreach (var (key, label, _) in Dimensions)
         {
             var groups = new List<(string Value, int Count)>();
-            foreach (var v in all.Select(c => ValueOf(c.TumOzellikler, key)).OfType<string>())
+            foreach (var v in all.Select(c => ValueOf(c.AllFeatures, key)).OfType<string>())
             {
                 var i = groups.FindIndex(g => Same(g.Value, v));
                 if (i < 0) groups.Add((v, 1));
@@ -98,7 +98,7 @@ public static class FleetFilter
     /// <summary>Teknik satır: vites, yakıt, koltuk değerleri ("Manuel, Dizel, 5 kişilik"); hiçbiri yoksa null.</summary>
     public static string? SpecLine(ListingCard card)
     {
-        var parts = new[] { "vites", "yakit", "koltuk" }.Select(k => ValueOf(card.TumOzellikler, k)).OfType<string>().ToList();
+        var parts = new[] { "vites", "yakit", "koltuk" }.Select(k => ValueOf(card.AllFeatures, k)).OfType<string>().ToList();
         return parts.Count == 0 ? null : string.Join(", ", parts);
     }
 

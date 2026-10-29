@@ -7,14 +7,14 @@ namespace RentACar.Application.TenantSettings;
 /// koyu şemanın zemini). Değerler PublicSite'taki setle BİREBİR aynı olmalı (yapısal test).
 /// </summary>
 /// <param name="Key">Kalıcı anahtar (<c>TenantSettings.SitePaleti</c>).</param>
-/// <param name="Ad">Görünen ad.</param>
-/// <param name="Zemin">Açık şema zemini.</param>
-/// <param name="Murekkep">Açık şema metin rengi.</param>
-/// <param name="Ana">Açık şema ana rengi.</param>
-/// <param name="Vurgu">Açık şema vurgusu; null = ana rengi izler.</param>
-/// <param name="GeceZemin">Koyu şema zemini.</param>
-public sealed record SitePaletteOption(string Key, string Ad, string Zemin, string Murekkep, string Ana, string? Vurgu,
-    string GeceZemin);
+/// <param name="Name">Görünen ad.</param>
+/// <param name="Background">Açık şema zemini.</param>
+/// <param name="Ink">Açık şema metin rengi.</param>
+/// <param name="Primary">Açık şema ana rengi.</param>
+/// <param name="Accent">Açık şema vurgusu; null = ana rengi izler.</param>
+/// <param name="NightBackground">Koyu şema zemini.</param>
+public sealed record SitePaletteOption(string Key, string Name, string Background, string Ink, string Primary, string? Accent,
+    string NightBackground);
 
 /// <summary>
 /// Halka açık sitenin palet setleri: tema → izinli set anahtarları (ilk = varsayılan). Setlerin TAMAMI

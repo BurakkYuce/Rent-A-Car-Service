@@ -36,7 +36,7 @@ public static partial class BranchOffices
             .Where(o => o.Address is not null || o.Hours.Count > 0 || o.TelLink is not null)
             .Take(max)
             .ToList();
-        if (list.Count == 0 && Empty(branding?.Adres) is { } address)
+        if (list.Count == 0 && Empty(branding?.Address) is { } address)
             list.Add(new BranchOffice("Adresimiz", address, [], null, null, MapQuery(address)));
         return list;
     }

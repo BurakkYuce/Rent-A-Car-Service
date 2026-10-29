@@ -129,7 +129,6 @@ public sealed class WebFixture : IAsyncLifetime
         PilotAdmin = await CompanyAndUserAsync(PilotCompanyName, UserRole.Admin);
         PilotCompanyId = await TenantIdAsync(PilotAdmin.Firma);
         PilotOperator = await AddUserAsync(PilotCompanyId, PilotAdmin.Firma, UserRole.Operator, branch: "Merkez");
-        await MakePilotAsync(PilotCompanyId, true);
         OtherAdmin = await CompanyAndUserAsync("Diğer Test Firması", UserRole.Admin);
     }
 
@@ -172,14 +171,6 @@ public sealed class WebFixture : IAsyncLifetime
         await using var cmd = new NpgsqlCommand("SELECT \"Id\" FROM \"Tenants\" WHERE \"Code\" = @k", c);
         cmd.Parameters.AddWithValue("k", code);
         return (Guid)(await cmd.ExecuteScalarAsync())!;
-    }
-
-    /// <summary>Pilot bayrağı gerçek repository'den (RLS'li racar_app) yazılır — elle SQL değil.</summary>
-    public async Task MakePilotAsync(Guid tenantId, bool pilot)
-    {
-        using var host = new TestHost(_pg.AppConnectionString);
-        using var scope = host.ScopeFor(tenantId, role: UserRole.Admin);
-        await scope.ServiceProvider.GetRequiredService<ITenantSettingsRepository>().UpsertAsync(s => s.YeniArayuzPilot = pilot);
     }
 
     public async Task DisposeAsync()

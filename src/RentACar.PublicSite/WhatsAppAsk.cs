@@ -14,7 +14,7 @@ public static class WhatsAppAsk
     public static string? Link(FleetBranding? branding, string? vehicle,
         DateOnly? from = null, DateOnly? to = null, TimeOnly? fromTime = null, TimeOnly? toTime = null)
         => branding is null ? null
-            : PhoneLink.Wa(string.IsNullOrWhiteSpace(branding.WhatsApp) ? branding.MobilTel : branding.WhatsApp,
+            : PhoneLink.Wa(string.IsNullOrWhiteSpace(branding.WhatsApp) ? branding.MobilePhone : branding.WhatsApp,
                 Message(vehicle, from, to, fromTime, toTime));
 
     /// <summary>

@@ -18,8 +18,8 @@ public sealed record ThemeFont(string Family, string Weight, string File, string
 /// (<c>&lt;DynamicComponent Type=…&gt;</c>). Parametre imzaları SABİT — bkz. Components/Themes/README.md.
 /// </summary>
 /// <param name="Key">Kalıcı anahtar (<see cref="SiteThemeKeys"/>).</param>
-/// <param name="Ad">ERP'de ve önizlemede görünen ad.</param>
-/// <param name="Aciklama">Bir cümlelik açıklama (ERP radyo kartı).</param>
+/// <param name="Name">ERP'de ve önizlemede görünen ad.</param>
+/// <param name="Description">Bir cümlelik açıklama (ERP radyo kartı).</param>
 /// <param name="CssPath">wwwroot'a göre tema css'i, ör. "css/tema-anahtar.css".</param>
 /// <param name="FontPreloads">Önyüklenecek yazı tipi dosyaları (<see cref="Fonts"/>'taki File değerlerinden).</param>
 /// <param name="Hero">Hero slotu bileşeni.</param>
@@ -29,7 +29,7 @@ public sealed record ThemeFont(string Family, string Weight, string File, string
 /// <param name="Home">Ana sayfa gövdesi slotu (<see cref="HomeModel"/>).</param>
 /// <param name="Fleet">İlan koleksiyonu slotu (<see cref="FleetModel"/>).</param>
 /// <param name="DetailHero">İlan detayının üst bölümü slotu (<see cref="DetailHeroModel"/>).</param>
-public sealed record SiteTheme(string Key, string Ad, string Aciklama, string CssPath,
+public sealed record SiteTheme(string Key, string Name, string Description, string CssPath,
     IReadOnlyList<string> FontPreloads, Type Hero, Type Card, Type Header, Type Footer,
     Type Home, Type Fleet, Type DetailHero)
 {

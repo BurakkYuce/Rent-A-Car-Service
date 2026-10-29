@@ -4,7 +4,7 @@ using RentACar.Application.Fleet;
 namespace RentACar.PublicSite.Components.Themes;
 
 /// <summary>"Kiralamadan önce" listesinin bir satırı: etiket + firmanın beyanı.</summary>
-public sealed record FactLine(string Etiket, string Metin);
+public sealed record FactLine(string Label, string Text);
 
 /// <summary>
 /// Firmanın beyanlarından (<see cref="SiteFacts"/>) temaların ortak metinleri (Anahtar, Kıyas). Yalnız biçimler; metin
@@ -29,7 +29,7 @@ public static class SiteFactsText
 
     /// <summary>Kısa satırlar (mobil ilk ekran, ilan detayı): depozito, km, iptal — kararı en çok etkileyen üçü.</summary>
     public static IReadOnlyList<FactLine> Short(SiteFacts? f)
-        => [.. Lines(f).Where(l => l.Etiket is "Depozito" or "Kilometre" or "İptal")];
+        => [.. Lines(f).Where(l => l.Label is "Depozito" or "Kilometre" or "İptal")];
 
     /// <summary>Çipler (arama kutusunun altı, liste özeti): "Depozito ₺5.000", "Günlük 300 km", "En az 21 yaş".</summary>
     public static IReadOnlyList<string> Chips(SiteFacts? f)

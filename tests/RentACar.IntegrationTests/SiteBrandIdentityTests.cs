@@ -87,9 +87,9 @@ public sealed class SiteBrandIdentityTests(PostgresFixture fx)
         }
 
         using (var visitor = host.ScopeFor(tenant, role: null))
-            Assert.Equal("bordo", (await visitor.ServiceProvider.GetRequiredService<FleetShowcaseService>().GetBrandingAsync()).Paleti);
+            Assert.Equal("bordo", (await visitor.ServiceProvider.GetRequiredService<FleetShowcaseService>().GetBrandingAsync()).Palette);
         using (var otherVisitor = host.ScopeFor(Guid.NewGuid(), role: null))
-            Assert.Null((await otherVisitor.ServiceProvider.GetRequiredService<FleetShowcaseService>().GetBrandingAsync()).Paleti);
+            Assert.Null((await otherVisitor.ServiceProvider.GetRequiredService<FleetShowcaseService>().GetBrandingAsync()).Palette);
 
         using (var s = host.ScopeFor(tenant))
         {
@@ -118,23 +118,23 @@ public sealed class SiteBrandIdentityTests(PostgresFixture fx)
         {
             var showcase = visitor.ServiceProvider.GetRequiredService<FleetShowcaseService>();
             var b = await showcase.GetBrandingAsync();
-            Assert.Equal("Kıyı Oto", b.Marka);
-            Assert.Equal("#c0392b", b.VurguRengi);
-            Assert.False(string.IsNullOrEmpty(b.LogoSurum));
+            Assert.Equal("Kıyı Oto", b.BrandName);
+            Assert.Equal("#c0392b", b.AccentColor);
+            Assert.False(string.IsNullOrEmpty(b.LogoVersion));
 
             var served = await showcase.GetLogoAsync();
             Assert.NotNull(served);
             Assert.Equal(logo, served!.Bytes);
-            Assert.Equal(b.LogoSurum, served.Surum); // sayfadaki adres ile uç aynı sürümü görür
+            Assert.Equal(b.LogoVersion, served.Version); // sayfadaki adres ile uç aynı sürümü görür
         }
 
         using (var visitor = host.ScopeFor(plain, role: null))
         {
             var showcase = visitor.ServiceProvider.GetRequiredService<FleetShowcaseService>();
             var b = await showcase.GetBrandingAsync();
-            Assert.Equal("Düz Oto", b.Marka);
-            Assert.Null(b.VurguRengi);
-            Assert.Null(b.LogoSurum);                    // logo yok → site marka adını basar
+            Assert.Equal("Düz Oto", b.BrandName);
+            Assert.Null(b.AccentColor);
+            Assert.Null(b.LogoVersion);                    // logo yok → site marka adını basar
             Assert.Null(await showcase.GetLogoAsync());  // öbür firmanın logosu SIZMAZ
         }
     }
@@ -149,7 +149,7 @@ public sealed class SiteBrandIdentityTests(PostgresFixture fx)
 
         string first;
         using (var visitor = host.ScopeFor(tenant, role: null))
-            first = (await visitor.ServiceProvider.GetRequiredService<FleetShowcaseService>().GetBrandingAsync()).LogoSurum!;
+            first = (await visitor.ServiceProvider.GetRequiredService<FleetShowcaseService>().GetBrandingAsync()).LogoVersion!;
 
         await Task.Delay(20); // damga mikro-saniye çözünürlüklü; iki yazım aynı tick'e düşmesin
         using (var admin = host.ScopeFor(tenant))
@@ -157,7 +157,7 @@ public sealed class SiteBrandIdentityTests(PostgresFixture fx)
 
         using (var visitor = host.ScopeFor(tenant, role: null))
         {
-            var second = (await visitor.ServiceProvider.GetRequiredService<FleetShowcaseService>().GetBrandingAsync()).LogoSurum;
+            var second = (await visitor.ServiceProvider.GetRequiredService<FleetShowcaseService>().GetBrandingAsync()).LogoVersion;
             Assert.NotNull(first);
             Assert.NotEqual(first, second); // eski logonun uzun önbellekte kalmasını önleyen kural
         }

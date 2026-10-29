@@ -11,13 +11,13 @@
      6. SSS (görünen adet = FAQPage adedi, SEO L-4)
    Sarmalayıcı öğe YOK: bölümler doğrudan <main>'in çocuğu. Açılış animasyonu yok. *@
 
-<ThemedHero Marka="@Model.Marka" Branding="Model.Branding" Subeler="Model.SubeAdlari" Kartlar="Model.Kartlar" Sehir="@Model.Sehir" />
+<ThemedHero BrandName="@Model.BrandName" Branding="Model.Branding" Branches="Model.BranchNames" Cards="Model.Cards" Area="@Model.Area" />
 
-@if (Model.Filo.Kartlar.Count > 0)
+@if (Model.Fleet.Cards.Count > 0)
 {
-    <section class="bolum ky-filo" id="filo" aria-labelledby="@Model.Filo.BaslikId">
+    <section class="bolum ky-filo" id="filo" aria-labelledby="@Model.Fleet.TitleId">
         <div class="wrap">
-            <ThemedFleet Model="Model.Filo" />
+            <ThemedFleet Model="Model.Fleet" />
         </div>
     </section>
 }
@@ -52,11 +52,11 @@
                 <tbody>
                     @foreach (var f in _facts)
                     {
-                        <tr><th scope="row">@f.Etiket</th><td>@f.Metin</td></tr>
+                        <tr><th scope="row">@f.Label</th><td>@f.Text</td></tr>
                     }
                 </tbody>
             </table>
-            @if (Model.KosulSayfasi is { Length: > 0 } terms)
+            @if (Model.TermsPage is { Length: > 0 } terms)
             {
                 <p class="linkler"><a href="@terms">Kiralama koşullarının tamamı</a></p>
             }
@@ -98,8 +98,8 @@
     </section>
 }
 
-@* Görünen soru adedi = FAQPage JSON-LD adedi (SEO L-4): Model.SssAdet değiştirilmez. *@
-<BolumSss Sorular="Model.Sss" Adet="Model.SssAdet" />
+@* Görünen soru adedi = FAQPage JSON-LD adedi (SEO L-4): Model.FaqCount değiştirilmez. *@
+<FaqSection Questions="Model.Faq" Count="Model.FaqCount" />
 
 @code {
     /// <summary>Teslim noktası bloğunda en fazla kaç şube; "en düşük fiyat" kutucuklarında en çok kaç boyut.</summary>
@@ -116,10 +116,10 @@
 
     protected override void OnParametersSet()
     {
-        _facts = SiteFactsText.Lines(Model.Branding?.Bilgi);
+        _facts = SiteFactsText.Lines(Model.Branding?.Facts);
 
         // Kutucuklar: süzgecin ilk iki boyutu (sınıf varsa o); her değer için ilanların en düşük günlük fiyatı.
-        var cards = Model.Filo.Kartlar;
+        var cards = Model.Fleet.Cards;
         var none = FleetFilter.Dimensions.ToDictionary(d => d.Key, _ => Array.Empty<string>());
         _tiles = [.. FleetFilter.Facets(cards, none)
             .Where(f => f.Key != "koltuk")
@@ -129,7 +129,7 @@
                 $"/musaitlik?{f.Key}={Uri.EscapeDataString(o.Value)}")))];
 
         var day = SiteDate.TodayDayOfWeek;
-        _offices = [.. BranchOffices.Build(Model.Subeler, Model.Branding, MaxOffices)
+        _offices = [.. BranchOffices.Build(Model.Branches, Model.Branding, MaxOffices)
             .Select(o => (o, o.Source is { } b ? BranchOffices.TodayHours(b, day) : null))];
     }
 }

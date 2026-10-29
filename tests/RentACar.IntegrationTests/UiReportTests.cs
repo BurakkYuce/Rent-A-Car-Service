@@ -79,7 +79,6 @@ public sealed partial class UiReportTests(WebFixture fx)
             }
             await db.SaveChangesAsync();
         }
-        await fx.MakePilotAsync(e.TenantId, true);
 
         var a = new Customer { Tip = CustomerType.Bireysel, Ad = CustomerA, Soyad = "Deniz", CepTel = "05320000001" };
         var b = new Customer { Tip = CustomerType.Bireysel, Ad = AnonymousRealName, Soyad = "Kisi", CepTel = "05329999999", AnonimAd = true, AnonimTelefon = true };

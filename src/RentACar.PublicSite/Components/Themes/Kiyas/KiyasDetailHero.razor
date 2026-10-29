@@ -8,22 +8,22 @@
 <div class="wrap">
     <div class="detay ky-detay">
         <header class="detay-bas">
-            <h1>@Model.Ilan.Baslik</h1>
-            @if (Model.MetaSatiri is { Length: > 0 } meta) { <p>@meta</p> }
+            <h1>@Model.Listing.Baslik</h1>
+            @if (Model.MetaLine is { Length: > 0 } meta) { <p>@meta</p> }
             @if (_spec is not null) { <p class="ky-teknik">@_spec</p> }
             <div class="detay-hizli ky-hizli">
-                <p class="ky-fiyat"><span class="ky-tutar">@PriceText.Tl(Model.Ilan.GunlukFiyat)</span> <span class="ky-birim">/ gün</span> <span class="ky-kdv">@Model.KdvMetni</span></p>
+                <p class="ky-fiyat"><span class="ky-tutar">@PriceText.Tl(Model.Listing.GunlukFiyat)</span> <span class="ky-birim">/ gün</span> <span class="ky-kdv">@Model.VatText</span></p>
                 @if (_short.Count > 0)
                 {
                     <dl class="ky-kosul-kisa">
-                        @foreach (var f in _short) { <div><dt>@f.Etiket</dt><dd>@f.Metin</dd></div> }
+                        @foreach (var f in _short) { <div><dt>@f.Label</dt><dd>@f.Text</dd></div> }
                     </dl>
                 }
                 <div class="ky-eylem-cift">
-                    <a class="btn btn-brand" href="@Model.TeklifLinki">Rezervasyon talebi</a>
-                    @if (Model.WaLinki is not null)
+                    <a class="btn btn-brand" href="@Model.QuoteUrl">Rezervasyon talebi</a>
+                    @if (Model.WhatsAppLink is not null)
                     {
-                        <a class="btn btn-wa" href="@Model.WaLinki" target="_blank" rel="noopener noreferrer">WhatsApp'tan sor</a>
+                        <a class="btn btn-wa" href="@Model.WhatsAppLink" target="_blank" rel="noopener noreferrer">WhatsApp'tan sor</a>
                     }
                 </div>
             </div>
@@ -31,13 +31,13 @@
 
         <figure class="detay-kapak ky-kapak">
             <div class="ky-kapak-kutu">
-                @if (Model.Ilan.PhotoIds.Count > 0)
+                @if (Model.Listing.PhotoIds.Count > 0)
                 {
-                    var cover = Model.Ilan.PhotoIds[0];
+                    var cover = Model.Listing.PhotoIds[0];
                     <img src="@($"/foto/{cover}")"
                          srcset="@($"/foto/{cover}/thumb 400w, /foto/{cover} 1600w")"
                          sizes="(min-width: 960px) 700px, 100vw"
-                         width="1200" height="900" alt="@Model.Ilan.Baslik" fetchpriority="high" decoding="async" />
+                         width="1200" height="900" alt="@Model.Listing.Baslik" fetchpriority="high" decoding="async" />
                 }
                 else
                 {
@@ -58,7 +58,7 @@
                     {
                         <div>
                             <h2>Şartlar</h2>
-                            <dl>@foreach (var f in _terms) { <div><dt>@f.Etiket</dt><dd>@f.Metin</dd></div> }</dl>
+                            <dl>@foreach (var f in _terms) { <div><dt>@f.Label</dt><dd>@f.Text</dd></div> }</dl>
                         </div>
                     }
                 </figcaption>
@@ -68,13 +68,13 @@
         <aside class="panel ky-panel" aria-labelledby="tarife-baslik">
             <h2 id="tarife-baslik">Fiyatlar</h2>
             <table class="tarife-tablo ky-tarife">
-                <caption class="gorunmez">@Model.Ilan.Baslik kiralama fiyatları</caption>
+                <caption class="gorunmez">@Model.Listing.Baslik kiralama fiyatları</caption>
                 <tbody>
-                    @foreach (var rate in Model.Tarife)
+                    @foreach (var rate in Model.Rates)
                     {
                         <tr>
-                            <th scope="row">@rate.Etiket</th>
-                            <td><strong>@PriceText.Tl(rate.Tutar)</strong><small>@(rate.GunBasi is { } perDay ? $"gün başı {PriceText.Tl(perDay)}" : Model.KdvMetni)</small></td>
+                            <th scope="row">@rate.Label</th>
+                            <td><strong>@PriceText.Tl(rate.Amount)</strong><small>@(rate.PerDay is { } perDay ? $"gün başı {PriceText.Tl(perDay)}" : Model.VatText)</small></td>
                         </tr>
                     }
                 </tbody>
@@ -86,25 +86,25 @@
                 </ul>
             }
             <div class="panel-eylem">
-                <a class="btn btn-brand btn-genis" href="@Model.TeklifLinki">Rezervasyon talebi</a>
-                @if (Model.WaLinki is not null)
+                <a class="btn btn-brand btn-genis" href="@Model.QuoteUrl">Rezervasyon talebi</a>
+                @if (Model.WhatsAppLink is not null)
                 {
-                    <a class="btn btn-wa btn-genis" href="@Model.WaLinki" target="_blank" rel="noopener noreferrer">WhatsApp'tan sor</a>
+                    <a class="btn btn-wa btn-genis" href="@Model.WhatsAppLink" target="_blank" rel="noopener noreferrer">WhatsApp'tan sor</a>
                 }
             </div>
-            <AramaFormu Hedef="/musaitlik" Ilan="@Model.Ilan.Slug" Subeler="Model.SubeAdlari"
-                        ButonMetni="Tarihlerime göre toplamı gör" AriaLabel="Bu araç için tarih seç" />
+            <SearchForm Action="/musaitlik" Listing="@Model.Listing.Slug" Branches="Model.BranchNames"
+                        ButtonText="Tarihlerime göre toplamı gör" AriaLabel="Bu araç için tarih seç" />
         </aside>
 
-        @if (Model.Ilan.PhotoIds.Count > 1)
+        @if (Model.Listing.PhotoIds.Count > 1)
         {
             <ul class="galeri" aria-label="Diğer fotoğraflar">
-                @for (var i = 1; i < Model.Ilan.PhotoIds.Count; i++)
+                @for (var i = 1; i < Model.Listing.PhotoIds.Count; i++)
                 {
-                    var id = Model.Ilan.PhotoIds[i];
+                    var id = Model.Listing.PhotoIds[i];
                     <li>
                         <a href="@($"/foto/{id}")">
-                            <img src="@($"/foto/{id}/thumb")" alt="@($"{Model.Ilan.Baslik}, fotoğraf {i + 1}")"
+                            <img src="@($"/foto/{id}/thumb")" alt="@($"{Model.Listing.Baslik}, fotoğraf {i + 1}")"
                                  width="400" height="300" loading="lazy" decoding="async" />
                         </a>
                     </li>
@@ -125,8 +125,8 @@
 
     protected override void OnParametersSet()
     {
-        var f = Model.Branding?.Bilgi;
-        var parts = new[] { "vites", "yakit", "koltuk" }.Select(k => FleetFilter.ValueOf(Model.Ilan.Ozellikler, k)).OfType<string>().ToList();
+        var f = Model.Branding?.Facts;
+        var parts = new[] { "vites", "yakit", "koltuk" }.Select(k => FleetFilter.ValueOf(Model.Listing.Features, k)).OfType<string>().ToList();
         _spec = parts.Count == 0 ? null : string.Join(", ", parts);
         _short = SiteFactsText.Short(f);
         _badges = SiteFactsText.Badges(f);
@@ -134,8 +134,8 @@
         // "Fiyata dahil": yalnız veriden — KDV (ilanın işareti), sigorta özeti ve km (firmanın beyanı).
         var lines = SiteFactsText.Lines(f);
         _included = [];
-        if (Model.Ilan.KdvDahil) _included.Add("KDV");
-        foreach (var l in lines.Where(l => l.Etiket is "Sigorta" or "Kilometre")) _included.Add($"{l.Etiket}: {l.Metin}");
-        _terms = [.. lines.Where(l => l.Etiket is "Sürücü" or "Depozito" or "İptal")];
+        if (Model.Listing.KdvDahil) _included.Add("KDV");
+        foreach (var l in lines.Where(l => l.Label is "Sigorta" or "Kilometre")) _included.Add($"{l.Label}: {l.Text}");
+        _terms = [.. lines.Where(l => l.Label is "Sürücü" or "Depozito" or "İptal")];
     }
 }

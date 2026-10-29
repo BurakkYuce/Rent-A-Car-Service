@@ -11,15 +11,15 @@
    Kalıp bölümler (üç adım, "neden biz", kapanış bandı) bilinçli olarak YOK: iletişim zaten her ekranda.
    Sarmalayıcı öğe YOK: bölümler doğrudan <main>'in çocuğu. *@
 
-<CascadingValue Name="AnahtarBugun" Value="_today" IsFixed="true">
-    <ThemedHero Marka="@Model.Marka" Branding="Model.Branding" Subeler="Model.SubeAdlari" Kartlar="Model.Kartlar" Sehir="@Model.Sehir" />
+<CascadingValue Name="AnahtarTodayHours" Value="_today" IsFixed="true">
+    <ThemedHero BrandName="@Model.BrandName" Branding="Model.Branding" Branches="Model.BranchNames" Cards="Model.Cards" Area="@Model.Area" />
 </CascadingValue>
 
-@if (Model.Filo.Kartlar.Count > 0)
+@if (Model.Fleet.Cards.Count > 0)
 {
-    <section class="bolum an-filo" id="filo" aria-labelledby="@Model.Filo.BaslikId">
+    <section class="bolum an-filo" id="filo" aria-labelledby="@Model.Fleet.TitleId">
         <div class="wrap">
-            <ThemedFleet Model="Model.Filo" />
+            <ThemedFleet Model="Model.Fleet" />
         </div>
     </section>
 }
@@ -32,10 +32,10 @@
             <dl class="an-kosul-liste">
                 @foreach (var f in _facts)
                 {
-                    <div><dt>@f.Etiket</dt><dd>@f.Metin</dd></div>
+                    <div><dt>@f.Label</dt><dd>@f.Text</dd></div>
                 }
             </dl>
-            @if (Model.KosulSayfasi is { Length: > 0 } terms)
+            @if (Model.TermsPage is { Length: > 0 } terms)
             {
                 <p class="linkler"><a href="@terms">Kiralama koşullarının tamamı</a></p>
             }
@@ -43,7 +43,7 @@
     </section>
 }
 
-@if (_rating is not null && Model.Branding?.Bilgi is { } facts)
+@if (_rating is not null && Model.Branding?.Facts is { } facts)
 {
     <section class="an-yorum" aria-labelledby="yorum-baslik">
         <div class="wrap an-yorum-ic">
@@ -96,8 +96,8 @@
     </section>
 }
 
-@* Görünen soru adedi = FAQPage JSON-LD adedi (SEO L-4): Model.SssAdet değiştirilmez. *@
-<BolumSss Sorular="Model.Sss" Adet="Model.SssAdet" />
+@* Görünen soru adedi = FAQPage JSON-LD adedi (SEO L-4): Model.FaqCount değiştirilmez. *@
+<FaqSection Questions="Model.Faq" Count="Model.FaqCount" />
 
 @code {
     /// <summary>Ofis bloğunda en fazla kaç şube.</summary>
@@ -113,10 +113,10 @@
     protected override void OnParametersSet()
     {
         var day = SiteDate.TodayDayOfWeek;
-        _facts = SiteFactsText.Lines(Model.Branding?.Bilgi);
-        _rating = SiteFactsText.Rating(Model.Branding?.Bilgi);
+        _facts = SiteFactsText.Lines(Model.Branding?.Facts);
+        _rating = SiteFactsText.Rating(Model.Branding?.Facts);
 
-        var branches = BranchOffices.Ordered(Model.Subeler).ToList();
+        var branches = BranchOffices.Ordered(Model.Branches).ToList();
         _offices = [.. BranchOffices.Build(branches, Model.Branding, MaxOffices)
             .Select(o => (o, o.Source is { } b ? BranchOffices.TodayHours(b, day) : null))];
 

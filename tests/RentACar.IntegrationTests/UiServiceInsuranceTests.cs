@@ -63,7 +63,6 @@ public sealed partial class UiServiceInsuranceTests(WebFixture fx)
             }
             await db.SaveChangesAsync();
         }
-        await fx.MakePilotAsync(e.TenantId, true);
         var c = new Customer { Tip = CustomerType.Bireysel, Ad = "Ece", Soyad = "Tan", CepTel = "05321119988" };
         await WriteAsync(e.TenantId, db => db.Customers.Add(c));
         e.CustomerId = c.Id;

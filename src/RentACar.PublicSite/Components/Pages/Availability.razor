@@ -5,15 +5,15 @@
 @using RentACar.Application.Fleet
 @using RentACar.PublicSite.Components.Shared
 @inject FleetShowcaseService Showcase
-@inject BranchService Subeler
+@inject BranchService BranchSvc
 
-<PageTitle>Müsaitlik ve Fiyat — @(_branding?.Marka ?? "RentPro")</PageTitle>
+<PageTitle>Müsaitlik ve Fiyat — @(_branding?.BrandName ?? "RentPro")</PageTitle>
 
-<SayfaMeta Baslik="@($"Müsaitlik ve Fiyat — {_branding?.Marka ?? "RentPro"}")"
-           Aciklama="@($"{_branding?.Marka ?? "Firmamız"} filosunda tarihlerinize göre müsait araçları ve net günlük fiyatı görün. Kayıt gerekmez, teklif bırakmak ücretsizdir.")"
-           Yol="/musaitlik" Marka="_branding" KanonikKok="@_canonicalRoot" />
+<PageMeta Title="@($"Müsaitlik ve Fiyat — {_branding?.BrandName ?? "RentPro"}")"
+          Description="@($"{_branding?.BrandName ?? "Firmamız"} filosunda tarihlerinize göre müsait araçları ve net günlük fiyatı görün. Kayıt gerekmez, teklif bırakmak ücretsizdir.")"
+          Path="/musaitlik" Branding="_branding" CanonicalRoot="@_canonicalRoot" />
 
-<Breadcrumbs Items="Crumbs" KanonikKok="@_crumbRoot" />
+<Breadcrumbs Items="Crumbs" CanonicalRoot="@_crumbRoot" />
 
 <div class="wrap sayfa-ust">
     <h1>Müsait araçlar ve fiyatlar</h1>
@@ -22,8 +22,8 @@
 
     @* PR-19: form ORTAK bileşen (T4) — Hero ile aynı alan adları/doğrulama. GET-querystring: JS yok,
        paylaşılabilir/geri-tuşuna dost URL. `ilan` taşınır: ilan detayından gelindiyse o araç öne alınır. *@
-    <AramaFormu Satir="true" Bas="@Bas" Bit="@Bit" BasSaat="@BasSaat" BitSaat="@BitSaat" Sube="@Sube" Ilan="@Ilan"
-                Subeler="_branches" ButonMetni="Ara" />
+    <SearchForm Inline="true" Start="@Start" End="@End" StartTime="@StartTime" EndTime="@EndTime" Branch="@Branch" Listing="@Listing"
+                Branches="_branches" ButtonText="Ara" />
 
     @if (!string.IsNullOrEmpty(_error))
     {
@@ -40,25 +40,25 @@
 </div>
 
 @* Ana sayfa ve detayla AYNI kapanış çağrısı — anlatı tek yerde. *@
-<BolumCta Telefon="@_branding?.Tel" WhatsApp="@_branding?.WhatsApp" />
+<CtaSection Phone="@_branding?.Phone" WhatsApp="@_branding?.WhatsApp" />
 
 @code {
     [CascadingParameter] public HttpContext? Http { get; set; }
 
-    [SupplyParameterFromQuery(Name = "bas")] public string? Bas { get; set; }
-    [SupplyParameterFromQuery(Name = "bit")] public string? Bit { get; set; }
+    [SupplyParameterFromQuery(Name = "bas")] public string? Start { get; set; }
+    [SupplyParameterFromQuery(Name = "bit")] public string? End { get; set; }
     /// <summary>V0: alış/iade saati ("HH:mm", İstanbul). İkisi de geçerliyse arama o saatlerle yapılır; biri bile
     /// yoksa ESKİ davranış (yalnız günler) — saatsiz eski bağlantılar ve paylaşılmış adresler aynı sonucu verir.</summary>
-    [SupplyParameterFromQuery(Name = "basSaat")] public string? BasSaat { get; set; }
-    [SupplyParameterFromQuery(Name = "bitSaat")] public string? BitSaat { get; set; }
-    [SupplyParameterFromQuery(Name = "sube")] public string? Sube { get; set; }
+    [SupplyParameterFromQuery(Name = "basSaat")] public string? StartTime { get; set; }
+    [SupplyParameterFromQuery(Name = "bitSaat")] public string? EndTime { get; set; }
+    [SupplyParameterFromQuery(Name = "sube")] public string? Branch { get; set; }
     /// <summary>İlan detayından gelindiyse o ilanın slug'ı — sonuçta öne alınır.</summary>
-    [SupplyParameterFromQuery(Name = "ilan")] public string? Ilan { get; set; }
+    [SupplyParameterFromQuery(Name = "ilan")] public string? Listing { get; set; }
     /// <summary>Süzgeç (FleetFilter): boyut başına birden çok değer (`?vites=Otomatik&vites=Manuel`).</summary>
-    [SupplyParameterFromQuery(Name = "sinif")] public string[]? Sinif { get; set; }
-    [SupplyParameterFromQuery(Name = "vites")] public string[]? Vites { get; set; }
-    [SupplyParameterFromQuery(Name = "yakit")] public string[]? Yakit { get; set; }
-    [SupplyParameterFromQuery(Name = "koltuk")] public string[]? Koltuk { get; set; }
+    [SupplyParameterFromQuery(Name = "sinif")] public string[]? Category { get; set; }
+    [SupplyParameterFromQuery(Name = "vites")] public string[]? Transmission { get; set; }
+    [SupplyParameterFromQuery(Name = "yakit")] public string[]? Fuel { get; set; }
+    [SupplyParameterFromQuery(Name = "koltuk")] public string[]? Seats { get; set; }
 
     private static readonly IReadOnlyList<Breadcrumbs.Item> Crumbs =
         [new("Ana sayfa", "/"), new("Araçlar ve fiyatlar", "/musaitlik")];
@@ -99,29 +99,29 @@
             // ---- (a) TARİH SEÇİLMİŞ: gerçek müsaitlik + dönem toplamı. Gün sayısı aralığın kendisinden
             // (BookingMath) — tüm sonuçlarda aynı.
             var (fromDay, toDay) = (DateOnly.FromDateTime(_start!.Value.Date), DateOnly.FromDateTime(_end!.Value.Date));
-            var all = _results.Select((r, i) => ListingCard.From(r, QuoteLink.Build(r.Slug, Bas, Bit, Sube, r.GunlukFiyat),
-                r.Slug == Ilan ? "Baktığınız araç" : null, i == 0) with
+            var all = _results.Select((r, i) => ListingCard.From(r, QuoteLink.Build(r.Slug, Start, End, Branch, r.GunlukFiyat),
+                r.Slug == Listing ? "Baktığınız araç" : null, i == 0) with
             {
-                WaLinki = WhatsAppAsk.Link(_branding, r.Baslik, fromDay, toDay, _fromTime, _toTime),
+                WhatsAppLink = WhatsAppAsk.Link(_branding, r.Baslik, fromDay, toDay, _fromTime, _toTime),
             }).ToList();
             var (cards, filter) = ApplyFilter(all);
             return new FleetModel(cards, FleetPlacement.Availability)
             {
-                Bilgi = _branding?.Bilgi,
-                Filtre = filter,
-                Tarih = _results.Count > 0 ? new StayDates(_start!.Value, _end!.Value, _results[0].Gun) : null,
-                Ozet = cards.Count > 0
+                Facts = _branding?.Facts,
+                Filter = filter,
+                Dates = _results.Count > 0 ? new StayDates(_start!.Value, _end!.Value, _results[0].Days) : null,
+                Summary = cards.Count > 0
                     ? new FleetSummary($"{cards.Count} araç müsait",
-                        $"{RangeText}, {_results[0].Gun} gün. Fiyatlar gün sayısına göre hesaplandı.", Canli: true)
+                        $"{RangeText}, {_results[0].Days} gün. Fiyatlar gün sayısına göre hesaplandı.", Live: true)
                     : null,
-                Uyari = _requestedTitle is not null && !_requestedAvailable
+                Notice = _requestedTitle is not null && !_requestedAvailable
                     ? $"{_requestedTitle} bu tarihlerde müsait değil. Aşağıdaki araçlar seçtiğiniz tarihlerde boşta."
                     : null,
                 // PR-20: sonuç yoksa bile üç çıkış yolu: tarihi değiştir (form yukarıda), tüm filoyu gör, ya da
                 // doğrudan ulaş. Metin bir vaat içermez — yalnız durumu söyler.
-                Bos = all.Count > 0 ? FilteredOut(filter, live: true) : new FleetEmptyState("Bu tarihlerde müsait araç yok",
+                Empty = all.Count > 0 ? FilteredOut(filter, live: true) : new FleetEmptyState("Bu tarihlerde müsait araç yok",
                     "Tarihleri bir iki gün esnetmek çoğu zaman sonucu değiştirir; yukarıdaki formdan yeniden deneyebilirsiniz.",
-                    [new("/musaitlik", "Tüm filoyu gör"), new("/iletisim", "Bize ulaşın")], Canli: true),
+                    [new("/musaitlik", "Tüm filoyu gör"), new("/iletisim", "Bize ulaşın")], Live: true),
             };
         }
 
@@ -129,16 +129,16 @@
 
         // ---- (b) TARİH YOK: misafir filoyu serbestçe geziyor. BURADA "müsait" DENMEZ: tarih olmadan hangi aracın
         // boşta olduğu bilinemez. Kart adet etiketi de "9 araç" der, "9 araç müsait" demez (ListingCard, Card slotu).
-        var allFleet = _fleet.Select((k, i) => ListingCard.From(k, QuoteLink.Build(k.Slug, Bas, Bit, Sube, k.GunlukFiyat),
-            k.Slug == Ilan ? "Baktığınız araç" : null, i == 0) with { WaLinki = WhatsAppAsk.Link(_branding, k.Baslik) }).ToList();
+        var allFleet = _fleet.Select((k, i) => ListingCard.From(k, QuoteLink.Build(k.Slug, Start, End, Branch, k.GunlukFiyat),
+            k.Slug == Listing ? "Baktığınız araç" : null, i == 0) with { WhatsAppLink = WhatsAppAsk.Link(_branding, k.Baslik) }).ToList();
         var (fleet, fleetFilter) = ApplyFilter(allFleet);
         return new FleetModel(fleet, FleetPlacement.Availability)
         {
-            Bilgi = _branding?.Bilgi,
-            Filtre = fleetFilter,
-            Ozet = new FleetSummary($"Filoda {fleet.Count} araç",
+            Facts = _branding?.Facts,
+            Filter = fleetFilter,
+            Summary = new FleetSummary($"Filoda {fleet.Count} araç",
                 "Günlük fiyatlar aşağıda. Tarih girerseniz o aralıkta gerçekten boşta olanları ve toplam tutarı gösteririz."),
-            Bos = allFleet.Count > 0 ? FilteredOut(fleetFilter, live: false) : new FleetEmptyState("Şu anda sitede yayınlanmış araç yok",
+            Empty = allFleet.Count > 0 ? FilteredOut(fleetFilter, live: false) : new FleetEmptyState("Şu anda sitede yayınlanmış araç yok",
                 "Filomuz hakkında bilgi almak için bize ulaşın.", [new("/iletisim", "İletişim bilgileri")]),
         };
     }
@@ -151,14 +151,14 @@
     {
         var selected = FleetFilter.Parse(new Dictionary<string, string[]?>
         {
-            ["sinif"] = Sinif, ["vites"] = Vites, ["yakit"] = Yakit, ["koltuk"] = Koltuk,
+            ["sinif"] = Category, ["vites"] = Transmission, ["yakit"] = Fuel, ["koltuk"] = Seats,
         });
         var effective = FleetFilter.Effective(all, selected);
         var keep = new List<KeyValuePair<string, string>>();
-        foreach (var (key, value) in new[] { ("bas", Bas), ("bit", Bit), ("basSaat", BasSaat), ("bitSaat", BitSaat), ("sube", Sube), ("ilan", Ilan) })
+        foreach (var (key, value) in new[] { ("bas", Start), ("bit", End), ("basSaat", StartTime), ("bitSaat", EndTime), ("sube", Branch), ("ilan", Listing) })
             if (!string.IsNullOrWhiteSpace(value)) keep.Add(new(key, value.Trim()));
         var cards = all.Where(c => FleetFilter.Matches(c, effective))
-            .Select((c, i) => c with { Oncelikli = i == 0 }).ToList();
+            .Select((c, i) => c with { Priority = i == 0 }).ToList();
         return (cards, new FleetFilterModel(FleetFilter.Facets(all, effective), keep, effective.Sum(e => e.Value.Length)));
     }
 
@@ -166,7 +166,7 @@
     private static FleetEmptyState FilteredOut(FleetFilterModel filter, bool live)
         => new("Seçtiğiniz özelliklerde araç yok",
             "Süzgeçteki seçimlerden birini kaldırın ya da süzgeci temizleyin.",
-            [new(filter.ClearHref, "Süzgeci temizle"), new("/iletisim", "Bize ulaşın")], Canli: live);
+            [new(filter.ClearHref, "Süzgeci temizle"), new("/iletisim", "Bize ulaşın")], Live: live);
 
     private async Task LoadAsync()
     {
@@ -174,12 +174,12 @@
         // Kök KANONİK host'tan (istek host'u DEĞİL — SEO H-3); og:url, breadcrumb ve canonical aynı kök.
         _canonicalRoot = await Showcase.GetCanonicalRootAsync();
         _crumbRoot = _canonicalRoot;
-        _branches = (await Subeler.ListActiveAsync()).Select(s => s.Ad).ToList();
+        _branches = (await BranchSvc.ListActiveAsync()).Select(s => s.Ad).ToList();
 
-        _start = ParseDate(Bas);
-        _end = ParseDate(Bit);
-        if (_start is not null && _end is not null && SiteDate.ParseTime(BasSaat) is { } fromTime
-            && SiteDate.ParseTime(BitSaat) is { } toTime)
+        _start = ParseDate(Start);
+        _end = ParseDate(End);
+        if (_start is not null && _end is not null && SiteDate.ParseTime(StartTime) is { } fromTime
+            && SiteDate.ParseTime(EndTime) is { } toTime)
         {
             _fromTime = fromTime;
             _toTime = toTime;
@@ -201,10 +201,10 @@
         {
             // Saatli aralık İstanbul ofsetini taşır (ekranda doğru gün); veritabanı yalnız UTC kabul eder.
             var results = await Showcase.SearchAvailabilityAsync(_start.Value.ToUniversalTime(), _end.Value.ToUniversalTime(),
-                string.IsNullOrWhiteSpace(Sube) ? null : Sube);
-            _requestedAvailable = !string.IsNullOrWhiteSpace(Ilan) && results.Any(r => r.Slug == Ilan);
-            if (!string.IsNullOrWhiteSpace(Ilan) && !_requestedAvailable)
-                _requestedTitle = (await Showcase.GetListingDetailAsync(Ilan))?.Baslik;
+                string.IsNullOrWhiteSpace(Branch) ? null : Branch);
+            _requestedAvailable = !string.IsNullOrWhiteSpace(Listing) && results.Any(r => r.Slug == Listing);
+            if (!string.IsNullOrWhiteSpace(Listing) && !_requestedAvailable)
+                _requestedTitle = (await Showcase.GetListingDetailAsync(Listing))?.Baslik;
             _results = PinFirst(results, r => r.Slug);
         }
         catch (ValidationException ex)
@@ -219,7 +219,7 @@
 
     /// <summary>İlan detayından gelinen aracı listenin başına alır (sıra aksi halde servisinki).</summary>
     private IReadOnlyList<T> PinFirst<T>(IReadOnlyList<T> items, Func<T, string> slug)
-        => string.IsNullOrWhiteSpace(Ilan) ? items : [.. items.OrderBy(x => slug(x) == Ilan ? 0 : 1)];
+        => string.IsNullOrWhiteSpace(Listing) ? items : [.. items.OrderBy(x => slug(x) == Listing ? 0 : 1)];
 
     private static DateTimeOffset? ParseDate(string? s)
         => DateTimeOffset.TryParse(s, System.Globalization.CultureInfo.InvariantCulture,

@@ -11,22 +11,25 @@ namespace RentACar.Application.Fleet;
 
 /// <summary>
 /// PR-14 vitrin kartı — artık SINIF (VehicleGroup) değil İLAN (<see cref="WebIlan"/>) bazlı.
-/// <paramref name="Adet"/>: Σ(VitrinAdet ?? 1) — YALNIZ gösterim, rezervasyon kapasitesi DEĞİL.
-/// <paramref name="GuncellemeUtc"/>: ilanın ya da özelliklerinin en son değiştiği an — sitemap <c>lastmod</c>.
-/// <paramref name="Ozellikler"/> KART çipleridir (başlıkta geçen değerler ayıklanmış); <paramref name="TumOzellikler"/>
+/// <paramref name="VehicleCount"/>: Σ(VitrinAdet ?? 1) — YALNIZ gösterim, rezervasyon kapasitesi DEĞİL.
+/// <paramref name="UpdatedAtUtc"/>: ilanın ya da özelliklerinin en son değiştiği an — sitemap <c>lastmod</c>.
+/// <paramref name="Features"/> KART çipleridir (başlıkta geçen değerler ayıklanmış); <paramref name="AllFeatures"/>
 /// sitede görünür özelliklerin TAMAMI (ayıklanmamış) — sınıflandırma için (ör. yakıt "Hibrit" başlıkta da geçtiği
 /// için çiplerde yoktur ama aracın bir özelliğidir). null → yalnız çipler bilinir.
+/// Domain alanını birebir yansıtan adlar (<c>Baslik</c>, <c>GunlukFiyat</c>, <c>KdvDahil</c>, <c>AylikToplam</c>)
+/// Türkçe kalır; görünüm modeli adları İngilizce.
 /// </summary>
 public sealed record FleetShowcaseCard(
-    Guid IlanId, string Slug, string Baslik, string? YilAralik, Guid? CoverPhotoId,
-    decimal GunlukFiyat, bool KdvDahil, int Adet,
-    IReadOnlyList<OzellikGoster> Ozellikler, DateTimeOffset? GuncellemeUtc = null,
-    IReadOnlyList<OzellikGoster>? TumOzellikler = null,
+    Guid ListingId, string Slug, string Baslik, string? YearRange, Guid? CoverPhotoId,
+    decimal GunlukFiyat, bool KdvDahil, int VehicleCount,
+    IReadOnlyList<FeatureItem> Features, DateTimeOffset? UpdatedAtUtc = null,
+    IReadOnlyList<FeatureItem>? AllFeatures = null,
     /// <summary>İlanın 30 günlük toplamı (<c>WebIlan.AylikToplam</c>); girilmemişse null — site aylık fiyat UYDURMAZ.</summary>
     decimal? AylikToplam = null);
 
-/// <summary>Sitede gösterilen teknik özellik (yalnız <c>Gorunur</c> olanlar taşınır).</summary>
-public sealed record OzellikGoster(string Etiket, string Deger);
+/// <summary>Sitede gösterilen teknik özellik (yalnız <c>Gorunur</c> olanlar taşınır). <c>Etiket</c>/<c>Deger</c>
+/// <c>WebIlanOzellik</c> kolonlarını birebir yansıtır.</summary>
+public sealed record FeatureItem(string Etiket, string Deger);
 
 /// <summary>
 /// PR-14: müsaitlik+fiyat arama sonucu (public). Fiyat İLANDAN gelir — <c>RentalQuoteEngine</c>
@@ -35,40 +38,40 @@ public sealed record OzellikGoster(string Etiket, string Deger);
 /// tolerans mantığı yeniden YAZILMAZ, ERP ile aynı gün tanımı korunur.
 /// </summary>
 public sealed record PublicAvailabilityResult(
-    Guid IlanId, string Slug, string Baslik, string? YilAralik, Guid? CoverPhotoId,
-    int Gun, decimal GunlukFiyat, decimal Toplam, bool KdvDahil,
+    Guid ListingId, string Slug, string Baslik, string? YearRange, Guid? CoverPhotoId,
+    int Days, decimal GunlukFiyat, decimal Total, bool KdvDahil,
     /// <summary>Bu tarih aralığında MÜSAİT adet (Σ VitrinAdet ?? 1) — biri kirada ise düşer.</summary>
-    int Adet,
-    IReadOnlyList<OzellikGoster> Ozellikler,
+    int VehicleCount,
+    IReadOnlyList<FeatureItem> Features,
     /// <summary>Görünür özelliklerin TAMAMI (kart çipleri başlıkta geçen değeri atar; sitenin vites/yakıt/koltuk
-    /// süzgeci tam listeye bakar). <see cref="FleetShowcaseCard.TumOzellikler"/> ile aynı kural.</summary>
-    IReadOnlyList<OzellikGoster>? TumOzellikler = null);
+    /// süzgeci tam listeye bakar). <see cref="FleetShowcaseCard.AllFeatures"/> ile aynı kural.</summary>
+    IReadOnlyList<FeatureItem>? AllFeatures = null);
 
 public sealed record FleetShowcaseDetail(
-    Guid IlanId, string Slug, string Baslik, string? YilAralik,
+    Guid ListingId, string Slug, string Baslik, string? YearRange,
     decimal GunlukFiyat, decimal? HaftalikToplam, decimal? AylikToplam, bool KdvDahil,
-    int Adet, IReadOnlyList<Guid> PhotoIds, IReadOnlyList<OzellikGoster> Ozellikler);
+    int VehicleCount, IReadOnlyList<Guid> PhotoIds, IReadOnlyList<FeatureItem> Features);
 
 /// <summary>
-/// Halka açık sitede gösterilen firma bilgisi. PR-16: <see cref="MobilTel"/> + <see cref="WhatsApp"/>
+/// Halka açık sitede gösterilen firma bilgisi. PR-16: <see cref="MobilePhone"/> + <see cref="WhatsApp"/>
 /// eklendi — iletişim sayfası ve WhatsApp CTA'sı için (Türkiye'de en çok kullanılan temas kanalı).
 /// Bu alanların hepsi zaten fatura/sözleşme başlığında müşteriye görünüyor, yeni PII yüzeyi YOK.
 /// </summary>
-public sealed record FleetBranding(string? Marka, string? Adres, string? Tel, string? Email,
-    string? MobilTel = null, string? WhatsApp = null,
+public sealed record FleetBranding(string? BrandName, string? Address, string? Phone, string? Email,
+    string? MobilePhone = null, string? WhatsApp = null,
     /// <summary>Site vurgu rengi (<c>TenantSettings.SiteVurguRengi</c>, "#rrggbb") — null = sitenin varsayılanı.</summary>
-    string? VurguRengi = null,
+    string? AccentColor = null,
     /// <summary>Logo sürümü: logo YOKSA null. Varsa görsel adresine sorgu olarak eklenir (<c>/marka/logo?v=…</c>)
     /// ki logo değişince tarayıcı önbelleği kendiliğinden tazelensin.</summary>
-    string? LogoSurum = null,
+    string? LogoVersion = null,
     /// <summary>Site teması anahtarı (<c>TenantSettings.SiteTemasi</c>, ham DB değeri) — site kendi kaydıyla
     /// çözer; bilinmeyen/boş → varsayılan tema. Ham değer HİÇBİR yere basılmaz.</summary>
-    string? Tema = null,
+    string? Theme = null,
     /// <summary>Site palet seti anahtarı (<c>TenantSettings.SitePaleti</c>, ham DB değeri) — site temanın kendi
     /// setleri arasında arar; bulunamazsa/boşsa temanın varsayılan seti. Ham değer HİÇBİR yere basılmaz.</summary>
-    string? Paleti = null,
+    string? Palette = null,
     /// <summary>"Kiralamadan önce" bilgileri (V0; <c>TenantSettings.Site*</c>). Repo daima doldurur; alanları boş olabilir.</summary>
-    SiteFacts? Bilgi = null);
+    SiteFacts? Facts = null);
 
 /// <summary>
 /// Firmanın sitede gösterilen beyanları (V0): depozito, km, yaş/ehliyet, sigorta, iptal, Google puanı, kuruluş yılı.
@@ -85,7 +88,7 @@ public sealed record SiteFacts(
     int? KurulusYili = null);
 
 /// <summary>Halka açık sitede basılan firma logosu (PNG baytları + önbellek sürümü).</summary>
-public sealed record PublicLogo(byte[] Bytes, string Surum);
+public sealed record PublicLogo(byte[] Bytes, string Version);
 
 /// <summary>
 /// Public-site filo vitrini. Yetki gerektirmez — guard-free okuma servisleri üstünden salt-okur
@@ -147,8 +150,8 @@ public sealed class FleetShowcaseService(
         return [.. result.OrderBy(y => y.Detay.Ilan.Sira).ThenBy(y => y.Detay.Ilan.Baslik, StringComparer.Ordinal)];
     }
 
-    private static IReadOnlyList<OzellikGoster> Visible(WebIlanDetay d)
-        => [.. d.Ozellikler.Where(o => o.Gorunur).OrderBy(o => o.Sira).Select(o => new OzellikGoster(o.Etiket, o.Deger))];
+    private static IReadOnlyList<FeatureItem> Visible(WebIlanDetay d)
+        => [.. d.Ozellikler.Where(o => o.Gorunur).OrderBy(o => o.Sira).Select(o => new FeatureItem(o.Etiket, o.Deger))];
 
     /// <summary>
     /// KART çipleri: görünür özelliklerden, değeri BAŞLIKTA zaten geçenler atılır.
@@ -164,7 +167,7 @@ public sealed class FleetShowcaseService(
     /// geçiyorsa atılır, ama "2023"/"BEYAZ"/"510 litre" kalır. Alt-dize kullansaydık kısa bir değer
     /// ("an" gibi) alakasız bir başlık kelimesinin içinde bulunup sessizce düşerdi.</para>
     /// </summary>
-    private static IReadOnlyList<OzellikGoster> CardChips(WebIlanDetay d, string title)
+    private static IReadOnlyList<FeatureItem> CardChips(WebIlanDetay d, string title)
     {
         var leadingWords = TurkishText.Normalize(title)
             .Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)

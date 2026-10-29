@@ -78,7 +78,7 @@ public sealed class VitrinIlanTests(PostgresFixture fx)
             var card = Assert.Single(await svc.ListShowcaseGroupsAsync());
             Assert.Equal("Fiat Egea Manuel Dizel", card.Baslik);
             Assert.Equal(slug, card.Slug);
-            Assert.Equal(3, card.Adet);
+            Assert.Equal(3, card.VehicleCount);
             Assert.Equal(1500m, card.GunlukFiyat);
             Assert.NotNull(card.CoverPhotoId);
         }
@@ -150,7 +150,7 @@ public sealed class VitrinIlanTests(PostgresFixture fx)
         }
 
         var svc = Showcase(host, t, out var scope); using (scope)
-            Assert.Equal(1, Assert.Single(await svc.ListShowcaseGroupsAsync()).Adet);
+            Assert.Equal(1, Assert.Single(await svc.ListShowcaseGroupsAsync()).VehicleCount);
     }
 
     /// <summary>
@@ -170,8 +170,8 @@ public sealed class VitrinIlanTests(PostgresFixture fx)
         {
             var detail = await svc.GetListingDetailAsync(slug);
             Assert.NotNull(detail);
-            Assert.Contains(detail!.Ozellikler, o => o.Etiket == "Marka");
-            Assert.DoesNotContain(detail.Ozellikler, o => o.Etiket == "Gizli"); // personel kapatmıştı
+            Assert.Contains(detail!.Features, o => o.Etiket == "Marka");
+            Assert.DoesNotContain(detail.Features, o => o.Etiket == "Gizli"); // personel kapatmıştı
         }
     }
 
@@ -206,13 +206,13 @@ public sealed class VitrinIlanTests(PostgresFixture fx)
         {
             var card = Assert.Single(await svc.ListShowcaseGroupsAsync());
             Assert.Equal("Fiat Egea Manuel Dizel", card.Baslik);
-            var chips = card.Ozellikler.Select(o => o.Deger).ToList();
+            var chips = card.Features.Select(o => o.Deger).ToList();
             Assert.Equal(["BEYAZ", "510 litre"], chips);
 
             // Detay TAM listeyi gösterir — ayıklama yalnız karta özel.
             var detail = await svc.GetListingDetailAsync(slug);
-            Assert.Equal(4, detail!.Ozellikler.Count);
-            Assert.Contains(detail.Ozellikler, o => o.Deger == "Fiat");
+            Assert.Equal(4, detail!.Features.Count);
+            Assert.Contains(detail.Features, o => o.Deger == "Fiat");
         }
     }
 
@@ -238,7 +238,7 @@ public sealed class VitrinIlanTests(PostgresFixture fx)
         {
             var start = DateTimeOffset.UtcNow.AddDays(30);
             var result = Assert.Single(await svc.SearchAvailabilityAsync(start, start.AddDays(3), null));
-            Assert.Equal(["BEYAZ"], result.Ozellikler.Select(o => o.Deger));
+            Assert.Equal(["BEYAZ"], result.Features.Select(o => o.Deger));
         }
     }
 
@@ -316,9 +316,9 @@ public sealed class VitrinIlanTests(PostgresFixture fx)
 
             // ELLE ORACLE: alanlar TOPLAM'dır (RateMatrix.GunHaftalik gibi GÜNLÜK ücret DEĞİL) —
             // karıştırılsaydı fiyat ~7 kat yanlış çıkardı.
-            Assert.Equal(day, r.Gun);
+            Assert.Equal(day, r.Days);
             Assert.Equal(expectedDaily, r.GunlukFiyat);
-            Assert.Equal(Math.Round(expectedDaily * day, 2), r.Toplam);
+            Assert.Equal(Math.Round(expectedDaily * day, 2), r.Total);
         }
     }
 
@@ -364,7 +364,7 @@ public sealed class VitrinIlanTests(PostgresFixture fx)
         {
             var start = DateTimeOffset.UtcNow.AddDays(1);
             var r = Assert.Single(await svc.SearchAvailabilityAsync(start, start.AddDays(3), null));
-            Assert.Equal(3, r.Adet);
+            Assert.Equal(3, r.VehicleCount);
         }
     }
 

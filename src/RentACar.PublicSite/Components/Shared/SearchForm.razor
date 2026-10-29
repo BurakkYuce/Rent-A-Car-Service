@@ -1,0 +1,88 @@
+@* PR-19 — müsaitlik arama formu. TEK KAYNAK: ana sayfa (Hero), `/musaitlik` ve ilan detayı bunu
+   kullanır. İkinci bir kopya yazmak, alan adlarının (`bas`/`bit`/`sube`) ve doğrulama
+   kurallarının zamanla ayrışmasına yol açardı.
+
+   GET + querystring: JS YOK, sonuç adresi paylaşılabilir ve geri tuşuna dost.
+
+   TARİH ZORUNLU DEĞİL: boş bırakılırsa `/musaitlik` tüm filoyu listeler; tarih girilirse gerçek
+   müsaitliğe ve dönem toplamına daralır ("önce aracı göreyim" diyen ziyaretçi çıkmaza girmesin).
+   `min` bugünün (İstanbul) tarihi: geçmiş bir tarihe rezervasyon zaten alınmıyor, tarayıcı daha
+   gönderimde uyarır. JS'siz de çalışır; eski tarayıcı `min`'i yok sayarsa sunucu yine karar verir.
+
+   V0: alanlar DOLU açılır (boş "gg.aa.yyyy" yarım görünüyordu): alış yarın (İstanbul günü), iade +3 gün,
+   saatler 10:00. Ziyaretçi alanları silip yine tarihsiz gezebilir. Saat alanları `basSaat`/`bitSaat`
+   EKTİR — `bas`/`bit` adları değişmedi; saatsiz eski bağlantılar eski davranışı korur (bkz. Availability).
+   Izgara iki sütunlu (`.arama-tarihler`): satırlar "Alış tarihi | saati" ve "İade tarihi | saati".
+   Form alan adları (bas, bit, basSaat, bitSaat, sube, ilan) URL sözleşmesidir — Türkçe kalır. *@
+<form method="get" action="@Action" class="arama @(Inline ? "arama-satir" : null)" role="search" aria-label="@AriaLabel">
+    <div class="arama-tarihler">
+        <label class="alan">Alış tarihi<input name="bas" type="date" value="@_dates.Start" min="@Today" /></label>
+        <label class="alan">Alış saati<input name="basSaat" type="time" value="@_startTime" /></label>
+        <label class="alan">İade tarihi<input name="bit" type="date" value="@_dates.End" min="@Today" /></label>
+        <label class="alan">İade saati<input name="bitSaat" type="time" value="@_endTime" /></label>
+    </div>
+    @if (Branches.Count > 1)
+    {
+        @* Tek şubeli firmada seçim kutusu gürültü: hiç basılmaz. *@
+        <label class="alan">Şube
+            <select name="sube">
+                <option value="">Tüm şubeler</option>
+                @foreach (var s in Branches)
+                {
+                    <option value="@s" selected="@(s == Branch)">@s</option>
+                }
+            </select>
+        </label>
+    }
+    else if (ShowSingleBranch && Branches.Count == 1)
+    {
+        @* Tek şubede seçim kutusu yok; tema isterse teslim noktası METİN olarak yazılır (ShowSingleBranch). *@
+        <p class="arama-sube">Teslim: <strong>@Branches[0]</strong></p>
+    }
+    @if (!string.IsNullOrWhiteSpace(Listing))
+    {
+        @* İlan detayından gelindiyse sonuçta o ilan öne alınır (bkz. Availability.razor). *@
+        <input type="hidden" name="ilan" value="@Listing" />
+    }
+    <button type="submit" class="btn btn-brand">@(ButtonText ?? "Müsait araçları göster")</button>
+</form>
+
+@code {
+    /// <summary>Formun gönderileceği adres. Boş = bulunulan sayfa (`/musaitlik` kendi içinde).</summary>
+    [Parameter] public string? Action { get; set; }
+
+    /// <summary>Alış / iade günü ("yyyy-MM-dd"; URL'de <c>bas</c>/<c>bit</c>).</summary>
+    [Parameter] public string? Start { get; set; }
+    [Parameter] public string? End { get; set; }
+    /// <summary>Alış/iade saati ("HH:mm"; URL'de <c>basSaat</c>/<c>bitSaat</c>); biçimsiz ya da boşsa
+    /// <see cref="SiteDate.DefaultTime"/>.</summary>
+    [Parameter] public string? StartTime { get; set; }
+    [Parameter] public string? EndTime { get; set; }
+    /// <summary>Seçili şube (URL'de <c>sube</c>).</summary>
+    [Parameter] public string? Branch { get; set; }
+    /// <summary>Öne alınacak ilanın slug'ı (ilan detayından gelen arama; URL'de <c>ilan</c>).</summary>
+    [Parameter] public string? Listing { get; set; }
+
+    /// <summary>Şube listesi; tek şube (ya da hiç) varsa seçim kutusu basılmaz.</summary>
+    [Parameter] public IReadOnlyList<string> Branches { get; set; } = [];
+
+    [Parameter] public string? ButtonText { get; set; }
+    /// <summary>true: geniş ekranda tek satır (sonuç sayfasının üstü). false: dikey (hero, panel).</summary>
+    [Parameter] public bool Inline { get; set; }
+    [Parameter] public string AriaLabel { get; set; } = "Müsait araç ara";
+    /// <summary>true: tek şubeli firmada şube adı "Teslim: …" satırı olarak basılır (varsayılan kapalı).</summary>
+    [Parameter] public bool ShowSingleBranch { get; set; }
+
+    private static string Today => SiteDate.TodayIso;
+
+    private (string Start, string End) _dates;
+    private string _startTime = SiteDate.DefaultTime, _endTime = SiteDate.DefaultTime;
+
+    protected override void OnParametersSet()
+    {
+        _dates = SiteDate.FormDates(Start, End, DateTimeOffset.UtcNow);
+        // Biçimsiz saat basılmaz (tarayıcı geçersiz değeri boş gösterirdi): varsayılana düşer.
+        _startTime = SiteDate.ParseTime(StartTime) is null ? SiteDate.DefaultTime : StartTime!;
+        _endTime = SiteDate.ParseTime(EndTime) is null ? SiteDate.DefaultTime : EndTime!;
+    }
+}
