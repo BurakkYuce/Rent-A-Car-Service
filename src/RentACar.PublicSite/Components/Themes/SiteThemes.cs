@@ -2,9 +2,6 @@ using RentACar.Application.TenantSettings;
 using RentACar.PublicSite.Components.Themes.Anahtar;
 using RentACar.PublicSite.Components.Themes.Kiyas;
 using RentACar.PublicSite.Components.Themes.Paket;
-using RentACar.PublicSite.Components.Themes.Pazar;
-using RentACar.PublicSite.Components.Themes.Rota;
-using RentACar.PublicSite.Components.Themes.Vitrin;
 
 namespace RentACar.PublicSite.Components.Themes;
 
@@ -23,7 +20,7 @@ public sealed record ThemeFont(string Family, string Weight, string File, string
 /// <param name="Key">Kalıcı anahtar (<see cref="SiteThemeKeys"/>).</param>
 /// <param name="Ad">ERP'de ve önizlemede görünen ad.</param>
 /// <param name="Aciklama">Bir cümlelik açıklama (ERP radyo kartı).</param>
-/// <param name="CssPath">wwwroot'a göre tema css'i, ör. "css/tema-pazar.css".</param>
+/// <param name="CssPath">wwwroot'a göre tema css'i, ör. "css/tema-anahtar.css".</param>
 /// <param name="FontPreloads">Önyüklenecek yazı tipi dosyaları (<see cref="Fonts"/>'taki File değerlerinden).</param>
 /// <param name="Hero">Hero slotu bileşeni.</param>
 /// <param name="Card">İlan kartı slotu bileşeni.</param>
@@ -59,88 +56,8 @@ public static class SiteThemes
         "U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304,U+0308,U+0329,U+1D00-1DBF,"
         + "U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF";
 
-    /// <summary>Pazar: Onest (gövde, değişken ağırlık 400–700, tek dosya) + Bricolage Grotesque başlık/fiyat (800,
-    /// dar genişlik wdth 75, optik boyut 36 — fonttools instancer ile tek statik örnek; ayrı aile adıyla, tarayıcının
-    /// font-stretch eşlemesine güvenilmez). Figtree aday olarak elendi: ₺ (U+20BA) glifi yok, gövdedeki fiyatlar
-    /// yedek yazı tipine düşerdi. Lisanslar OFL-Onest.txt, OFL-BricolageGrotesque.txt (ayrılmış ad yok).
-    /// Dört dosya ~72 KB; hepsi önyüklenir: ilk ekranda gövde Türkçe metni ve etiketteki ₺ iki alt kümeyi de ister.</summary>
-    private static readonly IReadOnlyList<ThemeFont> PazarFonts =
-    [
-        new("Onest", "400 700", "fonts/onest-latin-ext.woff2", LatinExt),
-        new("Onest", "400 700", "fonts/onest-latin.woff2", Latin),
-        new("Bricolage Grotesque Condensed", "800", "fonts/bricolage-condensed-800-latin-ext.woff2", LatinExt),
-        new("Bricolage Grotesque Condensed", "800", "fonts/bricolage-condensed-800-latin.woff2", Latin),
-    ];
-
-    /// <summary>Pazar (anahtar <c>pazar</c>, eski <c>tarife</c>'nin yerine): yerel, samimi, bütçe kiralaması. Firma
-    /// rengi düz bloklar, kalın çerçeveli kartlar, asılı fiyat etiketleri; telefon ve WhatsApp öne çıkar.</summary>
-    public static readonly SiteTheme Pazar = new(SiteThemeKeys.Pazar, "Pazar",
-        "Kalın başlıklar, asılı fiyat etiketleri ve öne çıkan telefon ile WhatsApp; yerel firma ve bütçe kiralaması için.",
-        "css/tema-pazar.css",
-        [.. PazarFonts.Select(f => f.File)],
-        typeof(PazarHero), typeof(PazarCard), typeof(PazarHeader), typeof(PazarFooter),
-        typeof(PazarHome), typeof(PazarFleet), typeof(PazarDetailHero))
-    {
-        Fonts = PazarFonts,
-        Palettes = PazarPalettes.All,
-    };
-
-    /// <summary>Archivo — gövde 400/600 normal genişlik, başlık/fiyat 700 Expanded (wdth 125). Google Fonts'un
-    /// değişken dosyası (alt küme başına ~88 KB) fonttools instancer ile statik örneklere indirildi: altı dosya
-    /// toplam ~81 KB. Expanded ayrı aile adıyla: tarayıcının font-stretch eşlemesine güvenilmez.</summary>
-    private static readonly IReadOnlyList<ThemeFont> ArchivoFonts =
-    [
-        new("Archivo", "400", "fonts/archivo-400-latin-ext.woff2", LatinExt),
-        new("Archivo", "400", "fonts/archivo-400-latin.woff2", Latin),
-        new("Archivo", "600", "fonts/archivo-600-latin-ext.woff2", LatinExt),
-        new("Archivo", "600", "fonts/archivo-600-latin.woff2", Latin),
-        new("Archivo Expanded", "700", "fonts/archivo-expanded-700-latin-ext.woff2", LatinExt),
-        new("Archivo Expanded", "700", "fonts/archivo-expanded-700-latin.woff2", Latin),
-    ];
-
-    /// <summary>Önyükleme: ilk ekranda görünen gövde (400) ve başlık (700 Expanded) dosyaları — Türkçe metin iki
-    /// alt kümeyi de indirtir. 600 (etiket, strong) önyüklenmez: ilk ekranda yalnız form etiketlerinde.</summary>
-    public static readonly SiteTheme Vitrin = new(SiteThemeKeys.Vitrin, "Vitrin",
-        "Koyu, sinematik showroom: tam genişlik fotoğraf ve yana akan filo şeridi. Özenli fotoğraflı, üst segment filo için.",
-        "css/tema-vitrin.css",
-        [.. ArchivoFonts.Where(f => f.Weight != "600").Select(f => f.File)],
-        typeof(VitrinHero), typeof(VitrinCard), typeof(VitrinHeader), typeof(VitrinFooter),
-        typeof(VitrinHome), typeof(VitrinFleet), typeof(VitrinDetailHero))
-    {
-        Fonts = ArchivoFonts,
-        Palettes = VitrinPalettes.All,
-    };
-
-    /// <summary>Literata (başlık, fiyat: ağırlık 500'de sabit, optik boyut ekseni 12–72 korunur — büyük başlıkta
-    /// ince, liste satırında sağlam çizer) + Public Sans (gövde, değişken ağırlık 400–600). Google Fonts'un değişken
-    /// dosyalarından fonttools instancer + alt küme: dört dosya toplam ~103 KB. Literata'nın @font-face ağırlığı
-    /// "400 700" bildirilir: dosya tek ağırlık olduğu halde 600 isteyen ortak kurallarda (base.css) tarayıcı
-    /// sahte kalın ÜRETMEZ, aynı dosyayı kullanır. ₺ (U+20BA) iki ailede de var (latin-ext). OFL-Literata.txt,
-    /// OFL-PublicSans.txt.</summary>
-    private static readonly IReadOnlyList<ThemeFont> RotaFonts =
-    [
-        new("Literata", "400 700", "fonts/literata-latin-ext.woff2", LatinExt),
-        new("Literata", "400 700", "fonts/literata-latin.woff2", Latin),
-        new("Public Sans", "400 600", "fonts/public-sans-latin-ext.woff2", LatinExt),
-        new("Public Sans", "400 600", "fonts/public-sans-latin.woff2", Latin),
-    ];
-
-    /// <summary>Rota (eski <c>kontuar</c>'ın yerine; anahtar <c>rota</c>): tatil bölgesi, havalimanı/otel teslimi,
-    /// turist ve aylık kiralayan. Editoryal ızgara, dikey fotoğraf, numaralı fiyat listesi. Önyükleme: dört dosya da
-    /// ilk ekranda (Türkçe metin iki alt kümeyi de indirtir; başlık ve gövde birlikte görünür).</summary>
-    public static readonly SiteTheme Rota = new(SiteThemeKeys.Rota, "Rota",
-        "Editoryal ve ferah: büyük başlık, dikey fotoğraf ve numaralı fiyat listesi. Tatil bölgesinde, havalimanı ve otel teslimi yapan firmalar için.",
-        "css/tema-rota.css",
-        [.. RotaFonts.Select(f => f.File)],
-        typeof(RotaHero), typeof(RotaCard), typeof(RotaHeader), typeof(RotaFooter),
-        typeof(RotaHome), typeof(RotaFleet), typeof(RotaDetailHero))
-    {
-        Fonts = RotaFonts,
-        Palettes = RotaPalettes.All,
-    };
-
     /// <summary>Plus Jakarta Sans (başlık, fiyat, düğme: Google Fonts'un 700–800 aralığına kısılmış değişken dosyası)
-    /// + Public Sans (gövde 400–600; Rota ile aynı dosyalar). İkisinde de ₺ (U+20BA) latin-ext'te. Dört dosya ~84 KB;
+    /// + Public Sans (gövde 400–600). İkisinde de ₺ (U+20BA) latin-ext'te. Dört dosya ~84 KB;
     /// hepsi önyüklenir: ilk ekranda firma adı (başlık) ve Türkçe gövde metni iki alt kümeyi de ister.
     /// OFL-PlusJakartaSans.txt, OFL-PublicSans.txt.</summary>
     private static readonly IReadOnlyList<ThemeFont> AnahtarFonts =
@@ -215,7 +132,7 @@ public static class SiteThemes
         Palettes = PaketPalettes.All,
     };
 
-    public static readonly IReadOnlyList<SiteTheme> All = [Anahtar, Kiyas, Paket, Pazar, Vitrin, Rota];
+    public static readonly IReadOnlyList<SiteTheme> All = [Anahtar, Kiyas, Paket];
 
     /// <summary>Anahtardan tema; eski anahtar yeni karşılığına (<see cref="SiteThemeKeys.LegacyAliases"/>),
     /// boş/bilinmeyen → varsayılan (<see cref="SiteThemeKeys.Default"/>).</summary>
