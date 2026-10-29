@@ -202,7 +202,7 @@ public static class UiApiExtensions
             .AddEndpointFilter(ErrorFilter)        // en dış: aşağıdakilerin de istisnası ProblemDetails olur
             .AddEndpointFilter(XsrfFilter);
         // F13.1b: pilot kapısı (PilotFilter, 403 pilot_degil) kaldırıldı — Blazor söküldü, yeni arayüz herkes için.
-        // TenantSettings.YeniArayuzPilot kolonu kullanılmıyor (backend yalnız eklemeli; ayrı migration'la düşer).
+        // TenantSettings.YeniArayuzPilot kolonu DropYeniArayuzPilot migration'ıyla düştü.
 
         v1.MapSessionApi();
         v1.MapMenuApi();    // F1.6

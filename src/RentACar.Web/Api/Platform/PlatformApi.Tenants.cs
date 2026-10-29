@@ -117,7 +117,7 @@ public static partial class PlatformApi
             d.UpdatedAtUtc, PlatformAdminService.TenantVersion(d.CreatedAtUtc, d.UpdatedAtUtc),
             d.YetkiliAd, d.Eposta, d.Telefon, d.Notlar, d.Plan,
             d.UserCount, d.AracSayisi, d.AktifKira, d.ToplamKira, d.SonGiris, d.Gelir30Gun,
-            d.WebSitesiModulu, d.YeniArayuzPilot, d.PublicSiteEnabled,
+            d.WebSitesiModulu, d.PublicSiteEnabled,
             d.Domainler.Select(x => new PlatformDomainDto(x.Host, x.Tur, x.Durum)).ToList(),
             logo);
     }

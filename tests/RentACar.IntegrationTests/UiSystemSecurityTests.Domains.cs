@@ -52,7 +52,7 @@ public sealed partial class UiSystemSecurityTests
         FakeDnsTxtResolver.Instance.Publish("_racar-verify." + host, token);
 
         // Başka bir kiracının aynı host için Active satırı (arada doğrulanmış gibi).
-        var other = await _kit.SetupAsync(pilot: false);
+        var other = await _kit.SetupAsync();
         await using (var owner = OwnerDb())
         {
             owner.TenantDomains.Add(new TenantDomain

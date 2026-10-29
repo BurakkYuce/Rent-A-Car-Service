@@ -4,6 +4,7 @@ using System.Text.Json;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using RentACar.Application.TenantSettings;
 using RentACar.Domain.Entities;
 using RentACar.Domain.Enums;
 using RentACar.Infrastructure.Persistence;
@@ -37,7 +38,7 @@ public sealed class SystemApiTestKit(WebFixture fx)
 
     public static string Random(string prefix) => prefix + Guid.NewGuid().ToString("N")[..10];
 
-    public async Task<Env> SetupAsync(bool pilot = true)
+    public async Task<Env> SetupAsync()
     {
         var e = new Env
         {
@@ -66,7 +67,10 @@ public sealed class SystemApiTestKit(WebFixture fx)
             }
             await db.SaveChangesAsync();
         }
-        if (pilot) await fx.MakePilotAsync(e.TenantId, true);
+        // Ayar satırı olan firma: sürüm (surum) ve domain testleri satırı varsayar. Gerçek repository'den (racar_app).
+        using (var host = new TestHost(fx.Pg.AppConnectionString))
+        using (var scope = host.ScopeFor(e.TenantId, role: UserRole.Admin))
+            await scope.ServiceProvider.GetRequiredService<ITenantSettingsRepository>().UpsertAsync(_ => { });
         return e;
     }
 

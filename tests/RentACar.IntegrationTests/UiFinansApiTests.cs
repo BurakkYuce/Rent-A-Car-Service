@@ -86,7 +86,6 @@ public sealed class UiFinansApiTests(WebFixture fx)
             }
             await db.SaveChangesAsync();
         }
-        await fx.MakePilotAsync(tenantId, true);
 
         using var host = new TestHost(fx.Pg.AppConnectionString);
         using var s = host.ScopeFor(tenantId, role: UserRole.Admin);

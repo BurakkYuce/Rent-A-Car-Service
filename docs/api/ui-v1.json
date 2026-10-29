@@ -58983,7 +58983,6 @@
           "sonGiris",
           "gelir30Gun",
           "webSitesiModulu",
-          "yeniArayuzPilot",
           "halkaAcikSite",
           "domainler",
           "logo"
@@ -59102,9 +59101,6 @@
             "format": "double"
           },
           "webSitesiModulu": {
-            "type": "boolean"
-          },
-          "yeniArayuzPilot": {
             "type": "boolean"
           },
           "halkaAcikSite": {
@@ -71775,9 +71771,6 @@
             "items": {
               "$ref": "#/components/schemas/DomainDto"
             }
-          },
-          "yeniArayuzPilot": {
-            "type": "boolean"
           },
           "twilioTanimli": {
             "type": "boolean"
