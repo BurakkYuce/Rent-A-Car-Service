@@ -81,6 +81,14 @@
           <rc-ikon ad="check" [boyut]="14" />
           {{ 'finansBelge.hgs.yansit' | transloco: { adet: selection().length } }}
         </button>
+        <button
+          type="button"
+          class="rc-dugme"
+          [disabled]="busy() || selection().length === 0"
+          (click)="confirmSeparate()"
+        >
+          {{ 'finansBelge.hgs.ayriOnayla' | transloco: { adet: selection().length } }}
+        </button>
       </form>
       @if (lastResult(); as r) {
         <p class="not" role="status">

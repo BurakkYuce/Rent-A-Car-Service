@@ -55,6 +55,10 @@ public class HgsCrossing : ITenantOwned, IAuditable
     /// </summary>
     public string? EslesmeNotu { get; set; }
 
+    /// <summary>Olası mükerrer satır FinanceWrite'lı kullanıcı tarafından "ayrı geçiş" onaylandıysa onay anı (UTC):
+    /// satır iki mükerrer kuralından kalıcı olarak muaftır. Kim onayladı: denetim kaydı.</summary>
+    public DateTimeOffset? OnayZamani { get; set; }
+
     // ---- yansıtma (yalnız Durum = Yansitildi iken dolu) ----
     public decimal? HizmetOrani { get; set; }
     public decimal? YansitilanTutar { get; set; }

@@ -215,4 +215,39 @@ public sealed class UiHgsTests(WebFixture fx)
         // Yeniden eşleştir: değişiklik yok.
         Assert.Equal(0, (await Ok(await PostAsync(admin, "/hgs/gecisler/yeniden-eslestir", new { }))).GetProperty("degisen").GetInt32());
     }
+
+    /// <summary>
+    /// #407 M1-d: olası mükerrer satırı "ayrı geçiş olarak onayla" HTTP üzerinden. İki ayrı dökümde aynı tünelden 3 saat
+    /// arayla geçiş (R2, SubeA) → ikincisi Belirsiz. Başka şube 403, başka kiracı 404, boş istek errors[ids]; onay
+    /// Eslesti + onayZamani, para yazmaz; ikisi birden yansıtılınca 2 × 12,40 = 24,80.
+    /// </summary>
+    [Fact]
+    public async Task Confirm_near_duplicate_over_http()
+    {
+        var e = await SetupAsync();
+        var admin = await LoginAsync(e, Who.Admin);
+        const string header = "Plaka;Çıkış İstasyonu;Çıkış Zamanı;Tutar";
+        string Day3(int h) => HgsImportTests.At(3, h).ToOffset(TimeSpan.FromHours(3)).ToString("dd.MM.yyyy HH:mm:ss", System.Globalization.CultureInfo.InvariantCulture);
+        await Ok(await UploadAsync(admin, "/hgs/ice-aktar", $"{header}\n34 HGS 01;Avrasya Tüneli;{Day3(9)};12,40"));
+        var second = await Ok(await UploadAsync(admin, "/hgs/ice-aktar", $"{header}\n34 HGS 01;Avrasya Tüneli;{Day3(12)};12,40"));
+        Assert.Equal(1, second.GetProperty("olasiMukerrer").GetInt32());
+        var pending = (await ListAsync(admin, "&durum=Belirsiz")).Single().GetProperty("id").GetGuid();
+
+        await Problem(await PostAsync(await LoginAsync(e, Who.OperatorB), "/hgs/gecisler/onayla", new { ids = new[] { pending } }),
+            HttpStatusCode.Forbidden, "yetki_yok");
+        var other = await SetupAsync();
+        await Problem(await PostAsync(await LoginAsync(other, Who.Admin), "/hgs/gecisler/onayla", new { ids = new[] { pending } }),
+            HttpStatusCode.NotFound, null);
+        await Problem(await PostAsync(admin, "/hgs/gecisler/onayla", new { ids = Array.Empty<Guid>() }), HttpStatusCode.BadRequest, null, "ids");
+
+        var confirmed = await Ok(await PostAsync(admin, "/hgs/gecisler/onayla", new { ids = new[] { pending } }));
+        Assert.Equal(1, confirmed.GetProperty("onaylanan").GetInt32());
+        var rows = await ListAsync(admin);
+        Assert.All(rows, r => Assert.Equal("Eslesti", r.GetProperty("durum").GetString()));
+        Assert.Equal(JsonValueKind.String, rows.Single(r => r.GetProperty("id").GetGuid() == pending).GetProperty("onayZamani").ValueKind);
+
+        var reflected = await Ok(await PostAsync(admin, "/hgs/gecisler/yansit",
+            new { ids = rows.Select(r => r.GetProperty("id").GetGuid()).ToArray(), hizmetOrani = 1.00m }));
+        Assert.Equal(24.80m, reflected.GetProperty("yansitilanTutar").GetDecimal());
+    }
 }

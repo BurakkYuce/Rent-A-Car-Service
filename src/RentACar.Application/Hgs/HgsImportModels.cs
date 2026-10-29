@@ -54,16 +54,24 @@ public sealed record HgsCrossingFilter
 public sealed record HgsReflectResult(
     int Yansitilan, int ZatenYansitilmis, int Uygunsuz, decimal ToplamGecis, decimal YansitilanTutar);
 
+/// <summary>"Ayrı geçiş olarak onayla" sonucu. <see cref="Uygunsuz"/>: olası mükerrer olmayan / kirası artık uymayan /
+/// bulunamayan.</summary>
+public sealed record HgsConfirmResult(int Onaylanan, int Uygunsuz);
+
 /// <summary>Filodaki araç (eşleştirme için yalnız kimlik + plaka).</summary>
 public sealed record HgsVehicleRef(Guid Id, string Plaka);
 
-/// <summary>Olası mükerrer kararı için geçişin özeti (DB'deki ya da yazılmak üzere olan).</summary>
+/// <summary>Olası mükerrer kararı için geçişin özeti (DB'deki ya da yazılmak üzere olan). <paramref name="Batch"/> =
+/// içe aktarım kimliği; <paramref name="EntryKey"/>/<paramref name="ExitKey"/> = <see cref="HgsValueParser.NearKey"/>;
+/// <paramref name="Approved"/> = olası mükerrer elle "ayrı geçiş" onaylandı (kurallardan muaf).</summary>
 public sealed record HgsCrossingRef(
     Guid Id, string Plate, DateTimeOffset At, decimal Amount, string StationKey, DateTimeOffset CreatedAtUtc,
-    HgsCrossingStatus Status)
+    HgsCrossingStatus Status, Guid Batch, Guid? RentalId, string EntryKey, string ExitKey, bool Approved)
 {
     public static HgsCrossingRef Of(HgsCrossing c)
-        => new(c.Id, c.Plaka, c.GecisZamani, c.Tutar, c.IstasyonAnahtari, c.CreatedAtUtc, c.Durum);
+        => new(c.Id, c.Plaka, c.GecisZamani, c.Tutar, c.IstasyonAnahtari, c.CreatedAtUtc, c.Durum, c.IceAktarimId,
+            c.RentalId, HgsValueParser.NearKey(c.GirisIstasyonu), HgsValueParser.NearKey(c.CikisIstasyonu),
+            c.OnayZamani is not null);
 }
 
 /// <summary>Doğal anahtar + plaka→araç→kira çözümü + olası mükerrer kuralı (içe aktarma, yeniden eşleştirme ve
@@ -74,21 +82,20 @@ public static class HgsResolution
     public static readonly TimeSpan NearDuplicateWindow = TimeSpan.FromSeconds(60);
 
     /// <summary>
-    /// Geniş olası mükerrer penceresi: aynı plaka + aynı tutar + AYNI (boş olmayan) istasyon anahtarı + |Δt| &lt; 6 sa
-    /// (#391 R2 L1). Aynı geçiş iki dökümde farklı ZAMAN anlamıyla gelebilir: biri giriş, diğeri çıkış anı (ya da
-    /// kullanıcının açıkça eşlediği banka işlem anı). Fark en çok bir otoyol yolculuğu kadardır; 6 saat, kapalı sistemde
-    /// en uzun tek yolculuğu (Edirne–Ankara) kapsar. Bu pencere içinde aynı istasyondan aynı tutarla GERÇEK ikinci geçiş
-    /// de Belirsiz kalır — bilinçli: tahminle iki kez borçlandırmak yerine incelemeye düşer.
+    /// Geniş olası mükerrer penceresi (#391 R2 L1, #407 M1): aynı geçiş iki dökümde farklı ZAMAN anlamıyla gelebilir —
+    /// biri giriş, diğeri çıkış anı (ya da kullanıcının açıkça eşlediği banka işlem anı). Fark en çok bir otoyol
+    /// yolculuğu kadardır; 6 saat, kapalı sistemde en uzun tek yolculuğu (Edirne–Ankara) kapsar. Kural yalnız FARKLI
+    /// içe aktarımlar arasında, AYNI kiraya çözülen satırlar için ve bire bir eşleşmeyle uygulanır
+    /// (<see cref="AreWideCandidates"/>, <see cref="HgsNearDuplicateIndex"/>).
     /// </summary>
     public static readonly TimeSpan SameStationWindow = TimeSpan.FromHours(6);
 
-    /// <summary>Komşu arama/sorgu aralığı: iki pencerenin büyüğü.</summary>
-    public static readonly TimeSpan LookAround = SameStationWindow;
-
-    private static readonly string NoStationKey = HgsValueParser.StationKey(null, null);
+    /// <summary>Komşu arama/sorgu aralığı: geniş pencerenin iki katı — bir satırın eşini seçmek, adayların daha önce
+    /// başka bir satırla eşleşip eşleşmediğine (onların ±6 sa komşularına) bakar.</summary>
+    public static readonly TimeSpan LookAround = SameStationWindow * 2;
 
     public const string NearDuplicateNote =
-        "Olası mükerrer: aynı plaka ve tutarla 60 saniye içinde ya da aynı istasyonda 6 saat içinde başka bir geçiş var (farklı biçimli döküm); otomatik yansıtılmaz.";
+        "Olası mükerrer: aynı plaka ve tutarla 60 saniye içinde ya da başka bir dökümde aynı istasyon ve kirayla 6 saat içinde başka bir geçiş var; otomatik yansıtılmaz. Ayrı geçişse 'Ayrı geçiş olarak onayla' ile onaylayın.";
 
     public const string UnknownPlateNote = "Plaka filoda bulunamadı (firma gideri).";
 
@@ -106,17 +113,28 @@ public static class HgsResolution
     /// Olası mükerrer (adversarial #391 M1): aynı fiziksel geçiş iki dökümde FARKLI yazılabilir — biri saniyeli
     /// (xlsx tarih-saat hücresi), diğeri saniyesiz (aynı dökümün "CSV olarak kaydet" çıktısı); biri giriş+çıkış
     /// istasyonlu, diğeri yalnız çıkışlı. Doğal anahtar (saniye + istasyon) bunları ayırır; bu kural yakalar.
-    /// İstasyon anahtarı aynıysa pencere <see cref="SameStationWindow"/>'dur (farklı zaman anlamı, #391 R2 L1).
     /// </summary>
     public static bool AreNearDuplicates(HgsCrossingRef a, HgsCrossingRef b)
-    {
-        if (a.Id == b.Id || !string.Equals(a.Plate, b.Plate, StringComparison.Ordinal)
-            || decimal.Round(a.Amount, 2) != decimal.Round(b.Amount, 2)) return false;
-        var dt = (a.At - b.At).Duration();
-        return dt < NearDuplicateWindow
-               || (dt < SameStationWindow && a.StationKey != NoStationKey
-                   && string.Equals(a.StationKey, b.StationKey, StringComparison.Ordinal));
-    }
+        => a.Id != b.Id
+           && string.Equals(a.Plate, b.Plate, StringComparison.Ordinal)
+           && decimal.Round(a.Amount, 2) == decimal.Round(b.Amount, 2)
+           && (a.At - b.At).Duration() < NearDuplicateWindow;
+
+    /// <summary>
+    /// Geniş kural adayı mı (#407 M1 + L1): ikisi de onaysız; FARKLI içe aktarım (aynı dosyadaki iki satır aynı kaynak
+    /// ve aynı zaman anlamıdır → gerçek iki geçiş); AYNI kira (sonraki müşterinin geçişi önceki müşterinin kopyası
+    /// olamaz); aynı plaka + tutar; |Δt| &lt; 6 sa; çıkış istasyonu dolu ve aynı, giriş istasyonu İKİSİNDE de doluysa
+    /// o da aynı (tek istasyon sütunlu banka dökümü = çıkış/geçiş yeri).
+    /// </summary>
+    public static bool AreWideCandidates(HgsCrossingRef a, HgsCrossingRef b)
+        => a.Id != b.Id && !a.Approved && !b.Approved && a.Batch != b.Batch
+           && a.RentalId is { } rental && rental == b.RentalId
+           && string.Equals(a.Plate, b.Plate, StringComparison.Ordinal)
+           && decimal.Round(a.Amount, 2) == decimal.Round(b.Amount, 2)
+           && (a.At - b.At).Duration() < SameStationWindow
+           && a.ExitKey.Length > 0 && string.Equals(a.ExitKey, b.ExitKey, StringComparison.Ordinal)
+           && (a.EntryKey.Length == 0 || b.EntryKey.Length == 0
+               || string.Equals(a.EntryKey, b.EntryKey, StringComparison.Ordinal));
 
     /// <summary>Kümede "önce gelen" (asıl kabul edilen) satır: önce kaydedilen; aynı anda kaydedilenlerde (aynı dosya)
     /// erken an, sonra istasyon anahtarı, en son kimlik. İçe aktarma ve yeniden eşleştirme AYNI sırayı kullanır.</summary>
@@ -130,13 +148,7 @@ public static class HgsResolution
         return c != 0 ? c : a.Id.CompareTo(b.Id);
     }
 
-    /// <summary>
-    /// <paramref name="c"/> olası mükerrer kümesinin İKİNCİL üyesi mi? Kümede yansıtılmış bir satır ya da sırada
-    /// önce gelen bir satır varsa evet — ikincil satır asla otomatik borçlandırılmaz (kümeden en çok bir geçiş).
-    /// </summary>
-    public static bool IsSecondary(HgsCrossingRef c, IEnumerable<HgsCrossingRef> others)
-        => others.Any(d => AreNearDuplicates(c, d)
-                           && (d.Status == HgsCrossingStatus.Yansitildi || Precedence(d, c) < 0));
+    public static readonly IComparer<HgsCrossingRef> PrecedenceOrder = Comparer<HgsCrossingRef>.Create(Precedence);
 
     /// <summary>Plaka anahtarı → araç (aynı anahtara iki araç düşerse eşleştirme yapılmaz: null).</summary>
     public static Dictionary<string, Guid?> VehicleIndex(IEnumerable<HgsVehicleRef> vehicles)

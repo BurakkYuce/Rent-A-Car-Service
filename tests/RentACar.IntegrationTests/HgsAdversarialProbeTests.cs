@@ -24,7 +24,8 @@ namespace RentACar.IntegrationTests;
 /// binlik gruplama red. L3 (P8): teslim edilmemiş açık kira Belirsiz. P4 (Blazor dönemi duvar saati = UTC kira
 /// anları) bir VERİ sorunudur — <c>fix/blazor-saat-kaymasi</c> PR'ında; HGS canlıda o düzeltme olmadan açılmaz.
 /// Tur 2 L1 (R1/R1b/R1c): aynı geçiş farklı zaman anlamıyla (çıkış ↔ banka işlem anı) → aynı istasyonla 6 sa
-/// içinde olası mükerrer; "İşlem Tarihi" otomatik eşlenmez.</para>
+/// içinde olası mükerrer; "İşlem Tarihi" otomatik eşlenmez. #407 (Q1–Q3, F1–F3, C1, C2, T, P, M1d): geniş kural
+/// yalnız farklı dosyalar + aynı kira + bire bir; çıkış istasyonu ve normalize yakınlık anahtarı; elle onay yolu.</para>
 /// </summary>
 [Collection("postgres")]
 public sealed class HgsAdversarialProbeTests(PostgresFixture fx)
@@ -226,7 +227,7 @@ public sealed class HgsAdversarialProbeTests(PostgresFixture fx)
 
         var xlsx = Xlsx(ws =>
         {
-            ws.Cell(1, 1).Value = "Plaka"; ws.Cell(1, 2).Value = "Tarih"; ws.Cell(1, 3).Value = "Saat"; ws.Cell(1, 4).Value = "Tutar";
+            ws.Cell(1, 1).Value = "Plaka"; ws.Cell(1, 2).Value = "Geçiş Tarihi"; ws.Cell(1, 3).Value = "Saat"; ws.Cell(1, 4).Value = "Tutar";
             ws.Cell(2, 1).Value = "34 HGS 01"; ws.Cell(2, 2).Value = D.ToDateTime(TimeOnly.MinValue);
             ws.Cell(2, 3).Value = new TimeSpan(11, 0, 0); ws.Cell(2, 4).Value = 10.00;
             ws.Cell(3, 1).Value = "34 HGS 01"; ws.Cell(3, 2).Value = D.ToDateTime(TimeOnly.MinValue);
@@ -526,6 +527,8 @@ public sealed class HgsAdversarialProbeTests(PostgresFixture fx)
         Assert.Null(labels[HgsImportColumns.CrossingClock]);
         var ex = Assert.Throws<ValidationException>(() => HgsImportColumns.RequireMandatory(keys));
         Assert.Equal("eslesme", ex.Alan);
+        // #407 Q6: yalın "Tarih" (banka ekstresinde çoğu kez kayıt tarihi) da otomatik eşlenmez.
+        Assert.Null(HgsImportColumns.Resolve(["Plaka", "Tarih", "Geçiş Yeri", "Tutar"], null).Labels[HgsImportColumns.CrossingTime]);
     }
 
     /// <summary>Kontrol (aşırı genişleme yok): aynı istasyon + tutar ama 6 saatten uzak iki geçiş (R1 içinde 04:00 ve
@@ -545,5 +548,293 @@ public sealed class HgsAdversarialProbeTests(PostgresFixture fx)
         Assert.All(all, c => Assert.Equal(HgsCrossingStatus.Eslesti, c.Durum));
         Assert.Equal(2, (await Svc(s).ReflectAsync(all.Select(c => c.Id).ToList(), 1.00m)).Yansitilan);
         Assert.Equal(1990.00m, await s.ServiceProvider.GetRequiredService<CashService>().GetAccountBalanceAsync(w.CustomerA));
+    }
+
+    // ===================================================================== #407 adversarial (M1 + L1/L2/L4)
+
+    private static Task<decimal> BalanceAsync(IServiceScope s, Guid customer)
+        => s.ServiceProvider.GetRequiredService<CashService>().GetAccountBalanceAsync(customer);
+
+    private static async Task<HgsReflectResult> ReflectAllAsync(IServiceScope s)
+        => await Svc(s).ReflectAsync((await AllAsync(s)).Select(c => c.Id).ToList(), 1.00m);
+
+    /// <summary>Tek istasyon sütunlu banka dökümü ("Geçiş Yeri"), kullanıcı "İşlem Tarihi"ni elle eşler.</summary>
+    private static IReadOnlyList<HgsRawRow> Bank(string station, string when, string amount, string plate = "34 HGS 01")
+        => Rows(Encoding.UTF8.GetBytes(string.Join("\n", "Plaka;Geçiş Yeri;İşlem Tarihi;Tutar", $"{plate};{station};{when};{amount}")),
+            "banka.csv", new Dictionary<string, string?>
+            {
+                [HgsImportColumns.Plate] = "Plaka", [HgsImportColumns.ExitStation] = "Geçiş Yeri",
+                [HgsImportColumns.CrossingTime] = "İşlem Tarihi", [HgsImportColumns.Amount] = "Tutar",
+            });
+
+    private static IReadOnlyList<HgsRawRow> Exits(params (string Station, string When, string Amount)[] rows)
+        => Csv([.. new[] { "Plaka;Çıkış İstasyonu;Çıkış Zamanı;Tutar" }.Concat(rows.Select(r => $"34 HGS 01;{r.Station};{r.When};{r.Amount}"))]);
+
+    /// <summary>Q1 (L1): PTT "İzmit→Bursa" 10:55 ↔ banka tek sütun "Geçiş Yeri: Bursa" 10:30 (elle eşlenen İşlem
+    /// Tarihi). Bir tarafta giriş yok → yalnız çıkış karşılaştırılır. Oracle: A'ya tek borç 995,00.</summary>
+    [Fact]
+    public async Task Q1_bank_single_station_column_is_compared_by_exit_and_charged_once()
+    {
+        using var host = new TestHost(fx.AppConnectionString);
+        var w = await HgsImportTests.SetUpAsync(host);
+        using var s = host.ScopeFor(w.Tenant);
+        await Svc(s).ImportAsync(Csv("Plaka;Giriş İstasyonu;Çıkış İstasyonu;Çıkış Zamanı;Tutar",
+            $"34 HGS 01;İzmit;Bursa;{Wall(0, 10, 55)};995,00"), "ptt.csv");
+        Assert.Equal(1, (await Svc(s).ImportAsync(Bank("Bursa", Wall(0, 10, 30), "995,00"), "banka.csv")).OlasiMukerrer);
+        Assert.Equal(1, (await ReflectAllAsync(s)).Yansitilan);
+        Assert.Equal(995.00m, await BalanceAsync(s, w.CustomerA));
+    }
+
+    /// <summary>Q2 (L2): istasyon adı farklı yazılmış (Δt 25 dk, ikisi de yalnız çıkışlı). Oracle: tek borç 12,40.</summary>
+    [Theory]
+    [InlineData("Avrasya Tüneli", "AVRASYA TÜNELİ")]
+    [InlineData("Avrasya Tüneli", "AVRASYA TUNELI")]
+    [InlineData("Avrasya Tüneli", "  Avrasya   tüneli ")]
+    [InlineData("Kınalı-Gişe", "KINALI GİŞE")]
+    [InlineData("Avrasya Tüneli", "Avrasya Tüneli.")]
+    [InlineData("Çamlıca", "Çamlıca")] // NFD: C + birleşik çengel
+    public async Task Q2_station_spelling_variants_are_charged_once(string ptt, string bank)
+    {
+        using var host = new TestHost(fx.AppConnectionString);
+        var w = await HgsImportTests.SetUpAsync(host);
+        using var s = host.ScopeFor(w.Tenant);
+        await Svc(s).ImportAsync(Exits((ptt, Wall(0, 10, 55), "12,40")), "ptt.csv");
+        await Svc(s).ImportAsync(Bank(bank, Wall(0, 10, 30), "12.40"), "banka.csv");
+        await ReflectAllAsync(s);
+        Assert.Equal(12.40m, await BalanceAsync(s, w.CustomerA));
+    }
+
+    /// <summary>Q3 (kontrol): üç döküm, tutar biçimleri farklı (995,00 / ₺995 / 995.00 TL), aynı istasyon, 10:55 / 10:30 /
+    /// 10:40. Her döküm diğer her dökümde en çok bir satırla eşleşir → üçüncü kopya da yakalanır. Oracle: 995,00.</summary>
+    [Fact]
+    public async Task Q3_three_dumps_of_the_same_crossing_are_charged_once()
+    {
+        using var host = new TestHost(fx.AppConnectionString);
+        var w = await HgsImportTests.SetUpAsync(host);
+        using var s = host.ScopeFor(w.Tenant);
+        await Svc(s).ImportAsync(Exits(("Bursa", Wall(0, 10, 55), "995,00")), "ptt.csv");
+        await Svc(s).ImportAsync(Bank("BURSA", Wall(0, 10, 30), "₺995"), "banka1.csv");
+        await Svc(s).ImportAsync(Bank("bursa", Wall(0, 10, 40), "995.00 TL"), "banka2.csv");
+        await Svc(s).RematchAsync();
+        await ReflectAllAsync(s);
+        Assert.Equal(995.00m, await BalanceAsync(s, w.CustomerA));
+    }
+
+    /// <summary>F1 (M1-a): TEK dosyada aynı tünelden iki GERÇEK geçiş (D+3 09:00 ve 14:00, 12,40, açık R2). Aynı dosya =
+    /// aynı kaynak ve zaman anlamı → geniş kural uygulanmaz. Oracle: B'ye 24,80.</summary>
+    [Fact]
+    public async Task F1_same_file_genuine_round_trip_through_same_station_is_charged_twice()
+    {
+        using var host = new TestHost(fx.AppConnectionString);
+        var w = await HgsImportTests.SetUpAsync(host);
+        using var s = host.ScopeFor(w.Tenant);
+        var imp = await Svc(s).ImportAsync(Exits(("Avrasya Tüneli", Wall(3, 9), "12,40"), ("Avrasya Tüneli", Wall(3, 14), "12,40")), "ptt.csv");
+        Assert.Equal(0, imp.OlasiMukerrer);
+        await Svc(s).RematchAsync();
+        Assert.Equal(2, (await ReflectAllAsync(s)).Yansitilan);
+        Assert.Equal(24.80m, await BalanceAsync(s, w.CustomerB));
+    }
+
+    /// <summary>F2 (M1-a/b): tek dosyada 6 gerçek geçiş, 4 saat arayla (D+3 00:00 … 20:00), aynı istasyon + tutar.
+    /// Oracle: 6 × 12,40 = 74,40.</summary>
+    [Fact]
+    public async Task F2_chain_of_genuine_crossings_four_hours_apart_are_all_charged()
+    {
+        using var host = new TestHost(fx.AppConnectionString);
+        var w = await HgsImportTests.SetUpAsync(host);
+        using var s = host.ScopeFor(w.Tenant);
+        var imp = await Svc(s).ImportAsync(Exits([.. Enumerable.Range(0, 6).Select(i => ("Avrasya Tüneli", Wall(3, i * 4), "12,40"))]), "ptt.csv");
+        Assert.Equal(0, imp.OlasiMukerrer);
+        Assert.Equal(6, (await ReflectAllAsync(s)).Yansitilan);
+        Assert.Equal(74.40m, await BalanceAsync(s, w.CustomerB));
+    }
+
+    /// <summary>F2b (M1-b, zincirleme yok): ikinci dökümde aynı 3 geçiş 20 dk kaymayla (banka işlem anı). Her satır diğer
+    /// dökümde EN ÇOK bir satırla eşleşir → 3 ikincil, 3 asıl. Oracle: 3 × 12,40 = 37,20.</summary>
+    [Fact]
+    public async Task F2b_two_dumps_of_three_crossings_pair_one_to_one()
+    {
+        using var host = new TestHost(fx.AppConnectionString);
+        var w = await HgsImportTests.SetUpAsync(host);
+        using var s = host.ScopeFor(w.Tenant);
+        await Svc(s).ImportAsync(Exits([.. new[] { 9, 13, 17 }.Select(h => ("Avrasya Tüneli", Wall(3, h), "12,40"))]), "ptt.csv");
+        // İşlem Tarihi önerilmediği için elle eşleme gerekir.
+        var raw = Rows(Encoding.UTF8.GetBytes(string.Join("\n", new[] { "Plaka;Geçiş Yeri;İşlem Tarihi;Tutar" }
+                .Concat(new[] { 9, 13, 17 }.Select(h => $"34 HGS 01;Avrasya Tüneli;{Wall(3, h, 20)};12,40")))), "banka.csv",
+            new Dictionary<string, string?>
+            {
+                [HgsImportColumns.Plate] = "Plaka", [HgsImportColumns.ExitStation] = "Geçiş Yeri",
+                [HgsImportColumns.CrossingTime] = "İşlem Tarihi", [HgsImportColumns.Amount] = "Tutar",
+            });
+        Assert.Equal(3, (await Svc(s).ImportAsync(raw, "banka.csv")).OlasiMukerrer);
+        await Svc(s).RematchAsync();
+        Assert.Equal(3, (await ReflectAllAsync(s)).Yansitilan);
+        Assert.Equal(37.20m, await BalanceAsync(s, w.CustomerB));
+    }
+
+    /// <summary>F3 (M1-c): FARKLI kira/müşteri. A'nın R1'deki D 10:00 Avrasya geçişi yansıtıldı; araç D 13:00'te B'ye
+    /// (R4) çıktı, B D 15:00'te aynı tünelden aynı tutarla geçti (ayrı dosya). Oracle: A 12,40, B 12,40.</summary>
+    [Fact]
+    public async Task F3_next_customer_same_station_within_six_hours_is_charged()
+    {
+        using var host = new TestHost(fx.AppConnectionString);
+        var w = await HgsImportTests.SetUpAsync(host);
+        using var s = host.ScopeFor(w.Tenant);
+        await using (var db = await s.ServiceProvider.GetRequiredService<IDbContextFactory<AppDbContext>>().CreateDbContextAsync())
+        {
+            db.Rentals.Add(new RentalContract
+            {
+                SozlesmeNo = "KS-HGS-4", MusteriId = w.CustomerB, VehicleId = w.V1, Durum = RentalStatus.Tamamlandi, CikisOfisi = "SubeA",
+                BasTar = HgsImportTests.At(0, 13), BitTar = HgsImportTests.At(0, 20), GercekDonusTar = HgsImportTests.At(0, 20),
+                CreatedAtUtc = HgsImportTests.At(0, 13),
+            });
+            await db.SaveChangesAsync();
+        }
+        await Svc(s).ImportAsync(Exits(("Avrasya Tüneli", Wall(0, 10), "12,40")), "gun1.csv");
+        await ReflectAllAsync(s);
+        Assert.Equal(0, (await Svc(s).ImportAsync(Exits(("Avrasya Tüneli", Wall(0, 15), "12,40")), "gun2.csv")).OlasiMukerrer);
+        await ReflectAllAsync(s);
+        Assert.Equal(12.40m, await BalanceAsync(s, w.CustomerA));
+        Assert.Equal(12.40m, await BalanceAsync(s, w.CustomerB));
+    }
+
+    /// <summary>C1 (kontrol): iki döküm PARALEL içe aktarılır (8 tur); kilit altında yeniden karar → tek Eslesti, ters
+    /// öncelik sırasıyla tek tek yansıtılınca A'ya 995,00.</summary>
+    [Fact]
+    public async Task C1_parallel_import_of_two_dumps_yields_single_charge()
+    {
+        using var host = new TestHost(fx.AppConnectionString);
+        for (var round = 0; round < 8; round++)
+        {
+            var w = await HgsImportTests.SetUpAsync(host);
+            using var s1 = host.ScopeFor(w.Tenant);
+            using var s2 = host.ScopeFor(w.Tenant);
+            var ptt = Csv("Plaka;Giriş İstasyonu;Çıkış İstasyonu;Çıkış Zamanı;Tutar", $"34 HGS 01;İzmit;Bursa;{Wall(0, 10, 55)};995,00");
+            var bank = Bank("Bursa", Wall(0, 10, 30), "995,00");
+            await Task.WhenAll(Task.Run(() => Svc(s1).ImportAsync(ptt, "ptt.csv")), Task.Run(() => Svc(s2).ImportAsync(bank, "banka.csv")));
+            var all = await AllAsync(s1);
+            Assert.Equal(2, all.Count);
+            Assert.Equal(1, all.Count(c => c.Durum == HgsCrossingStatus.Eslesti));
+            foreach (var c in all.OrderByDescending(c => c.CreatedAtUtc)) await Svc(s1).ReflectAsync([c.Id], 1.00m);
+            Assert.Equal(995.00m, await BalanceAsync(s1, w.CustomerA));
+        }
+    }
+
+    /// <summary>C2 (kontrol): yansıtma sonrası ikincil satır gelir; yeniden eşleştirme ×2 + tekrar yansıtma yeni para
+    /// yazmaz, defter dengeli.</summary>
+    [Fact]
+    public async Task C2_rematch_and_rereflect_preserve_state_and_ledger_balance()
+    {
+        using var host = new TestHost(fx.AppConnectionString);
+        var w = await HgsImportTests.SetUpAsync(host);
+        using var s = host.ScopeFor(w.Tenant);
+        await Svc(s).ImportAsync(Bank("Bursa", Wall(0, 10, 30), "995,00"), "banka.csv");
+        Assert.Equal(1, (await ReflectAllAsync(s)).Yansitilan);
+        await Svc(s).ImportAsync(Exits(("Bursa", Wall(0, 10, 55), "995,00")), "ptt.csv");
+        Assert.Equal(0, await Svc(s).RematchAsync());
+        await Svc(s).RematchAsync();
+        var again = await ReflectAllAsync(s);
+        Assert.Equal((0, 1, 1), (again.Yansitilan, again.ZatenYansitilmis, again.Uygunsuz));
+        var ledger = await HgsLedgerAsync(s);
+        Assert.Equal(2, ledger.Count);
+        Assert.Equal(ledger.Where(e => e.Direction == LedgerDirection.Debit).Sum(e => e.Amount.AmountInBase),
+            ledger.Where(e => e.Direction == LedgerDirection.Credit).Sum(e => e.Amount.AmountInBase));
+        Assert.Equal(995.00m, await BalanceAsync(s, w.CustomerA));
+    }
+
+    /// <summary>T (kontrol, RLS racar_app): başka kiracının aynı plaka + istasyon + tutar geçişi olası mükerrer yapmaz.</summary>
+    [Fact]
+    public async Task T_other_tenant_crossing_does_not_make_near_duplicate()
+    {
+        using var host = new TestHost(fx.AppConnectionString);
+        var w1 = await HgsImportTests.SetUpAsync(host);
+        var w2 = await HgsImportTests.SetUpAsync(host);
+        using (var s1 = host.ScopeFor(w1.Tenant))
+        {
+            await Svc(s1).ImportAsync(Exits(("Bursa", Wall(0, 10, 55), "995,00")), "t1.csv");
+            await ReflectAllAsync(s1);
+        }
+        using var s2 = host.ScopeFor(w2.Tenant);
+        Assert.Equal(0, (await Svc(s2).ImportAsync(Bank("Bursa", Wall(0, 10, 30), "995,00"), "t2.csv")).OlasiMukerrer);
+        Assert.Equal(1, (await ReflectAllAsync(s2)).Yansitilan);
+        Assert.Equal(995.00m, await BalanceAsync(s2, w2.CustomerA));
+    }
+
+    /// <summary>P (L4): 20.000 satır, TEK plaka, ~5,5 saat içinde, farklı tutarlar, aynı istasyon. Önizleme / içe aktarma /
+    /// yeniden eşleştirme makul sürede (dizin plaka + tutar gruplu).</summary>
+    [Fact]
+    public async Task P_dense_single_plate_file_stays_fast()
+    {
+        using var host = new TestHost(fx.AppConnectionString);
+        var w = await HgsImportTests.SetUpAsync(host);
+        using var s = host.ScopeFor(w.Tenant);
+        var start = D.AddDays(-20).ToDateTime(new TimeOnly(6, 0, 1));
+        var rows = Csv([.. new[] { "Plaka;Çıkış İstasyonu;Çıkış Zamanı;Tutar" }.Concat(Enumerable.Range(0, 20_000).Select(i =>
+            $"34 HGS 01;Gişe;{start.AddSeconds(i).ToString("dd.MM.yyyy HH:mm:ss", Inv)};{(1m + i * 0.01m).ToString("0.00", Inv)}"))]);
+        var sw = System.Diagnostics.Stopwatch.StartNew();
+        await Svc(s).PreviewAsync(rows);
+        var preview = sw.Elapsed; sw.Restart();
+        Assert.Equal(20_000, (await Svc(s).ImportAsync(rows, "yogun.csv")).Eklenen);
+        var import = sw.Elapsed; sw.Restart();
+        await Svc(s).RematchAsync();
+        var rematch = sw.Elapsed;
+        Assert.True(preview < TimeSpan.FromSeconds(15) && import < TimeSpan.FromSeconds(30) && rematch < TimeSpan.FromSeconds(30),
+            $"önizleme {preview.TotalSeconds:0.0} sn, içe aktarma {import.TotalSeconds:0.0} sn, yeniden eşleştirme {rematch.TotalSeconds:0.0} sn");
+    }
+
+    // ----------------------------------------------------------------- M1-d: "ayrı geçiş olarak onayla"
+
+    /// <summary>İki ayrı dökümde aynı tünelden 3 saat arayla iki GERÇEK geçiş (D+3 09:00 / 12:00, R2) → ikincisi olası
+    /// mükerrer. FinanceWrite onaylar → Eslesti, yeniden eşleştirme geri almaz, ikisi de borçlanır. Oracle: B'ye 24,80.</summary>
+    [Fact]
+    public async Task M1d_confirmed_near_duplicate_is_charged_and_survives_rematch()
+    {
+        using var host = new TestHost(fx.AppConnectionString);
+        var w = await HgsImportTests.SetUpAsync(host);
+        using var s = host.ScopeFor(w.Tenant);
+        await Svc(s).ImportAsync(Exits(("Avrasya Tüneli", Wall(3, 9), "12,40")), "gun1.csv");
+        Assert.Equal(1, (await Svc(s).ImportAsync(Exits(("Avrasya Tüneli", Wall(3, 12), "12,40")), "gun2.csv")).OlasiMukerrer);
+        var pending = Assert.Single(await AllAsync(s), c => c.Durum == HgsCrossingStatus.Belirsiz);
+        var eslesti = Assert.Single(await AllAsync(s), c => c.Durum == HgsCrossingStatus.Eslesti);
+
+        // Olası mükerrer olmayan satır onaylanamaz; onay para yazmaz.
+        Assert.Equal(new HgsConfirmResult(0, 1), await Svc(s).ConfirmAsync([eslesti.Id]));
+        Assert.Equal(new HgsConfirmResult(1, 0), await Svc(s).ConfirmAsync([pending.Id]));
+        Assert.Equal(new HgsConfirmResult(0, 1), await Svc(s).ConfirmAsync([pending.Id])); // tekrar: artık Eslesti
+        Assert.Empty(await HgsLedgerAsync(s));
+        var confirmed = Assert.Single(await AllAsync(s), c => c.Id == pending.Id);
+        Assert.Equal(HgsCrossingStatus.Eslesti, confirmed.Durum);
+        Assert.NotNull(confirmed.OnayZamani);
+
+        await Svc(s).RematchAsync();
+        Assert.All(await AllAsync(s), c => Assert.Equal(HgsCrossingStatus.Eslesti, c.Durum));
+        Assert.Equal(2, (await ReflectAllAsync(s)).Yansitilan);
+        Assert.Equal(24.80m, await BalanceAsync(s, w.CustomerB));
+    }
+
+    /// <summary>Onay FinanceWrite ister; şubeli kullanıcı başka şubenin kirasına bağlı satırı onaylayamaz (kilit altında 403).</summary>
+    [Fact]
+    public async Task M1d_confirm_requires_finance_write_and_branch_scope()
+    {
+        using var host = new TestHost(fx.AppConnectionString);
+        var w = await HgsImportTests.SetUpAsync(host);
+        using (var s = host.ScopeFor(w.Tenant))
+        {
+            // V2 (06 HGS 02) R3 = SubeB, D-1 08:00 → 20:00.
+            await Svc(s).ImportAsync(Csv("Plaka;Çıkış İstasyonu;Çıkış Zamanı;Tutar", $"06 HGS 02;Polatlı;{Wall(-1, 10)};60,00"), "a.csv");
+            await Svc(s).ImportAsync(Csv("Plaka;Çıkış İstasyonu;Çıkış Zamanı;Tutar", $"06 HGS 02;Polatlı;{Wall(-1, 11)};60,00"), "b.csv");
+        }
+        Guid id;
+        using (var s = host.ScopeFor(w.Tenant)) id = Assert.Single(await AllAsync(s), c => c.Durum == HgsCrossingStatus.Belirsiz).Id;
+
+        using (var op = host.ScopeFor(w.Tenant, role: UserRole.Operator, assignedBranch: "SubeB"))
+            await Assert.ThrowsAsync<NoPermissionException>(() => Svc(op).ConfirmAsync([id]));
+        using (var other = host.ScopeFor(w.Tenant, role: UserRole.Operator, assignedBranch: "SubeA"))
+        {
+            other.ServiceProvider.GetRequiredService<TestIdentity>().EkIzinler = ["FinanceWrite"];
+            await Assert.ThrowsAsync<NoPermissionException>(() => Svc(other).ConfirmAsync([id]));
+        }
+        using var check = host.ScopeFor(w.Tenant);
+        Assert.Equal(HgsCrossingStatus.Belirsiz, Assert.Single(await AllAsync(check), c => c.Id == id).Durum);
     }
 }

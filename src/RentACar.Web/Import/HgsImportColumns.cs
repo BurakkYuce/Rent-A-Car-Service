@@ -29,15 +29,15 @@ public static class HgsImportColumns
 
     /// <summary>Alan sırası ekranda da bu sıradır. Takma adlar: PTT/e-Devlet/banka ekranlarında görülen başlıklar +
     /// referans sistemin HGS geçiş listesi (Baş./Bit. Zamanı, Giriş/Çıkış Noktası, HGS Etiket, Turu).
-    /// <para>"İşlem Tarihi/Zamanı/Saati" BİLİNÇLİ olarak takma ad DEĞİL (#391 R2 L1): bankada bu, geçiş değil kayıt
-    /// (tahsilat) anı olabilir; otomatik eşlenirse aynı geçiş başka dökümle farklı zamanda gelip iki kez borçlanır.
-    /// Kullanıcı önizlemede açıkça seçebilir.</para></summary>
+    /// <para>"İşlem Tarihi/Zamanı/Saati" ve yalın "Tarih" BİLİNÇLİ olarak takma ad DEĞİL (#391 R2 L1, #407 L1): bankada
+    /// bunlar geçiş değil kayıt (tahsilat) anı olabilir; otomatik eşlenirse aynı geçiş başka dökümle farklı zamanda
+    /// gelip iki kez borçlanır. Kullanıcı önizlemede açıkça seçebilir.</para></summary>
     public static readonly IReadOnlyList<HgsImportField> Fields =
     [
         new(Plate, "Plaka", true, ["Plaka", "Araç Plakası", "Araç Plaka", "Plaka No", "Plate"]),
         new(CrossingTime, "Geçiş (çıkış) zamanı", true,
             ["Geçiş Zamanı", "Geçiş Tarihi", "Geçiş Tarih Saat", "Çıkış Zamanı", "Çıkış Tarihi", "Çıkış Tarih",
-             "Çıkış Tarih Saat", "Bit. Zamanı", "Bitiş Zamanı", "Tarih Saat", "Tarih"]),
+             "Çıkış Tarih Saat", "Bit. Zamanı", "Bitiş Zamanı", "Tarih Saat"]),
         new(CrossingClock, "Geçiş saati (ayrı sütunsa)", false, ["Saat", "Geçiş Saati", "Çıkış Saati"]),
         new(Amount, "Tutar", true,
             ["Tutar", "Geçiş Ücreti", "Geçiş Tutarı", "Ücret", "Tutar (TL)", "Ücret (TL)", "Geçiş Ücreti (TL)",

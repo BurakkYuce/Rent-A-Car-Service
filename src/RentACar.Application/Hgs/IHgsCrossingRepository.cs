@@ -43,6 +43,13 @@ public interface IHgsCrossingRepository
     /// defter kümesi ve satır durumu AYNI transaction'da yazılır. Kiranın şubesi <paramref name="scope"/> dışındaysa
     /// (kapsam kontrolünden sonra değişmiş) tüm istek reddedilir.
     /// </summary>
+    /// <summary>
+    /// Kilit + satır kilidi altında olası mükerrer notlu Belirsiz satırları, kirası hâlâ geçiş anını kapsıyorsa
+    /// Eslesti yapar ve <c>OnayZamani</c>'nı yazar. Kiranın şubesi <paramref name="scope"/> dışındaysa tüm istek reddedilir.
+    /// </summary>
+    Task<HgsConfirmResult> ConfirmAsync(
+        IReadOnlyCollection<Guid> ids, BranchScope.BranchFilter scope, DateTimeOffset now, CancellationToken ct = default);
+
     Task<HgsReflectResult> ReflectAsync(
         IReadOnlyCollection<Guid> ids, BranchScope.BranchFilter scope,
         Func<HgsCrossing, HgsRentalWindow, HgsReflectionPlan> plan, CancellationToken ct = default);

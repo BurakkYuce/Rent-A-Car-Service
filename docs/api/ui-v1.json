@@ -7937,6 +7937,35 @@
         }
       }
     },
+    "/api/ui/v1/hgs/gecisler/onayla": {
+      "post": {
+        "tags": [
+          "HGS"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/HgsConfirmRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HgsConfirmResultDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/ui/v1/hgs/gecisler/yeniden-eslestir": {
       "post": {
         "tags": [
@@ -45808,6 +45837,49 @@
           }
         }
       },
+      "HgsConfirmRequest": {
+        "required": [
+          "ids"
+        ],
+        "type": "object",
+        "properties": {
+          "ids": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        }
+      },
+      "HgsConfirmResultDto": {
+        "required": [
+          "onaylanan",
+          "uygunsuz"
+        ],
+        "type": "object",
+        "properties": {
+          "onaylanan": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "uygunsuz": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          }
+        }
+      },
       "HgsCrossingRow": {
         "required": [
           "id",
@@ -45829,7 +45901,8 @@
           "etiketNo",
           "aracSinifi",
           "dosyaAdi",
-          "eslesmeNotu"
+          "eslesmeNotu",
+          "onayZamani"
         ],
         "type": "object",
         "properties": {
@@ -45955,6 +46028,13 @@
               "null",
               "string"
             ]
+          },
+          "onayZamani": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
           }
         }
       },

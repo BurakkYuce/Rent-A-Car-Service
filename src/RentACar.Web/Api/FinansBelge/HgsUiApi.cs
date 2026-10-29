@@ -41,6 +41,8 @@ public static class HgsUiApi
         ("Yansıtılacak geçiş", "ids"), ("Tek seferde", "ids"), ("Hizmet oranı", "hizmetOrani"),
     ];
 
+    private static readonly (string, string)[] ConfirmRules = [("Onaylanacak geçiş", "ids"), ("Tek seferde", "ids")];
+
     public static RouteGroupBuilder MapHgsUiApi(this RouteGroupBuilder v1)
     {
         var g = v1.MapGroup("/hgs").WithTags("HGS");
@@ -54,6 +56,7 @@ public static class HgsUiApi
             .RequireAnyPermission(Permission.OperationsWrite, Permission.FinanceWrite);
         g.MapPost("/gecisler/yansit", Reflect).MapFields(ReflectRules).RequirePermission(Permission.FinanceWrite)
             .Produces<UiError.MukerrerProblemi>(StatusCodes.Status409Conflict, "application/problem+json");
+        g.MapPost("/gecisler/onayla", Confirm).MapFields(ConfirmRules).RequirePermission(Permission.FinanceWrite);
         g.MapPost("/gecisler/yeniden-eslestir", Rematch)
             .RequireAnyPermission(Permission.OperationsWrite, Permission.FinanceWrite);
         return g;
@@ -116,7 +119,8 @@ public static class HgsUiApi
                 c.Durum.ToString(), c.RentalId,
                 c.RentalId is { } r && rentals.TryGetValue(r, out var x) ? x.SozlesmeNo : null,
                 customer, customer is { } id ? F5Shared.CustomerName(names, id) : null,
-                c.HizmetOrani, c.YansitilanTutar, c.YansitmaZamani, c.EtiketNo, c.AracSinifi, c.DosyaAdi, c.EslesmeNotu);
+                c.HizmetOrani, c.YansitilanTutar, c.YansitmaZamani, c.EtiketNo, c.AracSinifi, c.DosyaAdi, c.EslesmeNotu,
+                c.OnayZamani);
         }).ToList();
     }
 
@@ -226,6 +230,26 @@ public static class HgsUiApi
         }
         var r = await svc.ReflectAsync(ids, rate, ct);
         return TypedResults.Ok(new HgsReflectResultDto(r.Yansitilan, r.ZatenYansitilmis, r.Uygunsuz, r.ToplamGecis, r.YansitilanTutar));
+    }
+
+    /// <summary>Olası mükerrer satırları "ayrı geçiş" onaylar (FinanceWrite; para yazmaz). Kapsam durumdan ÖNCE.</summary>
+    private static async Task<Results<Ok<HgsConfirmResultDto>, ProblemHttpResult>> Confirm(
+        HgsConfirmRequest req, HgsCrossingService svc, ICurrentUser user, IDbContextFactory<AppDbContext> dbf,
+        CancellationToken ct)
+    {
+        var ids = (req.Ids ?? []).Distinct().ToList();
+        if (ids.Count == 0) throw new ValidationException("Onaylanacak geçiş seçilmedi.", "ids");
+        if (ids.Count > HgsCrossingService.MaxReflectIds)
+            throw new ValidationException($"Tek seferde en çok {HgsCrossingService.MaxReflectIds} geçiş onaylanabilir.", "ids");
+        var found = await svc.FindManyAsync(ids, ct);
+        if (found.Count != ids.Count) return F5Shared.NotFound("Geçiş bulunamadı.");
+        await using (var db = await dbf.CreateDbContextAsync(ct))
+        {
+            var branches = await BranchesAsync(db, found, ct);
+            foreach (var c in found) RequireInScope(user, branches[c.Id]);
+        }
+        var r = await svc.ConfirmAsync(ids, ct);
+        return TypedResults.Ok(new HgsConfirmResultDto(r.Onaylanan, r.Uygunsuz));
     }
 
     private static async Task<Ok<HgsRematchResult>> Rematch(HgsCrossingService svc, CancellationToken ct)

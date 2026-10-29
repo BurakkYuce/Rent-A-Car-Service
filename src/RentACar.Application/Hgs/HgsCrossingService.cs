@@ -21,8 +21,9 @@ namespace RentACar.Application.Hgs;
 /// "Hgs"</c>; tutar = geçiş × hizmet oranı, SATIR başına 2 haneye yuvarlanır. <c>SourceId</c> GEÇİŞİN kimliğidir —
 /// bir geçiş en fazla bir kez borçlandırılabilir (defterdeki kısmi unique index). Eski dönem-MD5'li
 /// <c>HgsReflectionService</c> #391 adversarial L1 ile silindi (aynı geçişi ikinci yoldan borçlandırabilirdi).</item>
-/// <item><b>Olası mükerrer</b> (#391 M1, R2 L1): aynı plaka + aynı tutar + 60 sn içindeki (ya da aynı istasyonla 6 sa
-/// içindeki) ikinci satır (farklı biçimli döküm) Belirsiz kalır; içe aktarma, yeniden eşleştirme ve yansıtma (kilit altında) aynı kuralı uygular.</item>
+/// <item><b>Olası mükerrer</b> (#391 M1, R2 L1, #407 M1): aynı plaka + aynı tutar + 60 sn içindeki ikinci satır ya da
+/// başka bir dökümde aynı istasyon + aynı kirayla 6 sa içindeki bire bir eşi Belirsiz kalır
+/// (<see cref="HgsNearDuplicateIndex"/>); ayrı geçişse FinanceWrite <see cref="ConfirmAsync"/> ile onaylanır; içe aktarma, yeniden eşleştirme ve yansıtma (kilit altında) aynı kuralı uygular.</item>
 /// </list>
 /// </summary>
 public sealed class HgsCrossingService(
@@ -67,6 +68,21 @@ public sealed class HgsCrossingService(
     {
         RequireImport();
         return _repository.RematchAsync(ct);
+    }
+
+    /// <summary>
+    /// Olası mükerrer satırı "ayrı geçiş" olarak onaylar (#407 M1-d): yalnız olası mükerrer notlu Belirsiz satır, kirası
+    /// kilit altında hâlâ geçiş anını kapsıyorsa Eslesti olur ve iki mükerrer kuralından kalıcı olarak muaf tutulur
+    /// (<c>OnayZamani</c>). Para yazmaz — borç ayrı yansıtma adımıdır. Değişiklik denetim kaydına düşer (IAuditable).
+    /// </summary>
+    public Task<HgsConfirmResult> ConfirmAsync(IReadOnlyCollection<Guid> ids, CancellationToken ct = default)
+    {
+        PermissionGuard.Require(_currentUser, Permission.FinanceWrite);
+        var distinct = ids.Where(i => i != Guid.Empty).Distinct().ToList();
+        if (distinct.Count == 0) throw new ValidationException("Onaylanacak geçiş seçilmedi.", "ids");
+        if (distinct.Count > MaxReflectIds)
+            throw new ValidationException($"Tek seferde en çok {MaxReflectIds} geçiş onaylanabilir.", "ids");
+        return _repository.ConfirmAsync(distinct, BranchScope.EffectiveFilter(_currentUser), DateTimeOffset.UtcNow, ct);
     }
 
     private void RequireImport()
@@ -122,6 +138,7 @@ public sealed class HgsCrossingService(
         // (3) DB'de zaten olanlar + olası mükerrer + araç/kira çözümü. Satırlar öncelik sırasıyla (an, istasyon)
         // işlenir: kümenin ilki asıl, sonrakiler ikincil (Belirsiz) — yeniden eşleştirme aynı sırayı kullanır.
         var classified = new List<(ParsedRow Row, Guid Id, Guid? VehicleId, HgsMatch Match)>(fresh.Count);
+        var batchId = Guid.NewGuid();
         if (fresh.Count > 0)
         {
             var from = fresh.Min(p => p.At);
@@ -134,6 +151,9 @@ public sealed class HgsCrossingService(
             var vehicles = HgsResolution.VehicleIndex(await _repository.ListVehiclesAsync(ct));
             var vehicleIds = fresh.Select(p => vehicles.GetValueOrDefault(p.Plate)).OfType<Guid>().Distinct().ToList();
             var windows = (await _repository.ListRentalWindowsAsync(vehicleIds, from, to, ct)).ToLookup(w => w.VehicleId);
+            // Önce dosyanın TÜM satırları dizine girer, sonra karar verilir (geniş kuralın bire bir eşleşmesi sıraya
+            // bağlı olmasın).
+            var pending = new List<(ParsedRow Row, HgsCrossingRef Me, Guid? VehicleId, HgsMatch Match)>(fresh.Count);
             foreach (var p in fresh.OrderBy(p => p.At).ThenBy(p => p.StationKey, StringComparer.Ordinal))
             {
                 if (existingKeys.Contains(p.Key))
@@ -141,12 +161,14 @@ public sealed class HgsCrossingService(
                     results.Add(Row(p, HgsImportRowStatus.Mukerrer, null, false, "Bu geçiş daha önce içe aktarılmış."));
                     continue;
                 }
-                var me = new HgsCrossingRef(Guid.NewGuid(), p.Plate, p.At, p.Amount, p.StationKey, now, HgsCrossingStatus.KiraDisi);
                 var (vehicleId, match) = HgsResolution.Resolve(p.Plate, p.At, vehicles, windows);
-                match = HgsResolution.WithNearDuplicate(match, near.IsSecondary(me));
-                near.Add(me with { Status = match.Status });
-                classified.Add((p, me.Id, vehicleId, match));
+                var me = new HgsCrossingRef(Guid.NewGuid(), p.Plate, p.At, p.Amount, p.StationKey, now, match.Status,
+                    batchId, match.Rental?.RentalId, HgsValueParser.NearKey(p.Entry), HgsValueParser.NearKey(p.Exit), false);
+                near.Add(me);
+                pending.Add((p, me, vehicleId, match));
             }
+            foreach (var (p, me, vehicleId, match) in pending)
+                classified.Add((p, me.Id, vehicleId, HgsResolution.WithNearDuplicate(match, near.IsSecondary(me))));
         }
 
         // (4) yaz (onaylı adım). Depo kilit altında tam mükerrer ve olası mükerrer kararını yeniden verir; varlığın
@@ -156,7 +178,7 @@ public sealed class HgsCrossingService(
         var entities = new Dictionary<Guid, HgsCrossing>();
         if (write && classified.Count > 0)
         {
-            batch = Guid.NewGuid();
+            batch = batchId;
             var name = HgsValueParser.Text(fileName, 256, "Dosya adı");
             foreach (var x in classified)
             {
