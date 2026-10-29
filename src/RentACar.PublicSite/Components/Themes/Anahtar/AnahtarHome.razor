@@ -49,11 +49,11 @@
         <div class="wrap an-yorum-ic">
             <h2 id="yorum-baslik" class="an-yorum-baslik">
                 <span class="an-yildiz" aria-hidden="true">★</span> @_rating
-                <span class="an-yorum-sayi">@AnahtarFacts.RatingNote(facts)</span>
+                <span class="an-yorum-sayi">@SiteFactsText.RatingNote(facts)</span>
             </h2>
             <p>
                 <a href="@facts.GoogleProfilUrl" target="_blank" rel="noopener noreferrer">Yorumları Google'da okuyun</a>
-                @if (AnahtarFacts.RatingMonth(facts) is { } month) { <span class="muted"> (@month itibarıyla)</span> }
+                @if (SiteFactsText.RatingMonth(facts) is { } month) { <span class="muted"> (@month itibarıyla)</span> }
             </p>
         </div>
     </section>
@@ -113,8 +113,8 @@
     protected override void OnParametersSet()
     {
         var day = SiteDate.TodayDayOfWeek;
-        _facts = AnahtarFacts.Lines(Model.Branding?.Bilgi);
-        _rating = AnahtarFacts.Rating(Model.Branding?.Bilgi);
+        _facts = SiteFactsText.Lines(Model.Branding?.Bilgi);
+        _rating = SiteFactsText.Rating(Model.Branding?.Bilgi);
 
         var branches = BranchOffices.Ordered(Model.Subeler).ToList();
         _offices = [.. BranchOffices.Build(branches, Model.Branding, MaxOffices)

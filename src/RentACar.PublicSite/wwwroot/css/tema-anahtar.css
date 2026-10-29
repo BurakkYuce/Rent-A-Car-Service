@@ -272,7 +272,7 @@ h1 { font-weight: 800; letter-spacing: -.025em; }
 .an-kart h3 a::after { content: ""; position: absolute; inset: 0; }
 .an-kart-foto { display: grid; place-items: center; aspect-ratio: 4 / 3; background: var(--brand-soft); color: var(--siluet); }
 .an-kart-foto img { display: block; width: 100%; height: 100%; object-fit: cover; }
-.an-siluet { width: 62%; max-width: 220px; height: auto; fill: currentColor; }
+.siluet { width: 62%; max-width: 220px; height: auto; fill: currentColor; }
 .an-kart-govde { padding: var(--space-2) var(--space-2) 0; min-width: 0; }
 .an-kart h3 { margin: 0 0 .25rem; font: 700 1.25rem/1.2 var(--font-display); }
 .an-kart h3 a { color: var(--ink); text-decoration: none; }

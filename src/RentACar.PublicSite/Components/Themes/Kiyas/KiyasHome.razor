@@ -1,0 +1,135 @@
+@* Tema "kiyas" — Home slotu. İmza SABİT (Components/Themes/README.md): Model (HomeModel).
+
+   Sıra (turist ve havalimanı müşterisi; aracı sitelerden öğrendiği dille):
+     1. Hero — bölge başlığı, tam genişlik arama, veriden doğan şeffaflık satırları
+     2. Araçlar (kart ızgarası; ilan yoksa yok, T2) — HERO'NUN HEMEN ALTINDA: 1440'ta ilk ekranda en az bir kartın
+        fiyatı görünmeli (kullanıcı kararı)
+     3. En düşük günlük fiyat — süzgeç boyutlarına göre (sınıf, yoksa vites/yakıt) kutucuklar; her biri
+        /musaitlik?<boyut>=<değer> GET bağlantısı (JS yok). Değerler ilanların kendi fiyatından; boyut tek değerliyse yok.
+     4. Koşullar tablosu — firmanın beyanları (boş alan satır üretmez; hepsi boşsa yok)
+     5. Teslim noktaları — adres, bugünkü saat, çalışma saatleri, telefon, harita
+     6. SSS (görünen adet = FAQPage adedi, SEO L-4)
+   Sarmalayıcı öğe YOK: bölümler doğrudan <main>'in çocuğu. Açılış animasyonu yok. *@
+
+<ThemedHero Marka="@Model.Marka" Branding="Model.Branding" Subeler="Model.SubeAdlari" Kartlar="Model.Kartlar" Sehir="@Model.Sehir" />
+
+@if (Model.Filo.Kartlar.Count > 0)
+{
+    <section class="bolum ky-filo" id="filo" aria-labelledby="@Model.Filo.BaslikId">
+        <div class="wrap">
+            <ThemedFleet Model="Model.Filo" />
+        </div>
+    </section>
+}
+
+@if (_tiles.Count > 0)
+{
+    <section class="ky-enucuz" aria-labelledby="enucuz-baslik">
+        <div class="wrap">
+            <h2 id="enucuz-baslik" class="ky-enucuz-baslik">En düşük günlük fiyat</h2>
+            <ul class="ky-kutucuklar">
+                @foreach (var t in _tiles)
+                {
+                    <li>
+                        <a href="@t.Href">
+                            <span class="ky-kutu-boyut">@t.Dimension</span>
+                            <span class="ky-kutu-deger">@t.Value</span>
+                            <span class="ky-kutu-fiyat">@PriceText.Tl(t.MinPrice)<span class="ky-birim"> / gün</span></span>
+                        </a>
+                    </li>
+                }
+            </ul>
+        </div>
+    </section>
+}
+
+@if (_facts.Count > 0)
+{
+    <section class="bolum ky-kosullar" id="kosullar" aria-labelledby="kosul-baslik">
+        <div class="wrap">
+            <h2 id="kosul-baslik" class="bolum-baslik">Kiralama koşulları</h2>
+            <table class="ky-kosul-tablo">
+                <tbody>
+                    @foreach (var f in _facts)
+                    {
+                        <tr><th scope="row">@f.Etiket</th><td>@f.Metin</td></tr>
+                    }
+                </tbody>
+            </table>
+            @if (Model.KosulSayfasi is { Length: > 0 } terms)
+            {
+                <p class="linkler"><a href="@terms">Kiralama koşullarının tamamı</a></p>
+            }
+        </div>
+    </section>
+}
+
+@if (_offices.Count > 0)
+{
+    <section class="bolum ky-ofis" id="ofis" aria-labelledby="ofis-baslik">
+        <div class="wrap">
+            <h2 id="ofis-baslik" class="bolum-baslik">@(_offices.Count == 1 ? "Teslim noktası" : "Teslim noktaları")</h2>
+            <ul class="ky-ofisler">
+                @foreach (var (office, today) in _offices)
+                {
+                    <li>
+                        <h3>@office.Name</h3>
+                        @if (office.Address is not null) { <p class="ky-ofis-adres">@office.Address</p> }
+                        @if (today is not null) { <p class="ky-acik">Bugün @today açık</p> }
+                        @if (office.Hours.Count > 0)
+                        {
+                            <p class="ky-ofis-saat">@foreach (var line in office.Hours) { <span>@line</span> }</p>
+                        }
+                        @if (office.TelLink is not null || office.MapLink is not null)
+                        {
+                            <p class="ky-ofis-eylem">
+                                @if (office.TelLink is not null) { <a href="@office.TelLink">@office.Phone</a> }
+                                @if (office.MapLink is not null)
+                                {
+                                    @* Dış bağlantı: kullanıcının kendi harita uygulamasında açılır (gömme YOK — CSP). *@
+                                    <a href="@office.MapLink" target="_blank" rel="noopener noreferrer">Haritada aç</a>
+                                }
+                            </p>
+                        }
+                    </li>
+                }
+            </ul>
+        </div>
+    </section>
+}
+
+@* Görünen soru adedi = FAQPage JSON-LD adedi (SEO L-4): Model.SssAdet değiştirilmez. *@
+<BolumSss Sorular="Model.Sss" Adet="Model.SssAdet" />
+
+@code {
+    /// <summary>Teslim noktası bloğunda en fazla kaç şube; "en düşük fiyat" kutucuklarında en çok kaç boyut.</summary>
+    private const int MaxOffices = 4;
+    private const int MaxTileDimensions = 2;
+
+    [Parameter, EditorRequired] public HomeModel Model { get; set; } = default!;
+
+    private sealed record Tile(string Dimension, string Value, decimal MinPrice, string Href);
+
+    private IReadOnlyList<Tile> _tiles = [];
+    private IReadOnlyList<FactLine> _facts = [];
+    private IReadOnlyList<(BranchOffice Office, string? Today)> _offices = [];
+
+    protected override void OnParametersSet()
+    {
+        _facts = SiteFactsText.Lines(Model.Branding?.Bilgi);
+
+        // Kutucuklar: süzgecin ilk iki boyutu (sınıf varsa o); her değer için ilanların en düşük günlük fiyatı.
+        var cards = Model.Filo.Kartlar;
+        var none = FleetFilter.Dimensions.ToDictionary(d => d.Key, _ => Array.Empty<string>());
+        _tiles = [.. FleetFilter.Facets(cards, none)
+            .Where(f => f.Key != "koltuk")
+            .Take(MaxTileDimensions)
+            .SelectMany(f => f.Options.Select(o => new Tile(f.Label, o.Value,
+                cards.Where(c => FleetFilter.Matches(c, new Dictionary<string, string[]> { [f.Key] = [o.Value] })).Min(c => c.GunlukFiyat),
+                $"/musaitlik?{f.Key}={Uri.EscapeDataString(o.Value)}")))];
+
+        var day = SiteDate.TodayDayOfWeek;
+        _offices = [.. BranchOffices.Build(Model.Subeler, Model.Branding, MaxOffices)
+            .Select(o => (o, o.Source is { } b ? BranchOffices.TodayHours(b, day) : null))];
+    }
+}

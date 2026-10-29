@@ -1,13 +1,13 @@
 # Site temaları — sözleşme
 
-Halka açık firma sitesi dört temadan birini kullanır: `anahtar` (varsayılan), `pazar`, `vitrin`, `rota`
+Halka açık firma sitesi beş temadan birini kullanır: `anahtar` (varsayılan), `kiyas`, `pazar`, `vitrin`, `rota`
 (`TenantSettings.SiteTemasi`; null/bilinmeyen → `anahtar`; 2026-10'a kadar varsayılan `pazar`dı — kayıtlı teması
 olan firma etkilenmez, teması boş olan firma Anahtar'ı görür). Sayfalar veri mantığını paylaşır; temaya göre
 **yedi slot** ve **tema css'i** değişir. Bu belge tema PR'larının uyacağı sözleşmedir.
 
 ## Anahtarlar ve eski anahtar eşlemesi
 
-`Application/TenantSettings/SiteThemeKeys.cs` tek kaynak: `All = [anahtar, pazar, vitrin, rota]`, `Default = anahtar`.
+`Application/TenantSettings/SiteThemeKeys.cs` tek kaynak: `All = [anahtar, kiyas, pazar, vitrin, rota]`, `Default = anahtar`.
 
 | Eski anahtar | Yeni anahtar | Nerede |
 |---|---|---|
@@ -31,6 +31,7 @@ olan firma etkilenmez, teması boş olan firma Anahtar'ı görür). Sayfalar ver
 | Anahtar | Ad | Kimlik | İmza anı | Yazı |
 |---|---|---|---|---|
 | `anahtar` | Anahtar | VARSAYILAN. İletişim önce, telefonla/WhatsApp'la çalışan yerel firma. Kâğıt beyazı zemin, firma rengi yalnız düğme/bağlantı/küçük işarette, 1 px çizgi, gölge yok. Hero fotoğrafsız: firma adı (h1) + hizmet bölgesi, güven satırı (kuruluş yılı, Google puanı profile bağlı, "Bugün 08:00–21:00 açık" — `BranchOffices.TodayHours`, yalnız kesin okunabilen saat), WhatsApp (sabit koyu yeşil `--wa-bg`, beyaz yazı AA) + Ara, "tezgâh" (kompakt arama + depozito/km/yaş çipleri). Filo kartı ızgarada dikey, müsaitlikte yatay; fotoğrafsız ilanda silüet. "Kiralamadan önce" (firma beyanları satır satır), Google yorum bandı, ofisler (bugünkü saat), SSS. Detay: mobil ilk ekranda fiyat + depozito/km/iptal + Rezervasyon talebi / WhatsApp'tan sor. Boş bilgi alanı hiçbir öğe üretmez. Setler: `zumrut` (varsayılan), `lacivert`, `visne`, `grafit`. | Yok — açılış animasyonu bilinçli olarak yok (kullanıcı kararı: arama formu ilk karede kullanılabilir olmalı) | Plus Jakarta Sans 700–800 + Public Sans 400–600 |
+| `kiyas` | Kıyas | Liste ve şeffaf fiyat önce; havalimanı/turist firması, çok sınıflı filo. Serin gri zemin, beyaz kartlar, 1 px çizgi, 8 px köşe. Hero: bölge başlığı + künye (ad, yıl, puan) + tam genişlik arama + veriden doğan şeffaflık satırları ("Fiyatlar KDV dahil" yalnız tüm ilanlar dahilse, depozitosuz/sınırsız km/iptal firmanın beyanı). Ana sayfada süzgeç boyutu başına "en düşük günlük fiyat" kutucukları (`/musaitlik?vites=…` GET). /musaitlik: solda JS'siz GET süzgeci (`FleetModel.Filtre`; telefonda listenin üstünde), kartta fiyat (toplam + gün × fiyat dökümü) adla aynı blokta ve en üstte, altında teknik satır (vites, yakıt, koltuk) ve koşul rozetleri; ana sayfada kartlar hero'nun hemen altında (1440'ta ilk ekranda fiyat görünür), (yeşil müşteri lehine, kehribar şart, gri bilgi — `--rozet-*` sabit, AA test), gün × fiyat dökümü. Görseller tek tip açık gri 4:3 kutuda `contain`. Detay: "Fiyata dahil" / "Şartlar", yapışkan tarife paneli. Setler: `mavi` (varsayılan), `turkuaz`, `kiremit`, `gece`. | Yok — açılış animasyonu yok; tek belirgin unsur eş genişlikli fiyat dökümü | IBM Plex Sans 400–600 + IBM Plex Mono 500 (yalnız fiyat/döküm) |
 | `pazar` | Pazar | Yerel, samimi, yoğun ama düzenli; serin açık zemin, firma rengi tam genişlik düz bloklar (hero, kapanış bandı), kalın çerçeveli kartlar + kaydırılmış düz gölge. Hero: tam genişlik başlık, arama + "sormak isterseniz arayın", asılı etiketli fotoğraf. Telefon üst barda dolu düğme, telefonda sabit alt çubuk. "Neden <marka>?" yalnız veri ve sistem davranışı; ofis/şubeler (adres, saat, telefon, harita bağlantısı), SSS. Fotoğrafsız ilanda aracın adı tabela harfiyle. | Fiyat etiketleri açılışta bir kez sarkaç gibi sallanıp asılı durur (yalnız `rotate`, dönme noktası çivi) | Bricolage Grotesque Condensed 800 (wdth 75, opsz 36) + Onest 400–700 |
 | `rota` | Rota | Editoryal, seyrek; serin zemin, asimetrik 12 kolon. Hero: büyük başlık + dikey fotoğraf (arkasında vurgu renkli levha, altında künye) + kompakt arama. Filo: NUMARALI FİYAT LİSTESİ (`<ol>`; satır etkinken fotoğraf sağ kolonda, `:hover`/`:focus-within`, JS yok; dar/dokunmatikte satır içi küçük görsel). Koşullar üç sütun, şubeler + saat + harita bağlantısı, SSS. | Noktalı çizgiler açılışta soldan sağa çizilir (clip-path) | Literata 500 (optik boyut 12–72) + Public Sans 400–600 |
 
@@ -94,6 +95,7 @@ record FleetModel(IReadOnlyList<ListingCard> Kartlar, FleetPlacement Yer)
     string? Uyari;             // yalnız kart varken (ör. "X bu tarihlerde müsait değil")
     FleetEmptyState? Bos;      // kart yokken; null → hiçbir şey basılmaz (T2)
     SiteFacts? Bilgi;          // firma beyanları (Home ve /musaitlik doldurur); tema isterse özet/çip basar
+    FleetFilterModel? Filtre;  // yalnız /musaitlik: süzgeç boyutları + taşınacak arama alanları (kartlar zaten süzülmüş)
 }
 
 record HomeModel(FleetBranding? Branding, IReadOnlyList<FleetShowcaseCard> Kartlar, FleetModel Filo,
@@ -144,6 +146,10 @@ https + Google alan adı); puan bağlantısız basılmaz. Çalışma saatleri ş
 Ofis/şube bloğu ve "bugün açık" satırı ortak `BranchOffices` (`Build`, `TodayHours`): bugünkü saat yalnız metinden
 kesin okunuyorsa ("09:00-18:00", "Her gün …", "Hafta içi …, Cumartesi …", "Mo-Sa …", "Pazar kapalı", "7/24")
 verilir, aralıkla yazılır (önbellekte de doğru kalır); tanınmayan metin → satır yok.
+Ortak yardımcılar: `SiteFactsText` (firma beyanlarının satır/çip/rozet metinleri), `VehicleSilhouette` (fotoğrafsız
+ilan), `FleetFilter` (süzgeç: ilanın görünür özellik etiketlerinden vites/yakıt/koltuk/sınıf; en az iki değerli
+boyut sunulur; boyut içinde VEYA, arası VE; tanınmayan değer yok sayılır — `/musaitlik` `?vites=&yakit=&koltuk=&sinif=`
+ile süzer). `ListingCard.TumOzellikler` görünür özelliklerin tamamıdır (`Ozellikler` başlıkta geçeni atan kart çipleri).
 
 Kurallar (tüm slotlar): arama için ORTAK `<AramaFormu>` (alan adları/doğrulama tek kaynak, T4); firma işareti
 için ORTAK `<BrandMark>`; fiyat için `PriceText`. `Kart.Gun is null` / `Model.Tarih is null` iken "müsait"
@@ -184,8 +190,8 @@ göre yalnız CSS ile değişir.
   (yapısal test). Tema `--brand-ink: var(--on-brand)` tanımlar (ana renk üstündeki yazı).
 - **Primitive kuralı:** primitive bloğundan sonra `var(--p-…)` YALNIZ `:root`'taki palet token yedeklerinde ve
   gerekçeli muafiyetlerde (`--danger --ok` durum renkleri; koyu moddaki siyah `--shadow-1 --shadow-2
-  --ticket-drop`; `--mask-on --mask-off` alfa maskesi; Anahtar'ın sabit WhatsApp düğmesi `--wa-bg --wa-ink`,
-  AA ayrıca test edilir) geçebilir. Slot kuralları ve bileşen token'ları
+  --ticket-drop`; `--mask-on --mask-off` alfa maskesi; sabit WhatsApp düğmesi `--wa-bg --wa-ink` ve Kıyas
+  rozetleri `--rozet-iyi-* --rozet-dikkat-*`, AA ayrıca test edilir) geçebilir. Slot kuralları ve bileşen token'ları
   (`--board-*`, `--stage-*`, `--logo-plate`, `--field-bg`, `--line-soft` …) semantik token'a bağlanır —
   `color-mix(in oklab|srgb, …)` serbest — ki palet her şeyi değiştirsin. Açık moddaki gölgeler mürekkep tonunda:
   `color-mix(in srgb, var(--ink) 30%, transparent)`.

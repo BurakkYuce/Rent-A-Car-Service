@@ -54,6 +54,11 @@
     [SupplyParameterFromQuery(Name = "sube")] public string? Sube { get; set; }
     /// <summary>İlan detayından gelindiyse o ilanın slug'ı — sonuçta öne alınır.</summary>
     [SupplyParameterFromQuery(Name = "ilan")] public string? Ilan { get; set; }
+    /// <summary>Süzgeç (FleetFilter): boyut başına birden çok değer (`?vites=Otomatik&vites=Manuel`).</summary>
+    [SupplyParameterFromQuery(Name = "sinif")] public string[]? Sinif { get; set; }
+    [SupplyParameterFromQuery(Name = "vites")] public string[]? Vites { get; set; }
+    [SupplyParameterFromQuery(Name = "yakit")] public string[]? Yakit { get; set; }
+    [SupplyParameterFromQuery(Name = "koltuk")] public string[]? Koltuk { get; set; }
 
     private static readonly IReadOnlyList<Breadcrumbs.Item> Crumbs =
         [new("Ana sayfa", "/"), new("Araçlar ve fiyatlar", "/musaitlik")];
@@ -94,17 +99,19 @@
             // ---- (a) TARİH SEÇİLMİŞ: gerçek müsaitlik + dönem toplamı. Gün sayısı aralığın kendisinden
             // (BookingMath) — tüm sonuçlarda aynı.
             var (fromDay, toDay) = (DateOnly.FromDateTime(_start!.Value.Date), DateOnly.FromDateTime(_end!.Value.Date));
-            var cards = _results.Select((r, i) => ListingCard.From(r, QuoteLink.Build(r.Slug, Bas, Bit, Sube, r.GunlukFiyat),
+            var all = _results.Select((r, i) => ListingCard.From(r, QuoteLink.Build(r.Slug, Bas, Bit, Sube, r.GunlukFiyat),
                 r.Slug == Ilan ? "Baktığınız araç" : null, i == 0) with
             {
                 WaLinki = WhatsAppAsk.Link(_branding, r.Baslik, fromDay, toDay, _fromTime, _toTime),
             }).ToList();
+            var (cards, filter) = ApplyFilter(all);
             return new FleetModel(cards, FleetPlacement.Availability)
             {
                 Bilgi = _branding?.Bilgi,
+                Filtre = filter,
                 Tarih = _results.Count > 0 ? new StayDates(_start!.Value, _end!.Value, _results[0].Gun) : null,
-                Ozet = _results.Count > 0
-                    ? new FleetSummary($"{_results.Count} araç müsait",
+                Ozet = cards.Count > 0
+                    ? new FleetSummary($"{cards.Count} araç müsait",
                         $"{RangeText}, {_results[0].Gun} gün. Fiyatlar gün sayısına göre hesaplandı.", Canli: true)
                     : null,
                 Uyari = _requestedTitle is not null && !_requestedAvailable
@@ -112,7 +119,7 @@
                     : null,
                 // PR-20: sonuç yoksa bile üç çıkış yolu: tarihi değiştir (form yukarıda), tüm filoyu gör, ya da
                 // doğrudan ulaş. Metin bir vaat içermez — yalnız durumu söyler.
-                Bos = new FleetEmptyState("Bu tarihlerde müsait araç yok",
+                Bos = all.Count > 0 ? FilteredOut(filter, live: true) : new FleetEmptyState("Bu tarihlerde müsait araç yok",
                     "Tarihleri bir iki gün esnetmek çoğu zaman sonucu değiştirir; yukarıdaki formdan yeniden deneyebilirsiniz.",
                     [new("/musaitlik", "Tüm filoyu gör"), new("/iletisim", "Bize ulaşın")], Canli: true),
             };
@@ -122,17 +129,44 @@
 
         // ---- (b) TARİH YOK: misafir filoyu serbestçe geziyor. BURADA "müsait" DENMEZ: tarih olmadan hangi aracın
         // boşta olduğu bilinemez. Kart adet etiketi de "9 araç" der, "9 araç müsait" demez (ListingCard, Card slotu).
-        var fleet = _fleet.Select((k, i) => ListingCard.From(k, QuoteLink.Build(k.Slug, Bas, Bit, Sube, k.GunlukFiyat),
+        var allFleet = _fleet.Select((k, i) => ListingCard.From(k, QuoteLink.Build(k.Slug, Bas, Bit, Sube, k.GunlukFiyat),
             k.Slug == Ilan ? "Baktığınız araç" : null, i == 0) with { WaLinki = WhatsAppAsk.Link(_branding, k.Baslik) }).ToList();
+        var (fleet, fleetFilter) = ApplyFilter(allFleet);
         return new FleetModel(fleet, FleetPlacement.Availability)
         {
             Bilgi = _branding?.Bilgi,
-            Ozet = new FleetSummary($"Filoda {_fleet.Count} araç",
+            Filtre = fleetFilter,
+            Ozet = new FleetSummary($"Filoda {fleet.Count} araç",
                 "Günlük fiyatlar aşağıda. Tarih girerseniz o aralıkta gerçekten boşta olanları ve toplam tutarı gösteririz."),
-            Bos = new FleetEmptyState("Şu anda sitede yayınlanmış araç yok",
+            Bos = allFleet.Count > 0 ? FilteredOut(fleetFilter, live: false) : new FleetEmptyState("Şu anda sitede yayınlanmış araç yok",
                 "Filomuz hakkında bilgi almak için bize ulaşın.", [new("/iletisim", "İletişim bilgileri")]),
         };
     }
+
+    /// <summary>
+    /// Vites/yakıt/koltuk/sınıf süzgeci (FleetFilter; GET parametreleri). Kartlar burada süzülür (veri mantığı sayfada);
+    /// tema yalnız formu basar. Arama alanları formda gizli taşınır. İlk ekrandaki ilk kart öncelikli kalır.
+    /// </summary>
+    private (List<ListingCard> Cards, FleetFilterModel Model) ApplyFilter(List<ListingCard> all)
+    {
+        var selected = FleetFilter.Parse(new Dictionary<string, string[]?>
+        {
+            ["sinif"] = Sinif, ["vites"] = Vites, ["yakit"] = Yakit, ["koltuk"] = Koltuk,
+        });
+        var effective = FleetFilter.Effective(all, selected);
+        var keep = new List<KeyValuePair<string, string>>();
+        foreach (var (key, value) in new[] { ("bas", Bas), ("bit", Bit), ("basSaat", BasSaat), ("bitSaat", BitSaat), ("sube", Sube), ("ilan", Ilan) })
+            if (!string.IsNullOrWhiteSpace(value)) keep.Add(new(key, value.Trim()));
+        var cards = all.Where(c => FleetFilter.Matches(c, effective))
+            .Select((c, i) => c with { Oncelikli = i == 0 }).ToList();
+        return (cards, new FleetFilterModel(FleetFilter.Facets(all, effective), keep, effective.Sum(e => e.Value.Length)));
+    }
+
+    /// <summary>Süzgece uyan ilan kalmadı (ilan VAR): süzgeci temizleme bağlantısı.</summary>
+    private static FleetEmptyState FilteredOut(FleetFilterModel filter, bool live)
+        => new("Seçtiğiniz özelliklerde araç yok",
+            "Süzgeçteki seçimlerden birini kaldırın ya da süzgeci temizleyin.",
+            [new(filter.ClearHref, "Süzgeci temizle"), new("/iletisim", "Bize ulaşın")], Canli: live);
 
     private async Task LoadAsync()
     {

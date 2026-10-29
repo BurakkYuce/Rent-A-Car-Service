@@ -9,7 +9,7 @@
     <div class="wrap an-alt-ic">
         <div class="an-alt-marka">
             <a class="an-marka" href="/"><BrandMark Name="@Name" LogoVersion="@Branding?.LogoSurum" /></a>
-            @if (AnahtarFacts.Founded(Branding?.Bilgi) is { } founded) { <p>@founded</p> }
+            @if (SiteFactsText.Founded(Branding?.Bilgi) is { } founded) { <p>@founded</p> }
             @if (!string.IsNullOrWhiteSpace(Branding?.Adres)) { <p>@Branding!.Adres</p> }
         </div>
         @if (_contact.TelLink is not null || _contact.WaLink is not null || _contact.Email is not null)

@@ -41,7 +41,7 @@
             }
             else
             {
-                <div class="an-kapak-bos"><AnahtarSilhouette /></div>
+                <div class="an-kapak-bos"><VehicleSilhouette /></div>
                 @if (Model.WaLinki is not null)
                 {
                     <figcaption><a href="@Model.WaLinki" target="_blank" rel="noopener noreferrer">Gerçek fotoğrafı WhatsApp'tan isteyin</a></figcaption>
@@ -106,7 +106,7 @@
 
     protected override void OnParametersSet()
     {
-        _short = AnahtarFacts.Short(Model.Branding?.Bilgi);
-        _all = AnahtarFacts.Lines(Model.Branding?.Bilgi);
+        _short = SiteFactsText.Short(Model.Branding?.Bilgi);
+        _all = SiteFactsText.Lines(Model.Branding?.Bilgi);
     }
 }

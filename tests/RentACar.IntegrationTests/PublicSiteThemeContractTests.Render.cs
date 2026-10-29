@@ -166,6 +166,7 @@ public sealed partial class PublicSiteThemeContractTests
     /// </summary>
     [Theory]
     [InlineData("anahtar")]
+    [InlineData("kiyas")]
     [InlineData("pazar")]
     [InlineData("rota")]
     public void Koyu_kimlik_destegi_acik_kimlikli_temalarin_ciktisini_degistirmez(string key)

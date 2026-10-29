@@ -45,21 +45,29 @@ public sealed partial class PublicSiteThemeContractTests(PostgresFixture fx)
         ["--mask-off"] = "maske yalnız alfa kanalı taşır, görünen renk değil",
         ["--wa-bg"] = "WhatsApp düğmesi markanın sabit koyu yeşili (palete bağlı değil); beyaz yazıyla AA ayrıca ölçülür",
         ["--wa-ink"] = "WhatsApp düğmesinin yazısı sabit beyaz; --wa-bg üstünde AA ayrıca ölçülür",
+        ["--rozet-iyi-bg"] = "Kıyas olumlu rozeti anlam rengi (yeşil), palete bağlı değil; yazısıyla AA ayrıca ölçülür",
+        ["--rozet-iyi-ink"] = "Kıyas olumlu rozeti yazısı; zemininde AA ayrıca ölçülür",
+        ["--rozet-dikkat-bg"] = "Kıyas dikkat rozeti anlam rengi (kehribar), palete bağlı değil; yazısıyla AA ayrıca ölçülür",
+        ["--rozet-dikkat-ink"] = "Kıyas dikkat rozeti yazısı; zemininde AA ayrıca ölçülür",
     };
 
-    /// <summary>Anahtar'ın WhatsApp düğmesi: #25d366 üstünde beyaz 1,98:1 geçmezdi (araştırma); temanın sabit tonu
-    /// beyaz yazıyla 4.5:1'i iki şemada da tutar. Beklenen eşik elle; renkler css'ten çözülür.</summary>
-    [Fact]
-    public void Anahtar_WhatsApp_dugmesi_AA()
+    /// <summary>Sabit renk çiftleri (palete bağlı değil): WhatsApp düğmesi (#25d366 üstünde beyaz 1,98:1 geçmezdi —
+    /// araştırma) ve Kıyas rozetleri; yazı/zemin 4.5:1'i iki şemada da tutar. Beklenen eşik elle; renkler css'ten.</summary>
+    [Theory]
+    [InlineData("anahtar", "--wa-ink", "--wa-bg")]
+    [InlineData("kiyas", "--wa-ink", "--wa-bg")]
+    [InlineData("kiyas", "--rozet-iyi-ink", "--rozet-iyi-bg")]
+    [InlineData("kiyas", "--rozet-dikkat-ink", "--rozet-dikkat-bg")]
+    public void Sabit_renk_ciftleri_AA(string key, string ink, string ground)
     {
-        var css = ReadCss(ThemeFile(SiteThemes.Anahtar));
+        var css = ReadCss(ThemeFile(SiteThemes.Resolve(key)));
         foreach (var dark in new[] { false, true })
         {
             var map = Tokens(css, dark);
-            var c = Contrast(ResolveHex(map, "--wa-ink"), ResolveHex(map, "--wa-bg"));
-            Assert.True(c >= 4.5, $"{(dark ? "koyu" : "açık")}: --wa-ink/--wa-bg = {c:0.00}");
+            var c = Contrast(ResolveHex(map, ink), ResolveHex(map, ground));
+            Assert.True(c >= 4.5, $"{key} {(dark ? "koyu" : "açık")}: {ink}/{ground} = {c:0.00}");
         }
-        Assert.NotEqual("#25d366", ResolveHex(Tokens(css, false), "--wa-bg"));
+        Assert.NotEqual("#25d366", ResolveHex(Tokens(css, false), ground));
     }
 
     public static readonly string[] ComponentTokens =
@@ -100,7 +108,7 @@ public sealed partial class PublicSiteThemeContractTests(PostgresFixture fx)
     public void Kayit_ve_ayar_anahtarlari_ayni()
     {
         // Beklenen anahtarlar elle (oracle): kayıt ve ayar listesi ikisi de buna eşit, aynı sırada.
-        Assert.Equal(["anahtar", "pazar", "vitrin", "rota"], SiteThemeKeys.All);
+        Assert.Equal(["anahtar", "kiyas", "pazar", "vitrin", "rota"], SiteThemeKeys.All);
         Assert.Equal(SiteThemeKeys.All, SiteThemes.All.Select(t => t.Key));
         Assert.Equal("anahtar", SiteThemeKeys.Default);
         Assert.Equal("anahtar", SiteThemes.Resolve(null).Key);

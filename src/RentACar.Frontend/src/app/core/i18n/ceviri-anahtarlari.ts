@@ -4803,6 +4803,8 @@ export type CeviriAnahtari =
   | 'sistem.ayarlar.tema.anahtar.aciklama'
   | 'sistem.ayarlar.tema.anahtar.ad'
   | 'sistem.ayarlar.tema.ipucu'
+  | 'sistem.ayarlar.tema.kiyas.aciklama'
+  | 'sistem.ayarlar.tema.kiyas.ad'
   | 'sistem.ayarlar.tema.onizle'
   | 'sistem.ayarlar.tema.onizleAciklama'
   | 'sistem.ayarlar.tema.onizleSecili'

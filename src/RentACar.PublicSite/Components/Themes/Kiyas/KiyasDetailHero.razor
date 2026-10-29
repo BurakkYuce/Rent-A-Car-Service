@@ -1,0 +1,141 @@
+@* Tema "kiyas" — DetailHero slotu. İmza SABİT (Components/Themes/README.md): Model (DetailHeroModel).
+
+   MOBİL İLK EKRAN: ad + teknik satır → günlük fiyat → kısa koşullar (depozito, km, iptal; yalnız girilmişse) → iki
+   düğme. Geniş ekranda solda görsel (açık gri kutu, `contain`), "Fiyata dahil" (KDV yalnız ilan KDV dahilse; sigorta
+   ve km firmanın beyanı) ve "Şartlar"; sağda yapışkan panel: tarife (eş genişlikli rakam, gün başı karşılığı —
+   sayfadan, tema hesap yapmaz), rozetler, düğmeler, tarih formu. Kapak LCP adayı: tembel değil, yüksek öncelik. *@
+
+<div class="wrap">
+    <div class="detay ky-detay">
+        <header class="detay-bas">
+            <h1>@Model.Ilan.Baslik</h1>
+            @if (Model.MetaSatiri is { Length: > 0 } meta) { <p>@meta</p> }
+            @if (_spec is not null) { <p class="ky-teknik">@_spec</p> }
+            <div class="detay-hizli ky-hizli">
+                <p class="ky-fiyat"><span class="ky-tutar">@PriceText.Tl(Model.Ilan.GunlukFiyat)</span> <span class="ky-birim">/ gün</span> <span class="ky-kdv">@Model.KdvMetni</span></p>
+                @if (_short.Count > 0)
+                {
+                    <dl class="ky-kosul-kisa">
+                        @foreach (var f in _short) { <div><dt>@f.Etiket</dt><dd>@f.Metin</dd></div> }
+                    </dl>
+                }
+                <div class="ky-eylem-cift">
+                    <a class="btn btn-brand" href="@Model.TeklifLinki">Rezervasyon talebi</a>
+                    @if (Model.WaLinki is not null)
+                    {
+                        <a class="btn btn-wa" href="@Model.WaLinki" target="_blank" rel="noopener noreferrer">WhatsApp'tan sor</a>
+                    }
+                </div>
+            </div>
+        </header>
+
+        <figure class="detay-kapak ky-kapak">
+            <div class="ky-kapak-kutu">
+                @if (Model.Ilan.PhotoIds.Count > 0)
+                {
+                    var cover = Model.Ilan.PhotoIds[0];
+                    <img src="@($"/foto/{cover}")"
+                         srcset="@($"/foto/{cover}/thumb 400w, /foto/{cover} 1600w")"
+                         sizes="(min-width: 960px) 700px, 100vw"
+                         width="1200" height="900" alt="@Model.Ilan.Baslik" fetchpriority="high" decoding="async" />
+                }
+                else
+                {
+                    <VehicleSilhouette />
+                }
+            </div>
+            @if (_included.Count > 0 || _terms.Count > 0)
+            {
+                <figcaption class="ky-dahil">
+                    @if (_included.Count > 0)
+                    {
+                        <div>
+                            <h2>Fiyata dahil</h2>
+                            <ul>@foreach (var i in _included) { <li>@i</li> }</ul>
+                        </div>
+                    }
+                    @if (_terms.Count > 0)
+                    {
+                        <div>
+                            <h2>Şartlar</h2>
+                            <dl>@foreach (var f in _terms) { <div><dt>@f.Etiket</dt><dd>@f.Metin</dd></div> }</dl>
+                        </div>
+                    }
+                </figcaption>
+            }
+        </figure>
+
+        <aside class="panel ky-panel" aria-labelledby="tarife-baslik">
+            <h2 id="tarife-baslik">Fiyatlar</h2>
+            <table class="tarife-tablo ky-tarife">
+                <caption class="gorunmez">@Model.Ilan.Baslik kiralama fiyatları</caption>
+                <tbody>
+                    @foreach (var rate in Model.Tarife)
+                    {
+                        <tr>
+                            <th scope="row">@rate.Etiket</th>
+                            <td><strong>@PriceText.Tl(rate.Tutar)</strong><small>@(rate.GunBasi is { } perDay ? $"gün başı {PriceText.Tl(perDay)}" : Model.KdvMetni)</small></td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+            @if (_badges.Count > 0)
+            {
+                <ul class="ky-rozetler" aria-label="Kiralama koşulları">
+                    @foreach (var (text, kind) in _badges) { <li class="ky-rozet-@kind">@text</li> }
+                </ul>
+            }
+            <div class="panel-eylem">
+                <a class="btn btn-brand btn-genis" href="@Model.TeklifLinki">Rezervasyon talebi</a>
+                @if (Model.WaLinki is not null)
+                {
+                    <a class="btn btn-wa btn-genis" href="@Model.WaLinki" target="_blank" rel="noopener noreferrer">WhatsApp'tan sor</a>
+                }
+            </div>
+            <AramaFormu Hedef="/musaitlik" Ilan="@Model.Ilan.Slug" Subeler="Model.SubeAdlari"
+                        ButonMetni="Tarihlerime göre toplamı gör" AriaLabel="Bu araç için tarih seç" />
+        </aside>
+
+        @if (Model.Ilan.PhotoIds.Count > 1)
+        {
+            <ul class="galeri" aria-label="Diğer fotoğraflar">
+                @for (var i = 1; i < Model.Ilan.PhotoIds.Count; i++)
+                {
+                    var id = Model.Ilan.PhotoIds[i];
+                    <li>
+                        <a href="@($"/foto/{id}")">
+                            <img src="@($"/foto/{id}/thumb")" alt="@($"{Model.Ilan.Baslik}, fotoğraf {i + 1}")"
+                                 width="400" height="300" loading="lazy" decoding="async" />
+                        </a>
+                    </li>
+                }
+            </ul>
+        }
+    </div>
+</div>
+
+@code {
+    [Parameter, EditorRequired] public DetailHeroModel Model { get; set; } = default!;
+
+    private string? _spec;
+    private IReadOnlyList<FactLine> _short = [];
+    private List<string> _included = [];
+    private List<FactLine> _terms = [];
+    private IReadOnlyList<(string Text, string Kind)> _badges = [];
+
+    protected override void OnParametersSet()
+    {
+        var f = Model.Branding?.Bilgi;
+        var parts = new[] { "vites", "yakit", "koltuk" }.Select(k => FleetFilter.ValueOf(Model.Ilan.Ozellikler, k)).OfType<string>().ToList();
+        _spec = parts.Count == 0 ? null : string.Join(", ", parts);
+        _short = SiteFactsText.Short(f);
+        _badges = SiteFactsText.Badges(f);
+
+        // "Fiyata dahil": yalnız veriden — KDV (ilanın işareti), sigorta özeti ve km (firmanın beyanı).
+        var lines = SiteFactsText.Lines(f);
+        _included = [];
+        if (Model.Ilan.KdvDahil) _included.Add("KDV");
+        foreach (var l in lines.Where(l => l.Etiket is "Sigorta" or "Kilometre")) _included.Add($"{l.Etiket}: {l.Metin}");
+        _terms = [.. lines.Where(l => l.Etiket is "Sürücü" or "Depozito" or "İptal")];
+    }
+}

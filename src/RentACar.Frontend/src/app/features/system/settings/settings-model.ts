@@ -165,7 +165,7 @@ export const PRICE_TYPES = [
  * Halka açık site temaları (`SiteThemeKeys.All`; sunucu yalnız bunları saklar). Boş = varsayılan (anahtar, ilk
  * eleman); formda boş seçenek yok, yüklenen null değer "anahtar" gibi gösterilir.
  */
-export const SITE_THEMES = ['anahtar', 'pazar', 'vitrin', 'rota'] as const;
+export const SITE_THEMES = ['anahtar', 'kiyas', 'pazar', 'vitrin', 'rota'] as const;
 export type SiteTheme = (typeof SITE_THEMES)[number];
 
 export type SitePaletteOption = Schema<'SitePaletteOptionDto'>;
