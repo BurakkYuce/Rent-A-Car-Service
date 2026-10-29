@@ -3353,6 +3353,9 @@ namespace RentACar.Infrastructure.Migrations
                         .HasMaxLength(16)
                         .HasColumnType("character varying(16)");
 
+                    b.Property<DateTimeOffset?>("OnayZamani")
+                        .HasColumnType("timestamp with time zone");
+
                     b.Property<string>("Plaka")
                         .IsRequired()
                         .HasMaxLength(16)

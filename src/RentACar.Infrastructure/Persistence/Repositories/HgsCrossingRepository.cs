@@ -67,16 +67,16 @@ public sealed class HgsCrossingRepository(IDbContextFactory<AppDbContext> factor
     {
         var list = plates.Distinct().ToList();
         if (list.Count == 0) return [];
-        return await db.HgsGecisleri.AsNoTracking()
+        var rows = await db.HgsGecisleri.AsNoTracking()
             .Where(c => list.Contains(c.Plaka) && c.GecisZamani >= from && c.GecisZamani <= to)
-            .Select(c => new HgsCrossingRef(c.Id, c.Plaka, c.GecisZamani, c.Tutar, c.IstasyonAnahtari, c.CreatedAtUtc, c.Durum))
             .ToListAsync(ct);
+        return rows.ConvertAll(HgsCrossingRef.Of);
     }
 
     private static Task<List<HgsCrossingRef>> RefsAroundAsync(AppDbContext db, IReadOnlyCollection<HgsCrossing> rows, CancellationToken ct)
         => RefsAsync(db, rows.Select(r => r.Plaka),
-            rows.Min(r => r.GecisZamani) - HgsResolution.NearDuplicateWindow,
-            rows.Max(r => r.GecisZamani) + HgsResolution.NearDuplicateWindow, ct);
+            rows.Min(r => r.GecisZamani) - HgsResolution.LookAround,
+            rows.Max(r => r.GecisZamani) + HgsResolution.LookAround, ct);
 
     public async Task<IReadOnlySet<string>> InsertAsync(IReadOnlyList<HgsCrossing> rows, CancellationToken ct = default)
     {
@@ -93,18 +93,27 @@ public sealed class HgsCrossingRepository(IDbContextFactory<AppDbContext> factor
                 .ToHashSet(StringComparer.Ordinal);
             var near = new HgsNearDuplicateIndex(existing);
             var skipped = new HashSet<string>(StringComparer.Ordinal);
+            var added = new List<HgsCrossing>(rows.Count);
+            // Öncelik (önce kaydedilen asıl) kayıt anına bakar: kayıt anı KİLİT ALTINDA verilir ki eşzamanlı iki
+            // yüklemeden sonra yazılan, önizlemesini önce başlatmış olsa bile mevcutlardan sonra gelsin (#407 C1).
+            var now = DateTimeOffset.UtcNow;
+            foreach (var r in rows) { r.CreatedAtUtc = now; r.UpdatedAtUtc = now; }
             foreach (var r in rows.OrderBy(r => r.GecisZamani).ThenBy(r => r.IstasyonAnahtari, StringComparer.Ordinal))
             {
                 var key = HgsResolution.NaturalKey(r);
                 if (!keys.Add(key)) { skipped.Add(key); continue; }
-                var me = HgsCrossingRef.Of(r);
-                if (r.Durum != HgsCrossingStatus.Yansitildi && near.IsSecondary(me))
+                near.Add(HgsCrossingRef.Of(r));
+                added.Add(r);
+                db.HgsGecisleri.Add(r);
+            }
+            // Karar, dosyanın tüm satırları dizine girdikten SONRA (geniş kuralın bire bir eşleşmesi sıraya bağlı olmasın).
+            foreach (var r in added)
+            {
+                if (r.Durum != HgsCrossingStatus.Yansitildi && near.SecondaryNote(HgsCrossingRef.Of(r)) is { } note)
                 {
                     r.Durum = HgsCrossingStatus.Belirsiz;
-                    r.EslesmeNotu = HgsResolution.NearDuplicateNote;
+                    r.EslesmeNotu = note;
                 }
-                near.Add(HgsCrossingRef.Of(r));
-                db.HgsGecisleri.Add(r);
             }
             try
             {
@@ -162,15 +171,18 @@ public sealed class HgsCrossingRepository(IDbContextFactory<AppDbContext> factor
                 ? Enumerable.Empty<HgsRentalWindow>().ToLookup(w => w.VehicleId)
                 : (await WindowsAsync(db, vehicleIds, open.Min(c => c.GecisZamani), open.Max(c => c.GecisZamani), ct))
                     .ToLookup(w => w.VehicleId);
-            // Olası mükerrer: yansıtılmış komşular DAHİL tüm geçişler (yansıtılmış bir kopyası olan satır asla
-            // yeniden "Eslesti" olmaz — #391 M1).
-            var near = new HgsNearDuplicateIndex(await RefsAroundAsync(db, open, ct));
+            // Önce GÜNCEL kira çözümü (geniş kural aynı kirayı şart koşar), sonra olası mükerrer: yansıtılmış komşular
+            // DAHİL tüm geçişler (yansıtılmış bir kopyası olan satır asla yeniden "Eslesti" olmaz — #391 M1).
+            var resolved = open.ToDictionary(c => c.Id, c => HgsResolution.Resolve(c.Plaka, c.GecisZamani, vehicles, windows));
+            HgsCrossingRef Current(HgsCrossingRef r)
+                => resolved.TryGetValue(r.Id, out var x) ? r with { RentalId = x.Match.Rental?.RentalId } : r;
+            var near = new HgsNearDuplicateIndex((await RefsAroundAsync(db, open, ct)).Select(Current));
             var now = DateTimeOffset.UtcNow;
             var changed = 0;
             foreach (var c in open)
             {
-                var (vehicleId, match) = HgsResolution.Resolve(c.Plaka, c.GecisZamani, vehicles, windows);
-                match = HgsResolution.WithNearDuplicate(match, near.IsSecondary(HgsCrossingRef.Of(c)));
+                var (vehicleId, match) = resolved[c.Id];
+                match = HgsResolution.WithNearDuplicate(match, near.SecondaryNote(Current(HgsCrossingRef.Of(c))));
                 var rentalId = match.Rental?.RentalId;
                 if (c.VehicleId == vehicleId && c.RentalId == rentalId && c.Durum == match.Status
                     && c.EslesmeNotu == match.Note) continue;
@@ -184,6 +196,54 @@ public sealed class HgsCrossingRepository(IDbContextFactory<AppDbContext> factor
             await db.SaveChangesAsync(ct);
             await tx.CommitAsync(ct);
             return changed;
+        }, ct);
+    }
+
+    public async Task<HgsConfirmResult> ConfirmAsync(
+        IReadOnlyCollection<Guid> ids, BranchScope.BranchFilter scope, DateTimeOffset now, CancellationToken ct = default)
+    {
+        var idArray = ids.Distinct().ToArray();
+        return await PgRetry.RunAsync(async () =>
+        {
+            await using var db = await _factory.CreateDbContextAsync(ct);
+            await using var tx = await db.Database.BeginTransactionAsync(ct);
+            await LockAsync(db, ct); // yansıtmayla aynı sıra: danışma → geçiş satırları → kira satırları
+            var rows = await db.HgsGecisleri
+                .FromSqlRaw("SELECT * FROM \"HgsGecisleri\" WHERE \"Id\" = ANY({0}) FOR UPDATE", idArray)
+                .ToListAsync(ct);
+            var rentalIds = rows.Where(c => c.RentalId is not null).Select(c => c.RentalId!.Value).Distinct().ToArray();
+            var rentals = rentalIds.Length == 0
+                ? new Dictionary<Guid, RentalContract>()
+                : (await db.Rentals.FromSqlRaw("SELECT * FROM \"Rentals\" WHERE \"Id\" = ANY({0}) FOR SHARE", rentalIds)
+                    .AsNoTracking().ToListAsync(ct)).ToDictionary(r => r.Id);
+            foreach (var r in rentals.Values)
+                if (!BranchScope.InScope(scope, r.CikisSubeId, r.CikisOfisi))
+                    throw new NoPermissionException("Bu kayıt şube kapsamınız dışında.");
+
+            // 60 sn kuralı kilit altında yeniden: neredeyse aynı anda yansıtılmış/asıl eşi olan satır onaylanmaz (A10).
+            var near = rows.Count == 0 ? new HgsNearDuplicateIndex([]) : new HgsNearDuplicateIndex(await RefsAroundAsync(db, rows, ct));
+            int confirmed = 0, unfit = idArray.Length - rows.Count;
+            foreach (var c in rows)
+            {
+                // Yalnız GENİŞ kural gerekçeli Belirsiz satır; kira GÜNCEL hâliyle geçiş anını hâlâ kapsamalı.
+                if (c.Durum != HgsCrossingStatus.Belirsiz || c.EslesmeNotu != HgsResolution.SameStationNote
+                    || near.HasSixtySecondPrimary(HgsCrossingRef.Of(c))
+                    || c.RentalId is not { } rid || !rentals.TryGetValue(rid, out var rental)
+                    || rental.Durum == RentalStatus.Iptal || rental.VehicleId != c.VehicleId
+                    || HgsCrossingMatcher.Match(c.GecisZamani, [WindowOf(rental)]).Status != HgsCrossingStatus.Eslesti)
+                {
+                    unfit++;
+                    continue;
+                }
+                c.Durum = HgsCrossingStatus.Eslesti;
+                c.EslesmeNotu = null;
+                c.OnayZamani = now;
+                c.UpdatedAtUtc = now;
+                confirmed++;
+            }
+            await db.SaveChangesAsync(ct);
+            await tx.CommitAsync(ct);
+            return new HgsConfirmResult(confirmed, unfit);
         }, ct);
     }
 

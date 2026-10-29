@@ -49,6 +49,7 @@ import {
   HGS,
   HGS_LIST,
   HGS_STATUSES,
+  type HgsConfirmResult,
   type HgsCrossingRow,
   type HgsReflectResult,
   type HgsRematchResult,
@@ -229,6 +230,42 @@ export class HgsList {
       });
   }
 
+  /** Seçili olası mükerrer geçişleri "ayrı geçiş" onaylar (para yazmaz; sunucu yalnız olası mükerreri kabul eder). */
+  protected async confirmSeparate(): Promise<void> {
+    const ids = this.selection();
+    if (this.busy() || ids.length === 0) return;
+    if (ids.length > MAX_REFLECT) {
+      this.toast.uyari(this.t('finansBelge.hgs.cokFazlaSecim', { adet: MAX_REFLECT }));
+      return;
+    }
+    const yes = await this.confirm.ask({
+      baslik: this.t('finansBelge.hgs.ayriOnaylaBaslik'),
+      mesaj: this.t('finansBelge.hgs.ayriOnaylaMesaj', { adet: ids.length }),
+    });
+    if (!yes || this.busy()) return;
+    this.busy.set(true);
+    this.api
+      .post<HgsConfirmResult>(`${HGS}/gecisler/onayla`, { ids })
+      .pipe(
+        finalize(() => this.busy.set(false)),
+        takeUntilDestroyed(this.destroyRef),
+      )
+      .subscribe({
+        next: (r) => {
+          this.selection.set([]);
+          this.toast.basari(
+            this.t('finansBelge.hgs.ayriOnaylandi', { adet: r.onaylanan, uygunsuz: r.uygunsuz }),
+          );
+          this.store.list.yenile();
+        },
+        error: (raw: unknown) => {
+          const error = toApiError(raw);
+          if (!genelGosterilir(error)) this.toast.hata(error.detay);
+          this.store.list.yenile();
+        },
+      });
+  }
+
   protected async rematch(): Promise<void> {
     if (this.busy()) return;
     const yes = await this.confirm.ask({
@@ -325,7 +362,13 @@ export class HgsList {
         tur: 'sayi',
         genislik: 80,
       },
-      { kod: 'eslesmeNotu', baslik: h('not'), deger: (r) => r.eslesmeNotu ?? '', genislik: 240 },
+      {
+        kod: 'eslesmeNotu',
+        baslik: h('not'),
+        deger: (r) =>
+          r.onayZamani ? this.t('finansBelge.hgs.ayriOnayliNot') : (r.eslesmeNotu ?? ''),
+        genislik: 240,
+      },
       { kod: 'etiketNo', baslik: h('etiket'), deger: (r) => r.etiketNo ?? '—', genislik: 120 },
       {
         kod: 'dosyaAdi',

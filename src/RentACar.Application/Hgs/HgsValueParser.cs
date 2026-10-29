@@ -196,6 +196,17 @@ public static class HgsValueParser
     public static string StationKey(string? entry, string? exit)
         => $"{Fold(entry)}>{Fold(exit)}";
 
+    /// <summary>
+    /// Olası mükerrer YAKINLIK karşılaştırması için istasyon anahtarı (#407 L2): NFC, Türkçe katlama, yalnız harf ve
+    /// rakam ("Kınalı-Gişe" = "KINALI GİŞE", "Avrasya Tüneli." = "AVRASYA TUNELI", ayrık çengelli "Çamlıca" =
+    /// "Çamlıca"). Doğal anahtar (<see cref="StationKey"/>, unique index) BUNU KULLANMAZ — o değişmez.
+    /// </summary>
+    public static string NearKey(string? station)
+    {
+        if (string.IsNullOrWhiteSpace(station)) return string.Empty;
+        return string.Concat(Fold(station.Normalize(NormalizationForm.FormC)).Where(char.IsLetterOrDigit));
+    }
+
     private static string Fold(string? s)
     {
         if (string.IsNullOrWhiteSpace(s)) return string.Empty;

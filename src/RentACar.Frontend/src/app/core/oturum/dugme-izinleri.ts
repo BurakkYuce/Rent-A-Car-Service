@@ -102,6 +102,8 @@ export const DUGME_IZINLERI = {
   },
   /** HGS geçişleri "Müşteriye yansıt" — defter yazar (Borç Cari / Alacak Gelir). */
   hgsYansit: { izinler: ['FinanceWrite'], uc: 'POST /api/ui/v1/hgs/gecisler/yansit' },
+  /** HGS olası mükerrer geçişi "ayrı geçiş olarak onayla" — para yazmaz, satırı yansıtılabilir yapar. */
+  hgsOnayla: { izinler: ['FinanceWrite'], uc: 'POST /api/ui/v1/hgs/gecisler/onayla' },
   /** Kira ekranı KABİS kartı işlemleri — okuma OW|FW, işlemler (yeniden dene / gerekli değil / elle) OW. */
   kabisYenidenDene: {
     izinler: ['OperationsWrite'],

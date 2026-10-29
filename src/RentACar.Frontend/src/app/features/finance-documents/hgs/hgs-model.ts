@@ -11,6 +11,7 @@ export type HgsImportRow = Schema<'HgsImportRowDto'>;
 export type HgsField = Schema<'HgsFieldDto'>;
 export type HgsReflectResult = Schema<'HgsReflectResultDto'>;
 export type HgsRematchResult = Schema<'HgsRematchResult'>;
+export type HgsConfirmResult = Schema<'HgsConfirmResultDto'>;
 
 /** Sunucu enum ADLARI (`HgsCrossingStatus`; tanımsız ad 400). */
 export const HGS_STATUSES = ['Eslesti', 'KiraDisi', 'Belirsiz', 'Yansitildi'] as const;

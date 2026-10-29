@@ -471,7 +471,7 @@ public sealed class HgsImportTests(PostgresFixture fx)
         using var wb = new XLWorkbook();
         var ws = wb.AddWorksheet("Geçişler");
         ws.Cell(1, 1).Value = "Araç Plakası";
-        ws.Cell(1, 2).Value = "Tarih";
+        ws.Cell(1, 2).Value = "Geçiş Tarihi"; // yalın "Tarih" otomatik eşlenmez (#407 Q6)
         ws.Cell(1, 3).Value = "Saat";
         ws.Cell(1, 4).Value = "Geçiş Ücreti";
         ws.Cell(1, 5).Value = "Çıkış Noktası";

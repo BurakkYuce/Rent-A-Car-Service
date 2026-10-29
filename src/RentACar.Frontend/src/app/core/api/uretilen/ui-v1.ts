@@ -7303,6 +7303,45 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/ui/v1/hgs/gecisler/onayla': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody: {
+        content: {
+          'application/json': components['schemas']['HgsConfirmRequest'];
+        };
+      };
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['HgsConfirmResultDto'];
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/api/ui/v1/hgs/gecisler/yeniden-eslestir': {
     parameters: {
       query?: never;
@@ -27353,6 +27392,15 @@ export interface components {
       reddet: boolean;
       kapat: boolean;
     };
+    HgsConfirmRequest: {
+      ids: null | string[];
+    };
+    HgsConfirmResultDto: {
+      /** Format: int32 */
+      onaylanan: number | string;
+      /** Format: int32 */
+      uygunsuz: number | string;
+    };
     HgsCrossingRow: {
       /** Format: uuid */
       id: string;
@@ -27384,6 +27432,8 @@ export interface components {
       aracSinifi: null | string;
       dosyaAdi: null | string;
       eslesmeNotu: null | string;
+      /** Format: date-time */
+      onayZamani: null | string;
     };
     HgsFieldDto: {
       kod: string;
