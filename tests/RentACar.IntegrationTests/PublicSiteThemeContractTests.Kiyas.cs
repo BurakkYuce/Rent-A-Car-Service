@@ -72,8 +72,9 @@ public sealed partial class PublicSiteThemeContractTests
             SiteFactsText.Badges(new SiteFacts(DepozitoTutari: 5000m, GunlukKmSiniri: 1000)));
     }
 
-    /// <summary>İkinci yayında ilan: Renault Clio, Vites "Otomatik", günlük 1.800 TL, fotoğraflı. Slug döner.</summary>
-    private async Task<string> SeedAutomaticListingAsync(Guid t)
+    /// <summary>İkinci yayında ilan: Renault Clio, Vites "Otomatik", günlük 1.800 TL (isteğe bağlı 30 günlük toplam),
+    /// fotoğraflı. Slug döner.</summary>
+    private async Task<string> SeedAutomaticListingAsync(Guid t, decimal? monthly = null)
     {
         using var host = new TestHost(fx.AppConnectionString);
         using var s = host.ScopeFor(t);
@@ -88,7 +89,7 @@ public sealed partial class PublicSiteThemeContractTests
         var listings = sp.GetRequiredService<WebListingService>();
         var signature = (await listings.PoolAsync()).Single(k => k.Araclar.Any(v => v.Id == vehicleId)).Imza;
         var listingId = await listings.StepOneSignatureAsync([signature]);
-        await listings.StepTwoAsync(listingId, 1800m, null, null, true);
+        await listings.StepTwoAsync(listingId, 1800m, null, monthly, true);
         await listings.StepThreeAsync(listingId, [new OzellikSatiri("Vites", "Otomatik")]);
         return (await listings.GetAsync(listingId))!.Ilan.Slug;
     }

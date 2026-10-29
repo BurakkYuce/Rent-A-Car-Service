@@ -1,0 +1,42 @@
+@using RentACar.Application.Fleet
+
+@* Tema "paket" — Header slotu. İmza SABİT (Components/Themes/README.md): Branding, Nav.
+
+   Sakin bar: marka, menü, telefon metni ve "Teklif alın" (ana sayfanın kurumsal bölümüne). Telefonda marka + menü;
+   Ara/WhatsApp alt eylem çubuğunda (MainLayout). Kanal yoksa öğesi basılmaz (T2). Menü <details>. *@
+
+<header class="bar">
+    <div class="wrap pk-bar-ic">
+        <a class="pk-marka" href="/" aria-label="@($"{Name} ana sayfa")">
+            <BrandMark Name="@Name" LogoVersion="@Branding?.LogoSurum" />
+        </a>
+        <nav class="pk-nav" aria-label="Ana menü">
+            @foreach (var n in Nav) { <a href="@n.Href">@n.Label</a> }
+        </nav>
+        @if (_contact.TelLink is not null)
+        {
+            <a class="pk-bar-tel" href="@_contact.TelLink">@_contact.Phone</a>
+        }
+        <a class="btn btn-brand pk-bar-teklif" href="/#kurumsal">Teklif alın</a>
+        <details class="pk-menu">
+            <summary>Menü</summary>
+            <ul>
+                <li><a href="/">Ana sayfa</a></li>
+                @foreach (var n in Nav) { <li><a href="@n.Href">@n.Label</a></li> }
+                <li><a href="/#kurumsal">Teklif alın</a></li>
+            </ul>
+        </details>
+    </div>
+</header>
+
+@code {
+    /// <summary>Firma bilgisi (ad, logo sürümü, iletişim). Null → nötr kabuk.</summary>
+    [Parameter] public FleetBranding? Branding { get; set; }
+    /// <summary>Ana menü bağlantıları ("Ana sayfa" hariç).</summary>
+    [Parameter] public IReadOnlyList<SiteLink> Nav { get; set; } = [];
+
+    private ContactLinks _contact = ContactLinks.From(null);
+    private string Name => string.IsNullOrWhiteSpace(Branding?.Marka) ? "RentPro" : Branding!.Marka!;
+
+    protected override void OnParametersSet() => _contact = ContactLinks.From(Branding, Name);
+}

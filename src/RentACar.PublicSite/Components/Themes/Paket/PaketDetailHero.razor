@@ -1,0 +1,138 @@
+@* Tema "paket" — DetailHero slotu. İmza SABİT (Components/Themes/README.md): Model (DetailHeroModel).
+
+   Broşürün teknik sayfası gibi: ad (h1) + künye; geniş 16:10 görsel (yoksa tipografik tabela); altında büyük rakamlı
+   TARİFE tablosu (Süre / Tutar / Gün başı — satırlar ve yuvarlama sayfadan, tema hesap yapmaz), teknik satır ve
+   firmanın koşulları. Sağda yapışkan panel: öne çıkan fiyat (tarifede aylık satır varsa o, yoksa günlük), kısa
+   koşullar, Teklif alın / Ara / WhatsApp, tarih formu. MOBİL İLK EKRAN: ad → fiyat → depozito/km/iptal → düğmeler. *@
+
+<div class="wrap">
+    <div class="detay pk-detay">
+        <header class="detay-bas">
+            <h1>@Model.Ilan.Baslik</h1>
+            @if (Model.MetaSatiri is { Length: > 0 } meta) { <p>@meta</p> }
+            <div class="detay-hizli pk-hizli">
+                <p class="pk-fiyat"><span class="pk-tutar">@PriceText.Tl(_lead.Tutar)</span> <span class="pk-birim">@_leadUnit</span> <span class="pk-kdv">@Model.KdvMetni</span></p>
+                @if (_short.Count > 0)
+                {
+                    <dl class="pk-kosul-kisa">
+                        @foreach (var f in _short) { <div><dt>@f.Etiket</dt><dd>@f.Metin</dd></div> }
+                    </dl>
+                }
+                <div class="pk-eylem-cift">
+                    <a class="btn btn-brand" href="@Model.TeklifLinki">Teklif alın</a>
+                    @if (Model.WaLinki is not null)
+                    {
+                        <a class="btn btn-wa" href="@Model.WaLinki" target="_blank" rel="noopener noreferrer">WhatsApp'tan sor</a>
+                    }
+                </div>
+            </div>
+        </header>
+
+        <figure class="detay-kapak pk-kapak">
+            @if (Model.Ilan.PhotoIds.Count > 0)
+            {
+                var cover = Model.Ilan.PhotoIds[0];
+                <img src="@($"/foto/{cover}")"
+                     srcset="@($"/foto/{cover}/thumb 400w, /foto/{cover} 1600w")"
+                     sizes="(min-width: 960px) 700px, 100vw"
+                     width="1600" height="1000" alt="@Model.Ilan.Baslik" fetchpriority="high" decoding="async" />
+            }
+            else
+            {
+                <div class="pk-tabela pk-tabela-buyuk" aria-hidden="true"><span>@Model.Ilan.Baslik</span><VehicleSilhouette /></div>
+            }
+            <figcaption class="pk-teknik-sayfa">
+                <h2>Fiyatlar</h2>
+                <table class="pk-tarife">
+                    <caption class="gorunmez">@Model.Ilan.Baslik kiralama fiyatları</caption>
+                    <thead><tr><th scope="col">Süre</th><th scope="col">Tutar</th><th scope="col">Gün başı</th></tr></thead>
+                    <tbody>
+                        @foreach (var rate in Model.Tarife)
+                        {
+                            <tr>
+                                <th scope="row">@rate.Etiket</th>
+                                <td>@PriceText.Tl(rate.Tutar)</td>
+                                <td>@(rate.GunBasi is { } perDay ? PriceText.Tl(perDay) : PriceText.Tl(rate.Tutar))</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+                <p class="pk-not">@Model.KdvMetni.</p>
+                @if (_spec is not null) { <p class="pk-teknik">@_spec</p> }
+                @if (_all.Count > 0)
+                {
+                    <h2>Kiralama koşulları</h2>
+                    <dl class="pk-kosul-liste">
+                        @foreach (var f in _all) { <div><dt>@f.Etiket</dt><dd>@f.Metin</dd></div> }
+                    </dl>
+                }
+            </figcaption>
+        </figure>
+
+        <aside class="panel pk-panel" aria-labelledby="tarife-baslik">
+            <h2 id="tarife-baslik" class="gorunmez">Fiyat ve teklif</h2>
+            <p class="pk-panel-etiket">@_lead.Etiket</p>
+            <p class="pk-fiyat"><span class="pk-tutar pk-tutar-buyuk">@PriceText.Tl(_lead.Tutar)</span> <span class="pk-birim">@_leadUnit</span></p>
+            <p class="pk-kdv">@Model.KdvMetni</p>
+            @if (_short.Count > 0)
+            {
+                <dl class="pk-kosul-kisa">
+                    @foreach (var f in _short) { <div><dt>@f.Etiket</dt><dd>@f.Metin</dd></div> }
+                </dl>
+            }
+            <div class="panel-eylem">
+                <a class="btn btn-brand btn-genis" href="@Model.TeklifLinki">Teklif alın</a>
+                @if (_contact.TelLink is not null)
+                {
+                    <a class="btn btn-cizgi btn-genis" href="@_contact.TelLink">Ara @_contact.Phone</a>
+                }
+                @if (Model.WaLinki is not null)
+                {
+                    <a class="btn btn-wa btn-genis" href="@Model.WaLinki" target="_blank" rel="noopener noreferrer">WhatsApp'tan sor</a>
+                }
+            </div>
+            <AramaFormu Hedef="/musaitlik" Ilan="@Model.Ilan.Slug" Subeler="Model.SubeAdlari"
+                        ButonMetni="Tarihlerime göre toplamı gör" AriaLabel="Bu araç için tarih seç" />
+        </aside>
+
+        @if (Model.Ilan.PhotoIds.Count > 1)
+        {
+            <ul class="galeri" aria-label="Diğer fotoğraflar">
+                @for (var i = 1; i < Model.Ilan.PhotoIds.Count; i++)
+                {
+                    var id = Model.Ilan.PhotoIds[i];
+                    <li>
+                        <a href="@($"/foto/{id}")">
+                            <img src="@($"/foto/{id}/thumb")" alt="@($"{Model.Ilan.Baslik}, fotoğraf {i + 1}")"
+                                 width="400" height="250" loading="lazy" decoding="async" />
+                        </a>
+                    </li>
+                }
+            </ul>
+        }
+    </div>
+</div>
+
+@code {
+    [Parameter, EditorRequired] public DetailHeroModel Model { get; set; } = default!;
+
+    private DetailRate _lead = new("Günlük", 0m, null);
+    private string _leadUnit = "/ gün";
+    private string? _spec;
+    private IReadOnlyList<FactLine> _short = [];
+    private IReadOnlyList<FactLine> _all = [];
+    private ContactLinks _contact = ContactLinks.From(null);
+
+    protected override void OnParametersSet()
+    {
+        // Öne çıkan fiyat: tarifede aylık satır (sayfa "Aylık, 30 gün" diye kurar) varsa o, yoksa günlük satır.
+        var monthly = Model.Tarife.FirstOrDefault(r => r.Etiket.StartsWith("Aylık", StringComparison.Ordinal));
+        _lead = monthly ?? Model.Tarife[0];
+        _leadUnit = monthly is null ? "/ gün" : "/ 30 gün";
+        var parts = new[] { "vites", "yakit", "koltuk" }.Select(k => FleetFilter.ValueOf(Model.Ilan.Ozellikler, k)).OfType<string>().ToList();
+        _spec = parts.Count == 0 ? null : string.Join(", ", parts);
+        _short = SiteFactsText.Short(Model.Branding?.Bilgi);
+        _all = SiteFactsText.Lines(Model.Branding?.Bilgi);
+        _contact = ContactLinks.From(Model.Branding);
+    }
+}

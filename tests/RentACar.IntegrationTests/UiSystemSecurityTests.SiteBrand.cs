@@ -109,7 +109,8 @@ public sealed partial class UiSystemSecurityTests
             .ToDictionary(t => t.GetProperty("tema").GetString()!,
                 t => t.GetProperty("paletler").EnumerateArray().Select(p => p.GetProperty("anahtar").GetString()).ToList());
         Assert.Equal(["grafit", "gece-mavisi", "bordo", "orman", "sampanya"], catalog["vitrin"]);
-        Assert.Equal(["anahtar", "kiyas", "pazar", "vitrin", "rota"], catalog.Keys);
+        Assert.Equal(["anahtar", "kiyas", "paket", "pazar", "vitrin", "rota"], catalog.Keys);
+        Assert.Equal(["kiremit", "lacivert", "zeytin", "grafit"], catalog["paket"]);
         Assert.Equal(["mavi", "turkuaz", "kiremit", "gece"], catalog["kiyas"]);
         Assert.Equal(["zumrut", "lacivert", "visne", "grafit"], catalog["anahtar"]);
         var bordo = first.GetProperty("sitePaletSecenekleri").EnumerateArray().Single(t => t.GetProperty("tema").GetString() == "vitrin")

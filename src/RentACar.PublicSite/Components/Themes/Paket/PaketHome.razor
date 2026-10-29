@@ -1,0 +1,153 @@
+@using System.Globalization
+
+@* Tema "paket" — Home slotu. İmza SABİT (Components/Themes/README.md): Model (HomeModel).
+
+   Sıra (aylık/uzun dönem ve kurumsal müşteri; günlük fiyatı değil aylık tutarı arar):
+     1. Hero — geniş başlık, en düşük aylık fiyat (yoksa günlük), araçlar/teklif, tarihle toplam formu
+     2. Araçlar — iki sütun büyük kart (ilan yoksa yok, T2)
+     3. Aylık fiyat tablosu — her ilanın 30 günlük toplamı ve günlük fiyatı; aylık toplamı girilmemiş ilanda
+        "Teklif alın" (fiyat uydurulmaz). Hiçbir ilanda aylık toplam yoksa tablo yok.
+     4. Kiralama koşulları — firmanın beyanları (boş alan satır üretmez; hepsi boşsa yok)
+     5. Kurumsal teklif (koyu bant, id="kurumsal") — mevcut talep formuna GET ile geçer: YALNIZ başlangıç/bitiş tarihi
+        ve kurumsal işareti (/rezervasyon-talebi?bas&bit&kurumsal=1). Serbest metin (araç adedi, şehir, firma) adrese
+        GİRMEZ (KVKK); talep sayfasının POST formundaki not alanına yazılır. YENİ POST UCU YOK.
+     6. Teslim noktaları (bugünkü saat), SSS.
+   Sarmalayıcı öğe YOK: bölümler doğrudan <main>'in çocuğu. Animasyon yok. *@
+
+<ThemedHero Marka="@Model.Marka" Branding="Model.Branding" Subeler="Model.SubeAdlari" Kartlar="Model.Kartlar" Sehir="@Model.Sehir" />
+
+@if (Model.Filo.Kartlar.Count > 0)
+{
+    <section class="bolum pk-filo" id="filo" aria-labelledby="@Model.Filo.BaslikId">
+        <div class="wrap">
+            <ThemedFleet Model="Model.Filo" />
+        </div>
+    </section>
+}
+
+@if (Model.Filo.Kartlar.Any(k => k.AylikToplam is not null))
+{
+    <section class="bolum pk-aylik" id="aylik" aria-labelledby="aylik-baslik">
+        <div class="wrap">
+            <h2 id="aylik-baslik" class="bolum-baslik">Aylık fiyatlar</h2>
+            <div class="pk-tablo-kap">
+                <table class="pk-aylik-tablo">
+                    <thead><tr><th scope="col">Araç</th><th scope="col">30 gün</th><th scope="col">Günlük</th></tr></thead>
+                    <tbody>
+                        @foreach (var k in Model.Filo.Kartlar)
+                        {
+                            <tr>
+                                <th scope="row"><a href="@k.DetayLinki">@k.Baslik</a></th>
+                                <td>
+                                    @if (k.AylikToplam is { } month) { <span class="pk-tablo-tutar">@PriceText.Tl(month)</span> }
+                                    else { <a href="@k.TeklifLinki">Teklif alın</a> }
+                                </td>
+                                <td>@PriceText.Tl(k.GunlukFiyat)</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+            <p class="pk-not">@(Model.Filo.Kartlar.All(k => k.KdvDahil) ? "Fiyatlar KDV dahil." : "KDV durumu her aracın sayfasında yazılı.")</p>
+        </div>
+    </section>
+}
+
+@if (_facts.Count > 0)
+{
+    <section class="bolum pk-kosul" id="kosullar" aria-labelledby="kosul-baslik">
+        <div class="wrap">
+            <h2 id="kosul-baslik" class="bolum-baslik">Kiralama koşulları</h2>
+            <dl class="pk-kosul-liste">
+                @foreach (var f in _facts) { <div><dt>@f.Etiket</dt><dd>@f.Metin</dd></div> }
+            </dl>
+            @if (Model.KosulSayfasi is { Length: > 0 } terms)
+            {
+                <p class="linkler"><a href="@terms">Kiralama koşullarının tamamı</a></p>
+            }
+        </div>
+    </section>
+}
+
+<section class="pk-kurumsal" id="kurumsal" aria-labelledby="kurumsal-baslik">
+    <div class="wrap pk-kurumsal-ic">
+        <div>
+            <h2 id="kurumsal-baslik">Şirketiniz için teklif</h2>
+            <p>Başlangıç ve bitiş tarihini seçin; teklif formunda araç adedini, şehri ve iletişim bilgilerinizi yazıp gönderin.</p>
+            @if (_contact.TelLink is not null)
+            {
+                <p>Doğrudan konuşmak için: <a href="@_contact.TelLink">@_contact.Phone</a></p>
+            }
+        </div>
+        <form method="get" action="/rezervasyon-talebi" class="pk-kurumsal-form" aria-label="Kurumsal teklif">
+            <div class="pk-iki">
+                <label class="alan">Başlangıç<input name="bas" type="date" value="@_start" min="@_today" required /></label>
+                <label class="alan">Bitiş<input name="bit" type="date" value="@_end" min="@_today" required /></label>
+            </div>
+            @* KVKK: serbest metin bu GET formunda YOK (adrese girerdi); yalnız tarihler + kurumsal işareti. *@
+            <input type="hidden" name="kurumsal" value="1" />
+            <button type="submit" class="btn">Teklif formuna geç</button>
+        </form>
+    </div>
+</section>
+
+@if (_offices.Count > 0)
+{
+    <section class="bolum pk-ofis" id="ofis" aria-labelledby="ofis-baslik">
+        <div class="wrap">
+            <h2 id="ofis-baslik" class="bolum-baslik">@(_offices.Count == 1 ? "Teslim noktası" : "Teslim noktaları")</h2>
+            <ul class="pk-ofisler">
+                @foreach (var (office, today) in _offices)
+                {
+                    <li>
+                        <h3>@office.Name</h3>
+                        @if (office.Address is not null) { <p class="pk-ofis-adres">@office.Address</p> }
+                        @if (today is not null) { <p class="pk-acik">Bugün @today açık</p> }
+                        @if (office.TelLink is not null || office.MapLink is not null)
+                        {
+                            <p class="pk-ofis-eylem">
+                                @if (office.TelLink is not null) { <a href="@office.TelLink">@office.Phone</a> }
+                                @if (office.MapLink is not null)
+                                {
+                                    @* Dış bağlantı: kullanıcının kendi harita uygulamasında açılır (gömme YOK — CSP). *@
+                                    <a href="@office.MapLink" target="_blank" rel="noopener noreferrer">Haritada aç</a>
+                                }
+                            </p>
+                        }
+                    </li>
+                }
+            </ul>
+        </div>
+    </section>
+}
+
+@* Görünen soru adedi = FAQPage JSON-LD adedi (SEO L-4): Model.SssAdet değiştirilmez. *@
+<BolumSss Sorular="Model.Sss" Adet="Model.SssAdet" />
+
+@code {
+    private const int MaxOffices = 4;
+
+    [Parameter, EditorRequired] public HomeModel Model { get; set; } = default!;
+
+    private IReadOnlyList<FactLine> _facts = [];
+    private IReadOnlyList<(BranchOffice Office, string? Today)> _offices = [];
+    private ContactLinks _contact = ContactLinks.From(null);
+    private string _today = "", _start = "", _end = "";
+
+    protected override void OnParametersSet()
+    {
+        _facts = SiteFactsText.Lines(Model.Branding?.Bilgi);
+        _contact = ContactLinks.From(Model.Branding);
+        var day = SiteDate.TodayDayOfWeek;
+        _offices = [.. BranchOffices.Build(Model.Subeler, Model.Branding, MaxOffices)
+            .Select(o => (o, o.Source is { } b ? BranchOffices.TodayHours(b, day) : null))];
+
+        // Kurumsal form: başlangıç yarın (İstanbul), bitiş bir ay sonrası — aylık kiralamanın doğal varsayılanı.
+        var today = SiteDate.Today(DateTimeOffset.UtcNow);
+        _today = Iso(today);
+        _start = Iso(today.AddDays(1));
+        _end = Iso(today.AddDays(1).AddMonths(1));
+    }
+
+    private static string Iso(DateOnly d) => d.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
+}

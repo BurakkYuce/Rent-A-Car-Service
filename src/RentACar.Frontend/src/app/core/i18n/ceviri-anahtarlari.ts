@@ -4808,6 +4808,8 @@ export type CeviriAnahtari =
   | 'sistem.ayarlar.tema.onizle'
   | 'sistem.ayarlar.tema.onizleAciklama'
   | 'sistem.ayarlar.tema.onizleSecili'
+  | 'sistem.ayarlar.tema.paket.aciklama'
+  | 'sistem.ayarlar.tema.paket.ad'
   | 'sistem.ayarlar.tema.pazar.aciklama'
   | 'sistem.ayarlar.tema.pazar.ad'
   | 'sistem.ayarlar.tema.rota.aciklama'

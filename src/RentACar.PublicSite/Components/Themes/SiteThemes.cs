@@ -1,6 +1,7 @@
 using RentACar.Application.TenantSettings;
 using RentACar.PublicSite.Components.Themes.Anahtar;
 using RentACar.PublicSite.Components.Themes.Kiyas;
+using RentACar.PublicSite.Components.Themes.Paket;
 using RentACar.PublicSite.Components.Themes.Pazar;
 using RentACar.PublicSite.Components.Themes.Rota;
 using RentACar.PublicSite.Components.Themes.Vitrin;
@@ -188,7 +189,33 @@ public static class SiteThemes
         Palettes = KiyasPalettes.All,
     };
 
-    public static readonly IReadOnlyList<SiteTheme> All = [Anahtar, Kiyas, Pazar, Vitrin, Rota];
+    /// <summary>"Paket Display" (başlık, büyük rakam: Mona Sans'tan fonttools instancer ile genişlik 112'ye sabitlenip
+    /// ağırlık 600–700'e kısıldı; OFL'in ayrılmış adı "Mona" değiştirilmiş sürümde kullanılamadığı için aile adı
+    /// değiştirildi — telif satırı korunur, OFL-MonaSans.txt) + Inter (gövde 400–500; aynı yöntemle kısıldı, ayrılmış
+    /// adı yok, OFL-Inter.txt). ₺ (U+20BA) ikisinde de latin-ext'te (cmap ile doğrulandı). Dört dosya ~135 KB; hepsi
+    /// önyüklenir (ilk ekranda büyük başlık ve Türkçe gövde iki alt kümeyi de ister).</summary>
+    private static readonly IReadOnlyList<ThemeFont> PaketFonts =
+    [
+        new("Paket Display", "600 700", "fonts/paket-display-latin-ext.woff2", LatinExt),
+        new("Paket Display", "600 700", "fonts/paket-display-latin.woff2", Latin),
+        new("Inter", "400 500", "fonts/inter-latin-ext.woff2", LatinExt),
+        new("Inter", "400 500", "fonts/inter-latin.woff2", Latin),
+    ];
+
+    /// <summary>Paket: aylık/uzun dönem ve kurumsal kiralama. Aylık fiyat önde, aylık fiyat tablosu, kurumsal teklif
+    /// bölümü (mevcut talep formuna GET ile ön dolum). Fotoğrafsız ilanda tipografik "tabela" kartı. Animasyon yok.</summary>
+    public static readonly SiteTheme Paket = new(SiteThemeKeys.Paket, "Paket",
+        "Aylık ve kurumsal kiralama önce: aylık fiyat önde, aylık fiyat tablosu ve kurumsal teklif bölümü; sade, tipografik. Uzun dönem ve kurumsal müşteriyle çalışan firma için.",
+        "css/tema-paket.css",
+        [.. PaketFonts.Select(f => f.File)],
+        typeof(PaketHero), typeof(PaketCard), typeof(PaketHeader), typeof(PaketFooter),
+        typeof(PaketHome), typeof(PaketFleet), typeof(PaketDetailHero))
+    {
+        Fonts = PaketFonts,
+        Palettes = PaketPalettes.All,
+    };
+
+    public static readonly IReadOnlyList<SiteTheme> All = [Anahtar, Kiyas, Paket, Pazar, Vitrin, Rota];
 
     /// <summary>Anahtardan tema; eski anahtar yeni karşılığına (<see cref="SiteThemeKeys.LegacyAliases"/>),
     /// boş/bilinmeyen → varsayılan (<see cref="SiteThemeKeys.Default"/>).</summary>

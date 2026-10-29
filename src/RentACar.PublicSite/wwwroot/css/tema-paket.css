@@ -1,0 +1,345 @@
+/* PRIMITIVE — ham değerler. Renk literalleri YALNIZ bu ilk :root bloğunda (yapısal test kilitler).
+   Palet renkleri yalnız YEDEK: asıl değerler App.razor'daki palet bloğundan gelir (SitePaletteCss; varsayılan set
+   "kiremit" = bu değerler, PaketPalettes.cs). WhatsApp yeşili palete bağlı DEĞİL (gerekçeli muafiyet). */
+:root {
+  --p-white: #ffffff;
+  --p-paper: #f3f2ee;          /* sıcak açık gri kâğıt */
+  --p-paper-2: #eae9e5;
+  --p-line: #d9d7d0;           /* yalnız ayraç */
+  --p-line-2: #8d8e8d;
+  --p-ink: #111316;            /* mürekkep — 16,6:1; koyu bant da bu */
+  --p-ink-2: #5e5f63;          /* ikincil metin — 5,7:1 */
+  --p-ink-3: #676868;
+  --p-brick: #8c2f1b;          /* firma rengi (varsayılan): beyaz yazı 8,3:1, tek vurgu */
+  --p-brick-soft: #e7dbd5;
+  --p-night: #121314;
+  --p-night-2: #212223;
+  --p-night-surface: #1b1c1e;
+  --p-night-raised: #232426;
+  --p-night-line: #2c2d2d;
+  --p-night-line-2: #585858;
+  --p-night-ink: #ecebe7;
+  --p-night-ink-2: #b6b5b2;
+  --p-night-ink-3: #999997;
+  --p-clay: #e08b6f;           /* koyu şemanın firma rengi */
+  --p-clay-soft: #3f2d28;
+  --p-wa: #0b7a3e;             /* WhatsApp: beyaz yazı 5,4:1 (#25d366 üstünde beyaz 1,98:1 geçmez) */
+  --p-red-700: #b42318;
+  --p-red-300: #ff9b8f;
+  --p-ok-700: #1c6b3f;
+  --p-ok-300: #8fd4a8;
+  --p-shadow-1-dark: 0 -8px 24px -18px rgb(0 0 0 / 70%);
+  --p-shadow-2-dark: 0 1px 2px rgb(0 0 0 / 40%), 0 18px 36px -24px rgb(0 0 0 / 80%);
+}
+
+/* =============================================================================
+   Tema "paket" — aylık/uzun dönem ve kurumsal kiralama; 10-50 araç, daha yeni filo. Müşteri günlük fiyatı değil
+   AYLIK toplamı arar; kurumsal teklif birinci sınıf bölüm.
+
+   KİMLİK: sade, tipografik, bol boşluk. Kâğıt zemin, beyaz kartlar, ince ayraçlar, 4 px köşe, gölge yok. Tek belirgin
+   unsur BÜYÜK RAKAM: aylık fiyat ve tarife "Paket Display" (Mona Sans, genişlik 112) ile, eş genişlikli rakam (tnum).
+   Firma rengi tek vurgu (düğme, bağlantı). Kurumsal bölüm ve alt bilgi KOYU BANT: açık şemanın mürekkebi üstünde zemin
+   rengi yazı (iki modda aynı, --day-ink / --day-bg). Fotoğrafsız ilanda tipografik "tabela" (büyük model adı +
+   silüet) — broşürün teknik sayfası gibi.
+
+   YAZI: Paket Display 600–700 (başlık, rakam) + Inter 400–500 (gövde). Büyük harf etiket yok.
+   ANİMASYON YOK.
+   ============================================================================= */
+
+@font-face { font-family: "Paket Display Fallback"; src: local("Arial"); size-adjust: 108%; ascent-override: 92%; descent-override: 24%; line-gap-override: 0%; }
+@font-face { font-family: "Inter Fallback"; src: local("Arial"); size-adjust: 107%; ascent-override: 90%; descent-override: 22%; line-gap-override: 0%; }
+
+/* SEMANTIC + COMPONENT (açık). Palet token'larının yedekleri primitive'e; diğerleri semantik token'a bağlı. */
+:root {
+  color-scheme: light;
+  --bg: var(--p-paper);
+  --bg-alt: var(--p-paper-2);
+  --surface: var(--p-white);
+  --surface-raised: var(--p-white);
+  --ink: var(--p-ink);
+  --ink-muted: var(--p-ink-2);
+  --ink-subtle: var(--p-ink-3);
+  --line: var(--p-line);
+  --line-strong: var(--p-line-2);
+  --brand: var(--p-brick);
+  --on-brand: var(--p-white);
+  --brand-text: var(--p-brick);
+  --brand-soft: var(--p-brick-soft);
+  --accent: var(--p-brick);
+  --accent-ink: var(--p-white);
+  --day-bg: var(--p-paper);
+  --day-ink: var(--p-ink);
+  --night-bg: var(--p-night);
+  --night-ink: var(--p-night-ink);
+  --brand-ink: var(--on-brand);
+  --focus: var(--ink);
+  --danger: var(--p-red-700);
+  --ok: var(--p-ok-700);
+  --wa-bg: var(--p-wa);
+  --wa-ink: var(--p-white);
+
+  --font-display: "Paket Display", "Paket Display Fallback", Arial, sans-serif;
+  --font-body: "Inter", "Inter Fallback", system-ui, sans-serif;
+  --step--1: .875rem;
+  --step-0: 1.0625rem;
+  --step-1: 1.25rem;
+  --step-2: clamp(1.5rem, 1.3rem + .8vw, 2rem);
+  --step-3: clamp(1.75rem, 1.4rem + 1.5vw, 2.625rem);
+  --step-4: clamp(2.125rem, 1.5rem + 2.6vw, 3.5rem);
+  --step-5: clamp(2.375rem, 1.5rem + 3.8vw, 4.5rem);
+  --space-1: .5rem; --space-2: 1rem; --space-3: 1.5rem; --space-4: 2.5rem;
+  --space-5: 4.5rem; --space-6: 6rem; --space-7: 7.5rem; --space-8: 9rem;
+  --radius-s: 4px; --radius-m: 4px; --radius-l: 6px;
+  --shadow-1: 0 -8px 24px -18px color-mix(in srgb, var(--ink) 30%, transparent);
+  --shadow-2: 0 1px 2px color-mix(in srgb, var(--ink) 8%, transparent), 0 16px 32px -24px color-mix(in srgb, var(--ink) 30%, transparent);
+  --measure: 62ch;
+
+  --btn-bg: var(--brand);
+  --btn-ink: var(--brand-ink);
+  --btn-radius: var(--radius-s);
+  --card-bg: var(--surface);
+  --card-radius: var(--radius-m);
+  --card-border: var(--line);
+  --field-bg: var(--surface);
+  --field-border: var(--line-strong);
+  --price-ink: var(--ink);
+  --price-mark: var(--brand);
+
+  /* Tema bileşenleri: koyu bant iki modda aynı (açık şemanın mürekkebi üstünde açık şemanın zemini). */
+  --band-bg: var(--day-ink);
+  --band-ink: var(--day-bg);
+  --band-muted: color-mix(in srgb, var(--day-bg) 78%, var(--day-ink));
+  --tabela-bg: var(--bg-alt);
+  --logo-plate: transparent;
+}
+
+/* SEMANTIC (koyu) — palet token yedekleri primitive'e; bileşen token'ları semantik token'a bağlı. */
+@media (prefers-color-scheme: dark) {
+  :root {
+    color-scheme: dark;
+    --bg: var(--p-night);
+    --bg-alt: var(--p-night-2);
+    --surface: var(--p-night-surface);
+    --surface-raised: var(--p-night-raised);
+    --ink: var(--p-night-ink);
+    --ink-muted: var(--p-night-ink-2);
+    --ink-subtle: var(--p-night-ink-3);
+    --line: var(--p-night-line);
+    --line-strong: var(--p-night-line-2);
+    --brand: var(--p-clay);
+    --on-brand: var(--p-ink);
+    --brand-text: var(--p-clay);
+    --brand-soft: var(--p-clay-soft);
+    --accent: var(--p-clay);
+    --accent-ink: var(--p-ink);
+    --danger: var(--p-red-300);
+    --ok: var(--p-ok-300);
+    --shadow-1: var(--p-shadow-1-dark);
+    --shadow-2: var(--p-shadow-2-dark);
+    --field-bg: var(--bg-alt);
+    --logo-plate: var(--day-bg);
+  }
+}
+
+/* ---- Genel ton ---- */
+h1, h2, h3 { font-weight: 700; letter-spacing: -.01em; }
+.btn { font: 600 1rem/1.1 var(--font-body); letter-spacing: 0; min-height: 48px; padding-inline: 1.25rem; }
+.btn-wa { background: var(--wa-bg); color: var(--wa-ink); }
+.btn-wa:hover { background: color-mix(in srgb, var(--wa-bg) 85%, var(--ink)); color: var(--wa-ink); }
+.sayfa-ust h1 { font-size: var(--step-4); }
+.bolum-baslik { font-size: var(--step-3); }
+.tutar, .tarife-tablo td strong, .sonuc-ozet strong { font-family: var(--font-display); font-variant-numeric: tabular-nums; font-weight: 700; }
+.alan input[type="date"], .alan input[type="time"] { font-variant-numeric: tabular-nums; }
+.altbar a[href^="https://wa.me/"] { background: var(--wa-bg); color: var(--wa-ink); border-color: transparent; }
+main:has(> .bolum:last-child) { padding-bottom: 0; }
+
+/* ---- Üst bar ---- */
+.bar { position: sticky; top: 0; z-index: 30; background: var(--bg); border-bottom: 1px solid var(--line); }
+.pk-bar-ic { display: flex; align-items: center; gap: var(--space-2); min-height: 68px; }
+.pk-marka { display: inline-flex; align-items: center; min-height: 44px; min-width: 0; margin-right: auto; color: var(--ink); text-decoration: none; }
+.pk-marka img { display: block; height: 34px; width: auto; max-width: 180px; object-fit: contain; object-position: left center; background: var(--logo-plate); border-radius: var(--radius-s); }
+.pk-marka .marka-ad { font: 700 1.375rem/1.1 var(--font-display); overflow-wrap: anywhere; }
+.pk-nav, .pk-bar-tel, .pk-bar-teklif { display: none; }
+.pk-nav a { display: inline-flex; align-items: center; min-height: 44px; color: var(--ink); text-decoration: none; }
+.pk-nav a:hover { text-decoration: underline; text-underline-offset: .3em; }
+.pk-bar-tel { align-items: center; min-height: 44px; color: var(--ink); text-decoration: none; font-variant-numeric: tabular-nums; font-weight: 500; }
+.pk-bar-tel:hover { text-decoration: underline; }
+.bar .btn { min-height: 42px; }
+.pk-menu { position: relative; }
+.pk-menu > summary {
+  display: inline-flex; align-items: center; gap: .5em; min-height: 44px; padding: 0 .9rem;
+  list-style: none; cursor: pointer; border: 1px solid var(--line-strong); border-radius: var(--radius-s); font-weight: 500;
+}
+.pk-menu > summary::-webkit-details-marker { display: none; }
+.pk-menu > summary::before {
+  content: ""; width: 16px; height: 10px;
+  background: linear-gradient(currentColor 0 0) top / 100% 1.5px no-repeat, linear-gradient(currentColor 0 0) bottom / 100% 1.5px no-repeat;
+}
+.pk-menu[open] > summary { border-color: var(--ink); }
+.pk-menu ul {
+  position: absolute; right: 0; top: calc(100% + .5rem); z-index: 40; min-width: 220px; margin: 0; padding: .5rem;
+  list-style: none; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-m); box-shadow: var(--shadow-2);
+}
+.pk-menu li a { display: flex; align-items: center; min-height: 44px; padding: 0 .75rem; color: var(--ink); text-decoration: none; }
+.pk-menu li a:hover { background: var(--bg-alt); }
+@media (min-width: 900px) {
+  .pk-bar-ic { gap: var(--space-3); }
+  .pk-nav { display: flex; gap: var(--space-3); }
+  .pk-bar-tel, .pk-bar-teklif { display: inline-flex; }
+  .pk-menu { display: none; }
+}
+
+/* ---- Hero ---- */
+.pk-hero { padding-block: var(--space-4) var(--space-5); border-bottom: 1px solid var(--line); }
+.pk-hero-ic { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--space-4); }
+.pk-hero h1 { margin: 0; font-size: var(--step-5); line-height: 1.04; letter-spacing: -.02em; max-width: 16ch; }
+.pk-kunye { margin: .75rem 0 0; color: var(--ink-muted); }
+.pk-baslangic { display: flex; flex-wrap: wrap; align-items: baseline; gap: .25rem .6rem; margin: var(--space-4) 0 0; }
+.pk-baslangic-etiket { flex-basis: 100%; color: var(--ink-muted); }
+.pk-buyuk-rakam { font: 700 clamp(2.5rem, 1.6rem + 3.6vw, 4.25rem)/1 var(--font-display); font-variant-numeric: tabular-nums; letter-spacing: -.02em; }
+.pk-birim { color: var(--ink-muted); font-weight: 500; }
+.pk-kdv { color: var(--ink-muted); font-size: var(--step--1); }
+.pk-hero-eylem { display: flex; flex-wrap: wrap; gap: .6rem; margin-top: var(--space-3); }
+.pk-hero-form { padding: var(--space-3); background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-l); align-self: start; }
+.pk-hero-form-baslik { margin: 0 0 var(--space-2); font-size: var(--step-1); }
+.pk-hero-form .arama { padding: 0; border: 0; box-shadow: none; background: none; }
+@media (min-width: 960px) {
+  .pk-hero { padding-block: var(--space-5); }
+  .pk-hero-ic { grid-template-columns: minmax(0, 1.35fr) minmax(320px, 1fr); gap: var(--space-5); align-items: end; }
+}
+
+/* ---- Bölüm başı ---- */
+.pk-bolum-bas { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: .25rem 1rem; margin-bottom: var(--space-3); }
+.pk-bolum-bas .bolum-baslik { margin: 0; }
+
+/* ---- İlan kartı: büyük, iki sütun ---- */
+.pk-ilanlar { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 380px), 1fr)); gap: var(--space-3); margin: 0; padding: 0; list-style: none; }
+.pk-ilanlar > li { display: flex; min-width: 0; }
+.pk-kart { position: relative; display: grid; grid-template-columns: minmax(0, 1fr); grid-template-rows: auto 1fr; width: 100%; background: var(--card-bg); border: 1px solid var(--card-border); border-radius: var(--card-radius); overflow: hidden; }
+.pk-kart:hover { border-color: var(--line-strong); }
+.pk-kart:has(h3 a:focus-visible) { outline: 2px solid var(--focus); outline-offset: 3px; }
+.pk-kart h3 a:focus-visible { outline: none; }
+.pk-kart h3 a::after { content: ""; position: absolute; inset: 0; }
+.pk-kart-foto { aspect-ratio: 16 / 10; overflow: hidden; background: var(--tabela-bg); }
+.pk-kart-foto img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.pk-kart-govde { display: grid; gap: .35rem; align-content: start; padding: var(--space-3); }
+.pk-kart h3 { margin: 0; font-size: 1.5rem; line-height: 1.15; }
+.pk-kart h3 a { color: var(--ink); text-decoration: none; }
+.pk-teknik { margin: 0; color: var(--ink-muted); }
+.pk-kart-fiyat { margin-top: var(--space-2); padding-top: var(--space-2); border-top: 1px solid var(--line); }
+.pk-fiyat { display: flex; flex-wrap: wrap; align-items: baseline; gap: .1rem .5rem; margin: 0; }
+.pk-tutar { font: 700 2.125rem/1.05 var(--font-display); font-variant-numeric: tabular-nums; letter-spacing: -.02em; color: var(--price-ink); }
+.pk-fiyat-alt { margin: .2rem 0 0; color: var(--ink-muted); font-size: var(--step--1); font-variant-numeric: tabular-nums; }
+.pk-kart-eylem { position: relative; z-index: 1; display: flex; flex-wrap: wrap; gap: .5rem; margin-top: var(--space-2); }
+.pk-isaret { position: absolute; top: .75rem; left: .75rem; z-index: 1; margin: 0; padding: .2rem .6rem; border-radius: var(--radius-s); background: var(--accent); color: var(--accent-ink); font-size: .8125rem; font-weight: 500; }
+
+/* Fotoğrafsız: tipografik tabela — büyük model adı + silüet, broşür teknik sayfası gibi. */
+.pk-tabela { position: relative; display: grid; align-content: space-between; height: 100%; padding: var(--space-3); background: var(--tabela-bg); color: var(--ink); }
+.pk-tabela span { font: 700 clamp(1.5rem, 1.1rem + 1.6vw, 2.25rem)/1.05 var(--font-display); letter-spacing: -.02em; max-width: 14ch; }
+.pk-tabela .siluet { justify-self: end; width: 46%; max-width: 220px; height: auto; fill: none; stroke: var(--line-strong); stroke-width: 1.2; }
+.pk-tabela-buyuk { aspect-ratio: 16 / 10; height: auto; border-radius: var(--radius-l); }
+
+/* ---- Aylık fiyat tablosu ---- */
+.pk-tablo-kap { overflow-x: auto; }
+.pk-aylik-tablo { width: 100%; max-width: 920px; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+.pk-aylik-tablo th, .pk-aylik-tablo td { padding: .9rem .75rem .9rem 0; text-align: left; border-bottom: 1px solid var(--line); vertical-align: baseline; }
+.pk-aylik-tablo thead th { color: var(--ink-muted); font-weight: 500; font-size: var(--step--1); }
+.pk-aylik-tablo tbody th { font-weight: 500; }
+.pk-aylik-tablo tbody th a { color: var(--ink); }
+.pk-aylik-tablo td { text-align: right; white-space: nowrap; }
+.pk-aylik-tablo thead th:not(:first-child) { text-align: right; }
+.pk-tablo-tutar { font: 700 1.375rem/1.1 var(--font-display); }
+.pk-not { margin: .75rem 0 0; color: var(--ink-muted); font-size: var(--step--1); }
+
+/* ---- Koşullar ---- */
+.pk-kosul-liste { max-width: 860px; margin: 0; border-top: 1px solid var(--ink); }
+.pk-kosul-liste > div { display: grid; grid-template-columns: minmax(0, 1fr); gap: .15rem; padding-block: .85rem; border-bottom: 1px solid var(--line); }
+.pk-kosul-liste dt { font-weight: 500; }
+.pk-kosul-liste dd { margin: 0; color: var(--ink-muted); }
+@media (min-width: 640px) {
+  .pk-kosul-liste > div { grid-template-columns: minmax(0, 11rem) minmax(0, 1fr); gap: 1.5rem; }
+}
+
+/* ---- Kurumsal: koyu bant ---- */
+.pk-kurumsal { padding-block: var(--space-5); background: var(--band-bg); color: var(--band-ink); }
+.pk-kurumsal-ic { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--space-4); }
+.pk-kurumsal h2 { margin: 0 0 .75rem; font-size: var(--step-3); color: var(--band-ink); }
+.pk-kurumsal p { margin: 0 0 .5rem; color: var(--band-muted); max-width: 52ch; }
+.pk-kurumsal a { color: var(--band-ink); }
+.pk-kurumsal :focus-visible { outline-color: var(--band-ink); }
+.pk-kurumsal-form { display: grid; gap: var(--space-2); }
+.pk-kurumsal .alan { color: var(--band-muted); }
+.pk-kurumsal .alan input { background: var(--band-ink); color: var(--band-bg); border-color: var(--band-ink); }
+.pk-kurumsal .btn { justify-self: start; background: var(--band-ink); color: var(--band-bg); }
+.pk-kurumsal .btn:hover { background: color-mix(in srgb, var(--band-ink) 85%, var(--band-bg)); color: var(--band-bg); }
+.pk-iki { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-2); }
+@media (max-width: 359px) { .pk-iki { grid-template-columns: minmax(0, 1fr); } }
+@media (min-width: 960px) {
+  .pk-kurumsal-ic { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); align-items: start; gap: var(--space-5); }
+}
+
+/* ---- Teslim noktaları ---- */
+.pk-ofisler { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr)); gap: var(--space-3); margin: 0; padding: 0; list-style: none; }
+.pk-ofisler > li { display: grid; gap: .45rem; align-content: start; padding-top: var(--space-2); border-top: 1px solid var(--ink); }
+.pk-ofisler h3 { margin: 0; font-size: 1.25rem; }
+.pk-ofisler p { margin: 0; }
+.pk-ofis-adres { color: var(--ink-muted); }
+.pk-acik { display: inline-flex; align-items: center; gap: .45rem; }
+.pk-acik::before { content: ""; width: .5rem; height: .5rem; border-radius: 50%; background: var(--ok); }
+.pk-ofis-eylem { display: flex; flex-wrap: wrap; gap: .25rem 1rem; }
+.pk-ofis-eylem a { display: inline-flex; align-items: center; min-height: 44px; }
+
+/* ---- SSS + ortak bant ---- */
+#sss { background: var(--surface); border-block: 1px solid var(--line); }
+.sss > summary { font: 700 1.1875rem/1.3 var(--font-display); }
+.cta-bant { background: var(--surface); color: var(--ink); border-top: 1px solid var(--line); }
+.cta-bant h2 { color: var(--ink); }
+.cta-bant p { color: var(--ink-muted); }
+.cta-bant .btn-ters { background: var(--btn-bg); color: var(--btn-ink); }
+.cta-bant .btn-ters:hover { background: color-mix(in srgb, var(--btn-bg) 88%, var(--ink)); color: var(--btn-ink); }
+.cta-bant .btn-ters-cizgi { background: var(--surface); border-color: var(--line-strong); color: var(--ink); }
+.cta-bant .btn-ters-cizgi:hover { border-color: var(--ink); color: var(--ink); }
+.cta-bant :focus-visible { outline-color: var(--focus); }
+.ilkeler li::before { background: var(--brand); }
+.sayfa-ust > .arama { box-shadow: none; border: 1px solid var(--line); border-radius: var(--radius-l); }
+
+/* ---- İlan detayı ---- */
+.pk-detay .detay-bas h1 { font-size: var(--step-4); line-height: 1.05; }
+.pk-hizli { display: grid; gap: var(--space-2); justify-content: stretch; margin-top: var(--space-2); }
+.pk-kosul-kisa { margin: 0; }
+.pk-kosul-kisa > div { display: grid; grid-template-columns: minmax(0, 6.5rem) minmax(0, 1fr); gap: .75rem; padding-block: .45rem; border-bottom: 1px solid var(--line); font-size: .9375rem; }
+.pk-kosul-kisa > div:first-child { border-top: 1px solid var(--line); }
+.pk-kosul-kisa dt { font-weight: 500; }
+.pk-kosul-kisa dd { margin: 0; color: var(--ink-muted); }
+.pk-eylem-cift { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 150px), 1fr)); gap: .5rem; }
+@media (min-width: 960px) {
+  .pk-hizli { display: none; }
+}
+.pk-kapak img { aspect-ratio: 16 / 10; border-radius: var(--radius-l); }
+.pk-teknik-sayfa { margin-top: var(--space-4); display: grid; gap: var(--space-2); }
+.pk-teknik-sayfa h2 { margin: var(--space-2) 0 0; font-size: var(--step-2); }
+.pk-tarife { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+.pk-tarife th, .pk-tarife td { padding: .8rem .75rem .8rem 0; text-align: left; border-bottom: 1px solid var(--line); vertical-align: baseline; }
+.pk-tarife thead th { color: var(--ink-muted); font-weight: 500; font-size: var(--step--1); }
+.pk-tarife thead th:not(:first-child), .pk-tarife td { text-align: right; }
+.pk-tarife tbody th { font-weight: 500; }
+.pk-tarife td:nth-child(2) { font: 700 1.375rem/1.1 var(--font-display); }
+.pk-tarife td:nth-child(3) { color: var(--ink-muted); }
+.pk-panel { border: 1px solid var(--line); border-radius: var(--radius-l); }
+.pk-panel-etiket { margin: 0; color: var(--ink-muted); }
+.pk-tutar-buyuk { font-size: 2.75rem; }
+.pk-panel .pk-kdv { margin: 0; }
+.galeri img { aspect-ratio: 16 / 10; }
+
+/* ---- Alt bilgi: koyu bant ---- */
+.pk-alt { padding-top: var(--space-5); background: var(--band-bg); color: var(--band-ink); }
+.pk-alt-ic { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 200px), 1fr)); gap: var(--space-4) var(--space-3); }
+.pk-alt ul { display: grid; gap: .35rem; margin: 0; padding: 0; list-style: none; }
+.pk-alt a { color: var(--band-ink); }
+.pk-alt :focus-visible { outline-color: var(--band-ink); }
+.pk-alt .pk-marka { color: var(--band-ink); }
+.pk-alt .pk-marka img { background: var(--band-ink); padding: .25rem .4rem; }
+.pk-alt-marka p { margin: .5rem 0 0; color: var(--band-muted); }
+.pk-alt-baslik { margin: 0 0 .6rem; font-weight: 500; color: var(--band-muted); }
+.pk-alt-tel { font: 700 1.5rem/1.2 var(--font-display); text-decoration: none; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.pk-alt-son { margin-top: var(--space-4); padding-block: var(--space-2); border-top: 1px solid color-mix(in srgb, var(--band-ink) 25%, var(--band-bg)); color: var(--band-muted); font-size: var(--step--1); }

@@ -158,6 +158,26 @@ public sealed partial class PublicSiteThemeContractTests
     }
 
     /// <summary>
+    /// Sayfa yolu (breadcrumb) TEK SATIR: telefonda uzun ilan adı yolu kırıp adı ayrı satıra itiyordu. Liste sarmaz,
+    /// son öğe (bulunulan sayfa; adı h1'de) sığmazsa üç noktayla kısalır. Hiçbir tema sarmayı geri açmaz.
+    /// </summary>
+    [Fact]
+    public void Sayfa_yolu_tek_satir_son_oge_kisalir()
+    {
+        var rules = Rules(ReadCss("base.css")).ToList();
+        Assert.Matches(@"flex-wrap\s*:\s*nowrap", rules.Single(r => r.Selector == ".yol ol").Body);
+        var current = rules.Single(r => r.Selector == ".yol [aria-current]").Body;
+        Assert.Matches(@"text-overflow\s*:\s*ellipsis", current);
+        Assert.Matches(@"overflow\s*:\s*hidden", current);
+        var bad = AllSiteCss()
+            .SelectMany(f => Rules(f.Css).Select(r => (f.File, r.Selector, r.Body)))
+            .Where(r => r.Selector.Contains(".yol", StringComparison.Ordinal) && Regex.IsMatch(r.Body, @"flex-wrap\s*:\s*wrap"))
+            .Select(r => $"{r.File}: {r.Selector}")
+            .ToList();
+        Assert.True(bad.Count == 0, "Sayfa yolunu saran kural:\n" + string.Join("\n", bad));
+    }
+
+    /// <summary>
     /// Açılışta DÖNEN öğe (anahtar karede <c>rotate</c>) dönüş sırasında kutusunun dışına çıkar; telefonda ekran
     /// kenarına yakın öğe sayfayı yana kaydırır. Böyle bir temada <c>main</c> yatay ekseni kırpar
     /// (<c>overflow-x: clip</c> — kaydırma kabı kurmaz, yapışkan öğeleri ve dikey taşmayı bozmaz). Görünen bir şey

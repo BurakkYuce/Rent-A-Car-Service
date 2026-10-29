@@ -44,6 +44,7 @@ public sealed partial class PublicSiteThemeContractTests
     [Theory]
     [InlineData("anahtar")]
     [InlineData("kiyas")]
+    [InlineData("paket")]
     public void Acilis_animasyonu_yok(string key)
     {
         var css = ReadCss(ThemeFile(SiteThemes.Resolve(key)));
