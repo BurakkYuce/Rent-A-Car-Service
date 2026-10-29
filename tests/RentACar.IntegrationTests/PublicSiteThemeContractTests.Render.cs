@@ -93,7 +93,7 @@ public sealed partial class PublicSiteThemeContractTests
     /// <summary>
     /// Tema css'indeki palet token'ları YEDEKTİR (palet bloğu basılamazsa): değerleri temanın varsayılan setiyle aynı
     /// olmalı — yoksa blok yokken site başka renkte görünür. Vurgu yalnız set kendi vurgusunu taşıyorsa karşılaştırılır
-    /// (vitrin: vurgu ana rengi izler, css de <c>var(--brand)</c>).
+    /// (paket: vurgu ana rengi izler).
     /// </summary>
     [Theory]
     [MemberData(nameof(Themes))]
@@ -156,8 +156,8 @@ public sealed partial class PublicSiteThemeContractTests
     private static partial Regex ColorSchemeDecl();
 
     /// <summary>
-    /// Koyu kimlik desteği (Vitrin: DarkInLightMode, bloktaki color-scheme, koyu kimlikte dolgu üstü yazı adayı) AÇIK
-    /// kimlikli temaların çıktısını değiştirmez. Pazar ve Rota'nın her setinde:
+    /// Koyu kimlik desteği (DarkInLightMode, bloktaki color-scheme, koyu kimlikte dolgu üstü yazı adayı) AÇIK
+    /// kimlikli temaların çıktısını değiştirmez. Her temanın her setinde:
     /// (1) palet bloğunun yazdığı color-scheme, temanın KENDİ css bildirimiyle aynı (açık :root light, koyu blok dark) —
     ///     ek bildirim görünümü değiştirmez;
     /// (2) dolgu üstü yazı ve vurgu üstü yazı, iki şemada da AÇIK ŞEMANIN MÜREKKEBİ adayıyla seçilir (değişiklikten
@@ -168,8 +168,6 @@ public sealed partial class PublicSiteThemeContractTests
     [InlineData("anahtar")]
     [InlineData("kiyas")]
     [InlineData("paket")]
-    [InlineData("pazar")]
-    [InlineData("rota")]
     public void Koyu_kimlik_destegi_acik_kimlikli_temalarin_ciktisini_degistirmez(string key)
     {
         var theme = SiteThemes.Resolve(key);
@@ -371,11 +369,11 @@ public sealed partial class PublicSiteThemeContractTests
         var client = factory.Client();
         static string Css(string key) => $@"css/{Path.GetFileNameWithoutExtension(SiteThemes.Resolve(key).CssPath)}\.[a-z0-9]+\.css";
 
-        using (var r = await client.GetAsync("/?tema=rota"))
+        using (var r = await client.GetAsync("/?tema=kiyas"))
         {
             var html = await r.Content.ReadAsStringAsync();
-            Assert.Matches(Css("rota"), html);
-            Assert.Contains("data-tema=\"rota\"", html);
+            Assert.Matches(Css("kiyas"), html);
+            Assert.Contains("data-tema=\"kiyas\"", html);
             Assert.Equal("noindex, follow", string.Join(",", r.Headers.GetValues("X-Robots-Tag")));
         }
         using (var r = await client.GetAsync("/?tema=olmayan"))
@@ -392,12 +390,12 @@ public sealed partial class PublicSiteThemeContractTests
         }
 
         // 404 sayfası da önizlenen temayla basılır (durum 404 kalır); diğer sorgu parametreleri taşınmaz.
-        using (var r = await client.GetAsync("/araclar/olmayan-ilan?tema=vitrin&x=1"))
+        using (var r = await client.GetAsync("/araclar/olmayan-ilan?tema=paket&x=1"))
         {
             var html = await r.Content.ReadAsStringAsync();
             Assert.Equal(HttpStatusCode.NotFound, r.StatusCode);
-            Assert.Matches(Css("vitrin"), html);
-            Assert.Contains("data-tema=\"vitrin\"", html);
+            Assert.Matches(Css("paket"), html);
+            Assert.Contains("data-tema=\"paket\"", html);
             Assert.Contains("burada değil", WebUtility.HtmlDecode(html));
         }
         using (var r = await client.GetAsync("/yok/boyle/bir/adres?tema=olmayan"))
@@ -413,36 +411,36 @@ public sealed partial class PublicSiteThemeContractTests
     /// <summary>
     /// <c>?palet=</c> ve <c>?renk=</c> önizlemesi <c>?tema=</c> ile aynı desen: geçerli değer o istekte basılır ve
     /// noindex yazar; geçersiz değer yok sayılır (kayıtlı görünüm, noindex yok); 404 sayfası geçerli önizlemeyi taşır.
-    /// Beklenen renkler setlerin elle yazılmış zeminleri (#edf0f2 pazar/domates varsayılan, #eef1f6 pazar/kobalt,
-    /// #2a161b vitrin/bordo — koyu kimlik, #efede8 vitrin/sampanya).
+    /// Beklenen renkler setlerin elle yazılmış zeminleri (#fbf8f3 anahtar/zumrut varsayılan, #f7f8fa ve gece #0f131b
+    /// anahtar/lacivert, #f2f2ec paket/zeytin, #f3f2ee paket/kiremit).
     /// </summary>
     [Fact]
     public async Task Palet_ve_renk_onizlemesi_noindex_yazar_gecersiz_deger_yok_sayilir_404_tasir()
     {
-        var tenant = await SeedTenantAsync("pazar"); // kayıtlı tema pazar, set yok → varsayılan set (domates)
+        var tenant = await SeedTenantAsync(null); // kayıt yok → anahtar, varsayılan set (zumrut)
         using var factory = new PublicSiteFactory(fx, tenant);
         var client = factory.Client();
 
-        using (var r = await client.GetAsync("/?palet=kobalt"))
+        using (var r = await client.GetAsync("/?palet=lacivert"))
         {
             var html = await r.Content.ReadAsStringAsync();
-            Assert.Contains("<style>:root{--bg:#eef1f6;", html);
-            Assert.Contains("<meta name=\"theme-color\" content=\"#eef1f6\" media=\"(prefers-color-scheme: light)\" />", html);
-            Assert.Contains("<meta name=\"theme-color\" content=\"#11141c\" media=\"(prefers-color-scheme: dark)\" />", html);
+            Assert.Contains("<style>:root{--bg:#f7f8fa;", html);
+            Assert.Contains("<meta name=\"theme-color\" content=\"#f7f8fa\" media=\"(prefers-color-scheme: light)\" />", html);
+            Assert.Contains("<meta name=\"theme-color\" content=\"#0f131b\" media=\"(prefers-color-scheme: dark)\" />", html);
             Assert.Equal("noindex, follow", RobotsHeader(r));
         }
         // Başka temanın seti: önizleme parametresi biçimce geçerli (noindex) ama bu temada yok → temanın varsayılan seti.
-        using (var r = await client.GetAsync("/?palet=bordo"))
+        using (var r = await client.GetAsync("/?palet=zeytin"))
         {
-            Assert.Contains("<style>:root{--bg:#edf0f2;", await r.Content.ReadAsStringAsync());
+            Assert.Contains("<style>:root{--bg:#fbf8f3;", await r.Content.ReadAsStringAsync());
             Assert.Equal("noindex, follow", RobotsHeader(r));
         }
-        using (var r = await client.GetAsync("/?tema=vitrin&palet=bordo"))
+        using (var r = await client.GetAsync("/?tema=paket&palet=zeytin"))
         {
             var html = await r.Content.ReadAsStringAsync();
-            Assert.Matches(@"css/tema-vitrin\.[a-z0-9]+\.css", html);
-            Assert.Contains("<style>:root{--bg:#2a161b;", html); // vitrin koyu öncelikli: bordo'nun açık şeması da koyu
-            Assert.Contains("<meta name=\"theme-color\" content=\"#2a161b\" media=\"(prefers-color-scheme: light)\" />", html);
+            Assert.Matches(@"css/tema-paket\.[a-z0-9]+\.css", html);
+            Assert.Contains("<style>:root{--bg:#f2f2ec;", html);
+            Assert.Contains("<meta name=\"theme-color\" content=\"#f2f2ec\" media=\"(prefers-color-scheme: light)\" />", html);
         }
         // Özel ana renk: yalnız KESİN #rrggbb (adreste %23); küçük harfle, Rgb'den yeniden yazılarak basılır.
         using (var r = await client.GetAsync("/?renk=%23C0392B"))
@@ -454,26 +452,26 @@ public sealed partial class PublicSiteThemeContractTests
         // Geçersiz değerler yok sayılır: varsayılan görünüm, noindex YOK, ham değer sayfaya sızmaz.
         foreach (var bad in new[]
                  {
-                     "/?palet=olmayan", "/?palet=KOBALT;}", "/?renk=c0392b", "/?renk=%23c0392b;}", "/?renk=red",
-                     "/?renk=%23c0392b%3C%2Fstyle%3E", "/?palet=kobalt&palet=hardal",
+                     "/?palet=olmayan", "/?palet=LACIVERT;}", "/?renk=c0392b", "/?renk=%23c0392b;}", "/?renk=red",
+                     "/?renk=%23c0392b%3C%2Fstyle%3E", "/?palet=lacivert&palet=visne",
                  })
         {
             using var r = await client.GetAsync(bad);
             var html = await r.Content.ReadAsStringAsync();
-            Assert.Contains("<style>:root{--bg:#edf0f2;", html);
-            Assert.Contains("--brand:#d42a1c;", html);
+            Assert.Contains("<style>:root{--bg:#fbf8f3;", html);
+            Assert.Contains("--brand:#0f6e5a;", html);
             Assert.DoesNotContain("c0392b", html);
             Assert.True(RobotsHeader(r) is null, $"{bad}: {RobotsHeader(r)}");
         }
 
         // 404 sayfası geçerli tema + palet + renk'i taşır (diğer parametreler düşer); durum 404 kalır.
-        // Vitrin'in açık zeminli seti (Şampanya, #efede8): #c0392b o zeminde ve kartta 3:1'i tutar → aynen basılır.
-        using (var r = await client.GetAsync("/yok/boyle/bir/adres?tema=vitrin&palet=sampanya&renk=%23c0392b&x=1"))
+        // Paket/kiremit (#f3f2ee): #c0392b o zeminde ve kartta 3:1'i tutar → aynen basılır.
+        using (var r = await client.GetAsync("/yok/boyle/bir/adres?tema=paket&palet=kiremit&renk=%23c0392b&x=1"))
         {
             var html = await r.Content.ReadAsStringAsync();
             Assert.Equal(HttpStatusCode.NotFound, r.StatusCode);
-            Assert.Matches(@"css/tema-vitrin\.[a-z0-9]+\.css", html);
-            Assert.Contains("<style>:root{--bg:#efede8;", html);
+            Assert.Matches(@"css/tema-paket\.[a-z0-9]+\.css", html);
+            Assert.Contains("<style>:root{--bg:#f3f2ee;", html);
             Assert.Contains("--brand:#c0392b;", html);
             Assert.Equal("noindex, follow", RobotsHeader(r));
         }
@@ -484,35 +482,37 @@ public sealed partial class PublicSiteThemeContractTests
     [Fact]
     public async Task Kayitli_set_ve_ozel_renk_basilir_temaya_ait_olmayan_set_varsayilana_duser()
     {
-        var tenant = await SeedTenantAsync("rota", "kayisi", "#c0392b");
+        var tenant = await SeedTenantAsync("kiyas", "kiremit", "#c0392b");
         using (var factory = new PublicSiteFactory(fx, tenant))
         {
             var client = factory.Client();
             var html = await client.GetStringAsync("/");
-            Assert.Matches(@"css/tema-rota\.[a-z0-9]+\.css", html);
-            Assert.Contains("<style>:root{--bg:#f3f4f6;", html);
+            Assert.Matches(@"css/tema-kiyas\.[a-z0-9]+\.css", html);
+            Assert.Contains("<style>:root{--bg:#f7f5f2;", html);
             Assert.Contains("--brand:#c0392b;", html); // #c0392b zeminde 3:1'i tutuyor → aynen
-            using var r = await client.GetAsync("/?palet=deniz&renk=%230b1f3a");
+            using var r = await client.GetAsync("/?palet=turkuaz&renk=%230b1f3a");
             var preview = await r.Content.ReadAsStringAsync();
-            Assert.Contains("<style>:root{--bg:#f1f5f6;", preview);
+            Assert.Contains("<style>:root{--bg:#f2f6f6;", preview);
             Assert.Contains("--brand:#0b1f3a;", preview);
         }
 
-        var stale = await SeedTenantAsync("pazar", "kayisi");
+        // Kayıtlı set başka temanın ("mavi" kıyas'ın) → anahtar'ın varsayılan seti.
+        var stale = await SeedTenantAsync("anahtar", "mavi");
         using (var factory = new PublicSiteFactory(fx, stale))
-            Assert.Contains("<style>:root{--bg:#edf0f2;", await factory.Client().GetStringAsync("/"));
+            Assert.Contains("<style>:root{--bg:#fbf8f3;", await factory.Client().GetStringAsync("/"));
     }
 
-    // Eski önizleme bağlantıları KALICI çalışır: ?tema=tarife → pazar, ?tema=kontuar → rota; yine önizleme sayılır
-    // (noindex), 404 sayfası da eşlenen temayla basılır. Kayıtlı tema vitrin: eşleme gerçekten temayı değiştiriyor.
+    // Eski önizleme bağlantıları KALICI çalışır: sökülen temalar ve daha eski takma adlar bugünkü karşılığına
+    // (tarife/pazar → anahtar, kontuar/rota → kiyas, vitrin → paket); yine önizleme sayılır (noindex), 404 sayfası da
+    // eşlenen temayla basılır. Kayıtlı tema paket: eşleme gerçekten temayı değiştiriyor.
     [Fact]
     public async Task Eski_anahtarli_onizleme_yeni_temayla_basilir_ve_noindex()
     {
-        var tenant = await SeedTenantAsync("vitrin");
+        var tenant = await SeedTenantAsync("paket");
         using var factory = new PublicSiteFactory(fx, tenant);
         var client = factory.Client();
 
-        foreach (var (legacy, current) in new[] { ("tarife", "pazar"), ("KONTUAR", "rota") })
+        foreach (var (legacy, current) in new[] { ("tarife", "anahtar"), ("pazar", "anahtar"), ("KONTUAR", "kiyas"), ("rota", "kiyas") })
         {
             using (var r = await client.GetAsync($"/?tema={legacy}"))
             {
@@ -528,8 +528,10 @@ public sealed partial class PublicSiteThemeContractTests
                 Assert.Contains($"data-tema=\"{current}\"", await r.Content.ReadAsStringAsync());
             }
         }
+        using (var r = await client.GetAsync("/?tema=vitrin"))
+            Assert.Contains("data-tema=\"paket\"", await r.Content.ReadAsStringAsync());
         using (var r = await client.GetAsync("/"))
-            Assert.Contains("data-tema=\"vitrin\"", await r.Content.ReadAsStringAsync());
+            Assert.Contains("data-tema=\"paket\"", await r.Content.ReadAsStringAsync());
     }
 
     // Migration'dan önce okunmuş / elle yazılmış eski değer de doğru temayı basar (site ham değeri normalize eder).
@@ -538,11 +540,11 @@ public sealed partial class PublicSiteThemeContractTests
     {
         var tenant = await SeedTenantAsync(null);
         await SeedSettingsRowAsync(tenant);           // ayar satırı tembel oluşur
-        await WriteRawThemeAsync(tenant, "kontuar");
+        await WriteRawThemeAsync(tenant, "vitrin");
 
         using var factory = new PublicSiteFactory(fx, tenant);
         var html = await factory.Client().GetStringAsync("/");
-        Assert.Contains("data-tema=\"rota\"", html);
+        Assert.Contains("data-tema=\"paket\"", html);
     }
 
     private async Task SeedSettingsRowAsync(Guid tenant)

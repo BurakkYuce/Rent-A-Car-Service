@@ -358,6 +358,7 @@ main:has(> .bolum:last-child) { padding-bottom: 0; }
 .ky-alt { padding-top: var(--space-5); background: var(--surface); border-top: 1px solid var(--line); }
 .ky-alt-ic { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 200px), 1fr)); gap: var(--space-4) var(--space-3); }
 .ky-alt ul { display: grid; gap: .35rem; margin: 0; padding: 0; list-style: none; }
+.ky-alt li { min-width: 0; overflow-wrap: anywhere; } /* uzun e-posta adresi 320 px'te taşmasın */
 .ky-alt a { color: var(--ink); }
 .ky-alt-marka p { margin: .5rem 0 0; color: var(--ink-muted); }
 .ky-alt-baslik { margin: 0 0 .6rem; font-weight: 600; }

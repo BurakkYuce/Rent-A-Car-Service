@@ -119,13 +119,17 @@ public sealed partial class SitePaletteCssTests
         Assert.Contains(";color-scheme:dark", darkBlock);
     }
 
-    /// <summary>Koyu kimlikli set (açık şema da koyu): ana renk dolgusunun üstündeki koyu yazı adayı açık şemanın
-    /// ZEMİNİDİR (mürekkep açık renk). Elle hesap: platin #d6cfc2 L≈0.62; grafit #1c1f23 L≈0.013 → (0.67)/(0.063) ≈
-    /// 10.7:1 ≥ beyazın 1.55:1'i → iki şemada da dolgu üstü yazı #1c1f23. Saf siyaha (#000000) düşülmez.</summary>
+    /// <summary>Koyu kimlikli set (açık şema da koyu; bugün kayıtlı temalarda yok, üretici desteği korunur): ana renk
+    /// dolgusunun üstündeki koyu yazı adayı açık şemanın ZEMİNİDİR (mürekkep açık renk). Elle hesap: platin #d6cfc2
+    /// L≈0.62; grafit #1c1f23 L≈0.013 → (0.67)/(0.063) ≈ 10.7:1 ≥ beyazın 1.55:1'i → iki şemada da dolgu üstü yazı
+    /// #1c1f23. Saf siyaha (#000000) düşülmez.</summary>
     [Fact]
     public void Koyu_kimlikli_sette_dolgu_ustu_yazi_acik_semanin_zemini()
     {
-        var grafit = SitePaletteCss.Tokens(SiteThemes.Vitrin, "grafit", null);
+        var dark = new SitePalette("koyu", "Koyu",
+            new SchemeColors("#1c1f23", "#24282d", "#f1efea", "#d6cfc2"),
+            new SchemeColors("#121417", "#1a1d21", "#ecebe6", "#d6cfc2")) { DarkInLightMode = true };
+        var grafit = SitePaletteCss.Tokens(dark, null);
         Assert.True(grafit.Palette.DarkInLightMode);
         Assert.Equal(("#d6cfc2", "#1c1f23"), (grafit.Light.Brand.Hex, grafit.Light.OnBrand.Hex));
         Assert.Equal(("#d6cfc2", "#1c1f23"), (grafit.Dark.Brand.Hex, grafit.Dark.OnBrand.Hex));
@@ -134,10 +138,10 @@ public sealed partial class SitePaletteCssTests
         Assert.Equal(2, Regex.Matches(css, ";color-scheme:dark").Count);
         Assert.DoesNotContain(";color-scheme:light", css);
 
-        // Açık kimlikli set (Şampanya): açık şema açık, bildirimi light.
-        var sampanya = SitePaletteCss.Css(SitePaletteCss.Tokens(SiteThemes.Vitrin, "sampanya", null));
-        Assert.StartsWith(":root{--bg:#efede8;", sampanya);
-        Assert.Contains("color-scheme:light}", sampanya);
+        // Açık kimlikli set (Anahtar varsayılanı): açık şema açık, bildirimi light.
+        var light = SitePaletteCss.Css(SitePaletteCss.Tokens(SiteThemes.Anahtar, null, null));
+        Assert.StartsWith(":root{--bg:#fbf8f3;", light);
+        Assert.Contains("color-scheme:light}", light);
     }
 
     /// <summary>Firmanın kendi ana rengi: 216 renk × her temanın her seti × iki şema. Her renkte AA değişmezleri tutar;
@@ -160,83 +164,48 @@ public sealed partial class SitePaletteCssTests
         }
     }
 
-    /// <summary>Varsayılan setler: vitrin değişiklikten ÖNCE canlı sitenin bastığı değerleri (eski BrandPalette çıktısı +
-    /// tema css primitive'leri) korur. Rota yeni temadır: beklenen, setin elle yazılmış değerleridir. Pazar yeni tema
-    /// (eski tarife'nin yerine): zemin/mürekkep/çizgi değerleri tasarımda elle seçildi; türetilen ana renk tonları üretim
-    /// kodunu ÇAĞIRMAYAN ayrı bir hesapla bulundu ve elle doğrulanabilir — ör. açık hafif ton = zemin #edf0f2 ile
-    /// #d42a1c'nin %12 karışımı: (237−25·0.12, 240−198·0.12, 242−214·0.12) → #ead8d8; #d42a1c zeminde 4.4:1, beyazda
-    /// 5.1:1 (dolgu aynen kalır, üstünde beyaz).</summary>
+    /// <summary>Varsayılan setler: her temanın varsayılan setinin ELLE YAZILMIŞ temel renkleri (zemin, kart, mürekkep,
+    /// ana renk, vurgu; Anahtar'da ikincil metin) AA'yı zaten tuttuğu için AYNEN basılır. Ana renk üstü yazı elle:
+    /// #0f6e5a / #1d4ed8 / #8c2f1b üstünde beyaz 6.2 / 6.7 / 8.3:1 → #ffffff. Vurgu üstü yazı: kehribar/amber
+    /// üstünde mürekkep (≥ 8:1). Paket'in vurgusu ana rengi izler.</summary>
     [Fact]
     public void Varsayilan_setler_bugunku_renkleri_korur()
     {
-        var pazar = SitePaletteCss.Tokens(SiteThemes.Pazar, null, null);
-        Assert.Equal("domates", pazar.Palette.Key);
-        AssertHex(pazar.Light, bg: "#edf0f2", bgAlt: "#e1e5e9", surface: "#ffffff", ink: "#1b1d22", muted: "#454a53",
-            subtle: "#5a5f69", line: "#c8cdd3", lineStrong: "#8b919a", accent: "#ffc928", accentInk: "#1b1d22");
-        AssertBrand(pazar.Light, "#d42a1c", "#ffffff", "#bb2519", "#ead8d8");
-        AssertHex(pazar.Dark, bg: "#16171a", bgAlt: "#1c1d21", surface: "#1f2125", ink: "#eef0f2", muted: "#bcc1c8",
-            subtle: "#9ca2ab", line: "#32353b", lineStrong: "#50545c", accent: "#ffc928", accentInk: "#16171a");
-        AssertBrand(pazar.Dark, "#d13a28", "#ffffff", "#dd6d60", "#3f1f1d");
-        Assert.Equal(("#edf0f2", "#1b1d22", "#16171a", "#eef0f2"),
-            (pazar.DayBg.Hex, pazar.DayInk.Hex, pazar.NightBg.Hex, pazar.NightInk.Hex));
+        var anahtar = SitePaletteCss.Tokens(SiteThemes.Anahtar, null, null);
+        Assert.Equal("zumrut", anahtar.Palette.Key);
+        Assert.Equal(("#fbf8f3", "#ffffff", "#1e2329", "#5b6470", "#0f6e5a", "#ffffff", "#f2b33d", "#1e2329"),
+            (anahtar.Light.Bg.Hex, anahtar.Light.Surface.Hex, anahtar.Light.Ink.Hex, anahtar.Light.InkMuted.Hex,
+                anahtar.Light.Brand.Hex, anahtar.Light.OnBrand.Hex, anahtar.Light.Accent.Hex, anahtar.Light.AccentInk.Hex));
+        Assert.Equal(("#111614", "#19201d", "#e9eeeb", "#4fbf9f"),
+            (anahtar.Dark.Bg.Hex, anahtar.Dark.Surface.Hex, anahtar.Dark.Ink.Hex, anahtar.Dark.Brand.Hex));
+        Assert.Equal(("#fbf8f3", "#1e2329", "#111614", "#e9eeeb"),
+            (anahtar.DayBg.Hex, anahtar.DayInk.Hex, anahtar.NightBg.Hex, anahtar.NightInk.Hex));
 
-        // Vitrin yeniden yazıldı (koyu öncelikli): varsayılan set "grafit" iki şemada da koyu. Setin kendi verdiği
-        // değerler (zemin, kart, mürekkep, ana renk, alan çerçevesi) AA'yı zaten tuttuğu için AYNEN basılır — beklenen
-        // değerler VitrinPalettes.cs'teki elle yazılmış renkler.
-        var vitrin = SitePaletteCss.Tokens(SiteThemes.Vitrin, null, null);
-        Assert.Equal("grafit", vitrin.Palette.Key);
-        Assert.Equal(("#1c1f23", "#24282d", "#f1efea", "#74787d", "#d6cfc2", "#d6cfc2"),
-            (vitrin.Light.Bg.Hex, vitrin.Light.Surface.Hex, vitrin.Light.Ink.Hex, vitrin.Light.LineStrong.Hex,
-                vitrin.Light.Brand.Hex, vitrin.Light.BrandText.Hex));
-        Assert.Equal(("#121417", "#1a1d21", "#ecebe6", "#6a6e73", "#d6cfc2", "#d6cfc2"),
-            (vitrin.Dark.Bg.Hex, vitrin.Dark.Surface.Hex, vitrin.Dark.Ink.Hex, vitrin.Dark.LineStrong.Hex,
-                vitrin.Dark.Brand.Hex, vitrin.Dark.BrandText.Hex));
-        Assert.Equal(vitrin.Light.Brand, vitrin.Light.Accent); // tek kroma: vurgu ana rengi izler
+        var kiyas = SitePaletteCss.Tokens(SiteThemes.Kiyas, null, null);
+        Assert.Equal("mavi", kiyas.Palette.Key);
+        Assert.Equal(("#f4f6f8", "#ffffff", "#14171c", "#566070", "#1d4ed8", "#ffffff", "#fbbf24", "#14171c"),
+            (kiyas.Light.Bg.Hex, kiyas.Light.Surface.Hex, kiyas.Light.Ink.Hex, kiyas.Light.InkMuted.Hex,
+                kiyas.Light.Brand.Hex, kiyas.Light.OnBrand.Hex, kiyas.Light.Accent.Hex, kiyas.Light.AccentInk.Hex));
 
-        // Rota "deniz": tüm elle ayarlar güvenceyi zaten tutuyor → AYNEN basılır (beklenenler tema-rota.css yedekleri;
-        // kontrastlar elle hesaplandı: petrol zeminde 6.8:1, kartta 7.4:1, beyaz yazı 7.4:1; koyu şemada açık petrol
-        // üstünde beyaz 2.3:1 tutmaz → açık şemanın mürekkebi #0e2a33, 6.5:1).
-        var rota = SitePaletteCss.Tokens(SiteThemes.Rota, null, null);
-        Assert.Equal("deniz", rota.Palette.Key);
-        AssertHex(rota.Light, bg: "#f1f5f6", bgAlt: "#e5ecee", surface: "#ffffff", ink: "#0e2a33", muted: "#3a5560",
-            subtle: "#4d6872", line: "#d2dde0", lineStrong: "#7a9099", accent: "#e2b02a", accentInk: "#0e2a33");
-        Assert.Equal(("#0b5e6b", "#ffffff", "#0b5e6b"), (rota.Light.Brand.Hex, rota.Light.OnBrand.Hex, rota.Light.BrandText.Hex));
-        AssertHex(rota.Dark, bg: "#0b171b", bgAlt: "#0f1f24", surface: "#122429", ink: "#e4eef0", muted: "#a9bec4",
-            subtle: "#9ab1b8", line: "#24414a", lineStrong: "#557580", accent: "#e2b02a", accentInk: "#0b171b");
-        Assert.Equal(("#5cb8c4", "#0e2a33", "#5cb8c4"), (rota.Dark.Brand.Hex, rota.Dark.OnBrand.Hex, rota.Dark.BrandText.Hex));
-        Assert.Equal(("#f1f5f6", "#0e2a33", "#0b171b", "#e4eef0"),
-            (rota.DayBg.Hex, rota.DayInk.Hex, rota.NightBg.Hex, rota.NightInk.Hex));
-
-        // Rota "kayisi": açık şemada eylem rengi koyu mürekkep (kayısı vurgu — dolgu olarak açık zeminde 3:1'i
-        // tutmazdı ve kiremit tonuna koyulaşırdı); koyu şemada kayısı aynen ana renk, üstünde koyu yazı.
-        var apricot = SitePaletteCss.Tokens(SiteThemes.Rota, "kayisi", null);
-        Assert.Equal(("#2a3446", "#ffffff", "#f4a259"), (apricot.Light.Brand.Hex, apricot.Light.OnBrand.Hex, apricot.Light.Accent.Hex));
-        Assert.Equal(("#f4a259", "#1d2433"), (apricot.Dark.Brand.Hex, apricot.Dark.OnBrand.Hex));
+        var paket = SitePaletteCss.Tokens(SiteThemes.Paket, null, null);
+        Assert.Equal("kiremit", paket.Palette.Key);
+        Assert.Equal(("#f3f2ee", "#ffffff", "#111316", "#5e5f63", "#8c2f1b", "#ffffff"),
+            (paket.Light.Bg.Hex, paket.Light.Surface.Hex, paket.Light.Ink.Hex, paket.Light.InkMuted.Hex,
+                paket.Light.Brand.Hex, paket.Light.OnBrand.Hex));
+        Assert.Equal(paket.Light.Brand, paket.Light.Accent); // tek vurgu: vurgu ana rengi izler
     }
-
-    private static void AssertHex(SchemeTokens s, string bg, string bgAlt, string surface, string ink, string muted,
-        string subtle, string line, string lineStrong, string accent, string accentInk)
-    {
-        Assert.Equal(
-            (bg, bgAlt, surface, ink, muted, subtle, line, lineStrong, accent, accentInk),
-            (s.Bg.Hex, s.BgAlt.Hex, s.Surface.Hex, s.Ink.Hex, s.InkMuted.Hex, s.InkSubtle.Hex, s.Line.Hex,
-                s.LineStrong.Hex, s.Accent.Hex, s.AccentInk.Hex));
-    }
-
-    private static void AssertBrand(SchemeTokens s, string brand, string onBrand, string text, string soft)
-        => Assert.Equal((brand, onBrand, text, soft), (s.Brand.Hex, s.OnBrand.Hex, s.BrandText.Hex, s.BrandSoft.Hex));
 
     [Fact]
     public void Sari_ana_renk_acikta_dolguda_ve_metinde_koyulastirilir_koyuda_aynen_kalir()
     {
-        var t = SitePaletteCss.Tokens(SiteThemes.Pazar, null, "#ffd400");
+        var t = SitePaletteCss.Tokens(SiteThemes.Anahtar, null, "#ffd400");
         // Sarı açık zeminle ~1.3:1 — düğme sayfada kaybolurdu (WCAG 1.4.11) → dolgu koyulaştırıldı.
         Assert.NotEqual("#ffd400", t.Light.Brand.Hex);
-        Assert.True(Contrast(t.Light.Brand.Hex, "#edf0f2") >= 3.0);
-        Assert.Equal("#1b1d22", t.Light.OnBrand.Hex); // temanın mürekkebi koyulaşmış sarı üstünde
-        Assert.True(Contrast("#1b1d22", t.Light.Brand.Hex) >= 4.5);
+        Assert.True(Contrast(t.Light.Brand.Hex, "#fbf8f3") >= 3.0);
+        Assert.Equal("#1e2329", t.Light.OnBrand.Hex); // temanın mürekkebi koyulaşmış sarı üstünde
+        Assert.True(Contrast("#1e2329", t.Light.Brand.Hex) >= 4.5);
         Assert.NotEqual("#ffd400", t.Light.BrandText.Hex);
-        Assert.True(Contrast(t.Light.BrandText.Hex, "#edf0f2") >= 4.5);
+        Assert.True(Contrast(t.Light.BrandText.Hex, "#fbf8f3") >= 4.5);
         // Sarı koyu zeminde zaten okunuyor → koyu şemada dolgu ve metin aynen kalır.
         Assert.Equal("#ffd400", t.Dark.Brand.Hex);
         Assert.Equal("#ffd400", t.Dark.BrandText.Hex);
@@ -245,22 +214,22 @@ public sealed partial class SitePaletteCssTests
     [Fact]
     public void Lacivert_ana_renk_acikta_aynen_koyuda_acilir()
     {
-        var t = SitePaletteCss.Tokens(SiteThemes.Pazar, null, "#0b1f3a");
+        var t = SitePaletteCss.Tokens(SiteThemes.Anahtar, null, "#0b1f3a");
         Assert.Equal("#0b1f3a", t.Light.Brand.Hex);
         Assert.Equal("#0b1f3a", t.Light.BrandText.Hex);
         Assert.Equal("#ffffff", t.Light.OnBrand.Hex);
         Assert.NotEqual("#0b1f3a", t.Dark.Brand.Hex); // koyu zeminde düğme kaybolurdu
-        Assert.True(Contrast(t.Dark.Brand.Hex, "#16171a") >= 3.0);
-        Assert.True(Contrast(t.Dark.Brand.Hex, "#1f2125") >= 3.0);
+        Assert.True(Contrast(t.Dark.Brand.Hex, "#111614") >= 3.0);
+        Assert.True(Contrast(t.Dark.Brand.Hex, "#19201d") >= 3.0);
     }
 
-    /// <summary>Orta gri (#808080): beyaz 3.95:1, pazar mürekkebi (#1b1d22) 4.27:1 — ikisi de AA'nın altında. Elle
+    /// <summary>Orta gri (#808080): beyaz 3.95:1, Anahtar mürekkebi (#1e2329) ~4.0:1 — ikisi de AA'nın altında. Elle
     /// hesap: gri L=0.216 → saf siyah (0.216+0.05)/0.05 = 5.32:1 → siyah seçilmeli.</summary>
     [Fact]
     public void Orta_tonda_ne_beyaz_ne_murekkep_yeterse_saf_siyah_secilir()
     {
-        Assert.Equal("#000000", SitePaletteCss.Tokens(SiteThemes.Pazar, null, "#808080").Light.OnBrand.Hex);
-        Assert.True(Contrast("#1b1d22", "#808080") < 4.5); // senaryonun kendisi: mürekkep yetmiyor
+        Assert.Equal("#000000", SitePaletteCss.Tokens(SiteThemes.Anahtar, null, "#808080").Light.OnBrand.Hex);
+        Assert.True(Contrast("#1e2329", "#808080") < 4.5); // senaryonun kendisi: mürekkep yetmiyor
     }
 
     /// <summary>Elle ayar da güvenceden geçer: beyaz kart üstünde #cccccc ipucu metni (1.6:1) ve vurgu üstünde vurgunun
@@ -307,19 +276,19 @@ public sealed partial class SitePaletteCssTests
     }
 
     [Theory]
-    [InlineData(null, "domates")]
-    [InlineData("", "domates")]
-    [InlineData("olmayan", "domates")]
-    [InlineData("bordo", "domates")]                // vitrin'in seti → pazar'da varsayılan
-    [InlineData("petrol", "domates")]               // eski tarife'nin seti artık yok → varsayılan
-    [InlineData("domates;}</style><script>", "domates")]
-    [InlineData(" Kobalt ", "kobalt")]
-    [InlineData("patlican", "patlican")]
+    [InlineData(null, "zumrut")]
+    [InlineData("", "zumrut")]
+    [InlineData("olmayan", "zumrut")]
+    [InlineData("mavi", "zumrut")]                  // kıyas'ın seti → anahtar'da varsayılan
+    [InlineData("domates", "zumrut")]               // sökülen pazar'ın seti → varsayılan
+    [InlineData("zumrut;}</style><script>", "zumrut")]
+    [InlineData(" Visne ", "visne")]
+    [InlineData("grafit", "grafit")]
     public void Palet_anahtari_temanin_setlerinde_aranir_yoksa_varsayilan(string? key, string expected)
     {
-        Assert.Equal(expected, SitePaletteCss.Resolve(SiteThemes.Pazar, key).Key);
-        var css = SitePaletteCss.Build(SiteThemes.Pazar, key, null);
-        Assert.Equal(SitePaletteCss.Build(SiteThemes.Pazar, expected, null), css);
+        Assert.Equal(expected, SitePaletteCss.Resolve(SiteThemes.Anahtar, key).Key);
+        var css = SitePaletteCss.Build(SiteThemes.Anahtar, key, null);
+        Assert.Equal(SitePaletteCss.Build(SiteThemes.Anahtar, expected, null), css);
         Assert.DoesNotContain("<", css);
     }
 
@@ -329,9 +298,9 @@ public sealed partial class SitePaletteCssTests
     [Fact]
     public void Css_iki_semayi_tum_tokenlarla_ve_yalniz_hex_degerle_yazar()
     {
-        var css = SitePaletteCss.Build(SiteThemes.Rota, "zeytin", "#C0392B"); // büyük harf → küçük harfle yazılır
-        Assert.StartsWith(":root{--bg:#f2f4f1;", css);
-        Assert.Contains("@media (prefers-color-scheme:dark){:root{--bg:#10140e;", css);
+        var css = SitePaletteCss.Build(SiteThemes.Kiyas, "turkuaz", "#C0392B"); // büyük harf → küçük harfle yazılır
+        Assert.StartsWith(":root{--bg:#f2f6f6;", css);
+        Assert.Contains("@media (prefers-color-scheme:dark){:root{--bg:#0b1414;", css);
         Assert.Contains("--brand:#c0392b;", css);
         foreach (var name in SitePaletteCss.SchemeTokenNames)
             Assert.Equal(2, Regex.Matches(css, Regex.Escape(name) + ":").Count);

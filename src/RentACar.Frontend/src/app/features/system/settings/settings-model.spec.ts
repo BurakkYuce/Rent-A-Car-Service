@@ -36,36 +36,34 @@ const DTO = {
 
 describe('ayarlar modeli', () => {
   it('site teması: kayıtsızsa anahtar seçili; kayıtlıysa aynen; önizleme adresi ?tema=', () => {
-    expect(SITE_THEMES).toEqual(['anahtar', 'kiyas', 'paket', 'pazar', 'vitrin', 'rota']);
+    expect(SITE_THEMES).toEqual(['anahtar', 'kiyas', 'paket']);
     expect(settingsFormValue(DTO).siteTemasi).toBe('anahtar');
-    expect(settingsFormValue({ ...DTO, siteTemasi: 'pazar' } as SettingsDto).siteTemasi).toBe(
-      'pazar',
+    expect(settingsFormValue({ ...DTO, siteTemasi: 'kiyas' } as SettingsDto).siteTemasi).toBe(
+      'kiyas',
     );
-    expect(settingsFormValue({ ...DTO, siteTemasi: 'rota' } as SettingsDto).siteTemasi).toBe(
-      'rota',
-    );
-    expect(themePreviewUrl('kiyi.site.test', 'vitrin')).toBe('//kiyi.site.test/?tema=vitrin');
-    expect(themePreviewUrl('kiyi.site.test', 'pazar')).toBe('//kiyi.site.test/?tema=pazar');
+    expect(themePreviewUrl('kiyi.site.test', 'paket')).toBe('//kiyi.site.test/?tema=paket');
+    expect(themePreviewUrl('kiyi.site.test', 'anahtar')).toBe('//kiyi.site.test/?tema=anahtar');
   });
 
-  it('site teması: eski anahtar yeni karşılığıyla seçili görünür (tarife → pazar, kontuar → rota)', () => {
+  it('site teması: eski anahtar yeni karşılığıyla seçili görünür (pazar/tarife → anahtar, rota/kontuar → kiyas, vitrin → paket)', () => {
     expect(settingsFormValue({ ...DTO, siteTemasi: 'tarife' } as SettingsDto).siteTemasi).toBe(
-      'pazar',
+      'anahtar',
     );
     expect(settingsFormValue({ ...DTO, siteTemasi: ' Kontuar ' } as SettingsDto).siteTemasi).toBe(
-      'rota',
+      'kiyas',
     );
     expect(siteThemeFormValue('')).toBe('anahtar');
-    expect(siteThemeFormValue('VITRIN')).toBe('vitrin');
-    expect(siteThemeFormValue('TARIFE')).toBe('pazar'); // Türkçe küçültme ı üretir; anahtar yine bulunur
+    expect(siteThemeFormValue('VITRIN')).toBe('paket'); // Türkçe küçültme ı üretir; anahtar yine bulunur
+    expect(siteThemeFormValue('pazar')).toBe('anahtar');
+    expect(siteThemeFormValue('rota')).toBe('kiyas');
     // Tanınmayan değer uydurulmaz: aynen kalır (radyo seçimsiz; sunucu kaydı reddeder).
     expect(siteThemeFormValue('mavi')).toBe('mavi');
     // Gövdeye yeni anahtar gider.
     const body = settingsBody(
-      settingsFormValue({ ...DTO, siteTemasi: 'kontuar' } as SettingsDto),
+      settingsFormValue({ ...DTO, siteTemasi: 'vitrin' } as SettingsDto),
       'v7',
     );
-    expect(body['siteTemasi']).toBe('rota');
+    expect(body['siteTemasi']).toBe('paket');
   });
 
   it('palet setleri temaya göre; boş tema varsayılan tema (anahtar); katalog yoksa boş', () => {
@@ -80,41 +78,41 @@ describe('ayarlar modeli', () => {
       ...DTO,
       sitePaletSecenekleri: [
         { tema: 'anahtar', paletler: [{ anahtar: 'zumrut', ad: 'Zümrüt', ...swatch }] },
-        { tema: 'pazar', paletler: [{ anahtar: 'petrol', ad: 'Petrol', ...swatch }] },
+        { tema: 'kiyas', paletler: [{ anahtar: 'mavi', ad: 'Mavi', ...swatch }] },
         {
-          tema: 'vitrin',
+          tema: 'paket',
           paletler: [
-            { anahtar: 'grafit', ad: 'Grafit', ...swatch },
-            { anahtar: 'bordo', ad: 'Bordo', ...swatch },
+            { anahtar: 'kiremit', ad: 'Kiremit', ...swatch },
+            { anahtar: 'zeytin', ad: 'Zeytin', ...swatch },
           ],
         },
       ],
     } as unknown as SettingsDto;
-    expect(palettesFor(dto, 'vitrin').map((p) => p.anahtar)).toEqual(['grafit', 'bordo']);
-    expect(palettesFor(dto, 'pazar').map((p) => p.anahtar)).toEqual(['petrol']);
+    expect(palettesFor(dto, 'paket').map((p) => p.anahtar)).toEqual(['kiremit', 'zeytin']);
+    expect(palettesFor(dto, 'kiyas').map((p) => p.anahtar)).toEqual(['mavi']);
     expect(palettesFor(dto, null).map((p) => p.anahtar)).toEqual(['zumrut']);
     expect(palettesFor(dto, '').map((p) => p.anahtar)).toEqual(['zumrut']);
-    expect(palettesFor(null, 'vitrin')).toEqual([]);
+    expect(palettesFor(null, 'paket')).toEqual([]);
     expect(settingsFormValue(dto).sitePaleti).toBeNull(); // kayıtsız = temanın varsayılanı (null gider)
 
     // Tema değişince: yeni temaya aitse korunur, değilse temizlenir; katalog yoksa dokunulmaz.
-    const vitrin = palettesFor(dto, 'vitrin');
-    expect(paletteAfterThemeChange('bordo', vitrin)).toBe('bordo');
-    expect(paletteAfterThemeChange('petrol', vitrin)).toBeNull();
-    expect(paletteAfterThemeChange(null, vitrin)).toBeNull();
-    expect(paletteAfterThemeChange('', vitrin)).toBeNull();
-    expect(paletteAfterThemeChange('petrol', [])).toBe('petrol');
+    const paket = palettesFor(dto, 'paket');
+    expect(paletteAfterThemeChange('zeytin', paket)).toBe('zeytin');
+    expect(paletteAfterThemeChange('mavi', paket)).toBeNull();
+    expect(paletteAfterThemeChange(null, paket)).toBeNull();
+    expect(paletteAfterThemeChange('', paket)).toBeNull();
+    expect(paletteAfterThemeChange('mavi', [])).toBe('mavi');
   });
 
   it('önizleme adresi tema + palet + yalnız geçerli renk (%23 ile) taşır', () => {
-    expect(themePreviewUrl('kiyi.site.test', 'vitrin', 'gece-mavisi', '#C0392B')).toBe(
-      '//kiyi.site.test/?tema=vitrin&palet=gece-mavisi&renk=%23C0392B',
+    expect(themePreviewUrl('kiyi.site.test', 'paket', 'zeytin', '#C0392B')).toBe(
+      '//kiyi.site.test/?tema=paket&palet=zeytin&renk=%23C0392B',
     );
-    expect(themePreviewUrl('kiyi.site.test', 'vitrin', null, 'kirmizi')).toBe(
-      '//kiyi.site.test/?tema=vitrin',
+    expect(themePreviewUrl('kiyi.site.test', 'paket', null, 'kirmizi')).toBe(
+      '//kiyi.site.test/?tema=paket',
     );
-    expect(themePreviewUrl('kiyi.site.test', 'pazar', 'lacivert', null)).toBe(
-      '//kiyi.site.test/?tema=pazar&palet=lacivert',
+    expect(themePreviewUrl('kiyi.site.test', 'anahtar', 'lacivert', null)).toBe(
+      '//kiyi.site.test/?tema=anahtar&palet=lacivert',
     );
     expect(isHexColor('#0b5d6b')).toBe(true);
     for (const bad of ['0b5d6b', '#0b5d6', '#0b5d6bb', '#0b5d6g', null, 7]) {
