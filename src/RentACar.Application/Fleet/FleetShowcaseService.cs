@@ -21,7 +21,9 @@ public sealed record FleetShowcaseCard(
     Guid IlanId, string Slug, string Baslik, string? YilAralik, Guid? CoverPhotoId,
     decimal GunlukFiyat, bool KdvDahil, int Adet,
     IReadOnlyList<OzellikGoster> Ozellikler, DateTimeOffset? GuncellemeUtc = null,
-    IReadOnlyList<OzellikGoster>? TumOzellikler = null);
+    IReadOnlyList<OzellikGoster>? TumOzellikler = null,
+    /// <summary>İlanın 30 günlük toplamı (<c>WebIlan.AylikToplam</c>); girilmemişse null — site aylık fiyat UYDURMAZ.</summary>
+    decimal? AylikToplam = null);
 
 /// <summary>Sitede gösterilen teknik özellik (yalnız <c>Gorunur</c> olanlar taşınır).</summary>
 public sealed record OzellikGoster(string Etiket, string Deger);
@@ -191,7 +193,8 @@ public sealed class FleetShowcaseService(
                 y.Detay.Ilan.Id, y.Detay.Ilan.Slug, y.Detay.Ilan.Baslik, VehicleSignature.YearRange(y.Araclar),
                 meta.Count > 0 ? meta[0].Id : null,
                 y.Detay.Ilan.GunlukFiyat, y.Detay.Ilan.KdvDahil, Count(y.Araclar),
-                CardChips(y.Detay, y.Detay.Ilan.Baslik), LastModified(y.Detay), Visible(y.Detay)));
+                CardChips(y.Detay, y.Detay.Ilan.Baslik), LastModified(y.Detay), Visible(y.Detay),
+                y.Detay.Ilan.AylikToplam is > 0m ? y.Detay.Ilan.AylikToplam : null));
         }
         return cards;
     }

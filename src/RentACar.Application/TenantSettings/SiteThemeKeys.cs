@@ -14,6 +14,7 @@ public static class SiteThemeKeys
 {
     public const string Anahtar = "anahtar";
     public const string Kiyas = "kiyas";
+    public const string Paket = "paket";
     public const string Pazar = "pazar";
     public const string Vitrin = "vitrin";
     public const string Rota = "rota";
@@ -23,7 +24,7 @@ public static class SiteThemeKeys
     public const string Default = Anahtar;
 
     /// <summary>Geçerli (saklanabilir) anahtarlar — sıra ERP'deki seçenek sırasıdır (varsayılan başta).</summary>
-    public static readonly IReadOnlyList<string> All = [Anahtar, Kiyas, Pazar, Vitrin, Rota];
+    public static readonly IReadOnlyList<string> All = [Anahtar, Kiyas, Paket, Pazar, Vitrin, Rota];
 
     /// <summary>Eski anahtar → yeni anahtar. KALICI: silinmez (eski bağlantılar ve önizleme adresleri yaşar).</summary>
     public static readonly IReadOnlyDictionary<string, string> LegacyAliases = new Dictionary<string, string>(StringComparer.Ordinal)

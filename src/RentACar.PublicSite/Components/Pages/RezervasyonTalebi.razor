@@ -68,7 +68,7 @@
                 </label>
             </div>
             <label class="alan">Not
-                <textarea name="not" rows="3" maxlength="2000"></textarea>
+                <textarea name="not" rows="3" maxlength="2000">@NotPrefill</textarea>
                 <span class="alan-ipucu">Teslim yeri, uçuş saati ya da ek sürücü gibi bilgiler.</span>
             </label>
         </fieldset>
@@ -120,6 +120,12 @@
     [SupplyParameterFromQuery(Name = "sube")] public string? Sube { get; set; }
     [SupplyParameterFromQuery(Name = "fiyat")] public string? Fiyat { get; set; }
     [SupplyParameterFromQuery(Name = "hata")] public string? Hata { get; set; }
+    /// <summary>Not alanının ön dolumu (Paket temasının kurumsal teklif formu: "araç adedi, süre, şehir"). Yalnız
+    /// GÖRÜNÜR ve düzenlenebilir textarea içeriği olur (Razor kaçışlar); yeni uç yok, POST sözleşmesi aynı.</summary>
+    [SupplyParameterFromQuery(Name = "not")] public string? Not { get; set; }
+
+    /// <summary>En çok 500 karakter (sorgu adresi kısa kalsın; alanın kendi sınırı 2000).</summary>
+    private string? NotPrefill => string.IsNullOrWhiteSpace(Not) ? null : Not.Trim()[..Math.Min(Not.Trim().Length, 500)];
 
     private FleetBranding? _branding;
     private IReadOnlyList<string> _branches = [];

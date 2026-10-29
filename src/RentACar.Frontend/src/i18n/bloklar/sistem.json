@@ -499,6 +499,10 @@
           "ad": "Kıyas",
           "aciklama": "Liste ve şeffaf fiyat önce: vites, yakıt ve koltuk süzgeci, depozito-km-yaş rozetleri ve gün × fiyat dökümü. Havalimanı çevresinde, çok sınıflı filosu olan firma için."
         },
+        "paket": {
+          "ad": "Paket",
+          "aciklama": "Aylık ve kurumsal kiralama önce: aylık fiyat önde, aylık fiyat tablosu ve kurumsal teklif bölümü; sade, tipografik. Uzun dönem ve kurumsal müşteriyle çalışan firma için."
+        },
         "pazar": {
           "ad": "Pazar",
           "aciklama": "Kalın başlıklar, asılı fiyat etiketleri ve öne çıkan telefon ile WhatsApp; yerel firma ve bütçe kiralaması için."

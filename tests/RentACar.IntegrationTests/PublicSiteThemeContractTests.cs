@@ -56,6 +56,7 @@ public sealed partial class PublicSiteThemeContractTests(PostgresFixture fx)
     [Theory]
     [InlineData("anahtar", "--wa-ink", "--wa-bg")]
     [InlineData("kiyas", "--wa-ink", "--wa-bg")]
+    [InlineData("paket", "--wa-ink", "--wa-bg")]
     [InlineData("kiyas", "--rozet-iyi-ink", "--rozet-iyi-bg")]
     [InlineData("kiyas", "--rozet-dikkat-ink", "--rozet-dikkat-bg")]
     public void Sabit_renk_ciftleri_AA(string key, string ink, string ground)
@@ -108,7 +109,7 @@ public sealed partial class PublicSiteThemeContractTests(PostgresFixture fx)
     public void Kayit_ve_ayar_anahtarlari_ayni()
     {
         // Beklenen anahtarlar elle (oracle): kayıt ve ayar listesi ikisi de buna eşit, aynı sırada.
-        Assert.Equal(["anahtar", "kiyas", "pazar", "vitrin", "rota"], SiteThemeKeys.All);
+        Assert.Equal(["anahtar", "kiyas", "paket", "pazar", "vitrin", "rota"], SiteThemeKeys.All);
         Assert.Equal(SiteThemeKeys.All, SiteThemes.All.Select(t => t.Key));
         Assert.Equal("anahtar", SiteThemeKeys.Default);
         Assert.Equal("anahtar", SiteThemes.Resolve(null).Key);

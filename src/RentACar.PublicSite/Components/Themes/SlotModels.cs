@@ -34,9 +34,13 @@ public sealed record ListingCard(
     /// Süzgeç (<see cref="FleetFilter"/>) ve "Manuel, Dizel, 5 kişilik" gibi teknik satır buna bakar.</summary>
     public IReadOnlyList<OzellikGoster> TumOzellikler { get; init; } = [];
 
+    /// <summary>İlanın 30 günlük toplamı (girilmişse; ana sayfa ve tarihsiz liste). Tarihli aramada null — o zaman
+    /// <see cref="Toplam"/> seçilen günlerin toplamıdır.</summary>
+    public decimal? AylikToplam { get; init; }
+
     public static ListingCard From(FleetShowcaseCard c, string quoteLink, string? mark = null, bool priority = false)
         => new(c.Slug, c.Baslik, c.CoverPhotoId, c.YilAralik, c.GunlukFiyat, c.KdvDahil, c.Ozellikler, c.Adet,
-            null, null, quoteLink, mark, priority) { TumOzellikler = c.TumOzellikler ?? c.Ozellikler };
+            null, null, quoteLink, mark, priority) { TumOzellikler = c.TumOzellikler ?? c.Ozellikler, AylikToplam = c.AylikToplam };
 
     public static ListingCard From(PublicAvailabilityResult r, string quoteLink, string? mark = null, bool priority = false)
         => new(r.Slug, r.Baslik, r.CoverPhotoId, r.YilAralik, r.GunlukFiyat, r.KdvDahil, r.Ozellikler, r.Adet,
