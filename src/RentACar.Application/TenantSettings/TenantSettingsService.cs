@@ -65,8 +65,7 @@ public sealed class TenantSettingsService(
         PermissionGuard.Require(currentUser, Permission.ManageUsers);
         await screens.EnsureScreenAccessAsync("ayarlar", Permission.ManageUsers, ct);
         var s = await repository.GetAsync(ct);
-        if (s is null) return new TenantSettingsModel();
-        return new TenantSettingsModel
+        var model = s is null ? new TenantSettingsModel() : new TenantSettingsModel
         {
             FirmaUnvan = s.FirmaUnvan,
             FirmaVergiDairesi = s.FirmaVergiDairesi,
@@ -146,15 +145,18 @@ public sealed class TenantSettingsService(
             SiteKurulusYili = s.SiteKurulusYili,
             // PR-2: public-site
             PublicSiteEnabled = s.PublicSiteEnabled,
-            PublicSiteHost = await domains.GetActiveHostAsync(TenantId, ct),
-            // PR-5: tüm domain kayıtları (durum rozeti için)
-            CustomDomains = (await domains.ListAsync(TenantId, ct))
-                .Select(d => new TenantDomainRow(d.Host, d.Kind.ToString(), StatusText(d.Status),
-                    // F11.1b M6: bekleyen özel alan adında kiracının KENDİ TXT talimatı (başka kiracınınki asla listelenmez).
-                    d.Status == RentACar.Domain.Entities.TenantDomainStatus.PendingVerification ? DomainVerification.RecordName(d.Host) : null,
-                    d.Status == RentACar.Domain.Entities.TenantDomainStatus.PendingVerification ? d.VerificationToken : null))
-                .ToList()
         };
+        // Alan adları ayrı (platform) tabloda: ayar satırı LAZY oluştuğundan ona bağlanmaz — ayarlarını hiç kaydetmemiş
+        // firma da eklediği alan adını ve aktif site adresini görür.
+        model.PublicSiteHost = await domains.GetActiveHostAsync(TenantId, ct);
+        // PR-5: tüm domain kayıtları (durum rozeti için)
+        model.CustomDomains = (await domains.ListAsync(TenantId, ct))
+            .Select(d => new TenantDomainRow(d.Host, d.Kind.ToString(), StatusText(d.Status),
+                // F11.1b M6: bekleyen özel alan adında kiracının KENDİ TXT talimatı (başka kiracınınki asla listelenmez).
+                d.Status == RentACar.Domain.Entities.TenantDomainStatus.PendingVerification ? DomainVerification.RecordName(d.Host) : null,
+                d.Status == RentACar.Domain.Entities.TenantDomainStatus.PendingVerification ? d.VerificationToken : null))
+            .ToList();
+        return model;
     }
 
     /// <summary>PR-2: "Sitemi Aç" — subdomain host'unu (idempotent) oluşturur + siteyi aktifleştirir.
