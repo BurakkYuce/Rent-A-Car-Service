@@ -66,7 +66,7 @@ Kullanıcı **C# kodunu incelemez**. Doğruluk şuradan gelir:
 6. `XService` (Application) — doğrulama + guard + iş kuralı.
 7. DI: `Application/DependencyInjection.cs` (`AddScoped<XService>`) + `Infrastructure/DependencyInjection.cs` (`AddScoped<IXRepository, XRepository>`).
 8. Web (API): `src/RentACar.Web/Api/<Modül>/XApi.cs` — `/api/ui/v1` grubuna uçlar (`UiApiExtensions.MapUiApi` ya da `IUiApiEndpointRegistration`); her uçta `RequirePermission`/`IzinMetadata` ya da `IzinMuaf`; alt kayıtta üst kaydın şube kapsamı, kapsam kontrolü durum kontrolünden ÖNCE; alan hataları `errors[alan]`; uç sınırları (`numeric(19,4)`, varchar); tam değiştirme PUT'unda `surum` + 409 `cakisma`. Sonra `RACAR_OPENAPI_GUNCELLE=1` ile `UiApiOpenApiTests` ve frontend'de `npm run tipler`.
-9. SPA ekranı: `src/RentACar.Frontend/src/app/features/<modül>/` (çekirdek bileşenler, form seti, `TemelStore`; kurallar `src/RentACar.Frontend/AGENTS.md`), rota `sayfalar.ts` (tembel parça), çeviri kendi i18n bloğunda (`npm run i18n:tipler`), menü `Api/Menu/MenuKaydi.cs`. Yıkıcı çağrı onaylı olmalı (`npm run yikici`, lint zincirinde).
+9. SPA ekranı: `src/RentACar.Frontend/src/app/features/<modül>/` (çekirdek bileşenler, form seti, `TemelStore`; kurallar `src/RentACar.Frontend/AGENTS.md`), rota `sayfalar.ts` (tembel parça), çeviri kendi i18n bloğunda (`npm run i18n:tipler`), menü `Api/Menu/MenuRegistry.cs`. Yıkıcı çağrı onaylı olmalı (`npm run yikici`, lint zincirinde).
 10. Test: `tests/…/XTests.cs` — bağımsız oracle (CRUD + benzersizlik + **tenant izolasyon** `racar_app` ile + yetki: başka şube 403, başka kiracı 404) + SPA Vitest/e2e.
 
 ## 6. Mevcut durum (2026-07-15, PR #76 itibarıyla — 1242 entegrasyon testi yeşil)
@@ -149,6 +149,8 @@ RACAR_TEST_PG_ADMIN="Host=localhost;Port=5432;Username=burak;Database=postgres" 
 - `RACAR_TEST_PG_ADMIN` superuser admin bağlantısı (Mac'te kullanıcı adın superuser, ör. `burak`, trust auth).
 
 ## 9. Sıradaki iş
+**"X nerede?" sorusu:** önce `docs/harita.md` (konu → dosya), satır yoksa `graphify query "<soru>"`, en son grep.
+
 **KALDIĞIN YER: `docs/roadmap/DEVIR.md`** — güncel durum kontrol listesi (bitti / açık PR'lar / sırada / kullanıcı kararları), bir PR'ı baştan sona yürütme adımları, para PR'ı adversarial şablonu ve bu geçişte ödenmiş kalıcı dersler. Boş bağlamla başlıyorsan önce onu oku; kısayol `/roadmap-devam` becerisi (`.claude/skills/roadmap-devam/`). CI izleme yalnız `scripts/pr-izle.sh` ile (merge ayrı komutta).
 
 **Ana hat: Angular geçiş roadmap'i** — `docs/roadmap/README.md`. G0 ✔; F0 (hazırlık) → F1 (API temeli) → F2 (frontend iskeleti; F2.1 F1'le paralel) → F3 (çekirdek) → F4 (pilot: Panel + Kira) → F5–F12 (modüller) → F13 (Blazor söküm). 60 PR. Her işte önce ilgili `docs/roadmap/F*.md` dosyasını oku; Exit kriterleri dışına çıkma. Faz sayfa listeleri `scripts/roadmap-envanteri.py` ile üretildi (taban 2026-09-21; yeniden üretilmez).
