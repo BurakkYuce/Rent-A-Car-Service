@@ -45,8 +45,8 @@
    YAZI: Plus Jakarta Sans 700-800 (ad, başlık, fiyat, düğme) + Public Sans 400-600 (gövde). Fiyatlarda tablo rakamı.
    Büyük harf etiket yok. @font-face App.razor'da (SiteThemes.Anahtar.Fonts); burada yalnız yedekler.
 
-   İMZA ANI: hero'daki arama kutusu ("tezgâh") açılışta kepenk gibi açılır — çizgili örtü bir kez yukarı kalkar
-   (yalnız transform, ~0,75 sn). Dinlenme hâlinde örtü görünmez; azaltılmış harekette base.css animasyonu kapatır.
+   AÇILIŞ ANIMASYONU YOK (kullanıcı kararı, 2026-10-29): arama formu ilk karede kullanılabilir olmalı; önceki
+   "kepenk" örtüsü kaldırıldı. Hareket yalnız kullanıcıya cevap veren ortak geri bildirim (base.css).
    ============================================================================= */
 
 @font-face { font-family: "Plus Jakarta Sans Fallback"; src: local("Arial"); size-adjust: 106%; ascent-override: 96%; descent-override: 24%; line-gap-override: 0%; }
@@ -110,8 +110,6 @@
   --price-mark: var(--accent);
 
   /* Tema bileşenleri */
-  --kepenk: color-mix(in oklab, var(--ink) 80%, var(--surface));
-  --kepenk-aralik: color-mix(in oklab, var(--ink) 62%, var(--surface));
   --siluet: color-mix(in oklab, var(--brand) 50%, var(--brand-soft));
   --logo-plate: transparent;
 }
@@ -140,8 +138,6 @@
     --shadow-1: var(--p-shadow-1-dark);
     --shadow-2: var(--p-shadow-2-dark);
     --field-bg: var(--bg-alt);
-    --kepenk: color-mix(in oklab, var(--bg) 70%, var(--ink));
-    --kepenk-aralik: color-mix(in oklab, var(--bg) 50%, var(--ink));
     /* Logoların çoğu şeffaf zeminli KOYU yazı: koyu modda açık şemanın zemini üstünde. */
     --logo-plate: var(--day-bg);
   }
@@ -228,19 +224,10 @@ h1 { font-weight: 800; letter-spacing: -.025em; }
 .an-hero-eylem .btn:only-child { grid-column: 1 / -1; }
 .an-no { display: none; }
 
-.an-tezgah { position: relative; overflow: hidden; padding: var(--space-3) var(--space-2) var(--space-2); background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-l); }
+.an-tezgah { padding: var(--space-3) var(--space-2) var(--space-2); background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-l); }
 .an-tezgah-baslik { margin: 0 0 var(--space-2); font: 700 var(--step-1)/1.2 var(--font-display); }
 .an-tezgah .arama { padding: 0; border: 0; border-radius: 0; box-shadow: none; background: none; }
 .an-tezgah .arama .btn { min-height: 52px; }
-/* İmza anı: kepenk. Çizgili örtü dinlenmede tezgâhın ÜSTÜNDE ve görünmez (translateY -101%, overflow hidden);
-   açılışta tezgâhı örterek başlar ve bir kez yukarı kalkar. `backwards`: gecikme sırasında örtü kapalı durur. */
-.an-tezgah::after {
-  content: ""; position: absolute; inset: 0; z-index: 2; pointer-events: none;
-  background: repeating-linear-gradient(to bottom, var(--kepenk) 0 11px, var(--kepenk-aralik) 11px 13px);
-  transform: translateY(-101%);
-  animation: an-kepenk .8s cubic-bezier(.65, 0, .25, 1) .3s backwards;
-}
-@keyframes an-kepenk { from { transform: translateY(0); } }
 
 .an-cipler { display: flex; flex-wrap: wrap; gap: .4rem; margin: var(--space-2) 0 0; padding: 0; list-style: none; }
 .an-cipler li { padding: .25rem .6rem; border-radius: 6px; background: var(--bg-alt); color: var(--ink-muted); font-size: .875rem; font-weight: 600; }

@@ -41,6 +41,16 @@ public sealed partial class PublicSiteThemeContractTests
     public void Bugunku_calisma_saati_yalniz_kesin_okunabildiginde(string? shortText, string? weekly, DayOfWeek day, string? expected)
         => Assert.Equal(expected, BranchOffices.TodayHours(Hours(shortText, weekly), day));
 
+    /// <summary>Kullanıcı kararı: Anahtar'da açılış animasyonu yok — arama formu hiçbir karede örtülmez.</summary>
+    [Theory]
+    [InlineData("anahtar")]
+    public void Acilis_animasyonu_yok(string key)
+    {
+        var css = ReadCss(ThemeFile(SiteThemes.Resolve(key)));
+        Assert.DoesNotContain("@keyframes", css);
+        Assert.DoesNotMatch(@"(?<![\w-])animation(-name)?\s*:", css);
+    }
+
     [Fact]
     public void Firma_bilgisi_bos_alan_satir_ve_cip_uretmez()
     {
