@@ -1,0 +1,94 @@
+@* Tema "kiyas" — Fleet slotu. İmza SABİT (Components/Themes/README.md): Model (FleetModel).
+
+   Müsaitlikte iki sütun: solda JS'siz GET süzgeci (Model.Filtre — vites/yakıt/koltuk/sınıf; arama alanları gizli
+   taşınır; "Uygula" ile gönderilir), sağda özet + kart ızgarası. Telefonda süzgeç listenin üstünde, seçenekler yan
+   yana. Diğer yerlerde (ana sayfa, benzer araçlar, 404) yalnız ızgara. Koşul rozetleri (firmanın beyanı) kartlara
+   `KiyasRozetler` basamaklı değeriyle iner. Kapsayıcıyı çağıran verir; kart yoksa yalnız sayfanın verdiği boş durum
+   (süzgeç yine görünür ki temizlenebilsin), o da yoksa hiçbir şey (T2). *@
+
+@if (Model.Kartlar.Count > 0 || Model.Bos is not null)
+{
+    var showFilter = Model.Yer == FleetPlacement.Availability && Model.Filtre is { Facets.Count: > 0 };
+    <div class="@(showFilter ? "ky-liste-duzen" : null)">
+        @if (showFilter)
+        {
+            var filter = Model.Filtre!;
+            <form method="get" action="/musaitlik" class="ky-suzgec" aria-label="Araçları süz">
+                <p class="ky-suzgec-baslik">Süz@(filter.Active > 0 ? $" ({filter.Active})" : "")</p>
+                @foreach (var keep in filter.Keep)
+                {
+                    <input type="hidden" name="@keep.Key" value="@keep.Value" />
+                }
+                @foreach (var facet in filter.Facets)
+                {
+                    <fieldset>
+                        <legend>@facet.Label</legend>
+                        @foreach (var option in facet.Options)
+                        {
+                            <label class="ky-secenek">
+                                <input type="checkbox" name="@facet.Key" value="@option.Value" checked="@option.Selected" />
+                                <span>@option.Value</span> <span class="ky-adet">@option.Count</span>
+                            </label>
+                        }
+                    </fieldset>
+                }
+                <div class="ky-suzgec-eylem">
+                    <button type="submit" class="btn btn-brand">Uygula</button>
+                    @if (filter.Active > 0) { <a href="@filter.ClearHref">Temizle</a> }
+                </div>
+            </form>
+        }
+        <div class="ky-sonuc">
+            @if (Model.Kartlar.Count > 0)
+            {
+                @if (Model.Baslik is { Length: > 0 } title)
+                {
+                    <div class="ky-bolum-bas">
+                        <h2 id="@Model.BaslikId" class="bolum-baslik">@title</h2>
+                        @if (Model.Yer == FleetPlacement.Home) { <a href="/musaitlik">Tümünü karşılaştır</a> }
+                    </div>
+                }
+                @if (Model.Ozet is { } summary)
+                {
+                    <div class="sonuc-ozet" role="@(summary.Canli ? "status" : null)">
+                        <strong>@summary.Vurgu</strong>
+                        <span class="muted">@summary.Aciklama</span>
+                    </div>
+                }
+                @if (Model.Uyari is { Length: > 0 } note)
+                {
+                    <p class="not-kutu">@note</p>
+                }
+                <CascadingValue Name="KiyasRozetler" Value="_badges" IsFixed="true">
+                    <ul class="ky-ilanlar">
+                        @foreach (var card in Model.Kartlar)
+                        {
+                            <li><ThemedCard Kart="card" Tarih="Model.Tarih" /></li>
+                        }
+                    </ul>
+                </CascadingValue>
+            }
+            else if (Model.Bos is { } empty)
+            {
+                <div class="bos-durum" role="@(empty.Canli ? "status" : null)">
+                    <h2>@empty.Baslik</h2>
+                    <p>@empty.Metin</p>
+                    @if (empty.Linkler.Count > 0)
+                    {
+                        <ul class="linkler">
+                            @foreach (var l in empty.Linkler) { <li><a href="@l.Href">@l.Label</a></li> }
+                        </ul>
+                    }
+                </div>
+            }
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter, EditorRequired] public FleetModel Model { get; set; } = default!;
+
+    private IReadOnlyList<(string Text, string Kind)> _badges = [];
+
+    protected override void OnParametersSet() => _badges = SiteFactsText.Badges(Model.Bilgi);
+}

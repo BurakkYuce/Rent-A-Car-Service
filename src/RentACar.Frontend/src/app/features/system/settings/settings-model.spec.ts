@@ -36,7 +36,7 @@ const DTO = {
 
 describe('ayarlar modeli', () => {
   it('site teması: kayıtsızsa anahtar seçili; kayıtlıysa aynen; önizleme adresi ?tema=', () => {
-    expect(SITE_THEMES).toEqual(['anahtar', 'pazar', 'vitrin', 'rota']);
+    expect(SITE_THEMES).toEqual(['anahtar', 'kiyas', 'pazar', 'vitrin', 'rota']);
     expect(settingsFormValue(DTO).siteTemasi).toBe('anahtar');
     expect(settingsFormValue({ ...DTO, siteTemasi: 'pazar' } as SettingsDto).siteTemasi).toBe(
       'pazar',

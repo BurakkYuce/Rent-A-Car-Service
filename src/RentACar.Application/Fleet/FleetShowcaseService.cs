@@ -37,7 +37,10 @@ public sealed record PublicAvailabilityResult(
     int Gun, decimal GunlukFiyat, decimal Toplam, bool KdvDahil,
     /// <summary>Bu tarih aralığında MÜSAİT adet (Σ VitrinAdet ?? 1) — biri kirada ise düşer.</summary>
     int Adet,
-    IReadOnlyList<OzellikGoster> Ozellikler);
+    IReadOnlyList<OzellikGoster> Ozellikler,
+    /// <summary>Görünür özelliklerin TAMAMI (kart çipleri başlıkta geçen değeri atar; sitenin vites/yakıt/koltuk
+    /// süzgeci tam listeye bakar). <see cref="FleetShowcaseCard.TumOzellikler"/> ile aynı kural.</summary>
+    IReadOnlyList<OzellikGoster>? TumOzellikler = null);
 
 public sealed record FleetShowcaseDetail(
     Guid IlanId, string Slug, string Baslik, string? YilAralik,
@@ -266,7 +269,7 @@ public sealed class FleetShowcaseService(
                 i.Id, i.Slug, i.Baslik, VehicleSignature.YearRange(y.Araclar),
                 meta.Count > 0 ? meta[0].Id : null,
                 day, daily, R(daily * day), i.KdvDahil, Count(availableMembers),
-                CardChips(y.Detay, i.Baslik)));
+                CardChips(y.Detay, i.Baslik), Visible(y.Detay)));
         }
         return [.. results.OrderBy(r => r.GunlukFiyat)];
     }

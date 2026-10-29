@@ -1,16 +1,16 @@
 using System.Globalization;
 using RentACar.Application.Fleet;
 
-namespace RentACar.PublicSite.Components.Themes.Anahtar;
+namespace RentACar.PublicSite.Components.Themes;
 
 /// <summary>"Kiralamadan önce" listesinin bir satırı: etiket + firmanın beyanı.</summary>
 public sealed record FactLine(string Etiket, string Metin);
 
 /// <summary>
-/// Firmanın beyanlarından (<see cref="SiteFacts"/>) Anahtar temasının metinleri. Yalnız biçimler; metin firmanın
-/// girdiğidir (T1: firma adına vaat yazılmaz). Boş alan satır/çip ÜRETMEZ (T2) — boş kutu basılmaz.
+/// Firmanın beyanlarından (<see cref="SiteFacts"/>) temaların ortak metinleri (Anahtar, Kıyas). Yalnız biçimler; metin
+/// firmanın girdiğidir (T1: firma adına vaat yazılmaz). Boş alan satır/çip ÜRETMEZ (T2) — boş kutu basılmaz.
 /// </summary>
-public static class AnahtarFacts
+public static class SiteFactsText
 {
     private static readonly CultureInfo Tr = CultureInfo.GetCultureInfo("tr-TR");
 
@@ -39,6 +39,20 @@ public static class AnahtarFacts
         if (f.DepozitoTutari is { } amount) list.Add(amount == 0 ? "Depozito yok" : $"Depozito {PriceText.Tl(amount)}");
         if (Km(f) is { } km) list.Add(f.KmSinirsiz ? "Sınırsız km" : km);
         if (f.MinYas is { } age) list.Add($"En az {age} yaş");
+        return list;
+    }
+
+    /// <summary>Rozetler (Kıyas): olumlu = depozitosuz, sınırsız km; dikkat = asgari yaş/ehliyet şartı; nötr = depozito
+    /// tutarı, günlük km sınırı. Sınıflandırma yalnız verinin türünden — firma adına nitelik yazılmaz.</summary>
+    public static IReadOnlyList<(string Text, string Kind)> Badges(SiteFacts? f)
+    {
+        if (f is null) return [];
+        var list = new List<(string, string)>(4);
+        if (f.DepozitoTutari is { } amount) list.Add(amount == 0 ? ("Depozitosuz", "iyi") : ($"Depozito {PriceText.Tl(amount)}", "notr"));
+        if (f.KmSinirsiz) list.Add(("Sınırsız km", "iyi"));
+        else if (f.GunlukKmSiniri is { } km) list.Add(($"{PriceText.Count(km)} km/gün", "notr"));
+        if (f.MinYas is { } age) list.Add(($"{age}+ yaş", "dikkat"));
+        if (f.MinEhliyetYili is { } years and > 0) list.Add(($"{years}+ yıl ehliyet", "dikkat"));
         return list;
     }
 

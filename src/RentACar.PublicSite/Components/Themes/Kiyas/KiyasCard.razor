@@ -1,0 +1,81 @@
+@using RentACar.Application.Fleet
+
+@* Tema "kiyas" — Card slotu. İmza SABİT (Components/Themes/README.md): Kart, Tarih.
+
+   Karşılaştırma kartı: tek tip açık gri 4:3 kutuda görsel (`contain` — karışık fotoğraflar da düzenli durur; yoksa
+   silüet), ad, teknik satır (vites, yakıt, koltuk — ilanın görünür özelliklerinden), koşul rozetleri (firmanın
+   beyanı; Fleet slotundan `KiyasRozetler` basamaklı değeriyle — Card imzası sabit), fiyat dökümü eş genişlikli
+   rakamla: tarih SEÇİLMİŞSE "₺1.650 × 3 gün" ve toplam; yoksa günlük fiyat, "müsait" DENMEZ (T1). Kartın tamamı
+   detaya gider; "Rezervasyon talebi" ve (WaLinki varsa) "WhatsApp" ayrı hedefler. İç içe <a> yok. *@
+
+<article class="ky-kart">
+    @if (!string.IsNullOrWhiteSpace(Kart.Isaret))
+    {
+        <p class="ky-isaret">@Kart.Isaret</p>
+    }
+    <div class="ky-kart-foto">
+        @if (Kart.CoverPhotoId is { } photoId)
+        {
+            <img src="@($"/foto/{photoId}/thumb")" alt="@Kart.Baslik" width="400" height="300"
+                 loading="@(Kart.Oncelikli ? "eager" : "lazy")" fetchpriority="@(Kart.Oncelikli ? "high" : null)" decoding="async" />
+        }
+        else
+        {
+            <VehicleSilhouette />
+        }
+    </div>
+    <div class="ky-kart-govde">
+        <h3><a href="@Kart.DetayLinki">@Kart.Baslik</a></h3>
+        @if (MetaLine is { Length: > 0 } meta) { <p class="ky-kart-meta">@meta</p> }
+        @if (FleetFilter.SpecLine(Kart) is { } spec) { <p class="ky-teknik">@spec</p> }
+        @if (Rozetler.Count > 0)
+        {
+            <ul class="ky-rozetler" aria-label="Kiralama koşulları">
+                @foreach (var (text, kind) in Rozetler) { <li class="ky-rozet-@kind">@text</li> }
+            </ul>
+        }
+    </div>
+    <div class="ky-kart-fiyat">
+        @if (Kart.Gun is { } days && Kart.Toplam is { } total)
+        {
+            <p class="ky-dokum">@PriceText.Tl(Kart.GunlukFiyat) × @PriceText.Count(days) gün</p>
+            <p class="ky-fiyat"><span class="ky-tutar">@PriceText.Tl(total)</span> <span class="ky-kdv">@VatText</span></p>
+        }
+        else
+        {
+            <p class="ky-fiyat"><span class="ky-tutar">@PriceText.Tl(Kart.GunlukFiyat)</span> <span class="ky-birim">/ gün</span> <span class="ky-kdv">@VatText</span></p>
+        }
+        <div class="ky-kart-eylem">
+            <a class="btn btn-brand" href="@Kart.TeklifLinki">Rezervasyon talebi</a>
+            @if (Kart.WaLinki is not null)
+            {
+                <a class="btn btn-cizgi ky-kart-wa" href="@Kart.WaLinki" target="_blank" rel="noopener noreferrer">WhatsApp<span class="gorunmez">'tan sor: @Kart.Baslik</span></a>
+            }
+        </div>
+    </div>
+</article>
+
+@code {
+    /// <summary>Kartın temadan bağımsız verisi (sayfa kurar).</summary>
+    [Parameter, EditorRequired] public ListingCard Kart { get; set; } = default!;
+    /// <summary>Seçilen aralık; null → tarihsiz gezinti. Kart yalnız gün sayısını (Kart.Gun) basar.</summary>
+    [Parameter] public StayDates? Tarih { get; set; }
+
+    /// <summary>Firmanın koşul rozetleri (KiyasFleet basamaklar); yoksa boş.</summary>
+    [CascadingParameter(Name = "KiyasRozetler")] public IReadOnlyList<(string Text, string Kind)>? RozetDegeri { get; set; }
+
+    private IReadOnlyList<(string Text, string Kind)> Rozetler => RozetDegeri ?? [];
+    private string VatText => Kart.KdvDahil ? "KDV dahil" : "KDV hariç";
+
+    /// <summary>"2023 model, 3 araç" — tarih seçiliyse "3 araç müsait".</summary>
+    private string? MetaLine
+    {
+        get
+        {
+            var parts = new List<string>(2);
+            if (!string.IsNullOrWhiteSpace(Kart.YilAralik)) parts.Add($"{Kart.YilAralik} model");
+            if (Kart.Adet > 1) parts.Add(Kart.Gun is null ? $"{Kart.Adet} araç" : $"{Kart.Adet} araç müsait");
+            return parts.Count == 0 ? null : string.Join(", ", parts);
+        }
+    }
+}

@@ -32,7 +32,7 @@
                             <a href="@facts.GoogleProfilUrl" target="_blank" rel="noopener noreferrer">
                                 <span class="an-yildiz" aria-hidden="true">★</span>
                                 <strong>@_rating</strong><span class="gorunmez"> puan,</span>
-                                <span>@AnahtarFacts.RatingNote(facts)</span>
+                                <span>@SiteFactsText.RatingNote(facts)</span>
                             </a>
                         </li>
                     }
@@ -91,8 +91,8 @@
     protected override void OnParametersSet()
     {
         _contact = ContactLinks.From(Branding, Marka);
-        _founded = AnahtarFacts.Founded(Branding?.Bilgi);
-        _rating = AnahtarFacts.Rating(Branding?.Bilgi);
-        _chips = AnahtarFacts.Chips(Branding?.Bilgi);
+        _founded = SiteFactsText.Founded(Branding?.Bilgi);
+        _rating = SiteFactsText.Rating(Branding?.Bilgi);
+        _chips = SiteFactsText.Chips(Branding?.Bilgi);
     }
 }

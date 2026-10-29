@@ -30,13 +30,17 @@ public sealed record ListingCard(
     /// <summary>"WhatsApp'tan sor" (araç + seçilen tarihlerle hazır mesaj, <see cref="WhatsAppAsk"/>); null → basılmaz.</summary>
     public string? WaLinki { get; init; }
 
+    /// <summary>Görünür özelliklerin TAMAMI (<see cref="Ozellikler"/> kart çipleridir: başlıkta geçen değer atılmış).
+    /// Süzgeç (<see cref="FleetFilter"/>) ve "Manuel, Dizel, 5 kişilik" gibi teknik satır buna bakar.</summary>
+    public IReadOnlyList<OzellikGoster> TumOzellikler { get; init; } = [];
+
     public static ListingCard From(FleetShowcaseCard c, string quoteLink, string? mark = null, bool priority = false)
         => new(c.Slug, c.Baslik, c.CoverPhotoId, c.YilAralik, c.GunlukFiyat, c.KdvDahil, c.Ozellikler, c.Adet,
-            null, null, quoteLink, mark, priority);
+            null, null, quoteLink, mark, priority) { TumOzellikler = c.TumOzellikler ?? c.Ozellikler };
 
     public static ListingCard From(PublicAvailabilityResult r, string quoteLink, string? mark = null, bool priority = false)
         => new(r.Slug, r.Baslik, r.CoverPhotoId, r.YilAralik, r.GunlukFiyat, r.KdvDahil, r.Ozellikler, r.Adet,
-            r.Gun, r.Toplam, quoteLink, mark, priority);
+            r.Gun, r.Toplam, quoteLink, mark, priority) { TumOzellikler = r.TumOzellikler ?? r.Ozellikler };
 }
 
 /// <summary>Fleet slotunun basıldığı yer. Veri her yerde aynı biçimdedir; tema yerleşimi buna göre seçebilir
@@ -85,6 +89,9 @@ public sealed record FleetModel(IReadOnlyList<ListingCard> Kartlar, FleetPlaceme
     /// <summary>Firmanın "kiralamadan önce" beyanları (<see cref="FleetBranding.Bilgi"/>: depozito, km, yaş …) — tema
     /// isterse kartlarda/özette basar; null ya da alan boşsa basılmaz (T2). Ana sayfa ve müsaitlik doldurur.</summary>
     public SiteFacts? Bilgi { get; init; }
+    /// <summary>Müsaitlik süzgeci (sınıf/vites/yakıt/koltuk; JS'siz GET formu). Yalnız /musaitlik doldurur; tema
+    /// isterse formu basar (Kıyas). Süzme SAYFADA yapılır — <see cref="Kartlar"/> zaten süzülmüştür.</summary>
+    public FleetFilterModel? Filtre { get; init; }
 }
 
 /// <summary>

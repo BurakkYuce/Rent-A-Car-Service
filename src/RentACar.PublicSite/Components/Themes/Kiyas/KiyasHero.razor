@@ -1,0 +1,65 @@
+@using RentACar.Application.Fleet
+
+@* Tema "kiyas" — Hero slotu. İmza SABİT (Components/Themes/README.md): Marka, Branding, Subeler, Kartlar, Sehir.
+
+   İlk ekranın işi "fiyatları karşılaştır": bölge başlığı (h1), firma künyesi (ad, kuruluş yılı, Google puanı — varsa),
+   TAM GENİŞLİK arama formu (tarih + saat + şube, tek satır) ve altında yalnız VERİDEN doğan şeffaflık satırları:
+   "Fiyatlar KDV dahil" (yalnız TÜM ilanlar KDV dahilse), depozitosuz / sınırsız km (firmanın beyanı), iptal cümlesi
+   (firmanın metni). Veri yoksa satır yok (T2). Fotoğraf yok; açılış animasyonu yok. *@
+
+<section class="ky-hero" aria-labelledby="hero-baslik">
+    <div class="wrap">
+        <h1 id="hero-baslik">@(string.IsNullOrWhiteSpace(Sehir) ? "Araç kiralama" : $"{Sehir} bölgesinde araç kiralama")</h1>
+        @if (_meta.Count > 0 || _rating is not null)
+        {
+            <p class="ky-kunye">
+                @for (var i = 0; i < _meta.Count; i++)
+                {
+                    <span>@_meta[i]</span>
+                }
+                @if (_rating is not null && Branding?.Bilgi is { } facts)
+                {
+                    <a href="@facts.GoogleProfilUrl" target="_blank" rel="noopener noreferrer">
+                        <span aria-hidden="true">★</span> @_rating<span class="gorunmez"> puan,</span> @SiteFactsText.RatingNote(facts)
+                    </a>
+                }
+            </p>
+        }
+        <AramaFormu Hedef="/musaitlik" Subeler="Subeler" Satir="true" ButonMetni="Araçları karşılaştır" AriaLabel="Tarihe göre araç ve fiyat ara" />
+        @if (_checks.Count > 0)
+        {
+            <ul class="ky-seffaf" aria-label="Fiyat ve koşullar">
+                @foreach (var c in _checks) { <li>@c</li> }
+            </ul>
+        }
+    </div>
+</section>
+
+@code {
+    /// <summary>Marka adı (künyede).</summary>
+    [Parameter] public string? Marka { get; set; }
+    /// <summary>Firma bilgisi (kuruluş yılı, Google puanı, koşullar).</summary>
+    [Parameter] public FleetBranding? Branding { get; set; }
+    /// <summary>Aktif şube adları (arama formunun seçim kutusu).</summary>
+    [Parameter] public IReadOnlyList<string> Subeler { get; set; } = [];
+    /// <summary>Yayındaki ilanlar ("KDV dahil" satırı yalnız hepsi KDV dahilse).</summary>
+    [Parameter] public IReadOnlyList<FleetShowcaseCard> Kartlar { get; set; } = [];
+    /// <summary>Hizmet bölgesi; null → başlık yalnız "Araç kiralama".</summary>
+    [Parameter] public string? Sehir { get; set; }
+
+    private List<string> _meta = [];
+    private string? _rating;
+    private List<string> _checks = [];
+
+    protected override void OnParametersSet()
+    {
+        var f = Branding?.Bilgi;
+        _meta = [.. new[] { string.IsNullOrWhiteSpace(Marka) ? null : Marka, SiteFactsText.Founded(f) }.OfType<string>()];
+        _rating = SiteFactsText.Rating(f);
+        _checks = [];
+        if (Kartlar.Count > 0 && Kartlar.All(k => k.KdvDahil)) _checks.Add("Fiyatlar KDV dahil");
+        if (f?.DepozitoTutari == 0) _checks.Add("Depozitosuz");
+        if (f?.KmSinirsiz == true) _checks.Add("Sınırsız km");
+        if (!string.IsNullOrWhiteSpace(f?.IptalKosulu)) _checks.Add(f!.IptalKosulu!.Trim());
+    }
+}

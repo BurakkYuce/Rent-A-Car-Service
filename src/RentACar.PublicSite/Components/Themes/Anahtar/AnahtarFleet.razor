@@ -25,7 +25,7 @@
             <span class="muted">@summary.Aciklama</span>
         </div>
     }
-    @if (Model.Yer == FleetPlacement.Availability && AnahtarFacts.Chips(Model.Bilgi) is { Count: > 0 } chips)
+    @if (Model.Yer == FleetPlacement.Availability && SiteFactsText.Chips(Model.Bilgi) is { Count: > 0 } chips)
     {
         <ul class="an-cipler an-liste-cipler" aria-label="Tüm araçlarda geçerli koşullar">
             @foreach (var c in chips) { <li>@c</li> }

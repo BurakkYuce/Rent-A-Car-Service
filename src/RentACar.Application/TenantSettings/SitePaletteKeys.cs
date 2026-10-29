@@ -42,6 +42,13 @@ public static partial class SitePaletteKeys
                 new("visne", "Vişne ve hardal", "#fbf7f6", "#2a1e20", "#9e2a3a", "#e8b04a", "#171112"),
                 new("grafit", "Grafit ve turuncu", "#f6f6f5", "#1d2024", "#2e3a46", "#f28c28", "#131518"),
             ],
+            [SiteThemeKeys.Kiyas] =
+            [
+                new("mavi", "Kobalt mavi", "#f4f6f8", "#14171c", "#1d4ed8", "#fbbf24", "#0d1117"),
+                new("turkuaz", "Turkuaz ve turuncu", "#f2f6f6", "#10201f", "#0f766e", "#f59e0b", "#0b1414"),
+                new("kiremit", "Kiremit ve sarı", "#f7f5f2", "#1c1917", "#c2410c", "#fcd34d", "#141210"),
+                new("gece", "Gece mavisi", "#f3f4f7", "#111827", "#312e81", "#22d3ee", "#0b0d14"),
+            ],
             [SiteThemeKeys.Pazar] =
             [
                 new("domates", "Domates ve ayçiçeği", "#edf0f2", "#1b1d22", "#d42a1c", "#ffc928", "#16171a"),

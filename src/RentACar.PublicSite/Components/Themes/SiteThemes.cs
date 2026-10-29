@@ -1,5 +1,6 @@
 using RentACar.Application.TenantSettings;
 using RentACar.PublicSite.Components.Themes.Anahtar;
+using RentACar.PublicSite.Components.Themes.Kiyas;
 using RentACar.PublicSite.Components.Themes.Pazar;
 using RentACar.PublicSite.Components.Themes.Rota;
 using RentACar.PublicSite.Components.Themes.Vitrin;
@@ -162,7 +163,32 @@ public static class SiteThemes
         Palettes = AnahtarPalettes.All,
     };
 
-    public static readonly IReadOnlyList<SiteTheme> All = [Anahtar, Pazar, Vitrin, Rota];
+    /// <summary>IBM Plex Sans (başlık + gövde; Google Fonts'un 400–600 değişken dosyası) + IBM Plex Mono 500 (YALNIZ
+    /// fiyat ve gün × fiyat dökümü: Plex Sans'ın GF alt kümesinde tablo rakamı yok, eş genişlikli rakam hizayı verir).
+    /// ₺ (U+20BA) ikisinde de latin-ext'te. Dört dosya ~83 KB; hepsi önyüklenir (ilk ekranda Türkçe metin + ₺ fiyat).
+    /// OFL-IBMPlex.txt (ayrılmış ad "Plex"; dosyalar değiştirilmeden kullanılır).</summary>
+    private static readonly IReadOnlyList<ThemeFont> KiyasFonts =
+    [
+        new("IBM Plex Sans", "400 600", "fonts/ibm-plex-sans-latin-ext.woff2", LatinExt),
+        new("IBM Plex Sans", "400 600", "fonts/ibm-plex-sans-latin.woff2", Latin),
+        new("IBM Plex Mono", "500", "fonts/ibm-plex-mono-500-latin-ext.woff2", LatinExt),
+        new("IBM Plex Mono", "500", "fonts/ibm-plex-mono-500-latin.woff2", Latin),
+    ];
+
+    /// <summary>Kıyas: havalimanı/turist firması, çok sınıflı filo. Liste ve şeffaf fiyat önde: JS'siz GET süzgeci
+    /// (sınıf/vites/yakıt/koltuk), koşul rozetleri, gün × fiyat dökümü. Açılış animasyonu yok.</summary>
+    public static readonly SiteTheme Kiyas = new(SiteThemeKeys.Kiyas, "Kıyas",
+        "Liste ve şeffaf fiyat önce: vites/yakıt/koltuk süzgeci, depozito-km-yaş rozetleri ve gün × fiyat dökümü. Havalimanı çevresinde, çok sınıflı filosu olan firma için.",
+        "css/tema-kiyas.css",
+        [.. KiyasFonts.Select(f => f.File)],
+        typeof(KiyasHero), typeof(KiyasCard), typeof(KiyasHeader), typeof(KiyasFooter),
+        typeof(KiyasHome), typeof(KiyasFleet), typeof(KiyasDetailHero))
+    {
+        Fonts = KiyasFonts,
+        Palettes = KiyasPalettes.All,
+    };
+
+    public static readonly IReadOnlyList<SiteTheme> All = [Anahtar, Kiyas, Pazar, Vitrin, Rota];
 
     /// <summary>Anahtardan tema; eski anahtar yeni karşılığına (<see cref="SiteThemeKeys.LegacyAliases"/>),
     /// boş/bilinmeyen → varsayılan (<see cref="SiteThemeKeys.Default"/>).</summary>

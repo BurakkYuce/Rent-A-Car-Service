@@ -6,7 +6,6 @@ using RentACar.Application.TenantSettings;
 using RentACar.Domain.Entities;
 using RentACar.IntegrationTests.Infrastructure;
 using RentACar.PublicSite.Components.Themes;
-using RentACar.PublicSite.Components.Themes.Anahtar;
 
 namespace RentACar.IntegrationTests;
 
@@ -44,6 +43,7 @@ public sealed partial class PublicSiteThemeContractTests
     /// <summary>Kullanıcı kararı: Anahtar'da açılış animasyonu yok — arama formu hiçbir karede örtülmez.</summary>
     [Theory]
     [InlineData("anahtar")]
+    [InlineData("kiyas")]
     public void Acilis_animasyonu_yok(string key)
     {
         var css = ReadCss(ThemeFile(SiteThemes.Resolve(key)));
@@ -54,12 +54,12 @@ public sealed partial class PublicSiteThemeContractTests
     [Fact]
     public void Firma_bilgisi_bos_alan_satir_ve_cip_uretmez()
     {
-        Assert.Empty(AnahtarFacts.Lines(null));
-        Assert.Empty(AnahtarFacts.Lines(new SiteFacts()));
-        Assert.Empty(AnahtarFacts.Chips(new SiteFacts()));
-        Assert.Null(AnahtarFacts.Founded(new SiteFacts()));
+        Assert.Empty(SiteFactsText.Lines(null));
+        Assert.Empty(SiteFactsText.Lines(new SiteFacts()));
+        Assert.Empty(SiteFactsText.Chips(new SiteFacts()));
+        Assert.Null(SiteFactsText.Founded(new SiteFacts()));
         // Bağlantısız puan basılmaz (servis zaten reddeder; tema da güvenmez).
-        Assert.Null(AnahtarFacts.Rating(new SiteFacts(GooglePuani: 4.5m)));
+        Assert.Null(SiteFactsText.Rating(new SiteFacts(GooglePuani: 4.5m)));
 
         var full = new SiteFacts(DepozitoTutari: 5000m, DepozitoAciklama: "Nakit olur.", GunlukKmSiniri: 300, MinYas: 21,
             MinEhliyetYili: 2, SigortaOzeti: "Kasko dahil.", IptalKosulu: "48 saat öncesine kadar ücretsiz.",
@@ -70,18 +70,18 @@ public sealed partial class PublicSiteThemeContractTests
                 new FactLine("Sürücü", "En az 21 yaş, en az 2 yıllık ehliyet"), new FactLine("Sigorta", "Kasko dahil."),
                 new FactLine("İptal", "48 saat öncesine kadar ücretsiz."),
             ],
-            AnahtarFacts.Lines(full));
-        Assert.Equal(["Depozito", "Kilometre", "İptal"], AnahtarFacts.Short(full).Select(l => l.Etiket));
-        Assert.Equal(["Depozito ₺5.000", "Günlük 300 km", "En az 21 yaş"], AnahtarFacts.Chips(full));
-        Assert.Equal("2012 yılından beri", AnahtarFacts.Founded(full));
-        Assert.Equal("4,8", AnahtarFacts.Rating(full));
-        Assert.Equal("1.312 Google yorumu", AnahtarFacts.RatingNote(full));
+            SiteFactsText.Lines(full));
+        Assert.Equal(["Depozito", "Kilometre", "İptal"], SiteFactsText.Short(full).Select(l => l.Etiket));
+        Assert.Equal(["Depozito ₺5.000", "Günlük 300 km", "En az 21 yaş"], SiteFactsText.Chips(full));
+        Assert.Equal("2012 yılından beri", SiteFactsText.Founded(full));
+        Assert.Equal("4,8", SiteFactsText.Rating(full));
+        Assert.Equal("1.312 Google yorumu", SiteFactsText.RatingNote(full));
 
         var other = new SiteFacts(DepozitoTutari: 0m, KmSinirsiz: true, MinEhliyetYili: 3);
-        Assert.Equal(["Depozito yok", "Sınırsız km"], AnahtarFacts.Chips(other));
+        Assert.Equal(["Depozito yok", "Sınırsız km"], SiteFactsText.Chips(other));
         Assert.Equal(
             [new FactLine("Depozito", "Alınmıyor"), new FactLine("Kilometre", "Sınırsız"), new FactLine("Sürücü", "En az 3 yıllık ehliyet")],
-            AnahtarFacts.Lines(other));
+            SiteFactsText.Lines(other));
     }
 
     [Fact]
