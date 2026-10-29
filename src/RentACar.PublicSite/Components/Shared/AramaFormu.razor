@@ -7,11 +7,18 @@
    TARİH ZORUNLU DEĞİL: boş bırakılırsa `/musaitlik` tüm filoyu listeler; tarih girilirse gerçek
    müsaitliğe ve dönem toplamına daralır ("önce aracı göreyim" diyen ziyaretçi çıkmaza girmesin).
    `min` bugünün (İstanbul) tarihi: geçmiş bir tarihe rezervasyon zaten alınmıyor, tarayıcı daha
-   gönderimde uyarır. JS'siz de çalışır; eski tarayıcı `min`'i yok sayarsa sunucu yine karar verir. *@
+   gönderimde uyarır. JS'siz de çalışır; eski tarayıcı `min`'i yok sayarsa sunucu yine karar verir.
+
+   V0: alanlar DOLU açılır (boş "gg.aa.yyyy" yarım görünüyordu): alış yarın (İstanbul günü), iade +3 gün,
+   saatler 10:00. Ziyaretçi alanları silip yine tarihsiz gezebilir. Saat alanları `basSaat`/`bitSaat`
+   EKTİR — `bas`/`bit` adları değişmedi; saatsiz eski bağlantılar eski davranışı korur (bkz. Musaitlik).
+   Izgara iki sütunlu (`.arama-tarihler`): satırlar "Alış tarihi | saati" ve "İade tarihi | saati". *@
 <form method="get" action="@Hedef" class="arama @(Satir ? "arama-satir" : null)" role="search" aria-label="@AriaLabel">
     <div class="arama-tarihler">
-        <label class="alan">Alış tarihi<input name="bas" type="date" value="@Bas" min="@Today" /></label>
-        <label class="alan">İade tarihi<input name="bit" type="date" value="@Bit" min="@Today" /></label>
+        <label class="alan">Alış tarihi<input name="bas" type="date" value="@_dates.Bas" min="@Today" /></label>
+        <label class="alan">Alış saati<input name="basSaat" type="time" value="@_basTime" /></label>
+        <label class="alan">İade tarihi<input name="bit" type="date" value="@_dates.Bit" min="@Today" /></label>
+        <label class="alan">İade saati<input name="bitSaat" type="time" value="@_bitTime" /></label>
     </div>
     @if (Subeler.Count > 1)
     {
@@ -45,6 +52,9 @@
 
     [Parameter] public string? Bas { get; set; }
     [Parameter] public string? Bit { get; set; }
+    /// <summary>Alış/iade saati ("HH:mm"); biçimsiz ya da boşsa <see cref="SiteDate.DefaultTime"/>.</summary>
+    [Parameter] public string? BasSaat { get; set; }
+    [Parameter] public string? BitSaat { get; set; }
     [Parameter] public string? Sube { get; set; }
     /// <summary>Öne alınacak ilanın slug'ı (ilan detayından gelen arama).</summary>
     [Parameter] public string? Ilan { get; set; }
@@ -61,4 +71,15 @@
     [Parameter] public bool TekSubeGoster { get; set; }
 
     private static string Today => SiteDate.TodayIso;
+
+    private (string Bas, string Bit) _dates;
+    private string _basTime = SiteDate.DefaultTime, _bitTime = SiteDate.DefaultTime;
+
+    protected override void OnParametersSet()
+    {
+        _dates = SiteDate.FormDates(Bas, Bit, DateTimeOffset.UtcNow);
+        // Biçimsiz saat basılmaz (tarayıcı geçersiz değeri boş gösterirdi): varsayılana düşer.
+        _basTime = SiteDate.ParseTime(BasSaat) is null ? SiteDate.DefaultTime : BasSaat!;
+        _bitTime = SiteDate.ParseTime(BitSaat) is null ? SiteDate.DefaultTime : BitSaat!;
+    }
 }

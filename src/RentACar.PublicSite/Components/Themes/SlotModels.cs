@@ -27,6 +27,9 @@ public sealed record ListingCard(
 {
     public string DetayLinki => $"/araclar/{Slug}";
 
+    /// <summary>"WhatsApp'tan sor" (araç + seçilen tarihlerle hazır mesaj, <see cref="WhatsAppAsk"/>); null → basılmaz.</summary>
+    public string? WaLinki { get; init; }
+
     public static ListingCard From(FleetShowcaseCard c, string quoteLink, string? mark = null, bool priority = false)
         => new(c.Slug, c.Baslik, c.CoverPhotoId, c.YilAralik, c.GunlukFiyat, c.KdvDahil, c.Ozellikler, c.Adet,
             null, null, quoteLink, mark, priority);

@@ -127,6 +127,12 @@ Parametre adları ve tipleri değişmez:
 | | `Sayfalar` | `IReadOnlyList<SiteLink>` | Ana sayfa + menü + firmanın içerik sayfaları |
 | | `YasalSayfalar` | `IReadOnlyList<SiteLink>` | Yayındaki yasal sayfalar (boşsa sütun yok) |
 
+Ortak `<AramaFormu>` alanları DOLU açılır (alış yarın İstanbul günü, iade +3 gün, saatler 10:00); alan adları
+`bas`/`bit`/`sube` + EK `basSaat`/`bitSaat` (`HH:mm`, İstanbul). `/musaitlik` iki saat de geçerliyse aramayı o
+saatlerle yapar (gün sayısı saatle), biri bile yoksa eski davranış (yalnız günler). `ListingCard.WaLinki` /
+`DetailHeroModel.WaLinki` "WhatsApp'tan sor" bağlantısıdır: `WhatsAppAsk` (araç + seçilen tarih/saatle hazır mesaj,
+numara `PhoneLink` ile); numara yoksa null → düğme basılmaz.
+
 `FleetBranding.Bilgi` (`SiteFacts`) firmanın "kiralamadan önce" beyanlarını taşır: depozito tutarı + açıklama,
 günlük km sınırı / sınırsız, asgari yaş + ehliyet yılı, sigorta özeti, iptal koşulu, Google puanı + yorum sayısı +
 profil bağlantısı + puanın girildiği an, kuruluş yılı (ERP: `/app/ayarlar` → "Web sitesi bilgileri"). Repo daima
