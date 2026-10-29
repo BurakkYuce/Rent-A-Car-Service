@@ -458,7 +458,7 @@
       "adim3": "3. Önizleme ve onay",
       "dosya": "Geçiş listesi (.xlsx / .csv, en çok 5 MB)",
       "onizle": "Önizle",
-      "sutunlar": "Gerekli sütunlar: plaka, geçiş (çıkış) zamanı, tutar. İsteğe bağlı: giriş/çıkış istasyonu, giriş zamanı, etiket no, araç sınıfı. Saatler İstanbul saatidir ve zorunludur (saatsiz tarih, Excel'de 00:00 görünen tarih hücresi dahil, reddedilir); tutar Türkçe (1.250,50) ya da noktalı (1250.50) yazılabilir, \"1.250\" gibi belirsiz ya da bozuk gruplanmış değerler reddedilir. Başka bir dökümden daha önce alınmış aynı geçiş (aynı plaka ve tutar, 60 saniye içinde) olası mükerrer olarak işaretlenir ve yansıtılmaz.",
+      "sutunlar": "Gerekli sütunlar: plaka, geçiş (çıkış) zamanı, tutar. İsteğe bağlı: giriş/çıkış istasyonu, giriş zamanı, etiket no, araç sınıfı. Saatler İstanbul saatidir ve zorunludur (saatsiz tarih, Excel'de 00:00 görünen tarih hücresi dahil, reddedilir); tutar Türkçe (1.250,50) ya da noktalı (1250.50) yazılabilir, \"1.250\" gibi belirsiz ya da bozuk gruplanmış değerler reddedilir. Başka bir dökümden daha önce alınmış aynı geçiş (aynı plaka ve tutar, 60 saniye içinde ya da aynı istasyonda 6 saat içinde) olası mükerrer olarak işaretlenir ve yansıtılmaz. \"İşlem Tarihi\" sütunu bankanın kayıt anı olabileceği için otomatik eşlenmez; geçiş anıysa önizlemede elle seçin.",
       "cokBuyuk": "Dosya en fazla 5 MB olabilir.",
       "bicim": "Yalnız .xlsx ya da .csv yüklenebilir (.xls dosyasını Excel'de .xlsx olarak kaydedin).",
       "eslesmeAciklama": "Sunucu sütunları başlıklarından tanımaya çalıştı. Yanlış ya da boş eşlenen alan varsa dosyadaki doğru sütunu seçip eşlemeyi uygulayın.",

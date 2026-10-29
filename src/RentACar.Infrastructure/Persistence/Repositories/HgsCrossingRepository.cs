@@ -75,8 +75,8 @@ public sealed class HgsCrossingRepository(IDbContextFactory<AppDbContext> factor
 
     private static Task<List<HgsCrossingRef>> RefsAroundAsync(AppDbContext db, IReadOnlyCollection<HgsCrossing> rows, CancellationToken ct)
         => RefsAsync(db, rows.Select(r => r.Plaka),
-            rows.Min(r => r.GecisZamani) - HgsResolution.NearDuplicateWindow,
-            rows.Max(r => r.GecisZamani) + HgsResolution.NearDuplicateWindow, ct);
+            rows.Min(r => r.GecisZamani) - HgsResolution.LookAround,
+            rows.Max(r => r.GecisZamani) + HgsResolution.LookAround, ct);
 
     public async Task<IReadOnlySet<string>> InsertAsync(IReadOnlyList<HgsCrossing> rows, CancellationToken ct = default)
     {

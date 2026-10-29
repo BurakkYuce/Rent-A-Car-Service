@@ -21,8 +21,8 @@ namespace RentACar.Application.Hgs;
 /// "Hgs"</c>; tutar = geçiş × hizmet oranı, SATIR başına 2 haneye yuvarlanır. <c>SourceId</c> GEÇİŞİN kimliğidir —
 /// bir geçiş en fazla bir kez borçlandırılabilir (defterdeki kısmi unique index). Eski dönem-MD5'li
 /// <c>HgsReflectionService</c> #391 adversarial L1 ile silindi (aynı geçişi ikinci yoldan borçlandırabilirdi).</item>
-/// <item><b>Olası mükerrer</b> (#391 M1): aynı plaka + aynı tutar + 60 sn içindeki ikinci satır (farklı biçimli
-/// döküm) Belirsiz kalır; içe aktarma, yeniden eşleştirme ve yansıtma (kilit altında) aynı kuralı uygular.</item>
+/// <item><b>Olası mükerrer</b> (#391 M1, R2 L1): aynı plaka + aynı tutar + 60 sn içindeki (ya da aynı istasyonla 6 sa
+/// içindeki) ikinci satır (farklı biçimli döküm) Belirsiz kalır; içe aktarma, yeniden eşleştirme ve yansıtma (kilit altında) aynı kuralı uygular.</item>
 /// </list>
 /// </summary>
 public sealed class HgsCrossingService(
@@ -127,7 +127,7 @@ public sealed class HgsCrossingService(
             var from = fresh.Min(p => p.At);
             var to = fresh.Max(p => p.At);
             var existing = await _repository.ExistingAsync(fresh.Select(p => p.Plate).Distinct().ToList(),
-                from - HgsResolution.NearDuplicateWindow, to + HgsResolution.NearDuplicateWindow, ct);
+                from - HgsResolution.LookAround, to + HgsResolution.LookAround, ct);
             var existingKeys = existing.Select(e => HgsResolution.NaturalKey(e.Plate, e.At, e.StationKey, e.Amount))
                 .ToHashSet(StringComparer.Ordinal);
             var near = new HgsNearDuplicateIndex(existing);

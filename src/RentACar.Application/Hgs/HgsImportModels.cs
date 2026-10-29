@@ -70,11 +70,25 @@ public sealed record HgsCrossingRef(
 /// yansıtma AYNI kuralı kullanır).</summary>
 public static class HgsResolution
 {
-    /// <summary>Olası mükerrer penceresi: aynı plaka + aynı tutar + |Δt| &lt; 60 sn.</summary>
+    /// <summary>Olası mükerrer penceresi: aynı plaka + aynı tutar + |Δt| &lt; 60 sn (istasyondan bağımsız).</summary>
     public static readonly TimeSpan NearDuplicateWindow = TimeSpan.FromSeconds(60);
 
+    /// <summary>
+    /// Geniş olası mükerrer penceresi: aynı plaka + aynı tutar + AYNI (boş olmayan) istasyon anahtarı + |Δt| &lt; 6 sa
+    /// (#391 R2 L1). Aynı geçiş iki dökümde farklı ZAMAN anlamıyla gelebilir: biri giriş, diğeri çıkış anı (ya da
+    /// kullanıcının açıkça eşlediği banka işlem anı). Fark en çok bir otoyol yolculuğu kadardır; 6 saat, kapalı sistemde
+    /// en uzun tek yolculuğu (Edirne–Ankara) kapsar. Bu pencere içinde aynı istasyondan aynı tutarla GERÇEK ikinci geçiş
+    /// de Belirsiz kalır — bilinçli: tahminle iki kez borçlandırmak yerine incelemeye düşer.
+    /// </summary>
+    public static readonly TimeSpan SameStationWindow = TimeSpan.FromHours(6);
+
+    /// <summary>Komşu arama/sorgu aralığı: iki pencerenin büyüğü.</summary>
+    public static readonly TimeSpan LookAround = SameStationWindow;
+
+    private static readonly string NoStationKey = HgsValueParser.StationKey(null, null);
+
     public const string NearDuplicateNote =
-        "Olası mükerrer: aynı plaka ve tutarla 60 saniye içinde başka bir geçiş var (farklı biçimli döküm); otomatik yansıtılmaz.";
+        "Olası mükerrer: aynı plaka ve tutarla 60 saniye içinde ya da aynı istasyonda 6 saat içinde başka bir geçiş var (farklı biçimli döküm); otomatik yansıtılmaz.";
 
     public const string UnknownPlateNote = "Plaka filoda bulunamadı (firma gideri).";
 
@@ -92,12 +106,17 @@ public static class HgsResolution
     /// Olası mükerrer (adversarial #391 M1): aynı fiziksel geçiş iki dökümde FARKLI yazılabilir — biri saniyeli
     /// (xlsx tarih-saat hücresi), diğeri saniyesiz (aynı dökümün "CSV olarak kaydet" çıktısı); biri giriş+çıkış
     /// istasyonlu, diğeri yalnız çıkışlı. Doğal anahtar (saniye + istasyon) bunları ayırır; bu kural yakalar.
+    /// İstasyon anahtarı aynıysa pencere <see cref="SameStationWindow"/>'dur (farklı zaman anlamı, #391 R2 L1).
     /// </summary>
     public static bool AreNearDuplicates(HgsCrossingRef a, HgsCrossingRef b)
-        => a.Id != b.Id
-           && string.Equals(a.Plate, b.Plate, StringComparison.Ordinal)
-           && decimal.Round(a.Amount, 2) == decimal.Round(b.Amount, 2)
-           && (a.At - b.At).Duration() < NearDuplicateWindow;
+    {
+        if (a.Id == b.Id || !string.Equals(a.Plate, b.Plate, StringComparison.Ordinal)
+            || decimal.Round(a.Amount, 2) != decimal.Round(b.Amount, 2)) return false;
+        var dt = (a.At - b.At).Duration();
+        return dt < NearDuplicateWindow
+               || (dt < SameStationWindow && a.StationKey != NoStationKey
+                   && string.Equals(a.StationKey, b.StationKey, StringComparison.Ordinal));
+    }
 
     /// <summary>Kümede "önce gelen" (asıl kabul edilen) satır: önce kaydedilen; aynı anda kaydedilenlerde (aynı dosya)
     /// erken an, sonra istasyon anahtarı, en son kimlik. İçe aktarma ve yeniden eşleştirme AYNI sırayı kullanır.</summary>

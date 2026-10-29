@@ -22,7 +22,9 @@ namespace RentACar.IntegrationTests;
 /// M2 (P2a/P2b): xlsx'te saatsiz tarih hücresi 00:00 kabul edilmez. M3 (P3/P3b): yansıtılmış HGS'li kira iptal
 /// edilemez, yansıtılmış geçişten önceye dönüş girilemez. L1 (P6): eski dönem-MD5 yolu silindi. L2 (P7): bozuk
 /// binlik gruplama red. L3 (P8): teslim edilmemiş açık kira Belirsiz. P4 (Blazor dönemi duvar saati = UTC kira
-/// anları) bir VERİ sorunudur — <c>fix/blazor-saat-kaymasi</c> PR'ında; HGS canlıda o düzeltme olmadan açılmaz.</para>
+/// anları) bir VERİ sorunudur — <c>fix/blazor-saat-kaymasi</c> PR'ında; HGS canlıda o düzeltme olmadan açılmaz.
+/// Tur 2 L1 (R1/R1b/R1c): aynı geçiş farklı zaman anlamıyla (çıkış ↔ banka işlem anı) → aynı istasyonla 6 sa
+/// içinde olası mükerrer; "İşlem Tarihi" otomatik eşlenmez.</para>
 /// </summary>
 [Collection("postgres")]
 public sealed class HgsAdversarialProbeTests(PostgresFixture fx)
@@ -476,5 +478,72 @@ public sealed class HgsAdversarialProbeTests(PostgresFixture fx)
         Assert.True(await s.ServiceProvider.GetRequiredService<RentalService>().DeliverAsync(w.R2, 1000, 4));
         Assert.Equal(1, await Svc(s).RematchAsync());
         Assert.Equal(HgsCrossingStatus.Eslesti, Assert.Single(await AllAsync(s)).Durum);
+    }
+
+    // ===================================================================== R1 (tur 2, Low) — farklı zaman anlamı
+
+    /// <summary>
+    /// AYNI geçiş iki dökümde FARKLI zaman anlamıyla: PTT dökümünde "Çıkış Zamanı" 10:55, banka dökümünde kullanıcının
+    /// AÇIKÇA geçiş zamanına eşlediği "İşlem Tarihi" 10:30 (Δt 25 dk &gt; 60 sn). Aynı plaka + tutar + İzmit→Bursa →
+    /// ikinci satır olası mükerrer (Belirsiz). Oracle: ikisini birden yansıtmak bile A'ya tek borç 995,00 (oran 1,00).
+    /// </summary>
+    [Fact]
+    public async Task R1_same_crossing_with_exit_vs_transaction_time_is_charged_once()
+    {
+        using var host = new TestHost(fx.AppConnectionString);
+        var w = await HgsImportTests.SetUpAsync(host);
+        using var s = host.ScopeFor(w.Tenant);
+        await Svc(s).ImportAsync(Csv("Plaka;Giriş İstasyonu;Çıkış İstasyonu;Çıkış Zamanı;Tutar",
+            $"34 HGS 01;İzmit;Bursa;{Wall(0, 10, 55)};995,00"), "ptt.csv");
+        var bank = Encoding.UTF8.GetBytes(string.Join("\n", "Plaka;Giriş İstasyonu;Çıkış İstasyonu;İşlem Tarihi;Tutar",
+            $"34 HGS 01;İzmit;Bursa;{Wall(0, 10, 30)};995,00"));
+        var mapping = new Dictionary<string, string?>
+        {
+            [HgsImportColumns.Plate] = "Plaka", [HgsImportColumns.EntryStation] = "Giriş İstasyonu",
+            [HgsImportColumns.ExitStation] = "Çıkış İstasyonu", [HgsImportColumns.CrossingTime] = "İşlem Tarihi",
+            [HgsImportColumns.Amount] = "Tutar",
+        };
+        var second = await Svc(s).ImportAsync(Rows(bank, "banka.csv", mapping), "banka.csv");
+        Assert.Equal(1, second.Eklenen);
+        Assert.Equal(1, second.OlasiMukerrer);
+
+        var all = await AllAsync(s);
+        Assert.Equal(1, all.Count(c => c.Durum == HgsCrossingStatus.Eslesti));
+        var result = await Svc(s).ReflectAsync(all.Select(c => c.Id).ToList(), 1.00m);
+        Assert.Equal(1, result.Yansitilan);
+        Assert.Equal(995.00m, await s.ServiceProvider.GetRequiredService<CashService>().GetAccountBalanceAsync(w.CustomerA));
+        await Svc(s).RematchAsync();
+        Assert.Single(await AllAsync(s), c => c.Durum == HgsCrossingStatus.Belirsiz);
+    }
+
+    /// <summary>"İşlem Tarihi" (bankanın kayıt anı olabilir) geçiş zamanına OTOMATİK eşlenmez: başka zaman sütunu yoksa
+    /// zorunlu alan eksik (errors[eslesme]) — kullanıcı önizlemede açıkça seçmeli.</summary>
+    [Fact]
+    public void R1b_transaction_date_column_is_not_auto_mapped_to_crossing_time()
+    {
+        var (labels, keys) = HgsImportColumns.Resolve(["Plaka", "İşlem Tarihi", "İşlem Saati", "Tutar"], null);
+        Assert.Null(labels[HgsImportColumns.CrossingTime]);
+        Assert.Null(labels[HgsImportColumns.CrossingClock]);
+        var ex = Assert.Throws<ValidationException>(() => HgsImportColumns.RequireMandatory(keys));
+        Assert.Equal("eslesme", ex.Alan);
+    }
+
+    /// <summary>Kontrol (aşırı genişleme yok): aynı istasyon + tutar ama 6 saatten uzak iki geçiş (R1 içinde 04:00 ve
+    /// 10:55) gerçek iki geçiştir → ikisi de borçlanır: 2 × 995,00 = 1.990,00.</summary>
+    [Fact]
+    public async Task R1c_control_same_station_crossings_beyond_window_are_both_charged()
+    {
+        using var host = new TestHost(fx.AppConnectionString);
+        var w = await HgsImportTests.SetUpAsync(host);
+        using var s = host.ScopeFor(w.Tenant);
+        await Svc(s).ImportAsync(Csv("Plaka;Giriş İstasyonu;Çıkış İstasyonu;Çıkış Zamanı;Tutar",
+            $"34 HGS 01;İzmit;Bursa;{Wall(0, 10, 55)};995,00"), "a.csv");
+        var second = await Svc(s).ImportAsync(Csv("Plaka;Giriş İstasyonu;Çıkış İstasyonu;Çıkış Zamanı;Tutar",
+            $"34 HGS 01;İzmit;Bursa;{Wall(0, 4, 0)};995,00"), "b.csv");
+        Assert.Equal(0, second.OlasiMukerrer);
+        var all = await AllAsync(s);
+        Assert.All(all, c => Assert.Equal(HgsCrossingStatus.Eslesti, c.Durum));
+        Assert.Equal(2, (await Svc(s).ReflectAsync(all.Select(c => c.Id).ToList(), 1.00m)).Yansitilan);
+        Assert.Equal(1990.00m, await s.ServiceProvider.GetRequiredService<CashService>().GetAccountBalanceAsync(w.CustomerA));
     }
 }

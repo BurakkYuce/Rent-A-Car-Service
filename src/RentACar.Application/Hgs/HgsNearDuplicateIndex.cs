@@ -3,7 +3,7 @@ using RentACar.Domain.Enums;
 namespace RentACar.Application.Hgs;
 
 /// <summary>
-/// Olası mükerrer sorgusu için plaka başına ana göre sıralı dizin: bir geçişin ±60 sn komşuları ikili aramayla bulunur
+/// Olası mükerrer sorgusu için plaka başına ana göre sıralı dizin: bir geçişin ±<see cref="HgsResolution.LookAround"/> komşuları ikili aramayla bulunur
 /// (20.000 satırlık dosyada her satırı her satırla karşılaştırmak yerine). Kural <see cref="HgsResolution"/>'dadır;
 /// bu sınıf yalnız hızlandırır.
 /// </summary>
@@ -22,14 +22,14 @@ public sealed class HgsNearDuplicateIndex
         list.Insert(LowerBound(list, r.At), r);
     }
 
-    /// <summary>Aynı plaka + aynı tutar + |Δt| &lt; 60 sn olan diğer geçişler.</summary>
+    /// <summary><see cref="HgsResolution.AreNearDuplicates"/> ile komşu olan diğer geçişler.</summary>
     public IEnumerable<HgsCrossingRef> Near(HgsCrossingRef c)
     {
         if (!_byPlate.TryGetValue(c.Plate, out var list)) yield break;
-        for (var i = LowerBound(list, c.At - HgsResolution.NearDuplicateWindow); i < list.Count; i++)
+        for (var i = LowerBound(list, c.At - HgsResolution.LookAround); i < list.Count; i++)
         {
             var d = list[i];
-            if (d.At - c.At >= HgsResolution.NearDuplicateWindow) yield break;
+            if (d.At - c.At >= HgsResolution.LookAround) yield break;
             if (HgsResolution.AreNearDuplicates(c, d)) yield return d;
         }
     }
