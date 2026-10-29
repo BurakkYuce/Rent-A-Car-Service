@@ -35,9 +35,12 @@ const DTO = {
 } as unknown as SettingsDto;
 
 describe('ayarlar modeli', () => {
-  it('site teması: kayıtsızsa pazar seçili; kayıtlıysa aynen; önizleme adresi ?tema=', () => {
-    expect(SITE_THEMES).toEqual(['pazar', 'vitrin', 'rota']);
-    expect(settingsFormValue(DTO).siteTemasi).toBe('pazar');
+  it('site teması: kayıtsızsa anahtar seçili; kayıtlıysa aynen; önizleme adresi ?tema=', () => {
+    expect(SITE_THEMES).toEqual(['anahtar', 'pazar', 'vitrin', 'rota']);
+    expect(settingsFormValue(DTO).siteTemasi).toBe('anahtar');
+    expect(settingsFormValue({ ...DTO, siteTemasi: 'pazar' } as SettingsDto).siteTemasi).toBe(
+      'pazar',
+    );
     expect(settingsFormValue({ ...DTO, siteTemasi: 'rota' } as SettingsDto).siteTemasi).toBe(
       'rota',
     );
@@ -52,7 +55,7 @@ describe('ayarlar modeli', () => {
     expect(settingsFormValue({ ...DTO, siteTemasi: ' Kontuar ' } as SettingsDto).siteTemasi).toBe(
       'rota',
     );
-    expect(siteThemeFormValue('')).toBe('pazar');
+    expect(siteThemeFormValue('')).toBe('anahtar');
     expect(siteThemeFormValue('VITRIN')).toBe('vitrin');
     expect(siteThemeFormValue('TARIFE')).toBe('pazar'); // Türkçe küçültme ı üretir; anahtar yine bulunur
     // Tanınmayan değer uydurulmaz: aynen kalır (radyo seçimsiz; sunucu kaydı reddeder).
@@ -65,7 +68,7 @@ describe('ayarlar modeli', () => {
     expect(body['siteTemasi']).toBe('rota');
   });
 
-  it('palet setleri temaya göre; boş tema varsayılan tema (pazar); katalog yoksa boş', () => {
+  it('palet setleri temaya göre; boş tema varsayılan tema (anahtar); katalog yoksa boş', () => {
     const swatch = {
       zemin: '#ffffff',
       murekkep: '#000000',
@@ -76,6 +79,7 @@ describe('ayarlar modeli', () => {
     const dto = {
       ...DTO,
       sitePaletSecenekleri: [
+        { tema: 'anahtar', paletler: [{ anahtar: 'zumrut', ad: 'Zümrüt', ...swatch }] },
         { tema: 'pazar', paletler: [{ anahtar: 'petrol', ad: 'Petrol', ...swatch }] },
         {
           tema: 'vitrin',
@@ -87,8 +91,9 @@ describe('ayarlar modeli', () => {
       ],
     } as unknown as SettingsDto;
     expect(palettesFor(dto, 'vitrin').map((p) => p.anahtar)).toEqual(['grafit', 'bordo']);
-    expect(palettesFor(dto, null).map((p) => p.anahtar)).toEqual(['petrol']);
-    expect(palettesFor(dto, '').map((p) => p.anahtar)).toEqual(['petrol']);
+    expect(palettesFor(dto, 'pazar').map((p) => p.anahtar)).toEqual(['petrol']);
+    expect(palettesFor(dto, null).map((p) => p.anahtar)).toEqual(['zumrut']);
+    expect(palettesFor(dto, '').map((p) => p.anahtar)).toEqual(['zumrut']);
     expect(palettesFor(null, 'vitrin')).toEqual([]);
     expect(settingsFormValue(dto).sitePaleti).toBeNull(); // kayıtsız = temanın varsayılanı (null gider)
 

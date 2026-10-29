@@ -68,6 +68,20 @@ export const settings = (extra: Record<string, unknown> = {}) => ({
   sitePaleti: null,
   sitePaletSecenekleri: [
     {
+      tema: 'anahtar',
+      paletler: [
+        {
+          anahtar: 'zumrut',
+          ad: 'Zümrüt ve kehribar',
+          zemin: '#fbf8f3',
+          murekkep: '#1e2329',
+          ana: '#0f6e5a',
+          vurgu: '#f2b33d',
+          geceZemin: '#111614',
+        },
+      ],
+    },
+    {
       tema: 'pazar',
       paletler: [
         {

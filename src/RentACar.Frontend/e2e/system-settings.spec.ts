@@ -122,17 +122,18 @@ test('ayarlar: kendi ana rengim okunur, değiştirilince PUT gövdesinde gider; 
   await expect(color).toHaveValue('#c0392b'); // sunucunun normalize ettiği değer
 });
 
-test('ayarlar: site teması radyo ile seçilir (kayıtsızsa pazar seçili), önizleme bağlantıları yeni sekmede', async ({
+test('ayarlar: site teması radyo ile seçilir (kayıtsızsa anahtar seçili), önizleme bağlantıları yeni sekmede', async ({
   page,
 }) => {
   const errors = collectErrors(page);
   const writes = await settingsEndpoints(page);
   await open(page);
   const group = page.getByRole('radiogroup', { name: 'Site teması' });
-  // Görünen adlar yeni temalarınki: pazar → "Pazar", rota → "Rota".
-  await expect(group.getByRole('radio', { name: /^Pazar:/ })).toBeChecked();
+  // Kayıtsız firma varsayılan temayı (Anahtar) görür.
+  await expect(group.getByRole('radio', { name: /^Anahtar:/ })).toBeChecked();
 
   for (const [name, key] of [
+    ['Anahtar', 'anahtar'],
     ['Pazar', 'pazar'],
     ['Vitrin', 'vitrin'],
     ['Rota', 'rota'],
@@ -158,7 +159,13 @@ test('ayarlar: renk seti temanın setlerinden seçilir, tema değişince temizle
   const writes = await settingsEndpoints(page);
   await open(page);
   const sets = page.getByRole('radiogroup', { name: 'Renk seti' });
-  // Kayıtsız: temanın varsayılan (ilk) seti seçili görünür; yalnız seçili temanın setleri listelenir.
+  // Kayıtsız: varsayılan temanın (Anahtar) varsayılan (ilk) seti seçili görünür.
+  await expect(sets.getByRole('radio', { name: /^Zümrüt ve kehribar/ })).toBeChecked();
+  await page
+    .getByRole('radiogroup', { name: 'Site teması' })
+    .getByRole('radio', { name: /^Pazar:/ })
+    .check();
+  // Yalnız seçili temanın setleri listelenir; kayıtlı set yok → temanın ilk seti seçili.
   await expect(sets.getByRole('radio')).toHaveCount(2);
   await expect(sets.getByRole('radio', { name: /^Petrol ve yol sarısı/ })).toBeChecked();
 

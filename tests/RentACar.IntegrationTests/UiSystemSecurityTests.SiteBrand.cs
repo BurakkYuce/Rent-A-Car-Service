@@ -35,7 +35,7 @@ public sealed partial class UiSystemSecurityTests
         Assert.Equal(System.Text.Json.JsonValueKind.Null, saved.GetProperty("siteVurguRengi").ValueKind);
     }
 
-    // Site teması: yalnız bilinen anahtar (büyük harf normalize), bilinmeyen → 400 siteTemasi, boş → null (pazar),
+    // Site teması: yalnız bilinen anahtar (büyük harf normalize), bilinmeyen → 400 siteTemasi, boş → null (anahtar),
     // başka firmaya sızmaz.
     [Fact]
     public async Task Site_theme_round_trips_validates_and_stays_in_tenant()
@@ -82,6 +82,7 @@ public sealed partial class UiSystemSecurityTests
         var last = await Problem(await Send(admin, HttpMethod.Put, Settings, new { siteTemasi = "mavi", surum = version }),
             HttpStatusCode.BadRequest, "dogrulama", "siteTemasi");
         var text = last.GetProperty("errors").GetProperty("siteTemasi").ToString();
+        Assert.Contains("anahtar", text);
         Assert.Contains("pazar", text);
         Assert.Contains("vitrin", text);
         Assert.Contains("rota", text);
@@ -108,7 +109,8 @@ public sealed partial class UiSystemSecurityTests
             .ToDictionary(t => t.GetProperty("tema").GetString()!,
                 t => t.GetProperty("paletler").EnumerateArray().Select(p => p.GetProperty("anahtar").GetString()).ToList());
         Assert.Equal(["grafit", "gece-mavisi", "bordo", "orman", "sampanya"], catalog["vitrin"]);
-        Assert.Equal(["pazar", "vitrin", "rota"], catalog.Keys);
+        Assert.Equal(["anahtar", "pazar", "vitrin", "rota"], catalog.Keys);
+        Assert.Equal(["zumrut", "lacivert", "visne", "grafit"], catalog["anahtar"]);
         var bordo = first.GetProperty("sitePaletSecenekleri").EnumerateArray().Single(t => t.GetProperty("tema").GetString() == "vitrin")
             .GetProperty("paletler").EnumerateArray().Single(p => p.GetProperty("anahtar").GetString() == "bordo");
         Assert.Equal("#e6b8b0", bordo.GetProperty("ana").GetString());
@@ -131,7 +133,7 @@ public sealed partial class UiSystemSecurityTests
         Assert.Equal(System.Text.Json.JsonValueKind.Null, saved.GetProperty("sitePaleti").ValueKind);
     }
 
-    // Temaya ait olmayan (başka temanın seti; tema boşsa varsayılan tema pazar), bilinmeyen, biçimsiz ya da kolon
+    // Temaya ait olmayan (başka temanın seti; tema boşsa varsayılan tema anahtar), bilinmeyen, biçimsiz ya da kolon
     // sınırını aşan palet: 400 + YALNIZ errors.sitePaleti; mesaj temanın geçerli setlerini sayar; kayıt değişmez.
     // Eski tema anahtarı (kontuar → rota) aitlikte de yeni karşılığıyla değerlendirilir.
     [Fact]

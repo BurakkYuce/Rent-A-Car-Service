@@ -82,6 +82,9 @@ public sealed record FleetModel(IReadOnlyList<ListingCard> Kartlar, FleetPlaceme
     public string? Uyari { get; init; }
     /// <summary>Kart yokken gösterilecek durum; null → hiçbir şey basılmaz.</summary>
     public FleetEmptyState? Bos { get; init; }
+    /// <summary>Firmanın "kiralamadan önce" beyanları (<see cref="FleetBranding.Bilgi"/>: depozito, km, yaş …) — tema
+    /// isterse kartlarda/özette basar; null ya da alan boşsa basılmaz (T2). Ana sayfa ve müsaitlik doldurur.</summary>
+    public SiteFacts? Bilgi { get; init; }
 }
 
 /// <summary>

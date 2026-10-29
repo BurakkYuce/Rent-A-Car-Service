@@ -91,11 +91,13 @@
 
         // Filo bölümü /musaitlik ile AYNI kart verisi (tarihsiz mod); sunumu temanın Fleet slotu seçer.
         var fleet = new FleetModel(
-            [.. _cards.Select(c => ListingCard.From(c, QuoteLink.Build(c.Slug, dailyPrice: c.GunlukFiyat)))],
+            [.. _cards.Select(c => ListingCard.From(c, QuoteLink.Build(c.Slug, dailyPrice: c.GunlukFiyat))
+                with { WaLinki = WhatsAppAsk.Link(_branding, c.Baslik) })],
             FleetPlacement.Home)
         {
             Baslik = "Filomuz",
             BaslikId = "filo-baslik",
+            Bilgi = _branding.Bilgi,
         };
 
         _model = new HomeModel(_branding, _cards, fleet, _faq, FaqSummaryCount, _branches, _activeBranches,

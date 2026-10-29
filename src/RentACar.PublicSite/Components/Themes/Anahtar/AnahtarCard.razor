@@ -1,0 +1,93 @@
+@using RentACar.Application.Fleet
+
+@* Tema "anahtar" — Card slotu. İmza SABİT (Components/Themes/README.md): Kart, Tarih.
+
+   Sade kart: 4:3 görsel (fotoğraf yoksa firma renginin hafif tonunda araç silüeti), ad, yıl/adet, en çok üç özellik,
+   fiyat ve eylem. Izgarada dikey, müsaitlik listesinde yatay (görsel solda, fiyat sağda) — yerleşim Fleet slotunun
+   sınıfından, css ile. İKİ fiyat modu: tarih SEÇİLMİŞ (Kart.Gun/Toplam dolu) → "3 gün ₺4.950" büyük, altında
+   "₺1.650 × 3 gün"; tarih YOK → günlük fiyat, "müsait" DENMEZ (T1). Kartın tamamı detaya gider (başlık bağlantısı
+   ::after ile kaplar); "Rezervasyon talebi" ve (Kart.WaLinki varsa) "WhatsApp'tan sor" üstte ayrı hedefler. İç içe
+   <a> yok. *@
+
+<article class="an-kart">
+    @if (!string.IsNullOrWhiteSpace(Kart.Isaret))
+    {
+        <p class="an-isaret">@Kart.Isaret</p>
+    }
+    <div class="an-kart-foto">
+        @if (Kart.CoverPhotoId is { } photoId)
+        {
+            @* Küçük görsel (400 px); tembel — yalnız ilk ekrandaki ilk kart (Oncelikli) hemen ve yüksek öncelikle. *@
+            <img src="@($"/foto/{photoId}/thumb")" alt="@Kart.Baslik" width="400" height="300"
+                 loading="@(Kart.Oncelikli ? "eager" : "lazy")" fetchpriority="@(Kart.Oncelikli ? "high" : null)" decoding="async" />
+        }
+        else
+        {
+            <AnahtarSilhouette />
+        }
+    </div>
+    <div class="an-kart-govde">
+        <h3><a href="@Kart.DetayLinki">@Kart.Baslik</a></h3>
+        @if (MetaLine is { Length: > 0 } meta)
+        {
+            <p class="an-kart-meta">@meta</p>
+        }
+        @{ var chips = Chips().Take(3).ToList(); }
+        @if (chips.Count > 0)
+        {
+            <ul class="an-ozellik" aria-label="Özellikler">
+                @foreach (var o in chips) { <li>@o.Deger</li> }
+            </ul>
+        }
+    </div>
+    <div class="an-kart-fiyat">
+        @if (Kart.Gun is { } days && Kart.Toplam is { } total)
+        {
+            <p class="an-fiyat"><span class="an-fiyat-gun">@PriceText.Count(days) gün</span> <span class="an-tutar">@PriceText.Tl(total)</span></p>
+            <p class="an-fiyat-not">@PriceText.Tl(Kart.GunlukFiyat) × @PriceText.Count(days) gün, @VatText</p>
+        }
+        else
+        {
+            <p class="an-fiyat"><span class="an-tutar">@PriceText.Tl(Kart.GunlukFiyat)</span> <span class="an-birim">/ gün</span></p>
+            <p class="an-fiyat-not">@VatText</p>
+        }
+        <div class="an-kart-eylem">
+            <a class="btn btn-brand" href="@Kart.TeklifLinki">Rezervasyon talebi</a>
+            @if (Kart.WaLinki is not null)
+            {
+                @* Hazır mesajda araç ve (varsa) seçilen tarih/saat — WhatsAppAsk, sayfa kurar. İKİNCİL düğme (çizgili,
+                   yeşil nokta): yedi kartta yedi dolu yeşil düğme hiyerarşiyi bozardı. Erişilebilir ad görünen
+                   etiketle başlar (WCAG 2.5.3) ve aracı söyler. *@
+                <a class="btn btn-cizgi an-kart-wa" href="@Kart.WaLinki" target="_blank" rel="noopener noreferrer">WhatsApp<span class="gorunmez">'tan sor: @Kart.Baslik</span></a>
+            }
+        </div>
+    </div>
+</article>
+
+@code {
+    /// <summary>Kartın temadan bağımsız verisi (sayfa kurar).</summary>
+    [Parameter, EditorRequired] public ListingCard Kart { get; set; } = default!;
+    /// <summary>Seçilen aralık; null → tarihsiz gezinti. Kart yalnız gün sayısını (Kart.Gun) basar.</summary>
+    [Parameter] public StayDates? Tarih { get; set; }
+
+    private string VatText => Kart.KdvDahil ? "KDV dahil" : "KDV hariç";
+
+    /// <summary>"2023 model, 3 araç" — tarih seçiliyse "3 araç müsait" (kirada olanlar düşülmüş).</summary>
+    private string? MetaLine
+    {
+        get
+        {
+            var parts = new List<string>(2);
+            if (!string.IsNullOrWhiteSpace(Kart.YilAralik)) parts.Add($"{Kart.YilAralik} model");
+            if (Kart.Adet > 1) parts.Add(Kart.Gun is null ? $"{Kart.Adet} araç" : $"{Kart.Adet} araç müsait");
+            return parts.Count == 0 ? null : string.Join(", ", parts);
+        }
+    }
+
+    /// <summary>Özellik çipleri; yılı taşıyan çip (yıl zaten üstte yazılı) basılmaz.</summary>
+    private IEnumerable<OzellikGoster> Chips()
+        => string.IsNullOrWhiteSpace(Kart.YilAralik)
+            ? Kart.Ozellikler
+            : Kart.Ozellikler.Where(o => !string.Equals((o.Deger ?? "").Trim(), Kart.YilAralik.Trim(),
+                StringComparison.OrdinalIgnoreCase));
+}

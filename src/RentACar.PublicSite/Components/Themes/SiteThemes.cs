@@ -1,4 +1,5 @@
 using RentACar.Application.TenantSettings;
+using RentACar.PublicSite.Components.Themes.Anahtar;
 using RentACar.PublicSite.Components.Themes.Pazar;
 using RentACar.PublicSite.Components.Themes.Rota;
 using RentACar.PublicSite.Components.Themes.Vitrin;
@@ -136,7 +137,32 @@ public static class SiteThemes
         Palettes = RotaPalettes.All,
     };
 
-    public static readonly IReadOnlyList<SiteTheme> All = [Pazar, Vitrin, Rota];
+    /// <summary>Plus Jakarta Sans (başlık, fiyat, düğme: Google Fonts'un 700–800 aralığına kısılmış değişken dosyası)
+    /// + Public Sans (gövde 400–600; Rota ile aynı dosyalar). İkisinde de ₺ (U+20BA) latin-ext'te. Dört dosya ~84 KB;
+    /// hepsi önyüklenir: ilk ekranda firma adı (başlık) ve Türkçe gövde metni iki alt kümeyi de ister.
+    /// OFL-PlusJakartaSans.txt, OFL-PublicSans.txt.</summary>
+    private static readonly IReadOnlyList<ThemeFont> AnahtarFonts =
+    [
+        new("Plus Jakarta Sans", "700 800", "fonts/plus-jakarta-sans-latin-ext.woff2", LatinExt),
+        new("Plus Jakarta Sans", "700 800", "fonts/plus-jakarta-sans-latin.woff2", Latin),
+        new("Public Sans", "400 600", "fonts/public-sans-latin-ext.woff2", LatinExt),
+        new("Public Sans", "400 600", "fonts/public-sans-latin.woff2", Latin),
+    ];
+
+    /// <summary>Anahtar (varsayılan): telefonla ve WhatsApp'la çalışan yerel firma. İlk ekranda firmanın kendisi (ad,
+    /// kuruluş yılı, Google puanı, bugünkü çalışma saati), iki iletişim düğmesi ve kompakt arama; fotoğraf istemez.</summary>
+    public static readonly SiteTheme Anahtar = new(SiteThemeKeys.Anahtar, "Anahtar",
+        "İletişim önce: firma adı, kuruluş yılı, Google puanı, bugünkü çalışma saati ve WhatsApp ile Ara düğmeleri ilk ekranda. Fotoğrafsız da düzgün görünür; telefonla çalışan yerel firma için.",
+        "css/tema-anahtar.css",
+        [.. AnahtarFonts.Select(f => f.File)],
+        typeof(AnahtarHero), typeof(AnahtarCard), typeof(AnahtarHeader), typeof(AnahtarFooter),
+        typeof(AnahtarHome), typeof(AnahtarFleet), typeof(AnahtarDetailHero))
+    {
+        Fonts = AnahtarFonts,
+        Palettes = AnahtarPalettes.All,
+    };
+
+    public static readonly IReadOnlyList<SiteTheme> All = [Anahtar, Pazar, Vitrin, Rota];
 
     /// <summary>Anahtardan tema; eski anahtar yeni karşılığına (<see cref="SiteThemeKeys.LegacyAliases"/>),
     /// boş/bilinmeyen → varsayılan (<see cref="SiteThemeKeys.Default"/>).</summary>

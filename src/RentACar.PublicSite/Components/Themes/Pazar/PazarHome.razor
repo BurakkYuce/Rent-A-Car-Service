@@ -1,6 +1,4 @@
-@using System.Globalization
 @using RentACar.Application.Common
-@using RentACar.Domain.Entities
 
 @* Tema "pazar" — Home slotu. İmza SABİT (Components/Themes/README.md): Model (HomeModel).
 
@@ -100,23 +98,20 @@
 @code {
     /// <summary>Ofis bloğunda en fazla kaç şube (fazlası iletişim sayfasında/şube adlarıyla aramada).</summary>
     private const int MaxOffices = 3;
-    private static readonly CultureInfo Tr = CultureInfo.GetCultureInfo("tr-TR");
 
     [Parameter, EditorRequired] public HomeModel Model { get; set; } = default!;
 
     private sealed record Reason(string Title, string Text, string? LinkHref = null, string? LinkText = null,
         bool External = false);
 
-    private sealed record Office(string Name, string? Address, IReadOnlyList<string> Hours, string? Phone,
-        string? TelLink, string? MapLink);
-
     private IReadOnlyList<Reason> Reasons { get; set; } = [];
-    private IReadOnlyList<Office> Offices { get; set; } = [];
+    private IReadOnlyList<BranchOffice> Offices { get; set; } = [];
 
     protected override void OnParametersSet()
     {
         Reasons = BuildReasons();
-        Offices = BuildOffices();
+        // Aktif şubeler; şube verisi yoksa firmanın genel adresi; o da yoksa liste boş (bölüm yok, T2).
+        Offices = BranchOffices.Build(Model.Subeler, Model.Branding, MaxOffices);
     }
 
     /// <summary>"Neden …?" maddeleri: ilki sistemin davranışı (ilan fiyatı sözleşmeye aynen geçer — her firmada
@@ -144,62 +139,4 @@
                 contact.WaLink, "WhatsApp'tan yazın", External: true));
         return list;
     }
-
-    /// <summary>Aktif şubeler (site sırası, sonra ad); adres, saat ya da telefonu olmayan şube basılmaz. Şube verisi
-    /// yoksa firmanın genel adresi tek satır olarak; o da yoksa liste boş (bölüm yok, T2).</summary>
-    private List<Office> BuildOffices()
-    {
-        var list = Model.Subeler
-            .OrderBy(b => b.WebSira ?? int.MaxValue)
-            .ThenBy(b => b.Ad, StringComparer.Create(Tr, ignoreCase: true))
-            .Select(b => new Office(
-                string.IsNullOrWhiteSpace(b.WebIsim) ? b.Ad : b.WebIsim!.Trim(),
-                AddressOf(b),
-                HoursOf(b),
-                Empty(b.Telefon),
-                PhoneLink.Tel(b.Telefon),
-                MapOf(b)))
-            .Where(o => o.Address is not null || o.Hours.Count > 0 || o.TelLink is not null)
-            .Take(MaxOffices)
-            .ToList();
-        if (list.Count == 0 && Empty(Model.Branding?.Adres) is { } address)
-            list.Add(new Office("Adresimiz", address, [], null, null, MapQuery(address)));
-        return list;
-    }
-
-    private static string? Empty(string? s) => string.IsNullOrWhiteSpace(s) ? null : s.Trim();
-
-    /// <summary>"Atatürk Cd. No 5, Esenyurt/İstanbul" — il/ilçe adreste zaten geçiyorsa tekrar eklenmez.</summary>
-    private static string? AddressOf(Branch b)
-    {
-        var street = Empty(b.Adres);
-        var area = (Empty(b.Ilce), Empty(b.Il)) switch
-        {
-            ({ } d, { } c) => $"{d}/{c}",
-            ({ } d, null) => d,
-            (null, { } c) => c,
-            _ => null,
-        };
-        if (street is null) return area;
-        if (area is null || Tr.CompareInfo.IndexOf(street, Empty(b.Il) ?? area, CompareOptions.IgnoreCase) >= 0) return street;
-        return $"{street}, {area}";
-    }
-
-    /// <summary>Çalışma saati: kısa alan ("09:00-18:00"), yoksa haftalık metin (gün başına satır).</summary>
-    private static IReadOnlyList<string> HoursOf(Branch b)
-        => (Empty(b.CalismaSaatleri) ?? Empty(b.HaftalikCalismaSaatleri)) is { } text
-            ? [.. text.Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)]
-            : [];
-
-    /// <summary>Konum varsa koordinatla (kesin nokta), yoksa adres metniyle harita araması.</summary>
-    private static string? MapOf(Branch b)
-    {
-        if (b.Enlem is { } lat && b.Boylam is { } lng)
-            return "https://www.google.com/maps/search/?api=1&query="
-                   + Uri.EscapeDataString(string.Create(CultureInfo.InvariantCulture, $"{lat},{lng}"));
-        return AddressOf(b) is { } address && Empty(b.Adres) is not null ? MapQuery(address) : null;
-    }
-
-    private static string MapQuery(string address)
-        => "https://www.google.com/maps/search/?api=1&query=" + Uri.EscapeDataString(address);
 }

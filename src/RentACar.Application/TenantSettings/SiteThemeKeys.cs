@@ -12,15 +12,17 @@ namespace RentACar.Application.TenantSettings;
 /// </summary>
 public static class SiteThemeKeys
 {
+    public const string Anahtar = "anahtar";
     public const string Pazar = "pazar";
     public const string Vitrin = "vitrin";
     public const string Rota = "rota";
 
-    /// <summary>Seçilmemiş / bilinmeyen tema → bu.</summary>
-    public const string Default = Pazar;
+    /// <summary>Seçilmemiş / bilinmeyen tema → bu. 2026-10'dan beri <c>anahtar</c> (önce <c>pazar</c>): kayıtlı
+    /// teması olan firma etkilenmez; teması boş (null) olan firma Anahtar'ı görür.</summary>
+    public const string Default = Anahtar;
 
-    /// <summary>Geçerli (saklanabilir) anahtarlar — sıra ERP'deki seçenek sırasıdır.</summary>
-    public static readonly IReadOnlyList<string> All = [Pazar, Vitrin, Rota];
+    /// <summary>Geçerli (saklanabilir) anahtarlar — sıra ERP'deki seçenek sırasıdır (varsayılan başta).</summary>
+    public static readonly IReadOnlyList<string> All = [Anahtar, Pazar, Vitrin, Rota];
 
     /// <summary>Eski anahtar → yeni anahtar. KALICI: silinmez (eski bağlantılar ve önizleme adresleri yaşar).</summary>
     public static readonly IReadOnlyDictionary<string, string> LegacyAliases = new Dictionary<string, string>(StringComparer.Ordinal)

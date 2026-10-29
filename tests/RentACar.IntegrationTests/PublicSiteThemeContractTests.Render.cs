@@ -165,6 +165,7 @@ public sealed partial class PublicSiteThemeContractTests
     /// Ayrıca varsayılan setlerin elle yazılmış değerleri SitePaletteCssTests.Varsayilan_setler_bugunku_renkleri_korur'da.
     /// </summary>
     [Theory]
+    [InlineData("anahtar")]
     [InlineData("pazar")]
     [InlineData("rota")]
     public void Koyu_kimlik_destegi_acik_kimlikli_temalarin_ciktisini_degistirmez(string key)
@@ -363,7 +364,7 @@ public sealed partial class PublicSiteThemeContractTests
     [Fact]
     public async Task Onizleme_parametresi_temayi_degistirir_noindex_yazar_gecersiz_ad_yok_sayilir()
     {
-        var tenant = await SeedTenantAsync(null); // kayıtlı tema yok → pazar
+        var tenant = await SeedTenantAsync(null); // kayıtlı tema yok → anahtar (varsayılan)
         using var factory = new PublicSiteFactory(fx, tenant);
         var client = factory.Client();
         static string Css(string key) => $@"css/{Path.GetFileNameWithoutExtension(SiteThemes.Resolve(key).CssPath)}\.[a-z0-9]+\.css";
@@ -378,13 +379,13 @@ public sealed partial class PublicSiteThemeContractTests
         using (var r = await client.GetAsync("/?tema=olmayan"))
         {
             var html = await r.Content.ReadAsStringAsync();
-            Assert.Matches(Css("pazar"), html);
-            Assert.Contains("data-tema=\"pazar\"", html);
+            Assert.Matches(Css("anahtar"), html);
+            Assert.Contains("data-tema=\"anahtar\"", html);
             Assert.False(r.Headers.Contains("X-Robots-Tag"));
         }
         using (var r = await client.GetAsync("/"))
         {
-            Assert.Contains("data-tema=\"pazar\"", await r.Content.ReadAsStringAsync());
+            Assert.Contains("data-tema=\"anahtar\"", await r.Content.ReadAsStringAsync());
             Assert.False(r.Headers.Contains("X-Robots-Tag"));
         }
 
@@ -400,7 +401,7 @@ public sealed partial class PublicSiteThemeContractTests
         using (var r = await client.GetAsync("/yok/boyle/bir/adres?tema=olmayan"))
         {
             Assert.Equal(HttpStatusCode.NotFound, r.StatusCode);
-            Assert.Contains("data-tema=\"pazar\"", await r.Content.ReadAsStringAsync());
+            Assert.Contains("data-tema=\"anahtar\"", await r.Content.ReadAsStringAsync());
         }
     }
 
@@ -416,7 +417,7 @@ public sealed partial class PublicSiteThemeContractTests
     [Fact]
     public async Task Palet_ve_renk_onizlemesi_noindex_yazar_gecersiz_deger_yok_sayilir_404_tasir()
     {
-        var tenant = await SeedTenantAsync(null); // kayıt yok → pazar, varsayılan set (domates)
+        var tenant = await SeedTenantAsync("pazar"); // kayıtlı tema pazar, set yok → varsayılan set (domates)
         using var factory = new PublicSiteFactory(fx, tenant);
         var client = factory.Client();
 

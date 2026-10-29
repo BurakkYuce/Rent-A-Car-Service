@@ -214,7 +214,7 @@ public class TenantSettings : ITenantOwned, IAuditable
     public string? SiteVurguRengi { get; set; }
 
     /// <summary>
-    /// Halka açık sitenin teması: <c>pazar</c> / <c>vitrin</c> / <c>rota</c> ya da null (= <c>pazar</c>).
+    /// Halka açık sitenin teması: <c>anahtar</c> / <c>pazar</c> / <c>vitrin</c> / <c>rota</c> ya da null (= <c>anahtar</c>).
     /// Anahtar listesi <c>SiteThemeKeys</c>'te; bilinmeyen değer yazılamaz (servis reddeder), okunurken de
     /// varsayılana düşer.
     /// </summary>

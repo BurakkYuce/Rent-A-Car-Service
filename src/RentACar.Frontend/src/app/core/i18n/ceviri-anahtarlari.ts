@@ -4800,6 +4800,8 @@ export type CeviriAnahtari =
   | 'sistem.ayarlar.smtp'
   | 'sistem.ayarlar.smtpAciklama'
   | 'sistem.ayarlar.smtpSifreIpucu'
+  | 'sistem.ayarlar.tema.anahtar.aciklama'
+  | 'sistem.ayarlar.tema.anahtar.ad'
   | 'sistem.ayarlar.tema.ipucu'
   | 'sistem.ayarlar.tema.onizle'
   | 'sistem.ayarlar.tema.onizleAciklama'
