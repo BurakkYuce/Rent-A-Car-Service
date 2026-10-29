@@ -36,6 +36,13 @@ internal sealed class TenantSettingsConfig : IEntityTypeConfiguration<TenantSett
         e.Property(x => x.SiteVurguRengi).HasMaxLength(7); // halka açık site vurgu rengi
         e.Property(x => x.SiteTemasi).HasMaxLength(20);    // halka açık site teması (SiteThemeKeys)
         e.Property(x => x.SitePaleti).HasMaxLength(30);    // halka açık site palet seti (SitePaletteKeys)
+        // V0 halka açık site bilgileri (SiteInfoRules sınırları)
+        e.Property(x => x.SiteDepozitoTutari).HasColumnType("numeric(19,4)");
+        e.Property(x => x.SiteDepozitoAciklama).HasMaxLength(256);
+        e.Property(x => x.SiteSigortaOzeti).HasMaxLength(512);
+        e.Property(x => x.SiteIptalKosulu).HasMaxLength(256);
+        e.Property(x => x.SiteGooglePuani).HasColumnType("numeric(2,1)");
+        e.Property(x => x.SiteGoogleProfilUrl).HasMaxLength(512);
         e.Property(x => x.EFaturaKullanici).HasMaxLength(128);
         e.Property(x => x.EFaturaSifreEnc).HasMaxLength(1024);
         // e-belge entegratör ayarları (kimliksiz altyapı): anahtar = kayıtlı adaptör; etiketler urn:mail:…

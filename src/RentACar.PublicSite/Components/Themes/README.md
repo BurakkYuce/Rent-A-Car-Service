@@ -127,6 +127,12 @@ Parametre adları ve tipleri değişmez:
 | | `Sayfalar` | `IReadOnlyList<SiteLink>` | Ana sayfa + menü + firmanın içerik sayfaları |
 | | `YasalSayfalar` | `IReadOnlyList<SiteLink>` | Yayındaki yasal sayfalar (boşsa sütun yok) |
 
+`FleetBranding.Bilgi` (`SiteFacts`) firmanın "kiralamadan önce" beyanlarını taşır: depozito tutarı + açıklama,
+günlük km sınırı / sınırsız, asgari yaş + ehliyet yılı, sigorta özeti, iptal koşulu, Google puanı + yorum sayısı +
+profil bağlantısı + puanın girildiği an, kuruluş yılı (ERP: `/app/ayarlar` → "Web sitesi bilgileri"). Repo daima
+doldurur, alanlar tek tek boş olabilir: boş alan basılmaz (T2). Google puanı doluysa bağlantı da doludur (yalnız
+https + Google alan adı); puan bağlantısız basılmaz. Çalışma saatleri şubede (`Branch.CalismaSaatleri`).
+
 Kurallar (tüm slotlar): arama için ORTAK `<AramaFormu>` (alan adları/doğrulama tek kaynak, T4); firma işareti
 için ORTAK `<BrandMark>`; fiyat için `PriceText`. `Kart.Gun is null` / `Model.Tarih is null` iken "müsait"
 DENMEZ (T1). Veri yoksa bölüm basılmaz (T2). Firma adına taahhüt metni yazılmaz (T1). JS eklenmez (CSP

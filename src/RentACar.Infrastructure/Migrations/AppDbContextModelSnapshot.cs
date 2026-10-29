@@ -7750,9 +7750,52 @@ namespace RentACar.Infrastructure.Migrations
                     b.Property<int?>("SaatFarkiToleransDk")
                         .HasColumnType("integer");
 
+                    b.Property<string>("SiteDepozitoAciklama")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
+                    b.Property<decimal?>("SiteDepozitoTutari")
+                        .HasColumnType("numeric(19,4)");
+
+                    b.Property<string>("SiteGoogleProfilUrl")
+                        .HasMaxLength(512)
+                        .HasColumnType("character varying(512)");
+
+                    b.Property<DateTimeOffset?>("SiteGooglePuanTarihiUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<decimal?>("SiteGooglePuani")
+                        .HasColumnType("numeric(2,1)");
+
+                    b.Property<int?>("SiteGoogleYorumSayisi")
+                        .HasColumnType("integer");
+
+                    b.Property<int?>("SiteGunlukKmSiniri")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("SiteIptalKosulu")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
+                    b.Property<bool>("SiteKmSinirsiz")
+                        .HasColumnType("boolean");
+
+                    b.Property<int?>("SiteKurulusYili")
+                        .HasColumnType("integer");
+
+                    b.Property<int?>("SiteMinEhliyetYili")
+                        .HasColumnType("integer");
+
+                    b.Property<int?>("SiteMinYas")
+                        .HasColumnType("integer");
+
                     b.Property<string>("SitePaleti")
                         .HasMaxLength(30)
                         .HasColumnType("character varying(30)");
+
+                    b.Property<string>("SiteSigortaOzeti")
+                        .HasMaxLength(512)
+                        .HasColumnType("character varying(512)");
 
                     b.Property<string>("SiteTemasi")
                         .HasMaxLength(20)

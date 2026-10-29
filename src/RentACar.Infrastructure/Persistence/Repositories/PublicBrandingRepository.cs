@@ -22,6 +22,10 @@ public sealed class PublicBrandingRepository(IDbContextFactory<AppDbContext> fac
             {
                 x.FirmaMarka, x.FirmaAdres, x.FirmaTel, x.FirmaEmail, x.FirmaMobilTel, x.WhatsAppNumarasi,
                 x.SiteVurguRengi, x.SiteTemasi, x.SitePaleti,
+                Facts = new SiteFacts(x.SiteDepozitoTutari, x.SiteDepozitoAciklama, x.SiteGunlukKmSiniri, x.SiteKmSinirsiz,
+                    x.SiteMinYas, x.SiteMinEhliyetYili, x.SiteSigortaOzeti, x.SiteIptalKosulu,
+                    x.SiteGooglePuani, x.SiteGoogleYorumSayisi, x.SiteGoogleProfilUrl, x.SiteGooglePuanTarihiUtc,
+                    x.SiteKurulusYili),
                 HasLogo = x.LogoBytes != null,
                 Stamp = x.UpdatedAtUtc ?? x.CreatedAtUtc,
             })
@@ -32,7 +36,8 @@ public sealed class PublicBrandingRepository(IDbContextFactory<AppDbContext> fac
             s?.SiteVurguRengi,
             s is { HasLogo: true } ? LogoVersion(s.Stamp) : null,
             s?.SiteTemasi,
-            s?.SitePaleti);
+            s?.SitePaleti,
+            s?.Facts ?? new SiteFacts());
     }
 
     public async Task<PublicLogo?> GetLogoAsync(Guid tenantId, CancellationToken ct = default)

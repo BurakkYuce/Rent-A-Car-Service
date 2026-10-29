@@ -130,6 +130,20 @@ public sealed class TenantSettingsService(
             FaturaSeriKodu = s.FaturaSeriKodu,
             WhatsAppNumarasi = s.WhatsAppNumarasi,
             WhatsAppGunlukOzet = s.WhatsAppGunlukOzet,
+            // V0 halka açık site bilgileri
+            SiteDepozitoTutari = s.SiteDepozitoTutari,
+            SiteDepozitoAciklama = s.SiteDepozitoAciklama,
+            SiteGunlukKmSiniri = s.SiteGunlukKmSiniri,
+            SiteKmSinirsiz = s.SiteKmSinirsiz,
+            SiteMinYas = s.SiteMinYas,
+            SiteMinEhliyetYili = s.SiteMinEhliyetYili,
+            SiteSigortaOzeti = s.SiteSigortaOzeti,
+            SiteIptalKosulu = s.SiteIptalKosulu,
+            SiteGooglePuani = s.SiteGooglePuani,
+            SiteGoogleYorumSayisi = s.SiteGoogleYorumSayisi,
+            SiteGoogleProfilUrl = s.SiteGoogleProfilUrl,
+            SiteGooglePuanTarihiUtc = s.SiteGooglePuanTarihiUtc,
+            SiteKurulusYili = s.SiteKurulusYili,
             // PR-2: public-site
             PublicSiteEnabled = s.PublicSiteEnabled,
             PublicSiteHost = await domains.GetActiveHostAsync(TenantId, ct),
@@ -342,6 +356,7 @@ public sealed class TenantSettingsService(
             s.FaturaSeriKodu = series;
             s.WhatsAppNumarasi = Trim(m.WhatsAppNumarasi);
             s.WhatsAppGunlukOzet = m.WhatsAppGunlukOzet ?? false;
+            SiteInfoRules.Apply(s, m, DateTimeOffset.UtcNow);
         }
     }
 

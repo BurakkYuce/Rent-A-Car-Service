@@ -157,7 +157,28 @@ describe('ayarlar modeli', () => {
     expect(body['donemselFaturalamaJob']).toBe(false);
     expect(body['donemselOtomatikTahsilat']).toBe(false);
     expect(body['eFaturaCanliOrtam']).toBe(false);
+    expect(body['siteKmSinirsiz']).toBe(false);
     expect(body['surum']).toBeNull();
+  });
+
+  it('site bilgileri tam PUT gövdesinde aynen gider; puan tarihi (salt okunur) gitmez', () => {
+    const value = {
+      ...settingsFormValue({
+        ...DTO,
+        siteGooglePuani: 4.8,
+        siteGooglePuanTarihi: '2026-01-02T03:04:05Z',
+      } as SettingsDto),
+      siteDepozitoTutari: 5000,
+      siteKmSinirsiz: true,
+      siteGoogleProfilUrl: 'g.page/ornek', // biçim sunucuda; istemci aynen taşır
+    };
+    const body = settingsBody(value, 'v7');
+    expect(body['siteGooglePuani']).toBe(4.8);
+    expect(body['siteDepozitoTutari']).toBe(5000);
+    expect(body['siteKmSinirsiz']).toBe(true);
+    expect(body['siteGoogleProfilUrl']).toBe('g.page/ornek');
+    expect(body['siteMinYas']).toBeNull();
+    expect('siteGooglePuanTarihi' in body).toBe(false);
   });
 
   it('e-belge ayarları tam PUT gövdesinde; şifre yalnız yazılınca, ortam bayrağı bool', () => {

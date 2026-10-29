@@ -71788,6 +71788,103 @@
               "$ref": "#/components/schemas/WhatsAppDeliveryDto"
             }
           },
+          "siteDepozitoTutari": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "null",
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "siteDepozitoAciklama": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "siteGunlukKmSiniri": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "siteKmSinirsiz": {
+            "type": "boolean"
+          },
+          "siteMinYas": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "siteMinEhliyetYili": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "siteSigortaOzeti": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "siteIptalKosulu": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "siteGooglePuani": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "null",
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "siteGoogleYorumSayisi": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "siteGoogleProfilUrl": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "siteGooglePuanTarihi": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "siteKurulusYili": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
           "surum": {
             "type": [
               "null",
@@ -72162,6 +72259,96 @@
               "null",
               "boolean"
             ]
+          },
+          "siteDepozitoTutari": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "null",
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "siteDepozitoAciklama": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "siteGunlukKmSiniri": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "siteKmSinirsiz": {
+            "type": "boolean"
+          },
+          "siteMinYas": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "siteMinEhliyetYili": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "siteSigortaOzeti": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "siteIptalKosulu": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "siteGooglePuani": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "null",
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "siteGoogleYorumSayisi": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "siteGoogleProfilUrl": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "siteKurulusYili": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
           },
           "surum": {
             "type": [

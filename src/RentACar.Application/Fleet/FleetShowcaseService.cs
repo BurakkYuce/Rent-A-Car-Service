@@ -61,7 +61,23 @@ public sealed record FleetBranding(string? Marka, string? Adres, string? Tel, st
     string? Tema = null,
     /// <summary>Site palet seti anahtarı (<c>TenantSettings.SitePaleti</c>, ham DB değeri) — site temanın kendi
     /// setleri arasında arar; bulunamazsa/boşsa temanın varsayılan seti. Ham değer HİÇBİR yere basılmaz.</summary>
-    string? Paleti = null);
+    string? Paleti = null,
+    /// <summary>"Kiralamadan önce" bilgileri (V0; <c>TenantSettings.Site*</c>). Repo daima doldurur; alanları boş olabilir.</summary>
+    SiteFacts? Bilgi = null);
+
+/// <summary>
+/// Firmanın sitede gösterilen beyanları (V0): depozito, km, yaş/ehliyet, sigorta, iptal, Google puanı, kuruluş yılı.
+/// Boş alan basılmaz (T2). <see cref="GooglePuani"/> doluysa <see cref="GoogleProfilUrl"/> de doludur (servis kuralı;
+/// bağlantısız puan basılmaz) ve bağlantı yalnız https + Google alan adıdır.
+/// </summary>
+public sealed record SiteFacts(
+    decimal? DepozitoTutari = null, string? DepozitoAciklama = null,
+    int? GunlukKmSiniri = null, bool KmSinirsiz = false,
+    int? MinYas = null, int? MinEhliyetYili = null,
+    string? SigortaOzeti = null, string? IptalKosulu = null,
+    decimal? GooglePuani = null, int? GoogleYorumSayisi = null, string? GoogleProfilUrl = null,
+    DateTimeOffset? GooglePuanTarihi = null,
+    int? KurulusYili = null);
 
 /// <summary>Halka açık sitede basılan firma logosu (PNG baytları + önbellek sürümü).</summary>
 public sealed record PublicLogo(byte[] Bytes, string Surum);
