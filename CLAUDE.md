@@ -69,7 +69,7 @@ Kullanıcı **C# kodunu incelemez**. Doğruluk şuradan gelir:
 9. SPA ekranı: `src/RentACar.Frontend/src/app/features/<modül>/` (çekirdek bileşenler, form seti, `TemelStore`; kurallar `src/RentACar.Frontend/AGENTS.md`), rota `sayfalar.ts` (tembel parça), çeviri kendi i18n bloğunda (`npm run i18n:tipler`), menü `Api/Menu/MenuRegistry.cs`. Yıkıcı çağrı onaylı olmalı (`npm run yikici`, lint zincirinde).
 10. Test: `tests/…/XTests.cs` — bağımsız oracle (CRUD + benzersizlik + **tenant izolasyon** `racar_app` ile + yetki: başka şube 403, başka kiracı 404) + SPA Vitest/e2e.
 
-## 6. Mevcut durum (2026-07-15, PR #76 itibarıyla — 1242 entegrasyon testi yeşil)
+## 6. Mevcut durum (2026-10-29, PR #405 itibarıyla; ayrıntılı kontrol listesi `docs/roadmap/DEVIR.md` §1)
 **Tamam (ilk seri Faz 1–5, ~29 PR):**
 - İskelet: çok-kiracılık (RLS+FORCE), audit log, boşluksuz no, 2-aşamalı login, rol/yetki matrisi, şube kapsamı.
 - Araç, Cari, Rezervasyon→Kira→Teslim/Dönüş, çift-taraflı defter, Kasa/Banka (tahsilat/ödeme/virman/ters), Fatura (KDV), Gider.
@@ -118,6 +118,15 @@ Kullanıcı **C# kodunu incelemez**. Doğruluk şuradan gelir:
 - **F1 — `/api/ui/v1` temeli TAMAM (2026-09-21, PR #238–#245):** hata sözleşmesi `ValidationException` alt tipleri — `NoPermissionException` (403 `yetki_yok`), `DuplicateOperationException` (409 `mukerrer`), çakışma istisnaları (409 `cakisma`); `Web/Api/UiError.cs` kod tablosu (+`xsrf_gecersiz`). **xUnit `Assert.ThrowsAsync<T>` birebir tip eşler** — yetki reddini `ThrowsAsync<NoPermissionException>` ile bekle. Mükerrer sınıflandırması KISIT ADIYLA (`IdempotencyConstraint`: `_IslemAnahtari`/`_Anahtar`/`_Idem` + iki açık ad). `/api/ui`: JSON ProblemDetails, CSRF her ortamda (`X-XSRF-TOKEN`), `no-store`, pilot kapısı (`TenantSettings.YeniArayuzPilot`), her uçta `IzinMetadata`/`IzinMuaf` (yapısal test). Idempotency envanteri `docs/api/idempotency-envanteri.md`: sessiz başarı YALNIZ hedef+tutar birebir aynıysa, farklı içerik → 409. Testlerde SABİT KİMLİK BİLGİSİ YOK (GitGuardian; seed parolası canlı bir hesapla aynı) — kullanıcıyı çalışma anında rastgele parolayla üret (`WebFixture`).
 
 - **F13 — BLAZOR SÖKÜLDÜ, ANGULAR GEÇİŞİ KAPANDI (2026-09-26, #348–#351):** F4–F12 kodu ve kesişleri main'de; F13.0 karar kaydı + F12 kesiş (#348), F13.1a 145 `@page` rotası + 345 form yazma ucu (#349; yapısal çitler SPA'ya: `scripts/yikici-onay-denetimi.mjs`, `NonApiEndpointAuthorizationTests`), F13.1b kabuk + pilot kapısı + 301 + SPA'ya bağlı giriş/yetki/hata yolları (#350), F13.2 belgeler. Pilot doğrulaması beklenmeden (kullanıcı kararı); **canlıya yayın F2.2 sunucu adımlarından sonra**. Yukarıdaki F0.2 maddesindeki Blazor kuralları (data-confirm, rc-ui.js kilidi, `YikiciFormOnayTests`) tarihseldir — karşılıkları SPA'da.
+
+- **GEÇİŞ SONRASI (2026-09-30 – 10-29, #353–#405) — canlıya yayın HÂLÂ YOK (kullanıcı kararı):**
+  - **Firma sitesi (PublicSite) temaları:** firma kimliği + kontrast güvenceli palet (#353), SEO (#354, #359), tema altyapısı (`SiteTemasi`, `?tema=` önizleme, slotlar; #355–#358, #386), **palet altyapısı** (tema başına hazır renk setleri + firmanın ana rengi, #387), firma bilgi alanları (#399), dolu + saatli arama formu ve WhatsApp bağlantısı (#400). Yeni temalar **Anahtar** (varsayılan, #401), **Kıyas** (#403), **Paket** (#404); eski temalar (Pazar/Rota/Vitrin) söküldü, kayıtlı değerler kalıcı eşleme + veri migration'ıyla yeni temalara geçer (#405). Sözleşme `src/RentACar.PublicSite/Components/Themes/README.md`.
+  - **Kabul testi düzeltme serisi (2026-10-04, #361–#383):** fiyat/para (#361, #362, #365, #368), araç/kira kuralları, rapor ve export KVKK maskesi, yetki (OperationsDelete, rol/şube güncelleme, şube adı tek kural), SPA düzeltmeleri.
+  - **KABİS iç akış (#393)** ve **e-Fatura/e-Arşiv altyapısı (#394)** kimliksiz: kuyruk, ayarlar, durum; gerçek adaptör YOK. e-Fatura'da `TestGonderildi` ≠ gönderildi; 5 Low PR #394 yorumunda, adaptör PR'ından ÖNCE kapanmalı.
+  - **HGS (#391, PARA)** dosyadan içe aktar + eşleştir + yansıt ve **Blazor dönemi saat kayması veri düzeltmesi (#397)** (kapılı, geri alınabilir). **Canlıda HGS'den önce `docs/ops/blazor-saat-kaymasi.md` §5 adım 6 doğrulaması ŞART** (kayık veriyle HGS yanlış kiraya borç yazar).
+  - **Yetki tur 3 (#395):** şube yazmaları yalnız Admin, dönem kilidini açmak FinanceReverse.
+  - **`docs/harita.md` (#398):** "X nerede?" sorusunun tek giriş noktası.
+  - Satış (pazarlama) sitesi ayrı repo: `github.com/BurakkYuce/rentpro-site`.
 
 **Bilerek ertelendi (kullanıcı kararıyla):**
 - **Gerçek entegrasyonlar** (e-Fatura/GİB, gerçek HGS/banka/POS) — **stub**; kimlik/credential gerektirir, açmadan önce kullanıcıya sor. (SMS ve e-posta 2026-08-17'de kapandı.)
