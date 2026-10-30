@@ -1,7 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Npgsql;
 using RentACar.Application.Common;
-using RentACar.Application.DropTanimlari;
+using RentACar.Application.DropDefinitions;
 using RentACar.Domain.Entities;
 
 namespace RentACar.Infrastructure.Persistence.Repositories;
@@ -18,7 +18,7 @@ public sealed class DropDefinitionRepository(IDbContextFactory<AppDbContext> fac
     }
 
     public async Task<IReadOnlyList<DropTanim>> SearchAsync(
-        RentACar.Application.DropTanimlari.DropTanimFilter filter, CancellationToken ct = default)
+        RentACar.Application.DropDefinitions.DropTanimFilter filter, CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
 

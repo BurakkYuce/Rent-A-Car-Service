@@ -1,7 +1,7 @@
 using Microsoft.Extensions.DependencyInjection;
 using RentACar.Application.Common;
 using RentACar.Application.Customers;
-using RentACar.Application.MusteriTaksitleri;
+using RentACar.Application.CustomerInstallments;
 using RentACar.Application.Vehicles;
 using RentACar.Domain.Enums;
 using RentACar.IntegrationTests.Infrastructure;

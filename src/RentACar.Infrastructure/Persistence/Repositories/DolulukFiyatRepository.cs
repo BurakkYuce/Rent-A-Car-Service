@@ -1,7 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Npgsql;
 using RentACar.Application.Common;
-using RentACar.Application.DolulukFiyat;
+using RentACar.Application.OccupancyPricing;
 using RentACar.Application.VehicleGroups;
 using RentACar.Domain.Entities;
 using RentACar.Domain.Enums;

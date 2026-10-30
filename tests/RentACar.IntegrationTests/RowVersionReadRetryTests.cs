@@ -1,7 +1,7 @@
 using Microsoft.Extensions.DependencyInjection;
 using RentACar.Application.Branches;
 using RentACar.Application.Common;
-using RentACar.Application.Kur;
+using RentACar.Application.ExchangeRates;
 using RentACar.Application.Personnel;
 using RentACar.Domain.Common;
 using RentACar.Domain.Entities;

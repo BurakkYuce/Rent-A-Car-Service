@@ -1,4 +1,4 @@
-using RentACar.Application.SiteIcerik;
+using RentACar.Application.SiteContent;
 
 namespace RentACar.PublicSite;
 

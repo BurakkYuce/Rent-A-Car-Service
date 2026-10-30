@@ -2,13 +2,13 @@ using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.EntityFrameworkCore;
 using RentACar.Application.Common;
 using RentACar.Application.FinancialAccounts;
-using RentACar.Application.Kur;
+using RentACar.Application.ExchangeRates;
 using RentACar.Application.Regulation;
 using RentACar.Domain.Common;
 using RentACar.Domain.Entities;
 using RentACar.Domain.Enums;
 using RentACar.Infrastructure.Persistence;
-using RentACar.Web.Api.AracFinans;
+using RentACar.Web.Api.VehicleFinance;
 using RentACar.Web.Common;
 using S = RentACar.Web.Api.ServiceInsurance.ServiceInsuranceShared;
 

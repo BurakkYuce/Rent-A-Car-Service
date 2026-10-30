@@ -1,6 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Npgsql;
-using RentACar.Application.BelgeSablon;
+using RentACar.Application.DocumentTemplates;
 using RentACar.Application.Common;
 using RentACar.Domain.Enums;
 using Entity = RentACar.Domain.Entities.BelgeSablon;

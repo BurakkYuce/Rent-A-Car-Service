@@ -3,7 +3,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Npgsql;
 using RentACar.Application.Bookings;
 using RentACar.Application.Crm;
-using RentACar.Application.FaturaDonemleri;
+using RentACar.Application.InvoicePeriods;
 using RentACar.Application.Finance;
 using RentACar.Infrastructure.Migrations;
 using RentACar.IntegrationTests.Infrastructure;

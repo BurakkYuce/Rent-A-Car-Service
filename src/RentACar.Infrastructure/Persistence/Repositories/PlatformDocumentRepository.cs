@@ -1,5 +1,5 @@
 using Microsoft.EntityFrameworkCore;
-using RentACar.Application.PlatformBelgeler;
+using RentACar.Application.PlatformDocuments;
 using RentACar.Domain.Entities;
 
 namespace RentACar.Infrastructure.Persistence.Repositories;

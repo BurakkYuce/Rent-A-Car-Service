@@ -2,7 +2,7 @@ using Microsoft.AspNetCore.Http.HttpResults;
 using RentACar.Application.Common;
 using RentACar.Application.RateMatrices;
 using RentACar.Domain.Enums;
-using RentACar.Web.Api.Rezervasyon;
+using RentACar.Web.Api.Reservations;
 using RentACar.Web.Import;
 
 namespace RentACar.Web.Api.ServiceInsurance;

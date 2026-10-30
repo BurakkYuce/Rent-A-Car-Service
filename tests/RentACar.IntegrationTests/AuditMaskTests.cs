@@ -1,5 +1,5 @@
 using System.Text.Json;
-using RentACar.Web.Api.Sistem;
+using RentACar.Web.Api.SystemAdmin;
 
 namespace RentACar.IntegrationTests;
 

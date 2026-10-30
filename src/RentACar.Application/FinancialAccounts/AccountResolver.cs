@@ -57,7 +57,7 @@ public sealed class AccountResolver(IFinancialAccountRepository repository)
         // F6.1b adversarial L2: iki taraf da KurService.NormalizeKod'dan geçer — "TRL"/"TL" tanımlı hesap TRY
         // işlemini (ya da tersi) çelişki sanıp reddediyordu.
         if (currency is { Length: > 0 } d && !string.IsNullOrWhiteSpace(account.Doviz)
-            && !string.Equals(Kur.ExchangeRateService.NormalizeCode(account.Doviz), Kur.ExchangeRateService.NormalizeCode(d), StringComparison.Ordinal))
+            && !string.Equals(ExchangeRates.ExchangeRateService.NormalizeCode(account.Doviz), ExchangeRates.ExchangeRateService.NormalizeCode(d), StringComparison.Ordinal))
             throw new ValidationException(
                 $"'{account.Ad}' hesabı {account.Doviz} tanımlı; işlem {d.Trim().ToUpperInvariant()} olarak giriliyor.");
 

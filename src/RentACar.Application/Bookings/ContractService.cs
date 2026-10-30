@@ -1,4 +1,4 @@
-using RentACar.Application.BelgeSablon;
+using RentACar.Application.DocumentTemplates;
 using RentACar.Application.Common;
 using RentACar.Application.Customers;
 using RentACar.Application.Personnel;

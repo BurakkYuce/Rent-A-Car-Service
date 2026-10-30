@@ -1,6 +1,6 @@
 using Microsoft.AspNetCore.Http.HttpResults;
 using RentACar.Application.Common;
-using RentACar.Web.Api.Rezervasyon;
+using RentACar.Web.Api.Reservations;
 using RentACar.Web.Platform;
 
 namespace RentACar.Web.Api.Platform;

@@ -3,7 +3,7 @@ using System.Text.Json;
 using System.Text.RegularExpressions;
 using Microsoft.Extensions.DependencyInjection;
 using RentACar.Application.Blog;
-using RentACar.Application.SiteIcerik;
+using RentACar.Application.SiteContent;
 using RentACar.Domain.Entities;
 using RentACar.IntegrationTests.Infrastructure;
 

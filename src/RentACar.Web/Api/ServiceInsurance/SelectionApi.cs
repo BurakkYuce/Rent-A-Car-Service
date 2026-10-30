@@ -2,11 +2,11 @@ using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.EntityFrameworkCore;
 using RentACar.Application.Authorization;
 using RentACar.Application.InsuranceCompanies;
-using RentACar.Application.Secim;
-using RentACar.Application.TarifeGruplari;
+using RentACar.Application.Selection;
+using RentACar.Application.TariffGroups;
 using RentACar.Domain.Common;
 using RentACar.Infrastructure.Persistence;
-using RentACar.Web.Api.Rezervasyon;
+using RentACar.Web.Api.Reservations;
 using RentACar.Web.Identity;
 using S = RentACar.Web.Api.ServiceInsurance.ServiceInsuranceShared;
 

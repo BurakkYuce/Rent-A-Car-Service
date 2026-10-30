@@ -13,7 +13,7 @@ public sealed record CariSecimSatiri(Guid Id, string Ad, CustomerType Tip, bool 
 
 /// <summary>
 /// KVKK <c>Customer.AnonimAd</c> görüntü kuralının Application katmanındaki TEK sabiti. Web'deki
-/// <c>Api/Kira/MusteriGorunumu.AnonimAdEtiketi</c> bu sabite bağlıdır (iki ayrı metin olamaz); Application
+/// <c>Api/Rentals/CustomerView.AnonimAdEtiketi</c> bu sabite bağlıdır (iki ayrı metin olamaz); Application
 /// servisleri (ör. <c>SecimService</c>) Web'e bağımlı olamadığı için sabit burada durur.
 /// </summary>
 public static class CustomerAnonymity

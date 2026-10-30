@@ -1,5 +1,5 @@
 using Microsoft.Extensions.DependencyInjection;
-using RentACar.Application.AracKredileri;
+using RentACar.Application.VehicleLoans;
 using RentACar.Application.Common;
 using RentACar.Application.Customers;
 using RentACar.Application.Reporting;

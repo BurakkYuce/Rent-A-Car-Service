@@ -293,11 +293,6 @@ public sealed class GuvenliDonusTests
 
         Assert.Equal(new[]
         {
-            // F6.1a — araç fotoğraf içeriği (/api/ui/v1/araclar/{id}/fotograflar/{fotoId}[/kucuk]): indirme DEĞİL
-            // (dosya adı verilmez → Content-Disposition yok, görsel satır içi gösterilir) ve /api/ui 401'i
-            // yönlendirmesiz JSON'dur (cookie challenge ReturnUrl üretmez). İkisi de UiAracTests
-            // .Photo_content_is_inline_and_401_has_no_redirect'te kilitli. IndirmeAdresiMi kapsamı gerekmez.
-            "Api/Arac/VehicleApi.Foto.cs",
             // F12.1 — platform konsolu UI API'si: belge içeriği (/api/ui/v1/platform/belgeler/{id}/icerik) ve firma logosu
             // önizlemesi (/api/ui/v1/platform/kiracilar/{id}/logo). Blazor Platform/ alanı gibi DÖNÜŞ taşımaz: /api/ui 401'i
             // yönlendirmesiz JSON'dur (cookie challenge ReturnUrl üretmez; PlatformUiApiTests.Anonymous_gets_401_json_without_redirect).
@@ -306,11 +301,16 @@ public sealed class GuvenliDonusTests
             "Api/Platform/PlatformApi.TenantWrites.cs",
             // F11.1b — PDF logosu (/api/ui/v1/ayarlar/logo): indirme DEĞİL (dosya adı yok → Content-Disposition yok, satır
             // içi görsel), nosniff; /api/ui 401'i yönlendirmesiz JSON. UiSystemAdminTests.Logo_upload_...'da kilitli.
-            "Api/Sistem/SystemAdminApi.Settings.cs",
+            "Api/SystemAdmin/SystemAdminApi.Settings.cs",
             // F11.1b — blog kapağı içeriği (/api/ui/v1/blog-yonetim/{id}/kapak[/kucuk]): araç fotoğrafıyla aynı gerekçe —
             // dosya adı yok (satır içi görsel, indirme değil), /api/ui 401'i yönlendirmesiz JSON. Tür yüklemede İÇERİKTEN
             // tespit edilir, nosniff boru hattında. UiWebsiteApiTests.Blog_cover_* kilitler.
-            "Api/Sistem/WebsiteApi.Blog.cs",
+            "Api/SystemAdmin/WebsiteApi.Blog.cs",
+            // F6.1a — araç fotoğraf içeriği (/api/ui/v1/araclar/{id}/fotograflar/{fotoId}[/kucuk]): indirme DEĞİL
+            // (dosya adı verilmez → Content-Disposition yok, görsel satır içi gösterilir) ve /api/ui 401'i
+            // yönlendirmesiz JSON'dur (cookie challenge ReturnUrl üretmez). İkisi de UiAracTests
+            // .Photo_content_is_inline_and_401_has_no_redirect'te kilitli. IndirmeAdresiMi kapsamı gerekmez.
+            "Api/Vehicles/VehicleApi.Foto.cs",
             "Documents/CompanyDocumentEndpoints.cs",
             "Documents/CompanyFileEndpoints.cs",
             "Reports/ListExportEndpoints.cs",

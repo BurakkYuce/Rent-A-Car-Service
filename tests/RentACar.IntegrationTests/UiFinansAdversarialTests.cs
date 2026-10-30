@@ -7,7 +7,7 @@ using Microsoft.Extensions.DependencyInjection;
 using RentACar.Application.Bookings;
 using RentACar.Application.Common;
 using RentACar.Application.Customers;
-using RentACar.Application.FaturaDonemleri;
+using RentACar.Application.InvoicePeriods;
 using RentACar.Application.Finance;
 using RentACar.Application.FinancialAccounts;
 using RentACar.Application.Vehicles;
@@ -305,8 +305,8 @@ public sealed class UiFinansAdversarialTests(WebFixture fx)
     public async Task MEDIUM1_uc_sinirini_gecip_kolonu_tasiran_turetilmis_deger_400_veri_tasmasi()
     {
         // Otomatik kurla (uç çarpımı bilemez) 9e14 USD × 40 = 3,6e16 baz → kira Tahsilat numeric(19,4) taşar (22003).
-        var o = await SetUpEnvironmentAsync(sp => sp.GetRequiredService<RentACar.Application.Kur.FixedExchangeRateService>()
-            .UpsertAsync(new RentACar.Application.Kur.SabitKurInput { Kod = "USD", Kur = 40m, Aktif = true }));
+        var o = await SetUpEnvironmentAsync(sp => sp.GetRequiredService<RentACar.Application.ExchangeRates.FixedExchangeRateService>()
+            .UpsertAsync(new RentACar.Application.ExchangeRates.SabitKurInput { Kod = "USD", Kur = 40m, Aktif = true }));
         var s = await LoginAsync(o, Kim.Muhasebe);
 
         var (st, code, g) = await Read(await PostAsync(s, "/finans/tahsilat",
@@ -647,8 +647,8 @@ public sealed class UiFinansAdversarialTests(WebFixture fx)
     [Fact]
     public async Task USD_kira_TRY_ya_da_EUR_tahsilat_400_USD_tahsilat_ham_tutar()
     {
-        var o = await SetUpEnvironmentAsync(sp => sp.GetRequiredService<RentACar.Application.Kur.FixedExchangeRateService>()
-            .UpsertAsync(new RentACar.Application.Kur.SabitKurInput { Kod = "USD", Kur = 30m, Aktif = true }));
+        var o = await SetUpEnvironmentAsync(sp => sp.GetRequiredService<RentACar.Application.ExchangeRates.FixedExchangeRateService>()
+            .UpsertAsync(new RentACar.Application.ExchangeRates.SabitKurInput { Kod = "USD", Kur = 30m, Aktif = true }));
         var (rentalUsd, _) = await ReadAsync(o, sp => RentalAsync(sp, o.Musteri, RentalStart.AddDays(20), day: 3, currency: "USD"));
         var s = await LoginAsync(o, Kim.Muhasebe);
 

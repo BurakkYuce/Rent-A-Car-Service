@@ -7,8 +7,8 @@ using RentACar.Domain.Common;
 using RentACar.Domain.Entities;
 using RentACar.Domain.Enums;
 using RentACar.Infrastructure.Persistence;
-using RentACar.Web.Api.AracFinans;
-using RentACar.Web.Api.Rezervasyon;
+using RentACar.Web.Api.VehicleFinance;
+using RentACar.Web.Api.Reservations;
 
 namespace RentACar.Web.Api.ServiceInsurance;
 

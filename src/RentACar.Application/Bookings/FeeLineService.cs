@@ -1,5 +1,5 @@
 using RentACar.Application.Customers;
-using RentACar.Application.EkHizmetler;
+using RentACar.Application.AddOnDefinitions;
 using RentACar.Application.RentalAddOns;
 using RentACar.Application.VehicleGroups;
 using RentACar.Application.Vehicles;
@@ -45,7 +45,7 @@ public sealed class FeeLineService(
     RentalAddOnService addOns,
     IRentalAddOnRepository addOnRepo,
     Common.ITenantCache cache,
-    DropTanimlari.IDropDefinitionRepository dropDefinitions,
+    DropDefinitions.IDropDefinitionRepository dropDefinitions,
     Finance.VatDefault vatDefault)
 {
     public const string YoungDriverCode = "SYS-GENC-SURUCU";
@@ -94,7 +94,7 @@ public sealed class FeeLineService(
     /// (KurService.NormalizeKod: TL/TRY/TRL/₺/Türk Lirası → TRY). Adversarial A3a-B1: ayrı bir
     /// alias listesi tutmak "₺" gibi TL-eş anlamlılarda ücretin sessizce atlanmasına yol açıyordu.</summary>
     public static bool IsFx(string? currency)
-        => RentACar.Application.Kur.ExchangeRateService.NormalizeCode(currency) != "TRY";
+        => RentACar.Application.ExchangeRates.ExchangeRateService.NormalizeCode(currency) != "TRY";
 
     /// <summary>Tam yıl yaş (tarih anında; doğum günü gelmediyse yıl tamamlanmamış sayılır).</summary>
     public static int Yas(DateTimeOffset birth, DateTimeOffset date)

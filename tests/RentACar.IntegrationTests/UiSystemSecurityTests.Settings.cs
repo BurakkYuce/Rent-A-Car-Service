@@ -119,7 +119,7 @@ public sealed partial class UiSystemSecurityTests
                         && expected.Contains("/" + x.RoutePattern.RawText?.TrimStart('/')))
             .ToList();
         Assert.Equal(expected.Length, routes.Count);
-        Assert.All(routes, r => Assert.Equal(RentACar.Web.Api.Sistem.SystemAdminApi.ExternalActionRatePolicy,
+        Assert.All(routes, r => Assert.Equal(RentACar.Web.Api.SystemAdmin.SystemAdminApi.ExternalActionRatePolicy,
             r.Metadata.GetMetadata<Microsoft.AspNetCore.RateLimiting.EnableRateLimitingAttribute>()?.PolicyName));
     }
 

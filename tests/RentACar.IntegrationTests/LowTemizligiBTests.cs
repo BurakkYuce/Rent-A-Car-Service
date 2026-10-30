@@ -7,7 +7,7 @@ using Npgsql;
 using RentACar.Application.Bookings;
 using RentACar.Application.Common;
 using RentACar.Application.Customers;
-using RentACar.Application.FaturaDonemleri;
+using RentACar.Application.InvoicePeriods;
 using RentACar.Application.Finance;
 using RentACar.Application.TenantSettings;
 using RentACar.Application.Vehicles;

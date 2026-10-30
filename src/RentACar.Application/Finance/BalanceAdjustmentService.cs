@@ -57,13 +57,13 @@ public sealed class BakiyeDuzeltmeInput
 /// </summary>
 public sealed class BalanceAdjustmentService(
     ILedgerPoster ledger, ICustomerRepository customers, ICurrentUser currentUser,
-    IPeriodLockGuard periodLock, RentACar.Application.Kur.ExchangeRateResolver exchangeRateResolver)
+    IPeriodLockGuard periodLock, RentACar.Application.ExchangeRates.ExchangeRateResolver exchangeRateResolver)
 {
     private readonly ILedgerPoster _ledger = ledger;
     private readonly ICustomerRepository _customers = customers;
     private readonly ICurrentUser _currentUser = currentUser;
     private readonly IPeriodLockGuard _lock = periodLock;
-    private readonly RentACar.Application.Kur.ExchangeRateResolver _exchangeRateResolver = exchangeRateResolver;
+    private readonly RentACar.Application.ExchangeRates.ExchangeRateResolver _exchangeRateResolver = exchangeRateResolver;
 
     /// <summary>Defterdeki kaynak türü — raporlar ve idempotency indeksi bunu kullanır.</summary>
     public const string Source = "BakiyeDuzeltme";
@@ -89,7 +89,7 @@ public sealed class BalanceAdjustmentService(
 
         // Kur çözümü 1.1 sözleşmesi: açık kur aynen; boş → TRY=1 / döviz KurService (yoksa net red).
         var resolvedRate = await _exchangeRateResolver.ResolveAsync(input.Doviz, input.Kur, input.Tarih, ct);
-        var money = new Money(input.Tutar, Kur.ExchangeRateService.NormalizeCodeStrict(input.Doviz), resolvedRate);
+        var money = new Money(input.Tutar, ExchangeRates.ExchangeRateService.NormalizeCodeStrict(input.Doviz), resolvedRate);
 
         var sourceId = input.IslemAnahtari is { } k && k != Guid.Empty ? k : Guid.NewGuid();
         var desc = string.IsNullOrWhiteSpace(input.Aciklama)

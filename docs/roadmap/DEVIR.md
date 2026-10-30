@@ -245,7 +245,7 @@ olabilir). Açık PR yoksa "Sırada" listesinin ilk maddesi.
 2. **Dal:** main'den `feat/f<faz>-<no>-<kisa-ad>` (bağımlı PR'da bağımlılığın dalından). Paralel çalışıyorsan ayrı
    `git worktree add ../demo-<kisa> -b <dal> origin/main`.
 3. **Oku:** fazın `F*.md` envanteri (sayfa → servis → uç ihtiyacı), Blazor karşılığı (`src/RentACar.Web/Components/Pages/…`),
-   mevcut `/api/ui` desenleri (`src/RentACar.Web/Api/Kira/KiraApi.cs`, `Api/Finans/FinansApi.cs`, `Api/Secim/`).
+   mevcut `/api/ui` desenleri (`src/RentACar.Web/Api/Rentals/RentalApi.cs`, `Api/Finance/FinanceOpsApi.cs`, `Api/Selection/`).
 4. **Backend (eklemeli):** uç + `IzinMetadata`/`IzinMuaf` (yapısal test zorlar) + alt kayıtlarda üst kaydın şube
    kapsamı + alan hataları (`errors[alan]`) + uç sınırları.
    - Sonra OpenAPI anlık görüntüsü: `RACAR_OPENAPI_GUNCELLE=1` ile `UiApiOpenApiTests`, ardından
@@ -386,7 +386,7 @@ geçişte iki kez oldu. Para dokunmayan ama giriş/yetki/PII dokunan PR'larda ay
 - **Varlık kontrolü:** var olmayan ya da başka kiracının cari/araç kimliğiyle para veya kira yazılamaz (RLS kapsamlı
   `FindAsync`). Kirada kullanılan cari silinemez.
 - **KVKK:**
-  - `Api/Kira/MusteriGorunumu.cs` tek kural; `Anonim*` bayraklarının her biri yalnız kendi grubunu siler.
+  - `Api/Rentals/CustomerView.cs` tek kural; `Anonim*` bayraklarının her biri yalnız kendi grubunu siler.
   - TC hiçbir `/api/ui` yanıtında dönmez.
   - Maske: ≥8 karakter → son 4; 5–7 → son 2; ≤4 → tümü `*`.
 - **Testlerde:** sabit parola/kimlik YOK (GitGuardian geçmişi tarar); `WebFixture` rastgele parola. xUnit

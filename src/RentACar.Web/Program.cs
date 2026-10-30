@@ -160,7 +160,7 @@ builder.Services.AddRateLimiter(o =>
         }));
     // F3.3: yeni arayüzün istemci hata raporu (POST /api/ui/v1/istemci-hata) — IP başına; limiter kimlik
     // doğrulamadan ÖNCE koştuğu için kullanıcıya göre bölünemez. İstemci de sayfa başına 10 raporla sınırlı.
-    o.AddPolicy(RentACar.Web.Api.IstemciHata.ClientErrorApi.RatePolicy, http => RateLimitPartition.GetFixedWindowLimiter(
+    o.AddPolicy(RentACar.Web.Api.ClientErrors.ClientErrorApi.RatePolicy, http => RateLimitPartition.GetFixedWindowLimiter(
         http.Connection.RemoteIpAddress?.ToString() ?? "unknown",
         _ => new FixedWindowRateLimiterOptions
         {
@@ -171,7 +171,7 @@ builder.Services.AddRateLimiter(o =>
     // F11.1b güvenlik: dış çağrı yapan ayar eylemleri (SMTP/SMS/WhatsApp test gönderimi, alan adı ekle/doğrula) —
     // girişten AYRI kova (bu eylemler girişi kilitlemesin, giriş denemeleri de bunları tüketmesin). IP başına.
     var externalActionPermit = builder.Configuration.GetValue("RateLimit:ExternalActionPermit", 20);
-    o.AddPolicy(RentACar.Web.Api.Sistem.SystemAdminApi.ExternalActionRatePolicy, http => RateLimitPartition.GetFixedWindowLimiter(
+    o.AddPolicy(RentACar.Web.Api.SystemAdmin.SystemAdminApi.ExternalActionRatePolicy, http => RateLimitPartition.GetFixedWindowLimiter(
         http.Connection.RemoteIpAddress?.ToString() ?? "unknown",
         _ => new FixedWindowRateLimiterOptions
         {
@@ -263,7 +263,7 @@ builder.Services.AddHostedService<RentACar.Web.Jobs.PeriodInvoiceJob>(); // FAZ 
 builder.Services.AddHostedService<RentACar.Web.Jobs.EDocumentJob>(); // e-belge gönderim kuyruğu (adaptör yoksa iş de yok)
 builder.Services.AddHostedService<RentACar.Web.Jobs.KabisRetryJob>(); // KABİS kuyruğu yeniden deneme (ayar-kapılı; stub → "bağlı değil")
 builder.Services.AddHttpClient(); // TCMB kur çekimi
-builder.Services.AddSingleton<RentACar.Web.Kur.TcmbExchangeRateService>(); // TCMB kur çek/upsert (paylaşımlı KurKayitlari)
+builder.Services.AddSingleton<RentACar.Web.ExchangeRates.TcmbExchangeRateService>(); // TCMB kur çek/upsert (paylaşımlı KurKayitlari)
 builder.Services.AddHostedService<RentACar.Web.Jobs.TcmbExchangeRateJob>(); // scheduler: TCMB günlük kur (kimliksiz)
 builder.Services.AddHostedService<RentACar.Web.Jobs.OpsWatchdogJob>(); // Grafana'sız kritik alarm (config-gated: Twilio:AlertPhone)
 builder.Services.AddHostedService<RentACar.Web.Jobs.PendingDomainExpireJob>(); // PR-5: ACME kota-koruması (48s süre aşımı)

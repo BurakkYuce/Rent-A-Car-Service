@@ -1,5 +1,5 @@
 using Microsoft.EntityFrameworkCore;
-using RentACar.Application.AracKredileri;
+using RentACar.Application.VehicleLoans;
 using RentACar.Domain.Entities;
 using RentACar.Domain.Enums;
 

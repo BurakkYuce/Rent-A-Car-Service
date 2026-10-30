@@ -3,7 +3,7 @@ using Microsoft.Extensions.DependencyInjection;
 using RentACar.Application.Bookings;
 using RentACar.Application.Common;
 using RentACar.Application.Finance;
-using RentACar.Application.Kur;
+using RentACar.Application.ExchangeRates;
 using RentACar.Application.Reporting;
 using RentACar.Domain.Entities;
 using RentACar.IntegrationTests.Infrastructure;

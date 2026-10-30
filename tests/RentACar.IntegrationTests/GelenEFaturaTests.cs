@@ -1,6 +1,6 @@
 using Microsoft.Extensions.DependencyInjection;
 using RentACar.Application.Common;
-using RentACar.Application.GelenEFaturalar;
+using RentACar.Application.IncomingEInvoices;
 using RentACar.Domain.Enums;
 using RentACar.IntegrationTests.Infrastructure;
 

@@ -2,9 +2,9 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using RentACar.Application.Bookings;
 using RentACar.Application.Customers;
-using RentACar.Application.FaturaDonemleri;
+using RentACar.Application.InvoicePeriods;
 using RentACar.Application.Finance;
-using RentACar.Application.Kur;
+using RentACar.Application.ExchangeRates;
 using RentACar.Application.Vehicles;
 using RentACar.Domain.Entities;
 using RentACar.Domain.Enums;
@@ -228,7 +228,7 @@ public sealed class Faz30AdversarialKilitTests(PostgresFixture fx)
         var jobSource = await File.ReadAllTextAsync(Path.Combine(RepoRoot(),
             "src/RentACar.Infrastructure/Persistence/PeriodInvoiceGenerator.cs"));
         var manualSource = await File.ReadAllTextAsync(Path.Combine(RepoRoot(),
-            "src/RentACar.Application/FaturaDonemleri/AutoCollectionService.cs"));
+            "src/RentACar.Application/InvoicePeriods/AutoCollectionService.cs"));
         Assert.True(
             jobSource.Contains("catch (Exception ex) when (ex is not OperationCanceledException)")
             && manualSource.Contains("catch (Exception ex) when (ex is not OperationCanceledException)"),

@@ -1,5 +1,5 @@
 using Microsoft.EntityFrameworkCore;
-using RentACar.Application.Baflar;
+using RentACar.Application.Bafs;
 using RentACar.Domain.Entities;
 using RentACar.Domain.Enums;
 
@@ -27,7 +27,7 @@ public sealed class BafRepository(IDbContextFactory<AppDbContext> factory) : IBa
     /// </summary>
     public async Task<IReadOnlyList<Baf>> SearchAsync(
         RentACar.Application.Authorization.BranchScope.BranchFilter scope,
-        RentACar.Application.Baflar.BafFilter filter, CancellationToken ct = default)
+        RentACar.Application.Bafs.BafFilter filter, CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
         var q = db.Baflar.AsNoTracking()
@@ -48,7 +48,7 @@ public sealed class BafRepository(IDbContextFactory<AppDbContext> factory) : IBa
         if (filter.Lokasyon is { } lok)
         {
             // Şubelerden biri boşsa kayıt HİÇBİR kovaya girmez — bilinmeyeni "aynı" saymak yanlış bilgi olurdu.
-            q = lok == RentACar.Application.Baflar.BafLocation.AyniOfis
+            q = lok == RentACar.Application.Bafs.BafLocation.AyniOfis
                 ? q.Where(x => x.Sube != null && x.DonusSube != null && x.Sube == x.DonusSube)
                 : q.Where(x => x.Sube != null && x.DonusSube != null && x.Sube != x.DonusSube);
         }

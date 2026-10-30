@@ -19,7 +19,7 @@ namespace RentACar.Application.Finance;
 /// </summary>
 public sealed class CashService(
     ICashRepository repository, ILedgerPoster ledger, ICurrentUser currentUser, IPeriodLockGuard periodLock,
-    ICustomerRepository customers, RentACar.Application.Kur.ExchangeRateResolver exchangeRateResolver,
+    ICustomerRepository customers, RentACar.Application.ExchangeRates.ExchangeRateResolver exchangeRateResolver,
     RentACar.Application.FinancialAccounts.AccountResolver accountResolver)
 {
     private readonly ICashRepository _repository = repository;
@@ -27,7 +27,7 @@ public sealed class CashService(
     private readonly ICurrentUser _currentUser = currentUser;
     private readonly IPeriodLockGuard _lock = periodLock;
     private readonly ICustomerRepository _customers = customers;
-    private readonly RentACar.Application.Kur.ExchangeRateResolver _exchangeRateResolver = exchangeRateResolver;
+    private readonly RentACar.Application.ExchangeRates.ExchangeRateResolver _exchangeRateResolver = exchangeRateResolver;
     private readonly RentACar.Application.FinancialAccounts.AccountResolver _accountResolver = accountResolver;
 
     public Task<IReadOnlyList<CashTransaction>> ListAsync(CancellationToken ct = default)
@@ -109,7 +109,7 @@ public sealed class CashService(
         // Kur çözümü (1.1b): açık kur aynen; boş → TRY=1 / döviz KurService (yoksa net red — sessiz 1 YOK).
         var resolvedRate = await _exchangeRateResolver.ResolveAsync(input.Doviz, input.Kur, input.Tarih, ct);
         var resolvedAccount = await _accountResolver.ResolveAsync(input.HesapId, input.Hesap, ct, input.Doviz); // FAZ-50
-        var money = new Money(input.Tutar, RentACar.Application.Kur.ExchangeRateService.NormalizeCodeStrict(input.Doviz), resolvedRate);
+        var money = new Money(input.Tutar, RentACar.Application.ExchangeRates.ExchangeRateService.NormalizeCodeStrict(input.Doviz), resolvedRate);
         // FAZ-84: kanal SAF BİLGİ — CashTransaction belgesine yazılır, defter/bakiye hiç görmez.
         var channel = NormalizeChannelOrThrow(input.Kanal);
         var tx = new CashTransaction
@@ -181,7 +181,7 @@ public sealed class CashService(
             }
             else
             {
-                var exchangeRateKey = (RentACar.Application.Kur.ExchangeRateService.NormalizeCode(input.Doviz), input.Tarih?.UtcDateTime.Date);
+                var exchangeRateKey = (RentACar.Application.ExchangeRates.ExchangeRateService.NormalizeCode(input.Doviz), input.Tarih?.UtcDateTime.Date);
                 if (!exchangeRateCache.TryGetValue(exchangeRateKey, out resolvedRate))
                     exchangeRateCache[exchangeRateKey] = resolvedRate = await _exchangeRateResolver.ResolveAsync(input.Doviz, null, input.Tarih, ct);
             }
@@ -195,7 +195,7 @@ public sealed class CashService(
                         await _accountResolver.ResolveAsync(hid, input.Hesap, ct, input.Doviz);
             }
 
-            var money = new Money(input.Tutar, RentACar.Application.Kur.ExchangeRateService.NormalizeCodeStrict(input.Doviz), resolvedRate);
+            var money = new Money(input.Tutar, RentACar.Application.ExchangeRates.ExchangeRateService.NormalizeCodeStrict(input.Doviz), resolvedRate);
             // FAZ-84: satır-bazlı kanal (bozuk değer önekli hata — 500 satırda hangisi olduğu şart).
             string? channel;
             try { channel = NormalizeChannelOrThrow(input.Kanal); }
@@ -465,7 +465,7 @@ public sealed class CashService(
 
         await _lock.EnsureOpenAsync(DateTimeOffset.UtcNow, ct); // dönem kilidi (virman bugün tarihli)
         var resolvedRate = await _exchangeRateResolver.ResolveAsync(currency, exchangeRate, null, ct); // 1.1b: bugünkü kur
-        var money = new Money(amount, RentACar.Application.Kur.ExchangeRateService.NormalizeCodeStrict(currency), resolvedRate);
+        var money = new Money(amount, RentACar.Application.ExchangeRates.ExchangeRateService.NormalizeCodeStrict(currency), resolvedRate);
         // İdempotency (pre-launch takip): token verilirse SourceId o olur → kısmi unique index çift-submit'i yutar.
         var sourceId = operationKey is { } k && k != Guid.Empty ? k : Guid.NewGuid();
         var desc = description ?? $"Virman {source}→{target}";
@@ -532,7 +532,7 @@ public sealed class CashService(
         if (await _customers.FindAsync(targetAccountId, ct) is null)
             throw new ValidationException("Hedef cari bulunamadı.");
         var resolvedRate = await _exchangeRateResolver.ResolveAsync(currency, exchangeRate, null, ct); // 1.1b
-        var money = new Money(amount, RentACar.Application.Kur.ExchangeRateService.NormalizeCodeStrict(currency), resolvedRate);
+        var money = new Money(amount, RentACar.Application.ExchangeRates.ExchangeRateService.NormalizeCodeStrict(currency), resolvedRate);
         var sourceId = operationKey is { } k && k != Guid.Empty ? k : Guid.NewGuid();
         var desc = description ?? "Cari virman";
         // Künye defterle AYNI transaction'da yazılır: "defter var künye yok" durumu oluşamaz.

@@ -1,14 +1,14 @@
 using Microsoft.AspNetCore.Http.HttpResults;
 using RentACar.Application.Authorization;
-using RentACar.Application.BrokerYasaklari;
+using RentACar.Application.BrokerBans;
 using RentACar.Application.Common;
 using RentACar.Application.RateMatrices;
 using RentACar.Application.RentalRules;
-using RentACar.Application.ServisTanimlari;
+using RentACar.Application.ServiceDefinitions;
 using RentACar.Domain.Common;
 using RentACar.Domain.Entities;
 using RentACar.Domain.Enums;
-using RentACar.Web.Api.Rezervasyon;
+using RentACar.Web.Api.Reservations;
 using RentACar.Web.Identity;
 using S = RentACar.Web.Api.ServiceInsurance.ServiceInsuranceShared;
 

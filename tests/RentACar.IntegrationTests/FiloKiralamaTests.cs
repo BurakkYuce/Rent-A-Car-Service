@@ -1,6 +1,6 @@
 using Microsoft.Extensions.DependencyInjection;
 using RentACar.Application.Customers;
-using RentACar.Application.FiloKiralamalar;
+using RentACar.Application.FleetRentals;
 using RentACar.Application.Vehicles;
 using RentACar.Domain.Enums;
 using RentACar.IntegrationTests.Infrastructure;

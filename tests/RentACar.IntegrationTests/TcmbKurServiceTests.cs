@@ -6,7 +6,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
 using RentACar.Infrastructure.Persistence;
 using RentACar.IntegrationTests.Infrastructure;
-using RentACar.Web.Kur;
+using RentACar.Web.ExchangeRates;
 
 namespace RentACar.IntegrationTests;
 

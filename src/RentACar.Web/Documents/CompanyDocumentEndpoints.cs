@@ -1,5 +1,5 @@
 using Microsoft.Net.Http.Headers;
-using RentACar.Application.PlatformBelgeler;
+using RentACar.Application.PlatformDocuments;
 
 namespace RentACar.Web.Documents;
 

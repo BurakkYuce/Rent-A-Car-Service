@@ -62,7 +62,7 @@ tabanı 8 → 5), `MenuKapsamaTests` (`F9_SPA_screen_routes_are_all_in_menu`).
 **Eksik / hatalı uç (düzeltilmedi; backend bu PR'da değişmedi, ayrı iş):**
 
 - **OpenAPI şema adı çakışması:** `Api/ServiceInsurance/RegulationDtos.cs` `DueItemDto(VehicleId, Plaka, Tur, Bitis,
-KalanGun, Kova)` ile `Api/Sistem/SystemAdminApi.Messages.cs` `DueItemDto(AracId, Tur, BitisUtc, KalanGun, Gecmis)` aynı
+KalanGun, Kova)` ile `Api/SystemAdmin/SystemAdminApi.Messages.cs` `DueItemDto(AracId, Tur, BitisUtc, KalanGun, Gecmis)` aynı
   şema adına düşüyor; `docs/api/ui-v1.json`'da `GET /vade` şeması Sistem'in şeklini gösteriyor. Uç çalışma anında doğru
   JSON'u dönüyor; SPA vade satır tipini elle tanımladı (`service-insurance-model.ts`, yorumlu). Kalıcı çözüm: birini
   yeniden adlandırmak (ör. `RegulationDueItemDto`) ya da şema adı stratejisi; ardından `tipler` yeniden üretilir.

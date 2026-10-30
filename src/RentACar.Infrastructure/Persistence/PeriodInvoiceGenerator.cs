@@ -1,7 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage;
 using Npgsql;
-using RentACar.Application.FaturaDonemleri;
+using RentACar.Application.InvoicePeriods;
 using RentACar.Application.Finance;
 using RentACar.Domain.Common;
 using RentACar.Domain.Entities;
@@ -57,7 +57,7 @@ public static class PeriodInvoiceGenerator
         foreach (var a in candidates)
         {
             // FX kirası: kur çözümü servis katmanının işi (KurCozucu) — job atlar, manuel kesilir.
-            if (RentACar.Application.Kur.ExchangeRateService.NormalizeCode(a.Rental.Doviz) != "TRY")
+            if (RentACar.Application.ExchangeRates.ExchangeRateService.NormalizeCode(a.Rental.Doviz) != "TRY")
             {
                 skipped.Add($"kira {a.Rental.SozlesmeNo} dönem {a.Donem.DonemSira}: FX ({a.Rental.Doviz}) — manuel kesim");
                 continue;
@@ -212,7 +212,7 @@ public static class PeriodInvoiceGenerator
         if (r.Durum == RentalStatus.Iptal) return "kira bu sırada iptal edildi — dönem faturası kesilmedi";
         if (r.Durum != RentalStatus.Kirada) return $"kira artık Kirada değil ({r.Durum}) — dönem faturası kesilmedi";
         if (!r.DonemselFaturalama) return "kirada dönemsel faturalama kapatıldı — dönem faturası kesilmedi";
-        if (RentACar.Application.Kur.ExchangeRateService.NormalizeCode(r.Doviz) != "TRY")
+        if (RentACar.Application.ExchangeRates.ExchangeRateService.NormalizeCode(r.Doviz) != "TRY")
             return $"kira dövizi {r.Doviz} — manuel kesim";
         return null;
     }

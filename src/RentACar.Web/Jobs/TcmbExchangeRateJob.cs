@@ -1,4 +1,4 @@
-using RentACar.Web.Kur;
+using RentACar.Web.ExchangeRates;
 
 namespace RentACar.Web.Jobs;
 

@@ -3,7 +3,7 @@ using RentACar.Application.Bookings;
 using RentACar.Application.Branches;
 using RentACar.Application.Common;
 using RentACar.Application.Customers;
-using RentACar.Application.EkHizmetler;
+using RentACar.Application.AddOnDefinitions;
 using RentACar.Application.Locations;
 using RentACar.Application.RentalAddOns;
 using RentACar.Application.Vehicles;

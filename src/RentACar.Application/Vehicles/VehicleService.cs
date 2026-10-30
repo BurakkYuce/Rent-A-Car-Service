@@ -241,7 +241,7 @@ public sealed class VehicleService(
                 throw new ValidationException($"{label} negatif olamaz.");
         // #278 L4 — tarihler makul aralıkta: 1950-01-01 … bugün + 30 yıl (typo'lu yıl 0026/20266 kayda girmesin).
         foreach (var (get, getExisting, label) in DateFields)
-            if (existing is null || FiloKiralamalar.FleetRentalService.IsDateChanged(getExisting(existing), get(input)))
+            if (existing is null || FleetRentals.FleetRentalService.IsDateChanged(getExisting(existing), get(input)))
                 EnsureReasonableDate(get(input), label);
         // PR-11: üst sınır, "12" yerine "1200" yazan bir typo'nun vitrinde "1200 araç" basmasını önler.
         if (input.VitrinAdet is < 1 or > 999)

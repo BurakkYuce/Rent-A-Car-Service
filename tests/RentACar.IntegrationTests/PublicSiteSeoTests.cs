@@ -4,7 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Npgsql;
 using RentACar.Application.Blog;
-using RentACar.Application.SiteIcerik;
+using RentACar.Application.SiteContent;
 using RentACar.Application.Vehicles;
 using RentACar.Application.WebSite;
 using RentACar.Domain.Entities;

@@ -121,9 +121,9 @@ public sealed class CashRepository(IDbContextFactory<AppDbContext> factory) : IC
     internal static decimal RentalDelta(CashTransaction tx, string? rentalCurrency)
     {
         var yon = (tx.Tip == CashTransactionType.Tahsilat ? 1m : -1m) * (tx.TersKayitMi ? -1m : 1m);
-        var rental = RentACar.Application.Kur.ExchangeRateService.NormalizeCode(rentalCurrency);
+        var rental = RentACar.Application.ExchangeRates.ExchangeRateService.NormalizeCode(rentalCurrency);
         if (rental == "TRY") return yon * tx.Amount.AmountInBase;
-        if (RentACar.Application.Kur.ExchangeRateService.NormalizeCode(tx.Amount.Currency) != rental)
+        if (RentACar.Application.ExchangeRates.ExchangeRateService.NormalizeCode(tx.Amount.Currency) != rental)
             throw new ValidationException($"Kira dövizi {rental}; tahsilat/iade aynı dövizde girilmelidir.");
         return yon * tx.Amount.Amount;
     }

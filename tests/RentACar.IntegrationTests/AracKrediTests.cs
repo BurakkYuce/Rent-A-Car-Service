@@ -1,5 +1,5 @@
 using Microsoft.Extensions.DependencyInjection;
-using RentACar.Application.AracKredileri;
+using RentACar.Application.VehicleLoans;
 using RentACar.Domain.Enums;
 using RentACar.IntegrationTests.Infrastructure;
 

@@ -5,7 +5,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using RentACar.Application.Blog;
 using RentACar.Application.Branches;
-using RentACar.Application.SiteIcerik;
+using RentACar.Application.SiteContent;
 using RentACar.Application.TenantSettings;
 using RentACar.Application.Vehicles;
 using RentACar.Application.WebSite;

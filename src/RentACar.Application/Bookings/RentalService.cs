@@ -18,13 +18,13 @@ public sealed class RentalService(
     ICurrentUser currentUser,
     PricingService pricing,
     RentACar.Application.RentalAddOns.IRentalAddOnRepository addOnRepository,
-    RentACar.Application.Kur.ExchangeRateService exchangeRateService,
+    RentACar.Application.ExchangeRates.ExchangeRateService exchangeRateService,
     RentACar.Application.Personnel.IPersonnelRepository personnelRepository,
     RentACar.Application.Customers.ICustomerRepository customerRepository,
     ITenantCache cache,
     FeeLineService feeLines,
     RentACar.Application.Finance.VatDefault vatDefault,
-    RentACar.Application.FaturaDonemleri.InvoicePeriodPlanService periodPlan,
+    RentACar.Application.InvoicePeriods.InvoicePeriodPlanService periodPlan,
     RentACar.Application.Finance.ICashRepository cashRepository,
     RentACar.Application.Locations.ILocationRepository locationRepository,
     ReservationSourceRuleService sourceRule,
@@ -152,7 +152,7 @@ public sealed class RentalService(
         // Kur snapshot (denetim O5 — yalnız RAPORLAMA: CRM ciro TL-baz): TRY→1; FX→oluşturma anındaki kur
         // (SabitKur/TCMB). Kur çözülemezse FX kira REDDEDİLİR (ValidationException — fatura da aynı koşulda
         // reddederdi; sessiz 1:1 ciro yanlışlığı yerine erken temiz hata).
-        var currency = RentACar.Application.Kur.ExchangeRateService.NormalizeCode(input.Doviz);
+        var currency = RentACar.Application.ExchangeRates.ExchangeRateService.NormalizeCode(input.Doviz);
         var exchangeRateSnapshot = currency == "TRY" ? 1m : await exchangeRateService.GetRateAsync(currency, input.BasTar, ct: ct);
 
         var contract = new RentalContract
@@ -246,7 +246,7 @@ public sealed class RentalService(
         await feeLines.EnsureSystemDefinitionsAsync(contract, ct);
         await _repository.CreateRentalAsync(contract, (rental, fees) => new NewRentalLines(
             FeeLineService.LinesFor(rental, fees),
-            RentACar.Application.FaturaDonemleri.InvoicePeriodPlanService.BuildPlan(rental)), ct);
+            RentACar.Application.InvoicePeriods.InvoicePeriodPlanService.BuildPlan(rental)), ct);
         return contract.Id;
     }
 

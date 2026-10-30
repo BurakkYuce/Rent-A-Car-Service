@@ -1,7 +1,7 @@
 using RentACar.Api.Common;
 using RentACar.Api.Dtos;
 using RentACar.Application.Authorization;
-using RentACar.Application.EkHizmetler;
+using RentACar.Application.AddOnDefinitions;
 
 namespace RentACar.Api.Endpoints;
 

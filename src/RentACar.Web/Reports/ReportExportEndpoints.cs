@@ -3,7 +3,7 @@ using RentACar.Application.Authorization;
 using RentACar.Application.Reporting;
 using RentACar.Domain.Enums;
 using RentACar.Infrastructure.Persistence;
-using RentACar.Web.Api.Rapor;
+using RentACar.Web.Api.Reports;
 using RentACar.Web.Identity;
 
 namespace RentACar.Web.Reports;
@@ -27,7 +27,7 @@ public static class ReportExportEndpoints
             CustomerMask? nameMask = null;
             async Task<CustomerMask> NameMask() => nameMask ??= await CustomerMask.LoadAsync(dbf, null, ct);
 
-            // Tarihler EKRANLA AYNI kuralla çözülür (Api/Rapor/ReportPeriod): bağlantılar yyyy-MM-dd İSTANBUL günü
+            // Tarihler EKRANLA AYNI kuralla çözülür (Api/Reports/ReportPeriod): bağlantılar yyyy-MM-dd İSTANBUL günü
             // taşır. Eskiden FormParse.Date sunucunun yerel saatinde gece yarısına çeviriyordu → +03 sunucuda gün bir
             // geri kayıyor (Günlük Faaliyet / Araç Günlük Durum dünü veriyordu) ve "to" bitiş gününün BAŞI olduğu için
             // bitiş günü hiç dahil olmuyordu (Karşılaştırmalı CSV'de bugün başlayan kira eksikti).

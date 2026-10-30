@@ -1,5 +1,5 @@
 using RentACar.Application.Authorization;
-using RentACar.Application.BelgeSablon;
+using RentACar.Application.DocumentTemplates;
 using RentACar.Application.Bookings;
 using RentACar.Application.Customers;
 using RentACar.Application.Finance;

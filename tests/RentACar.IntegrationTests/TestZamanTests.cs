@@ -1,6 +1,6 @@
 using Microsoft.Extensions.DependencyInjection;
 using RentACar.Application.Customers;
-using RentACar.Application.RezSartlar;
+using RentACar.Application.ReservationTerms;
 using RentACar.Domain.Enums;
 using RentACar.IntegrationTests.Infrastructure;
 

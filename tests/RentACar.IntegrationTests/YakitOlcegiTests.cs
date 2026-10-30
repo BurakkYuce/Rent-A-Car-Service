@@ -5,7 +5,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Migrations.Operations;
 using Microsoft.Extensions.DependencyInjection;
 using Npgsql;
-using RentACar.Application.Baflar;
+using RentACar.Application.Bafs;
 using RentACar.Application.Bookings;
 using RentACar.Application.Common;
 using RentACar.Domain.Common;
