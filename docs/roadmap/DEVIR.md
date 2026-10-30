@@ -19,7 +19,7 @@ açık kararıyla ve `docs/roadmap/DEGISIKLIKLER.md` kaydıyla olur. Çekirdekte
 
 ## 1. Durum (her merge'den sonra güncelle)
 
-Güncelleme: 2026-10-29 (geçiş sonrası işler aşağıda "2026-09-30 – 10-29"). **ANGULAR GEÇİŞİ KODDA KAPANDI: F4–F12 ve F13 söküm main'de** (#348 F13.0 karar + F12 kesiş,
+Güncelleme: 2026-10-30 (geçiş sonrası işler aşağıda "2026-09-30 – 10-29" ve "2026-10-30 Low serisi"). **ANGULAR GEÇİŞİ KODDA KAPANDI: F4–F12 ve F13 söküm main'de** (#348 F13.0 karar + F12 kesiş,
 #349 F13.1a sayfalar + form uçları, #350 F13.1b kabuk + pilot kapısı + 301, F13.2 belgeler). Web'de Blazor yok (`@page`
 = 0); arayüz yalnız `/app` (Angular), veri yalnız `/api/ui/v1`; eski adresler herkes için 301. Pilot kapısı kalktı
 (`YeniArayuzPilot` kolonu `DropYeniArayuzPilot` migration'ıyla düştü). **CANLIYA YAYIN YOK** — F2.2 sunucu adımları
@@ -141,20 +141,36 @@ olabilir). Açık PR yoksa "Sırada" listesinin ilk maddesi.
   - **#395 yetki tur 3:** şube yazmaları yalnız Admin, dönem kilidini açmak FinanceReverse. Test kararlılığı #396, #402.
   - **#398 `docs/harita.md`:** "X nerede?" sorusunun tek giriş noktası.
   - Satış (pazarlama) sitesi ayrı repoda: `github.com/BurakkYuce/rentpro-site` — bu repoda değil.
+  - **2026-10-29 kapanışları:** #406 belge, #407 HGS zaman/mükerrer (PARA), #408 site kod adları İngilizce, #409
+    `YeniArayuzPilot` düştü, #410 e-Fatura ayrı GİB serisi + test/canlı ortam (3 adversarial tur), #411 ayar satırı
+    olmayan firmanın alan adı, #412/#413 talep formu saat/tarih sınırı + `?hata=` yalnız kod.
+- **2026-10-30 Low serisi (hepsi CI yeşil; para olanlar bağımsız adversarial, son tur C/H/M = 0):**
+  - #414 e-Fatura L8 (GİB serisi iç fatura numaralarında kullanılmışsa ayar reddi) + L9 (bilinen sır maskesinde geniş
+    ayraç). Adaptör öncesi e-Fatura Low'u kalmadı; kabul edilmiş riskler PR #410 açıklamasında.
+  - #415 ofis adı: `errors[ad]` alanı + 8 test (tekillik zaten H1'de kapalıydı; İ/ı ayrımı aşağıda §6).
+  - **#416 kira oluşturma ATOMİK (PARA, 2 tur):** kira + SYS-* ücret satırları + dönem planı (+ çevirmede rezervasyon
+    güncellemesi ve sözleşme no) tek transaction. Önce: ücret adımı düşerse ücretsiz kira kalıyordu, çevrilen uzun
+    kiraya hiç plan oluşmuyordu. Tur 1 M1 (deadlock yeniden denemesinde çift ücret satırı → 500) ve L1 (kilit altında
+    ek bağlantı → havuz tükenmesi) düzeltildi; ücret girdileri kilitten ÖNCE okunur, rezervasyon arada değişirse 409
+    `cakisma`. Açık L2 aşağıda §6. Test `KiraOlusturmaAtomikTests`.
+  - **#417 + #419 beklenen oturum başlığı (PARA):** SPA anahtarlı her yazmada `X-Beklenen-Oturum: kiraciId|kullaniciId`
+    gönderir (anahtar ilk görüldüğü kimliğe bağlanır, yalnız çıkışta temizlenir); sunucu `ExpectedSessionFilter`
+    uyuşmazlıkta 409 `oturum_degisti`, yazma yok. #320 L2 TOCTOU, #331 L1 (sekmeler arası `ben` yeniden denemesi),
+    #318 L2 notu ve aynı tarayıcıda kullanıcı değişince rastgele anahtarlı formun ikinci kayıt yazması kapandı.
+    Başlık GET'e, `oturum/*`'a, `/api/ui/v1/platform/*`'a ve anahtarsız yazmaya eklenmez (Vitest çiti).
+  - #418 harici API (`/api/v1`) ofsetli tarih (`+03:00`) 500 yerine UTC'ye çevrilir; bozuk tarih 400.
 
 ### ⏳ Açık PR
-- 2026-10-29: #406 (bu belge), #407 (HGS #391 L1), #408 (site kod adları İngilizce), #409 (`YeniArayuzPilot` düşür).
-  Gerçek durum için `rtk gh pr list --state open`.
+- 2026-10-30: yok (bu belge hariç). Gerçek durum için `rtk gh pr list --state open`.
 
 ### ⬜ Sırada (başlamadı)
 1. ~~F12 kesiş~~ ve ~~F13 söküm~~ **BİTTİ (2026-09-26).** Yayın öncesi (kullanıcıda): F2.2 sunucu adımları → `/app`
-   üretim doğrulaması → canlı duman testi (README "Doğrulama"; 301'ler, giriş, 403/404 bandı, platform konsolu). Ayrı
-   küçük temizlikler: SPA'daki ölü `ben.pilot === false` dalı; ~~`YeniArayuzPilot` kolonunu düşüren migration~~ (bitti);
-   `PlatformIsolation` atlama listesindeki `/_blazor|_framework|_content`.
-2. **Low kalıntıları** (§6 "2026-09-25 Low'ları" — kalanlar: #320 L2 tekrar-öncesi doğrulama ile POST arası TOCTOU
-   [kalıcı çözüm sunucuda beklenen kullanıcı başlığı], #331 L1 başarısız sekmeler arası yenilemede yeniden deneme yok,
-   #318 L2 isteğe bağlı "diğer formun tahsilatı yazıldı" notu, `AccountRef` bileşik FK'leri). Ofis adı tekilliği
-   uygulama düzeyinde kapalı (§6); DB unique index + mevcut çift kayıt temizliği isteğe bağlı kullanıcı kararı.
+   üretim doğrulaması → canlı duman testi (README "Doğrulama"; 301'ler, giriş, 403/404 bandı, platform konsolu).
+   Küçük temizlikler BİTTİ (doğrulandı 2026-10-30): ölü `ben.pilot` dalı, `YeniArayuzPilot` kolonu, `PlatformIsolation`
+   Blazor yolları.
+2. **Low kalıntıları** (§6): #416 L2 (bayat ana veriyle ücret), #419 L1–L3 (oturum başlığı iş akışı kilidi, `ben`
+   öncesi bağsız gönderim, anahtarsız para yolları), `AccountRef` bileşik FK'leri (defter hesap referansı polimorfik;
+   düz FK kurulamaz, ayrı tasarım). Ofis adı DB unique index + İ/ı normalize kuralı kullanıcı kararı.
 3. ~~F4.6b / F5–F11 Blazor sayfa silme ve F13 söküm~~ **BİTTİ (#349, #350)** — kullanıcı kararıyla pilot beklenmeden.
    Blazor'daki bilinen okuma sızıntıları (CRM listeleri tüm şubeler, `CustomerEdit.razor` maskesi, `/cariler/{id}/ekstre`
    operatöre açık — Karar (7)) sayfalarla birlikte KAPANDI (yayından sonra canlıda da).
@@ -444,7 +460,11 @@ Etiketsiz madde açıktır.
   `Idempotency-Key` zorunlu, `RentalAddOns.IslemAnahtari` + kısmi unique index, kira kilidi altında yeniden arama,
   SPA `formGonderimi` ile işlem başına anahtar (envanter E37; test `LowTemizligiBUiTests.Ek_hizmet_*`). Blazor ve
   SYS-* yolu bilinçli anahtarsız (F13'te Blazor kalkınca kapanır).
-- **Kira oluşturma atomik değil:** ücret satırları ve dönem planı ayrı adımda (açık, ayrı iş — Low PR'larına girmez).
+- ~~**Kira oluşturma atomik değil**~~ KAPALI (#416). Açık **#416 L2 (Low):** ücret girdileri (müşteri doğum tarihi,
+  grup genç sürücü ücreti, drop tanımı, araç grubu, SYS tanımı KDV'si) transaction'dan ÖNCE okunur; bu ana veri
+  okumayla rezervasyon kilidi arasında değişirse ücret eski değerle yazılır (pencere ms, kilit çekişmesinde uzar;
+  deftere yazmaz; kiranın sonraki güncellemesinde `SyncContractFeesAsync` düzeltir). Çözüm: girdileri kilit altında
+  transaction'ın KENDİ bağlantısıyla oku (L1 korunur). Probe'lar `koordinasyon/adv-416-ProbeTests.cs` P8c–e.
 - ~~`RentalsApi` (harici): yabancı ya da olmayan müşteri/araç kontrolü yok~~ KAPALI: kira için kontrol
   `RentalService.CreateDirectAsync` girişinde (harici API, `/api/ui`, Blazor aynı kural; uç kopyaları kaldırıldı).
   ~~Rezervasyon/teklif yolunda servis düzeyinde varlık kontrolü yok (#328 Low-1)~~ KAPALI: tek kural
@@ -453,13 +473,14 @@ Etiketsiz madde açıktır.
   harici API, `/api/ui` (rezervasyon + teklif) ve Blazor aynı mesaj/alanla (`musteriId`/`vehicleId`) reddeder. Uç
   kopyaları (`RentalsApi.VarlikKontroluAsync`, `RezervasyonApi.VarlikAsync`) kaldırıldı; `/api/ui` filo kiralama ucu
   aynı yardımcıyı çağırır. Test `RezTeklifVarlikKontroluTests`.
-  Açık kalan: kalıcı çözüm bileşik FK (migration); `FiloKiralamaService` (Blazor filo formu) servis düzeyinde
-  denetlemiyor.
+  Açık kalan: kalıcı çözüm bileşik FK (migration). (`FleetRentalService` de artık `BookingPartyCheck` çağırır.)
 - ~~Ofis adları normalize anahtarda tekil değil~~ KAPALI (uygulama düzeyi, H1 58bfaf72 + fix/ofis-adi-tekil):
   `LocationRepository.RequireUniqueNameAsync` oluşturma ve iki güncelleme yolunda `OfficeNameKey.Generate` (trim +
   ToLowerInvariant — interceptor'la TEK kural) ile reddeder (`errors[ad]`), kiracı başına advisory kilit altında.
   Tarihsel çiftler farklı şubedeyse interceptor/`FindByNameAsync` BELİRSİZ → null (metin yolu). Açık: DB unique index
-  yok (Postgres `lower('İ')` .NET'ten farklı; canlıdaki çiftler migration'ı kırar) — kullanıcı kararı.
+  yok (Postgres `lower('İ')` .NET'ten farklı; canlıdaki çiftler migration'ı kırar) — kullanıcı kararı. Bilgi:
+  `ToLowerInvariant` `İ`/`ı`'yı değiştirmez → "İzmir Merkez" ile "IZMIR MERKEZ" ayrı anahtar (sızıntı değil, eşleşme
+  kaçar → metin yolu); Türkçe kültür kuralına geçmek mevcut veriyi etkiler, kullanıcı kararı.
 - ~~Yakıt ölçeği: kullanıcı kararı bekliyor~~ KAPANDI (2026-09-25): tek iç ölçek 0–12, harici API sınırda yüzde↔12 (§1).
 - ~~Üretimde bağlama hatası `kod`suz 400~~ KAPALI (doğrulandı 2026-09-25): `UiApiExtensions.GenelProblem` 400'ü `dogrulama` koduyla döner.
 - ~~22001/22003 güvenlik ağı Warning~~ KAPALI (doğrulandı 2026-09-25): `UiApiExtensions.LogSeviyesi`.
@@ -480,13 +501,19 @@ Etiketsiz madde açıktır.
 
 **2026-09-25 Low'ları (açık)**
 - SPA: donmuş denemenin tekrarı kesin redle (403/400) dönünce "önceki denemenin sonucu bilinmiyor" notu siliniyor
-  (#320 L1; satış formundaki `rejected` kancasının genel hali). Tekrar öncesi doğrulama ile POST arasında
-  milisaniyelik TOCTOU (#320 L2; kalıcı çözüm sunucuda beklenen kullanıcı başlığı). Sekmeler arası aynı kullanıcının
-  şube değişimi `ben`'i yenilemiyor (görünüm, para riski yok).
+  (#320 L1; KAPALI #324). ~~Tekrar öncesi doğrulama ile POST arasında milisaniyelik TOCTOU (#320 L2)~~ KAPALI
+  (#417/#419 beklenen oturum başlığı). ~~Sekmeler arası şube değişimi `ben`'i yenilemiyor~~ KAPALI (#330/#331, #417).
+- **#419 Low'ları (açık, hepsi fail-closed):** L1 aynı sekmede kullanıcı değişince A'ya bağlı anahtarda B her denemede
+  409 alır, sayfa yenilenince kalkar (sunucu mesajı artık "sayfayı yenileyin" der; bağ yalnız belirsiz denemelerde
+  tutulabilir). L2 `ben` yüklenmeden ilk gönderim bağsız gider (pratikte 401). L3 anahtarsız para yolları (iade, dönem
+  faturası, ters kayıt, kiraya çevirme, toplu fatura, teslim/dönüş …) başlık taşımaz: çift yazım yapısal olarak yok,
+  yalnız bayat sekmeden yanlış kullanıcı adına yazılabilir — öneri: interceptor anahtarsız yazmaya o anki kimliği
+  bassın. Bilgi: `ApiIstemcisi` `%2e%2e` içeren yolu reddetmiyor (kullanıcı girdisinden yol üreten para yolu yok).
+  Rapor `koordinasyon/adv-419-rapor.md`.
 - ~~Backend: firmanın kendi IBAN/VKN'si denetimde tamamen `***`~~ KAPALI (2026-09-25, kullanıcı kararı): firma
   IBAN'ı/VKN'si denetimde `********1234` (son 4), kural `AuditSecretMask` izin listesinde; bkz. KARARLAR (#319 L2). ~~Personel seçim listesi şubeye göre süzülmüyor~~ KAPALI
   (doğrulandı 2026-09-25): `/secim/personel` `SecimService.PersonelAsync`'te `BranchScope.InScope` ile süzülür. Kira paneli: Nakit sonuçlanınca kirli Kart formu yeni anahtarla
-  İKİNCİ tahsilat olarak yazılıyor (#318 L2 tasarımı; isteğe bağlı "diğer formun tahsilatı yazıldı" notu).
+  İKİNCİ tahsilat olarak yazılıyor (#318 L2 tasarımı; "diğer formun tahsilatı yazıldı" notu #417'de eklendi).
 - Kullanıcı kararı bekleyen: şube kapsamlı operatör kirasız assistans talebi açamıyor (#317 L1 yan etkisi).
 
 **2026-09-24 gece Low'ları — 2026-09-25'te KAPANDI** (#313, #314, #315, #316, #317, #319, #321)

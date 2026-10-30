@@ -291,7 +291,7 @@ public static class UiApiExtensions
         if (http.Request.Headers.TryGetValue(ExpectedSessionHeader, out var expected)
             && !SameSession(http.User, expected.ToString()))
             return ValueTask.FromResult<object?>(UiError.Problem(UiError.SessionChanged,
-                "Bu işlem başka bir oturumda başlatılmıştı; tarayıcıdaki oturum değişmiş. İşlem yazılmadı."));
+                "Bu işlem başka bir oturumda başlatılmıştı; tarayıcıdaki oturum değişmiş. İşlem yazılmadı. Sayfayı yenileyip yeniden deneyin."));
         return next(c);
     }
 
