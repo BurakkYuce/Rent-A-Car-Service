@@ -8,7 +8,12 @@ import { TestBed } from '@angular/core/testing';
 
 import type { OturumBaglami } from '../oturum/oturum-baglami';
 import { SessionService } from '../oturum/session-service';
-import { MONEY_SESSION_CHANNEL, type MoneyAttempt, PendingMoneyAttempts } from './money-attempts';
+import {
+  MONEY_SESSION_CHANNEL,
+  type MoneyAttempt,
+  PAGE_MONEY_ATTEMPTS,
+  PendingMoneyAttempts,
+} from './money-attempts';
 
 /** Kanal mesajı eşzamansız: yük altında varsayılan 1 sn'den geniş bekle. */
 const wait = (fn: () => void) => vi.waitFor(fn, { timeout: 5000 });
@@ -21,7 +26,7 @@ const KADIKOY = 't1|u1|sube-kadikoy';
 const OTHER_USER = 't1|u2|sube-merkez';
 
 /** Bir "sekme": kendi enjektörü ve kendi oturum sahtesi; kanal Node'un gerçek `BroadcastChannel`'ı. */
-function sekme(channelName: string, first: string, loggedIn = false) {
+function sekme(channelName: string, first: string, loggedIn = false, pageScoped = false) {
   const context: WritableSignal<OturumBaglami | null> = signal({ anahtar: first });
   // Varsayılan `yukle` sonucu null = ağ/5xx (`ben` korunur); `loggedIn` true ise oturum açık sayılır.
   const load = vi.fn(async (): Promise<unknown> => null);
@@ -41,15 +46,21 @@ function sekme(channelName: string, first: string, loggedIn = false) {
     ],
     TestBed.inject(EnvironmentInjector),
   );
+  // Sayfa `providers`'ındaki örnek (fatura/gider/ceza/araç satış listeleri); kök örnek yalnız onun üzerinden kurulur.
+  const page = pageScoped ? createEnvironmentInjector(PAGE_MONEY_ATTEMPTS, enj) : null;
   return {
-    kayit: enj.get(PendingMoneyAttempts),
+    kayit: (page ?? enj).get(PendingMoneyAttempts),
+    kok: () => enj.get(PendingMoneyAttempts),
     yukle: load,
     /** Sekmenin kendi `ben`'i değişti (ör. şube kapsamı sunucuda değişip bu sekme yeniden okudu). */
     degistir: (key: string) => {
       context.set({ anahtar: key });
       TestBed.tick();
     },
-    kapat: () => enj.destroy(),
+    kapat: () => {
+      page?.destroy();
+      enj.destroy();
+    },
   };
 }
 
@@ -72,8 +83,8 @@ describe('PendingMoneyAttempts — sekmeler arası şube değişimi', () => {
     channelName = `rc-oturum-baglami-test-${crypto.randomUUID()}`;
   });
   const open: ReturnType<typeof sekme>[] = [];
-  const openItem = (first: string, loggedIn = false) => {
-    const s = sekme(channelName, first, loggedIn);
+  const openItem = (first: string, loggedIn = false, pageScoped = false) => {
+    const s = sekme(channelName, first, loggedIn, pageScoped);
     open.push(s);
     TestBed.tick();
     return s;
@@ -171,5 +182,26 @@ describe('PendingMoneyAttempts — sekmeler arası şube değişimi', () => {
     window.dispatchEvent(new Event('focus'));
     await sus();
     expect(b.yukle).toHaveBeenCalledTimes(1);
+  });
+
+  it('#417 L3: sayfa kapsamlı örnek kanal/odak dinleyicisi KURMAZ — duyuru ve odak başına TEK ben; kök örneği kendisi kurar, sayılar ayrı kalır', async () => {
+    const a = openItem(HEAD_OFFICE, true);
+    const b = openItem(HEAD_OFFICE, true, true); // yalnız sayfa örneği istendi; kök fabrika üzerinden kurulur
+    expect(b.kok()).not.toBe(b.kayit);
+
+    a.degistir(OTHER_USER);
+    await wait(() => expect(b.yukle).toHaveBeenCalledTimes(1)); // eskiden 2 (kök + sayfa)
+    await sus();
+    expect(b.yukle).toHaveBeenCalledTimes(1);
+
+    window.dispatchEvent(new Event('focus')); // okuma başarısızdı (null): bir kez yeniden denenir
+    await wait(() => expect(b.yukle).toHaveBeenCalledTimes(2));
+    await sus();
+    expect(b.yukle).toHaveBeenCalledTimes(2); // eskiden 4
+
+    // Davranış aynı: sayfa örneği kendi denemelerini sayar, kökünkü ayrı.
+    b.kayit.set('fatura-tahsilat', attempt('t1|u1'));
+    expect(b.kayit.count()).toBe(1);
+    expect(b.kok().count()).toBe(0);
   });
 });

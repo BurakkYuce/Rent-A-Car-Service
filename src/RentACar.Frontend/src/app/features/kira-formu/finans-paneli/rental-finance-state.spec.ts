@@ -112,7 +112,7 @@ const collections = (c: readonly Cagri[]) => c.filter((x) => x.yol.endsWith('/fi
 const body = (c: Cagri | undefined) => c?.govde as Record<string, unknown>;
 
 describe('KiraFinansDurumu — tahsilat (deterministik anahtar)', () => {
-  it('ön-doldurur; gövdede detaydaki anahtar, BAŞLIK YOK; 2xx sonrası yeni detayın anahtarıyla ikinci meşru tahsilat', async () => {
+  it('ön-doldurur; gövdede ve başlıkta detaydaki anahtar (istemci anahtarı yok); 2xx sonrası yeni detayın anahtarıyla ikinci meşru tahsilat', async () => {
     const { f, cagrilar, degisti, detayVer, toast } = await exchangeRate(() => of({ id: 'c1' }));
     detayVer(detay(tahsilat(K1)));
     expect(f.nakit.form.getRawValue()).toMatchObject({ tutar: '2600.00', doviz: 'TRY' });
@@ -129,7 +129,8 @@ describe('KiraFinansDurumu — tahsilat (deterministik anahtar)', () => {
       doviz: 'TRY',
     });
     expect('kur' in body(first)).toBe(false); // TRY'de kur gönderilmez
-    expect(first?.secenek?.islemAnahtari).toBeUndefined(); // deterministikte başlık tüketilmez
+    // #417 L2: başlık gövdedeki deterministik anahtarın AYNISI (interceptor onu denemenin kimliğine bağlar).
+    expect(first?.secenek?.islemAnahtari).toBe(K1);
     expect(toast.basari).toHaveBeenCalledWith('Tahsilat kaydedildi.');
     expect(degisti).toHaveBeenCalledTimes(1);
 
@@ -169,7 +170,7 @@ describe('KiraFinansDurumu — tahsilat (deterministik anahtar)', () => {
     const [a, b] = collections(cagrilar);
     expect(body(b)['tahsilatAnahtar']).toBe(K1);
     expect(JSON.stringify(b?.govde)).toBe(JSON.stringify(a?.govde));
-    expect(b?.secenek?.islemAnahtari).toBeUndefined(); // anahtarsız/başlıklı tekrar yok
+    expect(b?.secenek?.islemAnahtari).toBe(K1); // tekrar da AYNI (donmuş) anahtarı taşır, istemci anahtarı yok
   });
 
   it('açık (kirli) form eski satır kopyasını korur: bayat anahtar gönderilir → sunucu 409 verir', async () => {

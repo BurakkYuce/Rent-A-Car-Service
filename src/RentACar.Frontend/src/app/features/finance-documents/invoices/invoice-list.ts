@@ -14,7 +14,7 @@ import { ActivatedRoute, RouterLink } from '@angular/router';
 import { TranslocoPipe } from '@jsverse/transloco';
 import { finalize } from 'rxjs';
 
-import { PendingMoneyAttempts } from '@core/form/money-attempts';
+import { PAGE_MONEY_ATTEMPTS, PendingMoneyAttempts } from '@core/form/money-attempts';
 import { toApiError } from '@core/api/api-hatasi';
 import { ApiIstemcisi } from '@core/api/api-istemcisi';
 import { type UnsavedChangesOwner, pageLeaveGuard } from '@core/form/kaydedilmemis-degisiklik';
@@ -103,7 +103,7 @@ import { PlateChipComponent } from '@shared/plaka/plaka';
     DatePicker,
     EnumLabelPipe,
   ],
-  providers: [FetchPolicy, InvoiceStore, CustomerLabels, PendingMoneyAttempts],
+  providers: [FetchPolicy, InvoiceStore, CustomerLabels, PAGE_MONEY_ATTEMPTS],
   templateUrl: './invoice-list.html',
   styleUrl: '../finance-documents.scss',
 })

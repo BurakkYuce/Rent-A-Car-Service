@@ -3,6 +3,7 @@ import {
   DestroyRef,
   Injectable,
   InjectionToken,
+  type Provider,
   type Signal,
   computed,
   effect,
@@ -216,3 +217,21 @@ export class PendingMoneyAttempts {
     this.attempts.set(next);
   }
 }
+
+/**
+ * Sayfa kapsamlı {@link PendingMoneyAttempts} (sayfa `providers`'ına): sayfa terk koruması ve "uçuşta" düğme pasifliği
+ * o sayfanın denemelerini sayar. #417 L3: sekmeler arası kanal ve `ben` yeniden deneme dinleyicileri YALNIZ kök örnekte
+ * — sayfa örneği de kursaydı her duyuru/odak olayı iki `ben` isteği üretirdi. Kök örnek burada kurulur (sekmede başka
+ * para ekranı açılmamış olsa da kanal dinlenir); `ben` uygulama geneli tek değer, kökün okuması sayfa örneğinin kimlik
+ * kuralını da besler.
+ */
+export const PAGE_MONEY_ATTEMPTS: Provider[] = [
+  { provide: MONEY_SESSION_CHANNEL, useValue: null },
+  {
+    provide: PendingMoneyAttempts,
+    useFactory: () => {
+      inject(PendingMoneyAttempts, { skipSelf: true });
+      return new PendingMoneyAttempts();
+    },
+  },
+];

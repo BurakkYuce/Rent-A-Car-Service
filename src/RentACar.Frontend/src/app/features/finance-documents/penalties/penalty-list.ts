@@ -13,7 +13,7 @@ import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angula
 import { TranslocoPipe } from '@jsverse/transloco';
 import { finalize } from 'rxjs';
 
-import { PendingMoneyAttempts } from '@core/form/money-attempts';
+import { PAGE_MONEY_ATTEMPTS, PendingMoneyAttempts } from '@core/form/money-attempts';
 import { toApiError } from '@core/api/api-hatasi';
 import { ApiIstemcisi } from '@core/api/api-istemcisi';
 import { type UnsavedChangesOwner, pageLeaveGuard } from '@core/form/kaydedilmemis-degisiklik';
@@ -78,7 +78,7 @@ type PaymentStatus = (typeof PENALTY_PAYMENT_STATUSES)[number];
     DatePipe,
     DatePicker,
   ],
-  providers: [FetchPolicy, PenaltyStore, PendingMoneyAttempts],
+  providers: [FetchPolicy, PenaltyStore, PAGE_MONEY_ATTEMPTS],
   templateUrl: './penalty-list.html',
   styleUrl: '../finance-documents.scss',
 })

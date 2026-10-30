@@ -112,6 +112,7 @@
     "zorunlu": "zorunlu",
     "genelHata": "Kayıt yapılamadı. Aşağıdaki hataları düzeltip yeniden deneyin.",
     "gonderiliyor": "Gönderiliyor…",
+    "oturumUyusmadi": "Tarayıcıdaki oturum bu kaydı başlatan kullanıcıdan farklı (başka sekmede başka kullanıcı ya da firmayla giriş yapılmış olabilir). Sunucu bu gönderimi YAZMADI; formdaki bilgiler ve işlem anahtarı korunuyor. Aynı kullanıcıyla devam ediyorsanız yeniden kaydedin, çift kayıt oluşmaz. Başka kullanıcıyla devam edecekseniz önce önceki denemenin sonucunu kontrol edin, sonra sayfayı yenileyin.",
     "hata": {
       "zorunlu": "Bu alan zorunlu.",
       "isaretZorunlu": "Devam etmek için işaretleyin.",

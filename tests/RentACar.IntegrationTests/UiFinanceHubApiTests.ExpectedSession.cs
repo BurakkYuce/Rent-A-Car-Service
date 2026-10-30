@@ -107,4 +107,58 @@ public sealed partial class UiFinanceHubApiTests
         Assert.Equal(0m, await BalanceAsync(e, e.CustomerA));
         Assert.Equal(0, await DbAsync(e, db => db.AccountLedgerEntries.CountAsync()));
     }
+
+    /// <summary>
+    /// #417 L1 (adversarial P4'ün kalıcı karşılığı): rastgele anahtarlı form artık anahtarı İLK gönderimdeki kimliğe bağlar
+    /// ve tekrarda da başlığı gönderir. İlk gönderim yazıldı (yanıt kayboldu), başka sekmede admin girdi, aynı anahtarla
+    /// tekrar → 409, ikinci yazım yok. Oracle: tek işlem 500 → bakiye 500 (başlıksız tekrar 1000 yapıyordu).
+    /// </summary>
+    [Fact]
+    public async Task Expected_session_header_on_retry_after_user_switch_prevents_second_write()
+    {
+        var e = await SetupAsync();
+        var c = fx.Web.Client();
+        var (accountantSession, accountant) = await LoginOnAsync(c, e, Who.Accountant);
+        var key = NewKey();
+        await IdOf(await AdjustAsync(accountantSession, e.CustomerA, 500m, key, accountant));
+
+        var (admin, _) = await LoginOnAsync(c, e, Who.Admin);
+        await Problem(await AdjustAsync(admin, e.CustomerA, 500m, key, accountant), HttpStatusCode.Conflict, "oturum_degisti");
+
+        Assert.Equal(500m, await BalanceAsync(e, e.CustomerA));
+    }
+
+    /// <summary>
+    /// #417 L2: deterministik kira tahsilatı (gövdede <c>tahsilatAnahtar</c>; başlıkta aynı değer + denemenin kimliği). İlk
+    /// deneme sunucuya ULAŞMADI, başka sekmede admin girdi: muhasebecinin tekrarı admin adına YAZILMAZ (409, kasa 0); admin
+    /// kendi kimliğiyle gönderince tek tahsilat yazılır (kasa 1).
+    /// </summary>
+    [Fact]
+    public async Task Expected_session_header_on_deterministic_collection_is_not_written_for_other_user()
+    {
+        var e = await SetupAsync();
+        var c = fx.Web.Client();
+        var (_, accountant) = await LoginOnAsync(c, e, Who.Accountant);
+        var detail = await Ok(await c.GetAsync(Root + $"/kiralar/{e.Rental}"));
+        var key = detail.GetProperty("tahsilat").GetProperty("anahtar").GetGuid().ToString();
+        var (admin, adminIdentity) = await LoginOnAsync(c, e, Who.Admin);
+
+        Task<HttpResponseMessage> CollectAsync(string expected)
+        {
+            var req = new HttpRequestMessage(HttpMethod.Post, V1 + "/tahsilat")
+            {
+                Content = JsonContent.Create(new { cariId = e.CustomerA, kiraId = e.Rental, tutar = 100m, hesap = "Kasa", tahsilatAnahtar = key }),
+            };
+            req.Headers.Add("X-XSRF-TOKEN", admin.Xsrf);
+            req.Headers.Add("Idempotency-Key", key);
+            req.Headers.Add(ExpectedSessionHeader, expected);
+            return admin.C.SendAsync(req);
+        }
+
+        await Problem(await CollectAsync(accountant), HttpStatusCode.Conflict, "oturum_degisti");
+        Assert.Equal(0, await CashCountAsync(e));
+
+        await IdOf(await CollectAsync(adminIdentity));
+        Assert.Equal(1, await CashCountAsync(e));
+    }
 }

@@ -11,7 +11,12 @@ import { inject } from '@angular/core';
 import { catchError, from, Observable, switchMap, throwError } from 'rxjs';
 
 import { type ApiHatasiBilgisi, toApiError } from '@core/api/api-hatasi';
-import { API_ROOT, XSRF_HEADER } from '@core/api/api-istemcisi';
+import {
+  API_ROOT,
+  EXPECTED_SESSION_HEADER,
+  IDEMPOTENCY_HEADER,
+  XSRF_HEADER,
+} from '@core/api/api-istemcisi';
 import { ToastService } from '@core/geri-bildirim/toast-service';
 import { WarningBannerService } from '@core/geri-bildirim/warning-banner-service';
 import { translationFunction } from '@core/i18n/ceviri';
@@ -30,6 +35,36 @@ import { SessionService } from './session-service';
 import { ReloginService } from './relogin-service';
 
 const SAFE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS', 'TRACE']);
+
+/**
+ * `X-Beklenen-Oturum` HİÇ eklenmeyen yollar (#417 I3): oturum uçları (giriş/çıkış/`ben`/xsrf — sunucu filtresi bunlara da
+ * uygulanır; başlık girişi ve yeniden girişi kırardı) ve platform konsolu (kiracı kimliği yok, kendi oturumu).
+ */
+const NO_EXPECTED_SESSION_PREFIXES = [`${API_ROOT}/oturum/`, `${API_ROOT}/platform/`];
+
+/**
+ * #417 L1/L2: `Idempotency-Key` taşıyan yazma isteği, anahtarın bağlı olduğu kimlikle (`expectedIdentityFor`)
+ * `X-Beklenen-Oturum` başlığını alır — gönderim kilidi/`formSubmission`, deterministik tahsilat ve anahtarlı her form
+ * tek yerden. Çağıran başlığı kendisi verdiyse (para çekirdeği `beklenenOturum`) dokunulmaz. GET ve oturum/platform
+ * uçlarına ASLA eklenmez.
+ */
+function withExpectedSession(
+  request: HttpRequest<unknown>,
+  session: SessionService,
+): HttpRequest<unknown> {
+  const key = request.headers.get(IDEMPOTENCY_HEADER);
+  if (
+    key === null ||
+    SAFE_METHODS.has(request.method) ||
+    request.headers.has(EXPECTED_SESSION_HEADER) ||
+    NO_EXPECTED_SESSION_PREFIXES.some((prefix) => request.url.startsWith(prefix))
+  )
+    return request;
+  const identity = session.expectedIdentityFor(key);
+  return identity === null
+    ? request
+    : request.clone({ setHeaders: { [EXPECTED_SESSION_HEADER]: identity } });
+}
 
 /**
  * `HttpContext.set` nesneyi DEĞİŞTİRİR; çağıranın bağlamı (ör. birden çok istekte paylaşılan sabit)
@@ -178,7 +213,7 @@ export const sessionInterceptor: HttpInterceptorFn = (request, next) => {
     return throwError(() => error);
   };
 
-  return gonder(request);
+  return gonder(withExpectedSession(request, session));
 };
 
 /**

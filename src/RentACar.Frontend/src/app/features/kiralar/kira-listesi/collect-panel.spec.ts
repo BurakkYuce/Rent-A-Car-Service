@@ -12,6 +12,8 @@ import { ToastService } from '@core/geri-bildirim/toast-service';
 import { provideTranslation } from '@core/i18n/ceviri';
 import { sessionInterceptor } from '@core/oturum/session-interceptor';
 import { ReloginService } from '@core/oturum/relogin-service';
+import { SessionService } from '@core/oturum/session-service';
+import type { Ben } from '@core/oturum/oturum-tipleri';
 import { provideTurkishLocale } from '@core/yerel/tr-yerel';
 
 import { CollectPanel } from './collect-panel';
@@ -190,6 +192,42 @@ describe('TahsilPaneli (PARA)', () => {
     // İstemci anahtar ÜRETMEZ: başlık da sunucunun deterministik anahtarı.
     expect(request.request.headers.get('Idempotency-Key')).toBe(KEY);
     request.flush({ id: '99999999-9999-4999-8999-999999999999' });
+  });
+
+  it('#417 L2: X-Beklenen-Oturum denemenin kimliğini taşır; başka sekmede kullanıcı değişince tekrar İLK kimlikle → 409 oturum_degisti, tutar korunur', async () => {
+    const session = TestBed.inject(SessionService);
+    const ben = (user: string): Ben => ({
+      kullanici: { id: user, kullaniciAdi: user, adSoyad: user },
+      kiraci: { id: 'kiraci-1', kod: 'pilot', ad: 'Pilot' },
+      rol: 'Muhasebe',
+      izinler: ['FinanceWrite'],
+      subeKapsami: { tumSubeler: true, subeId: null, subeAd: null },
+      moduller: { webSitesi: false },
+      renkler: {},
+      pilot: true,
+    });
+    const loadAs = async (user: string) => {
+      const loading = session.yukle();
+      http.expectOne('/api/ui/v1/oturum/ben').flush(ben(user));
+      await loading;
+    };
+    await loadAs('kullanici-a');
+    const { fixture, gonder, tutarGirdisi } = await exchangeRate();
+
+    await gonder();
+    const first = http.expectOne(COLLECT_ENDPOINT);
+    expect(first.request.headers.get('X-Beklenen-Oturum')).toBe('kiraci-1|kullanici-a');
+    first.error(new ProgressEvent('error')); // sonucu bilinmiyor
+    await loadAs('kullanici-b'); // öteki sekmede B girdi, bu sekme ben'i tazeledi
+
+    await gonder();
+    const retry = http.expectOne(COLLECT_ENDPOINT);
+    expect(retry.request.body.tahsilatAnahtar).toBe(KEY);
+    expect(retry.request.headers.get('X-Beklenen-Oturum')).toBe('kiraci-1|kullanici-a');
+    const { govde, secenek } = problem('oturum_degisti', 409);
+    retry.flush(govde, secenek);
+    await fixture.whenStable(); // yanıt işlendi; form değerine dokunulmadı (odaktaki düzenleme yazımı)
+    expect(tutarGirdisi().value).toBe('1234,50');
   });
 
   it('istek uçarken düğme kilitli ve ikinci gönderim yeni istek üretmez; 2xx → başarı + yeniden yükleme', async () => {

@@ -47,7 +47,8 @@ export interface IstekSecenekleri {
   /**
    * `X-Beklenen-Oturum` başlığı (`kiraciId|kullaniciId`). Verilirse sunucu oturumdaki kimlik farklıysa YAZMADAN 409
    * `oturum_degisti` döner — başka sekmede başka kullanıcıyla giriş, eski kullanıcının para denemesini yeni oturumla
-   * yazdıramaz (#320 L2). Para çekirdeği (`MoneySubmission`) denemenin kimliğiyle doldurur.
+   * yazdıramaz (#320 L2). Para çekirdeği (`MoneySubmission`) denemenin kimliğiyle doldurur. Verilmezse `islemAnahtari`'lı
+   * yazma isteğine `oturumInterceptor` anahtarın bağlı olduğu kimliği ekler (#417 L1/L2; GET ve oturum uçlarına asla).
    */
   readonly beklenenOturum?: string;
   /** F3.3 interceptor'larına istek başına bayrak taşımak için. */
