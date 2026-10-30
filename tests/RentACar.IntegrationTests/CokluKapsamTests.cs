@@ -45,7 +45,7 @@ public sealed class CokluKapsamTests(PostgresFixture fx)
         var svc = s.ServiceProvider.GetRequiredService<BrokerBanService>();
 
         // CokluSecim bileşeni aynı adı taşıyan alanları gönderir → uca "eko, std ,EKO" gibi gelir.
-        var id = await svc.CreateAsync(new BrokerYasakInput
+        var id = await svc.CreateAsync(new BrokerBanInput
         {
             Kod = "BRK1", Ad = "Çoklu kapsam", TumSatisKapali = true,
             AracGrupKod = "eko, std ,EKO,  ",          // tekrar + boşluk + boş parça
@@ -72,7 +72,7 @@ public sealed class CokluKapsamTests(PostgresFixture fx)
         using var s = host.ScopeFor(Guid.NewGuid());
         var svc = s.ServiceProvider.GetRequiredService<BrokerBanService>();
 
-        var id = await svc.CreateAsync(new BrokerYasakInput
+        var id = await svc.CreateAsync(new BrokerBanInput
         { Kod = "BRK2", Ad = "Kapsamsız", TumSatisKapali = true, AracGrupKod = " , , ", Bolge = "" });
         var r = await svc.GetAsync(id);
         Assert.Null(r!.AracGrupKod);   // "hepsi" anlamı korunur

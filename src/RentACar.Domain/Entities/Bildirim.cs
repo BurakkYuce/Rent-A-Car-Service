@@ -13,7 +13,7 @@ public class Bildirim : ITenantOwned
     public Guid Id { get; set; } = Guid.NewGuid();
     public Guid TenantId { get; set; }
 
-    /// <summary>Kaynak türü: "Kasko" / "Trafik" / "MTV" / "Muayene" (VadeSource.Tur).</summary>
+    /// <summary>Kaynak türü: "Kasko" / "Trafik" / "MTV" / "Muayene" (DueSource.Tur).</summary>
     public string Tur { get; set; } = string.Empty;
     public Guid VehicleId { get; set; }
     public DateTimeOffset VadeTarihi { get; set; }

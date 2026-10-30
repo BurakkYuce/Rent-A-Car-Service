@@ -32,7 +32,7 @@ public sealed class AyarFiyatKuralTests(PostgresFixture fx)
             .CreateAsync(new CustomerInput { Tip = CustomerType.Bireysel, Ad = name, Soyad = "Test" });
 
     private static Task FixedExchangeRateAsync(IServiceProvider sp, string code, decimal exchangeRate)
-        => sp.GetRequiredService<FixedExchangeRateService>().UpsertAsync(new SabitKurInput { Kod = code, Kur = exchangeRate, Aktif = true });
+        => sp.GetRequiredService<FixedExchangeRateService>().UpsertAsync(new FixedExchangeRateInput { Kod = code, Kur = exchangeRate, Aktif = true });
 
     // ---------------------------------------------------------------- Grup 3: alanlar + doğrulama
 

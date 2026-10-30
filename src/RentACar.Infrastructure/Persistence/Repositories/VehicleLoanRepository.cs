@@ -20,7 +20,7 @@ public sealed class VehicleLoanRepository(IDbContextFactory<AppDbContext> factor
 
     /// <summary>FAZ-13 — filtreli liste. Sıralama ListAsync ile AYNI (en yeni üstte) ki filtre
     /// açıp kapatmak satır sırasını değiştirmesin.</summary>
-    public async Task<IReadOnlyList<AracKredi>> SearchAsync(AracKrediFilter filter, CancellationToken ct = default)
+    public async Task<IReadOnlyList<AracKredi>> SearchAsync(VehicleLoanFilter filter, CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
         var q = db.AracKredileri.AsNoTracking();

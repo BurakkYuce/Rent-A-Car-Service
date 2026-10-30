@@ -27,14 +27,14 @@ namespace RentACar.IntegrationTests;
 public sealed class MaliyetTeklifiTests(PostgresFixture fx)
 {
     /// <summary>1.000.000 alış, %30 kalıntı, 36 ay, finansmansız, kâr 0, KDV %20.</summary>
-    private static MaliyetHesapInput Input() => new()
+    private static CostCalculationParameters Input() => new()
     {
         AlisBedeli = 1_000_000m, ResidualYuzde = 0.30m, SureAy = 36,
         FaizOran = 0m, KkdfOran = 0m, BsmvOran = 0m, DamgaOran = 0m,
         KarMarji = 0m, KdvOran = 0.20m
     };
 
-    private static MaliyetTeklifiInput Quotation(string title, MaliyetHesapInput? g = null,
+    private static CostQuotationInput Quotation(string title, CostCalculationParameters? g = null,
         string? plate = null, Guid? account = null, DateTimeOffset? date = null) => new()
     {
         Baslik = title, Plaka = plate, CariId = account, Tarih = date, Girdi = g ?? Input()
@@ -150,7 +150,7 @@ public sealed class MaliyetTeklifiTests(PostgresFixture fx)
         var balanceBefore = await report.GetAccountBalancesAsync();
 
         // UÇUK tutarlar: 50 milyon alış, 100 araç, her kalem dolu. Rapora sızsaydı gözden kaçmazdı.
-        var g = new MaliyetHesapInput
+        var g = new CostCalculationParameters
         {
             AlisBedeli = 50_000_000m, ResidualYuzde = 0.10m, SureAy = 60,
             FaizOran = 0.50m, KkdfOran = 0.15m, BsmvOran = 0.15m, DamgaOran = 0.01m,
@@ -199,23 +199,23 @@ public sealed class MaliyetTeklifiTests(PostgresFixture fx)
         var izmirId = await svc.CreateAsync(Quotation("İzmir filosu", gB, plate: "35 BB 22", date: t.AddDays(10)));
 
         Assert.Equal(2, (await svc.SearchAsync()).Count);
-        Assert.Equal("Ankara filosu", Assert.Single(await svc.SearchAsync(new MaliyetTeklifiFilter { Metin = "ankara" })).Baslik);
+        Assert.Equal("Ankara filosu", Assert.Single(await svc.SearchAsync(new CostQuotationFilter { Metin = "ankara" })).Baslik);
         // Arama, ÜRETİLEN numarayla yapılır (format değiştiği için sabit dize yazılamaz).
         var secondNo = (await svc.GetAsync(izmirId))!.KayitNo;
-        Assert.Equal(secondNo, Assert.Single(await svc.SearchAsync(new MaliyetTeklifiFilter { Metin = secondNo })).KayitNo);
-        Assert.Equal("06 AA 11", Assert.Single(await svc.SearchAsync(new MaliyetTeklifiFilter { Plaka = "06 aa" })).Plaka);
-        Assert.Equal("Ankara filosu", Assert.Single(await svc.SearchAsync(new MaliyetTeklifiFilter { CariId = account })).Baslik);
+        Assert.Equal(secondNo, Assert.Single(await svc.SearchAsync(new CostQuotationFilter { Metin = secondNo })).KayitNo);
+        Assert.Equal("06 AA 11", Assert.Single(await svc.SearchAsync(new CostQuotationFilter { Plaka = "06 aa" })).Plaka);
+        Assert.Equal("Ankara filosu", Assert.Single(await svc.SearchAsync(new CostQuotationFilter { CariId = account })).Baslik);
 
         // Tarih aralığı: yalnız ilk teklif (t) — ikincisi 10 gün sonra.
-        var dated = await svc.SearchAsync(new MaliyetTeklifiFilter { TarihMin = t.AddDays(-1), TarihMax = t.AddDays(1) });
+        var dated = await svc.SearchAsync(new CostQuotationFilter { TarihMin = t.AddDays(-1), TarihMax = t.AddDays(1) });
         Assert.Equal("Ankara filosu", Assert.Single(dated).Baslik);
 
         // Fiyat aralığı ARAÇ BAŞINA aylık net üzerinden (elle: 19.444,44 ve 38.888,89).
         Assert.Equal("İzmir filosu", Assert.Single(
-            await svc.SearchAsync(new MaliyetTeklifiFilter { FiyatMin = 30_000m })).Baslik);
+            await svc.SearchAsync(new CostQuotationFilter { FiyatMin = 30_000m })).Baslik);
         Assert.Equal("Ankara filosu", Assert.Single(
-            await svc.SearchAsync(new MaliyetTeklifiFilter { FiyatMax = 20_000m })).Baslik);
-        Assert.Equal(2, (await svc.SearchAsync(new MaliyetTeklifiFilter { FiyatMin = 19_000m, FiyatMax = 39_000m })).Count);
+            await svc.SearchAsync(new CostQuotationFilter { FiyatMax = 20_000m })).Baslik);
+        Assert.Equal(2, (await svc.SearchAsync(new CostQuotationFilter { FiyatMin = 19_000m, FiyatMax = 39_000m })).Count);
     }
 
     [Fact]
@@ -306,7 +306,7 @@ public sealed class MaliyetTeklifiTests(PostgresFixture fx)
         {
             var svc = sb.ServiceProvider.GetRequiredService<CostQuotationService>();
             Assert.Empty(await svc.SearchAsync());
-            Assert.Empty(await svc.SearchAsync(new MaliyetTeklifiFilter { Plaka = "34 GZ 01" }));
+            Assert.Empty(await svc.SearchAsync(new CostQuotationFilter { Plaka = "34 GZ 01" }));
             Assert.Equal(0m, CostQuotationService.Summary(await svc.SearchAsync()).FiloKdvli);
 
             // B kendi teklifini yazınca numara 1'DEN başlar (sıra tenant başına).
@@ -382,7 +382,7 @@ public sealed class MaliyetTeklifiTests(PostgresFixture fx)
         var svc = s.ServiceProvider.GetRequiredService<CostQuotationService>();
 
         // Ondalıklı, "kayma"ya en açık girdi (tr-TR virgül/InvariantCulture nokta tuzağı).
-        var g = new MaliyetHesapInput
+        var g = new CostCalculationParameters
         {
             AlisBedeli = 1_234_567.89m, ResidualYuzde = 0.275m, SureAy = 41,
             FaizOran = 0.335m, KkdfOran = 0.15m, BsmvOran = 0.15m, DamgaOran = 0.0075m,
@@ -421,7 +421,7 @@ public sealed class MaliyetTeklifiTests(PostgresFixture fx)
         var back = CostCalculationInput.Setup(name => fields.GetValueOrDefault(name));
 
         // 2) İKİNCİ kez kaydet — hiçbir rakam kaymamalı.
-        var id2 = await svc.CreateAsync(new MaliyetTeklifiInput { Baslik = "Round-trip 2", Girdi = back });
+        var id2 = await svc.CreateAsync(new CostQuotationInput { Baslik = "Round-trip 2", Girdi = back });
         var second = (await svc.GetAsync(id2))!;
 
         Assert.Equal(first.AlisBedeli, second.AlisBedeli);

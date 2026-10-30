@@ -113,8 +113,8 @@ public sealed class InvoiceRepository(IDbContextFactory<AppDbContext> factory) :
     ///
     /// <para>Para alanları satırdan OLDUĞU GİBİ okunur (yeniden hesap yok).</para>
     /// </summary>
-    public async Task<IReadOnlyList<FaturaSatirDto>> ListLinesAsync(
-        FaturaSatirFilter? filter = null, CancellationToken ct = default)
+    public async Task<IReadOnlyList<InvoiceLineRow>> ListLinesAsync(
+        InvoiceLineRowFilter? filter = null, CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
 
@@ -180,7 +180,7 @@ public sealed class InvoiceRepository(IDbContextFactory<AppDbContext> factory) :
             })
             .ToListAsync(ct);
 
-        return rows.Select(x => new FaturaSatirDto(
+        return rows.Select(x => new InvoiceLineRow(
             x.Id, x.No, x.Tarih, x.VadeTarihi, x.Durum, x.IadeMi, x.ManuelMi, x.Currency, x.Kur,
             x.CariId, string.IsNullOrWhiteSpace(x.CariAd) ? "(bilinmeyen cari)" : x.CariAd!.Trim(),
             x.CariSehir, x.CariEmail, x.CariVergiNo,

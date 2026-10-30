@@ -226,7 +226,7 @@ public static class RentalApi
         HttpContext http, RentalService kiralar, CashService kasa, [AsParameters] RentalListFilter f,
         int? sayfa, int? boyut, string? sirala, CancellationToken ct)
     {
-        var request = new ListeIstegi(sayfa ?? 1, boyut ?? 50, sirala);
+        var request = new ListRequest(sayfa ?? 1, boyut ?? 50, sirala);
         var rows = await kiralar.SearchAsync(f.ToFilter(), ct);
         // Beyaz liste KAYIT sayılmadan önce (bilinmeyen alan boşa sorgu olmadan 400).
         IEnumerable<RentalRow> sorted = request.Sirala is null ? rows : Map.Apply(rows.AsQueryable(), request.Sirala);
@@ -303,7 +303,7 @@ public static class RentalApi
         var vehicle = (await araclar.ListAsync(ct)).FirstOrDefault(v => v.Id == c.VehicleId);
 
         // Personel adları: PII'sız seçim listesi; yetkisiz rolde nazikçe boş (KiraForm'daki desen).
-        IReadOnlyList<PersonelSecim> staff = [];
+        IReadOnlyList<PersonnelOption> staff = [];
         try { staff = await personeller.ListForSelectAsync(ct); }
         catch (NoPermissionException) { /* ad çözülmez */ }
         string? StaffName(Guid? pid) => pid is Guid p && staff.FirstOrDefault(x => x.Id == p) is { } ps ? $"{ps.Ad} {ps.Soyad}" : null;

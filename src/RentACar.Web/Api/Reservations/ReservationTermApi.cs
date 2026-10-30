@@ -87,10 +87,10 @@ public static class ReservationTermApi
         [FromQuery(Name = "bas")] public DateOnly? Bas { get; set; }
         [FromQuery(Name = "bit")] public DateOnly? Bit { get; set; }
 
-        public RezSartFilter ToFilter()
+        public ReservationTermFilter ToFilter()
         {
             var (min, max) = F5Shared.DayRange(Bas, Bit, "bas", "bit");
-            return new RezSartFilter
+            return new ReservationTermFilter
             {
                 MusteriId = MusteriId,
                 Karsilandi = F5Shared.Nz(Durum)?.ToLowerInvariant() switch
@@ -179,7 +179,7 @@ public static class ReservationTermApi
     ];
 
     /// <summary>Uç sınırları (varchar) + bağlanan üst kaydın varlığı ve kapsamı.</summary>
-    private static async Task<RezSartInput> InputAsync(
+    private static async Task<ReservationTermInput> InputAsync(
         RezSartIstegi i, ReservationService reservations, QuotationService quotations, CancellationToken ct)
     {
         RentalLimits.Text(i.Sart, 512, "sart", "Şart metni");
@@ -189,7 +189,7 @@ public static class ReservationTermApi
             throw new ValidationException("Bağlanan rezervasyon bulunamadı.", "reservationId");
         if (i.QuotationId is Guid t && await quotations.GetAsync(t, ct) is null)
             throw new ValidationException("Bağlanan teklif bulunamadı.", "quotationId");
-        return new RezSartInput
+        return new ReservationTermInput
         {
             MusteriId = i.MusteriId,
             Sart = i.Sart ?? "",

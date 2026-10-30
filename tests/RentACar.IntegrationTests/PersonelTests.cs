@@ -17,7 +17,7 @@ namespace RentACar.IntegrationTests;
 public sealed class PersonelTests(PostgresFixture fx)
 {
     private const string NationalId = "12345678901";
-    private static PersonelInput Input(string code) => new()
+    private static PersonnelInput Input(string code) => new()
     {
         Kod = code, Ad = "Ali", Soyad = "Veli", TcKimlik = NationalId, Maas = 25000m, Sube = "Merkez",
         IseGiris = new DateTimeOffset(2025, 1, 1, 0, 0, 0, TimeSpan.Zero)
@@ -70,7 +70,7 @@ public sealed class PersonelTests(PostgresFixture fx)
         var svc = scope.ServiceProvider.GetRequiredService<PersonnelService>();
 
         var id = await svc.CreateAsync(Input("P001"));
-        await svc.UpdateAsync(id, new PersonelInput { Kod = "P001", Ad = "Ali", Soyad = "Yılmaz", TcKimlik = null, Maas = null });
+        await svc.UpdateAsync(id, new PersonnelInput { Kod = "P001", Ad = "Ali", Soyad = "Yılmaz", TcKimlik = null, Maas = null });
 
         var d = await svc.GetDetailAsync(id);
         Assert.Equal("Yılmaz", d!.Soyad);  // güncellendi

@@ -72,7 +72,7 @@ public sealed class KullaniciIzinIstisnaTests(PostgresFixture fx)
     {
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid(), Guid.NewGuid(), "op", UserRole.Operator);
-        Identity(scope).EkIzinler = ["ViewReports"];
+        Identity(scope).ExtraPermissions = ["ViewReports"];
 
         // InvoiceService.ListLinesAsync ViewReports ister — istisnasız operatörde patlar (kontrol),
         // ek izinli operatörde geçer (boş liste döner, istisna izni verdi).
@@ -86,7 +86,7 @@ public sealed class KullaniciIzinIstisnaTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         var tenant = Guid.NewGuid();
         using var scope = host.ScopeFor(tenant, Guid.NewGuid(), "yon", UserRole.Yonetici);
-        Identity(scope).YasakIzinler = ["FinanceReverse"];
+        Identity(scope).DeniedPermissions = ["FinanceReverse"];
 
         var cash = scope.ServiceProvider.GetRequiredService<CashService>();
         // FinanceWrite hâlâ var: tahsilat girebilir.
@@ -214,8 +214,8 @@ public sealed class KullaniciIzinIstisnaTests(PostgresFixture fx)
             var login = anon.ServiceProvider.GetRequiredService<LoginService>();
             var result = await login.ValidateAsync($"t{tenant:N}"[..8], "istisnali", "sifre123");
             Assert.NotNull(result);
-            Assert.Equal(["ViewReports"], result!.EkIzinler);
-            Assert.Equal(["OperationsWrite"], result.YasakIzinler);
+            Assert.Equal(["ViewReports"], result!.ExtraPermissions);
+            Assert.Equal(["OperationsWrite"], result.DeniedPermissions);
         }
     }
 

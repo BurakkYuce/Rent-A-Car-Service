@@ -31,7 +31,7 @@ public sealed class TariffGroupService(
     public Task<TarifeGrubu?> GetAsync(Guid id, CancellationToken ct = default)
         => _repository.FindAsync(id, ct);
 
-    public async Task<Guid> CreateAsync(TarifeGrubuInput input, CancellationToken ct = default)
+    public async Task<Guid> CreateAsync(TariffGroupInput input, CancellationToken ct = default)
     {
         PermissionGuard.Require(_currentUser, Permission.OperationsWrite);
         var n = Normalize(input);
@@ -46,7 +46,7 @@ public sealed class TariffGroupService(
         return row.Id;
     }
 
-    public async Task<bool> UpdateAsync(Guid id, TarifeGrubuInput input, CancellationToken ct = default)
+    public async Task<bool> UpdateAsync(Guid id, TariffGroupInput input, CancellationToken ct = default)
     {
         PermissionGuard.Require(_currentUser, Permission.OperationsWrite);
         var n = Normalize(input);
@@ -69,7 +69,7 @@ public sealed class TariffGroupService(
 
     /// <summary>F9.1 — same rules as <see cref="UpdateAsync"/> under a row lock with a version check. Empty
     /// password keeps the stored hash (same as the Blazor path).</summary>
-    public async Task<bool> UpdateVersionedAsync(Guid id, TarifeGrubuInput input, string expectedVersion, CancellationToken ct = default)
+    public async Task<bool> UpdateVersionedAsync(Guid id, TariffGroupInput input, string expectedVersion, CancellationToken ct = default)
     {
         PermissionGuard.Require(_currentUser, Permission.OperationsWrite);
         var n = Normalize(input);
@@ -91,7 +91,7 @@ public sealed class TariffGroupService(
         return _repository.DeleteAsync(id, ct);
     }
 
-    private static void Validate(TarifeGrubuInput n)
+    private static void Validate(TariffGroupInput n)
     {
         if (string.IsNullOrWhiteSpace(n.Kod)) throw new ValidationException("Tarife grubu kodu zorunludur.");
         if (n.Kod.Length > 32) throw new ValidationException("Tarife grubu kodu en çok 32 karakter olabilir.");
@@ -100,7 +100,7 @@ public sealed class TariffGroupService(
         if (n.Sifre is { Length: > 0 and < 6 }) throw new ValidationException("Şifre en az 6 karakter olmalıdır.");
     }
 
-    private static TarifeGrubuInput Normalize(TarifeGrubuInput i) => new()
+    private static TariffGroupInput Normalize(TariffGroupInput i) => new()
     {
         Kod = (i.Kod ?? string.Empty).Trim().ToUpperInvariant(),
         Ad = (i.Ad ?? string.Empty).Trim(),
@@ -111,7 +111,7 @@ public sealed class TariffGroupService(
         Aktif = i.Aktif
     };
 
-    private static void Apply(TarifeGrubu r, TarifeGrubuInput n)
+    private static void Apply(TarifeGrubu r, TariffGroupInput n)
     {
         r.Kod = n.Kod;
         r.Ad = n.Ad;

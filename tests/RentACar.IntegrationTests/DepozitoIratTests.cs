@@ -238,7 +238,7 @@ public sealed class DepozitoIratTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
         var sp = scope.ServiceProvider;
-        await sp.GetRequiredService<FixedExchangeRateService>().UpsertAsync(new SabitKurInput { Kod = "EUR", Kur = 40m, Aktif = true });
+        await sp.GetRequiredService<FixedExchangeRateService>().UpsertAsync(new FixedExchangeRateInput { Kod = "EUR", Kur = 40m, Aktif = true });
         var account = await CustomerAsync(sp);
         var store = sp.GetRequiredService<DepositService>();
         await store.GetAsync(account, 100m, LedgerAccountType.Kasa, currency: "EUR");   // 4000 base tutulan

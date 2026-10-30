@@ -13,7 +13,7 @@ namespace RentACar.IntegrationTests;
 [Collection("postgres")]
 public sealed class EkHizmetTanimTests(PostgresFixture fx)
 {
-    private static EkHizmetTanimInput In(string code, string name, decimal unit = 100m, decimal vat = 0.20m, bool active = true)
+    private static AddOnDefinitionInput In(string code, string name, decimal unit = 100m, decimal vat = 0.20m, bool active = true)
         => new() { Kod = code, Ad = name, BirimUcret = unit, KdvOrani = vat, Aktif = active };
 
     [Fact]

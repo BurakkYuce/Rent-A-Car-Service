@@ -95,7 +95,7 @@ public sealed partial class UiReportTests
         using var host = new TestHost(fx.Pg.AppConnectionString);
         using var scope = host.ScopeFor(e.TenantId);
         var svc = scope.ServiceProvider.GetRequiredService<IncomingEInvoiceService>();
-        await Assert.ThrowsAnyAsync<RentACar.Application.Common.ValidationException>(() => svc.CreateManualAsync(new GelenEFaturaInput
+        await Assert.ThrowsAnyAsync<RentACar.Application.Common.ValidationException>(() => svc.CreateManualAsync(new IncomingEInvoiceInput
         {
             Ettn = ettn.ToUpperInvariant(), GonderenVkn = "1234567890", GonderenUnvan = "T",
             Tarih = TestZaman.DaysLater(-3), NetTutar = 100m, KdvTutar = 20m, GenelToplam = 120m, Currency = "TRY"

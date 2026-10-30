@@ -11,7 +11,7 @@ namespace RentACar.Infrastructure.Persistence.Repositories;
 /// <summary>
 /// ICustomerRepository: kısa-ömürlü context'ler (factory). Update, audit eski/yeni
 /// farkı için entity'yi yükleyip mutasyonu uygular. DB benzersizlik ihlali (23505),
-/// constraint adına göre TC/VergiNo ayrımıyla DuplicateCariException'a çevrilir.
+/// constraint adına göre TC/VergiNo ayrımıyla DuplicateCustomerException'a çevrilir.
 /// KVKK/F2: tüm okuma yolları PII cipher'larını BELLEKTE çözer (TcKimlik/EhliyetNo/
 /// PasaportNo alanlarına) — tüketiciler (UI/API/servisler) değişmeden düz değeri görür;
 /// DB'de yalnız cipher + blind-index durur.
@@ -321,15 +321,15 @@ public sealed class CustomerRepository(IDbContextFactory<AppDbContext> factory, 
         return true;
     }
 
-    private DuplicateCariException? AsDuplicate(DbUpdateException ex, Customer c)
+    private DuplicateCustomerException? AsDuplicate(DbUpdateException ex, Customer c)
     {
         if (ex.InnerException is not PostgresException { SqlState: PostgresErrorCodes.UniqueViolation } pg)
             return null;
         var constraint = pg.ConstraintName ?? string.Empty;
         if (constraint.Contains("TcKimlik", StringComparison.OrdinalIgnoreCase)) // TcKimlikHash indexi de eşleşir
-            return new DuplicateCariException("TC Kimlik No", string.Empty); // L2: TC decrypt EDİLMEZ (mesajda gösterilmiyor)
+            return new DuplicateCustomerException("TC Kimlik No", string.Empty); // L2: TC decrypt EDİLMEZ (mesajda gösterilmiyor)
         if (constraint.Contains("VergiNo", StringComparison.OrdinalIgnoreCase))
-            return new DuplicateCariException("Vergi No", c.VergiNo ?? string.Empty);
-        return new DuplicateCariException("kayıt", c.DisplayName);
+            return new DuplicateCustomerException("Vergi No", c.VergiNo ?? string.Empty);
+        return new DuplicateCustomerException("kayıt", c.DisplayName);
     }
 }

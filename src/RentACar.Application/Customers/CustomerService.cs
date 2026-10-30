@@ -216,9 +216,9 @@ public sealed class CustomerService(
         // index (TenantId, TcKimlikHash) yarışta ikinci savunmadır.
         if (!string.IsNullOrEmpty(n.TcKimlik)
             && await _repository.NationalIdHashExistsAsync(_pii.Hash(TenantId, n.TcKimlik)!, excludeId, ct))
-            throw new DuplicateCariException("TC Kimlik No", n.TcKimlik!);
+            throw new DuplicateCustomerException("TC Kimlik No", n.TcKimlik!);
         if (!string.IsNullOrEmpty(n.VergiNo) && await _repository.TaxNoExistsAsync(n.VergiNo!, excludeId, ct))
-            throw new DuplicateCariException("Vergi No", n.VergiNo!);
+            throw new DuplicateCustomerException("Vergi No", n.VergiNo!);
     }
 
     private static CustomerInput Normalize(CustomerInput input) => new()

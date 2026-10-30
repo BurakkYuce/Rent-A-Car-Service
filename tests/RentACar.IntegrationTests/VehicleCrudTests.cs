@@ -58,7 +58,7 @@ public sealed class VehicleCrudTests(PostgresFixture fx)
         var svc = scope.ServiceProvider.GetRequiredService<VehicleService>();
 
         await svc.CreateAsync(new VehicleInput { Plaka = "34DUP01" });
-        await Assert.ThrowsAsync<DuplicatePlakaException>(
+        await Assert.ThrowsAsync<DuplicatePlateException>(
             () => svc.CreateAsync(new VehicleInput { Plaka = "34DUP01" }));
     }
 

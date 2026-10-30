@@ -51,8 +51,8 @@ public sealed class SikayetTeslimBagliTests(PostgresFixture fx)
         var account = await CustomerAsync(sp, "Alfa A.Ş.", "05551112233");
         var (rental, _) = await RentalAsync(sp, account, "34 SK 01", "Merkez Ofis");
         var staff = sp.GetRequiredService<PersonnelService>();
-        var alan = await staff.CreateAsync(new PersonelInput { Kod = "P1", Ad = "Ayşe", Soyad = "Yılmaz" });
-        var complainant = await staff.CreateAsync(new PersonelInput { Kod = "P2", Ad = "Mehmet", Soyad = "Kaya" });
+        var alan = await staff.CreateAsync(new PersonnelInput { Kod = "P1", Ad = "Ayşe", Soyad = "Yılmaz" });
+        var complainant = await staff.CreateAsync(new PersonnelInput { Kod = "P2", Ad = "Mehmet", Soyad = "Kaya" });
 
         var svc = sp.GetRequiredService<ComplaintService>();
         var id = await svc.CreateAsync(new SikayetInput

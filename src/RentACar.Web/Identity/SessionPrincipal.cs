@@ -27,8 +27,8 @@ public static class SessionPrincipal
         };
         // Kullanıcı-bazlı istisnalar: izin adı başına BİR claim (CSV değil — FindAll ile
         // ayrıştırmasız okunur). Değişiklik sonraki girişte etkinleşir (claim login'de donar).
-        claims.AddRange(result.EkIzinler.Select(i => new Claim(IdentityClaims.PermissionExtra, i)));
-        claims.AddRange(result.YasakIzinler.Select(i => new Claim(IdentityClaims.PermissionDenied, i)));
+        claims.AddRange(result.ExtraPermissions.Select(i => new Claim(IdentityClaims.PermissionExtra, i)));
+        claims.AddRange(result.DeniedPermissions.Select(i => new Claim(IdentityClaims.PermissionDenied, i)));
         return new ClaimsPrincipal(new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme));
     }
 }

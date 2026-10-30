@@ -491,7 +491,7 @@ public sealed class UiFinansApiTests(WebFixture fx)
     public async Task Tahsilat_ayni_icerik_kur_aciklama_kanal_da_karsilastirilir()
     {
         var o = await SetUpEnvironmentAsync(sp => sp.GetRequiredService<FixedExchangeRateService>()
-            .UpsertAsync(new SabitKurInput { Kod = "USD", Kur = 30m, Aktif = true }));
+            .UpsertAsync(new FixedExchangeRateInput { Kod = "USD", Kur = 30m, Aktif = true }));
         var s = await LoginAsync(o, Kim.Muhasebe);
 
         async Task<bool> SameContent(object body)
@@ -633,7 +633,7 @@ public sealed class UiFinansApiTests(WebFixture fx)
     public async Task Dovizli_tahsilat_bos_kur_firma_sabit_kurundan_cozulur()
     {
         var o = await SetUpEnvironmentAsync(sp => sp.GetRequiredService<FixedExchangeRateService>()
-            .UpsertAsync(new SabitKurInput { Kod = "USD", Kur = 30m, Aktif = true }));
+            .UpsertAsync(new FixedExchangeRateInput { Kod = "USD", Kur = 30m, Aktif = true }));
         var s = await LoginAsync(o, Kim.Muhasebe);
 
         var id = await Id(await PostAsync(s, "/finans/tahsilat", Collection(o, 10m, currency: "USD"), NewKey()));

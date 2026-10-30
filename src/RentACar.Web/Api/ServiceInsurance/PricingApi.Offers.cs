@@ -54,7 +54,7 @@ internal static partial class PricingApi
         int? sayfa, int? boyut, string? sirala, CostQuotationService svc, IDbContextFactory<AppDbContext> dbf, CancellationToken ct)
     {
         var (min, max) = F5Shared.DayRange(bas, bit);
-        var list = await svc.SearchAsync(new MaliyetTeklifiFilter
+        var list = await svc.SearchAsync(new CostQuotationFilter
         {
             Metin = F5Shared.Nz(metin), Plaka = F5Shared.Nz(plaka), CariId = cariId, TarihMin = min, TarihMax = max,
             FiyatMin = fiyatMin, FiyatMax = fiyatMax,
@@ -77,7 +77,7 @@ internal static partial class PricingApi
             CostResultDto.From(t, CostQuotationService.Items(t)), version);
     }
 
-    private static async Task<MaliyetTeklifiInput> OfferInputAsync(CostOfferRequest r, IDbContextFactory<AppDbContext> dbf,
+    private static async Task<CostQuotationInput> OfferInputAsync(CostOfferRequest r, IDbContextFactory<AppDbContext> dbf,
         Guid? id, CancellationToken ct)
     {
         S.Text(r.Baslik, 256, "baslik"); S.Text(r.Plaka, 32, "plaka"); S.Text(r.Aciklama, 1024, "aciklama");
@@ -90,7 +90,7 @@ internal static partial class PricingApi
             if (!await db.Personeller.AsNoTracking().AnyAsync(x => x.Id == p, ct))
                 throw new ValidationException("Personel bulunamadı.", "hazirlayanId");
         }
-        return new MaliyetTeklifiInput
+        return new CostQuotationInput
         {
             Id = id, Baslik = r.Baslik, Plaka = r.Plaka, Tarih = S.Date(r.Tarih, "tarih"),
             CariId = r.CariId is { } c && c != Guid.Empty ? c : null,

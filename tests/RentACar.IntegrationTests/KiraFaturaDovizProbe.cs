@@ -68,7 +68,7 @@ public sealed class KiraFaturaDovizProbe(PostgresFixture fx)
         var cash = scope.ServiceProvider.GetRequiredService<CashService>();
         var fixedValue = scope.ServiceProvider.GetRequiredService<FixedExchangeRateService>();
 
-        await fixedValue.UpsertAsync(new SabitKurInput { Kod = "EUR", Kur = 40m, Aktif = true });
+        await fixedValue.UpsertAsync(new FixedExchangeRateInput { Kod = "EUR", Kur = 40m, Aktif = true });
         var account = await TestCustomer.NewAsync(scope.ServiceProvider);
         var rentalId = await rentals.CreateDirectAsync(Rental(account, await TestVehicle.NewAsync(scope.ServiceProvider), "EURO")); // 3 gün × 100 = 300 EUR
         var invId = await invoices.CreateFromRentalAsync(rentalId);
@@ -90,7 +90,7 @@ public sealed class KiraFaturaDovizProbe(PostgresFixture fx)
         var fixedValue = scope.ServiceProvider.GetRequiredService<FixedExchangeRateService>();
 
         // 1 gün × 100 = 100 EUR brüt; %20 → net 83.33, kdv 16.67 (16.67 = 100-83.33). Kur 33.3333.
-        await fixedValue.UpsertAsync(new SabitKurInput { Kod = "EUR", Kur = 33.3333m, Aktif = true });
+        await fixedValue.UpsertAsync(new FixedExchangeRateInput { Kod = "EUR", Kur = 33.3333m, Aktif = true });
         var account = await TestCustomer.NewAsync(scope.ServiceProvider);
         var rentalId = await rentals.CreateDirectAsync(Rental(account, await TestVehicle.NewAsync(scope.ServiceProvider), "EUR", daily: 100m, day: 1));
         var invId = await invoices.CreateFromRentalAsync(rentalId); // denge guard patlarsa burada atar
@@ -113,7 +113,7 @@ public sealed class KiraFaturaDovizProbe(PostgresFixture fx)
         var cash = scope.ServiceProvider.GetRequiredService<CashService>();
         var fixedValue = scope.ServiceProvider.GetRequiredService<FixedExchangeRateService>();
 
-        await fixedValue.UpsertAsync(new SabitKurInput { Kod = "EUR", Kur = 40m, Aktif = true });
+        await fixedValue.UpsertAsync(new FixedExchangeRateInput { Kod = "EUR", Kur = 40m, Aktif = true });
         var account = await TestCustomer.NewAsync(scope.ServiceProvider);
         var rentalId = await rentals.CreateDirectAsync(Rental(account, await TestVehicle.NewAsync(scope.ServiceProvider), "EUR"));
         await invoices.CreateFromRentalAsync(rentalId);
@@ -160,7 +160,7 @@ public sealed class KiraFaturaDovizProbe(PostgresFixture fx)
 
         // İZOLE kod "NOK" (paylaşımlı KurKayitlari çakışmasını önler).
         await SeedTcmb(factory, "NOK", 35m);                                   // TCMB 35
-        await fixedValue.UpsertAsync(new SabitKurInput { Kod = "NOK", Kur = 40m, Aktif = true }); // firma 40
+        await fixedValue.UpsertAsync(new FixedExchangeRateInput { Kod = "NOK", Kur = 40m, Aktif = true }); // firma 40
         var account = await TestCustomer.NewAsync(scope.ServiceProvider);
         var rentalId = await rentals.CreateDirectAsync(Rental(account, await TestVehicle.NewAsync(scope.ServiceProvider), "NOK"));
         var inv = await invoices.GetAsync(await invoices.CreateFromRentalAsync(rentalId));
@@ -182,7 +182,7 @@ public sealed class KiraFaturaDovizProbe(PostgresFixture fx)
 
         // İZOLE kod "SEK".
         await SeedTcmb(factory, "SEK", 35m);
-        await fixedValue.UpsertAsync(new SabitKurInput { Kod = "SEK", Kur = 40m, Aktif = false }); // PASİF
+        await fixedValue.UpsertAsync(new FixedExchangeRateInput { Kod = "SEK", Kur = 40m, Aktif = false }); // PASİF
         var account = await TestCustomer.NewAsync(scope.ServiceProvider);
         var rentalId = await rentals.CreateDirectAsync(Rental(account, await TestVehicle.NewAsync(scope.ServiceProvider), "SEK"));
         var inv = await invoices.GetAsync(await invoices.CreateFromRentalAsync(rentalId));
@@ -201,7 +201,7 @@ public sealed class KiraFaturaDovizProbe(PostgresFixture fx)
         var cash = scope.ServiceProvider.GetRequiredService<CashService>();
         var fixedValue = scope.ServiceProvider.GetRequiredService<FixedExchangeRateService>();
 
-        await fixedValue.UpsertAsync(new SabitKurInput { Kod = "EUR", Kur = 40m, Aktif = true });
+        await fixedValue.UpsertAsync(new FixedExchangeRateInput { Kod = "EUR", Kur = 40m, Aktif = true });
         var account = await TestCustomer.NewAsync(scope.ServiceProvider);
         var rentalId = await rentals.CreateDirectAsync(Rental(account, await TestVehicle.NewAsync(scope.ServiceProvider), "EUR"));
         var invId = await invoices.CreateFromRentalAsync(rentalId);
@@ -228,7 +228,7 @@ public sealed class KiraFaturaDovizProbe(PostgresFixture fx)
         var cash = scope.ServiceProvider.GetRequiredService<CashService>();
         var fixedValue = scope.ServiceProvider.GetRequiredService<FixedExchangeRateService>();
 
-        await fixedValue.UpsertAsync(new SabitKurInput { Kod = "EURO", Kur = 40m, Aktif = true }); // "EURO" → normalize EUR
+        await fixedValue.UpsertAsync(new FixedExchangeRateInput { Kod = "EURO", Kur = 40m, Aktif = true }); // "EURO" → normalize EUR
         var account = await TestCustomer.NewAsync(scope.ServiceProvider);
         var rentalId = await rentals.CreateDirectAsync(Rental(account, await TestVehicle.NewAsync(scope.ServiceProvider), "euro")); // küçük harf
         var inv = await invoices.GetAsync(await invoices.CreateFromRentalAsync(rentalId));
@@ -296,7 +296,7 @@ public sealed class KiraFaturaDovizProbe(PostgresFixture fx)
         var cash = scope.ServiceProvider.GetRequiredService<CashService>();
         var fixedValue = scope.ServiceProvider.GetRequiredService<FixedExchangeRateService>();
 
-        await fixedValue.UpsertAsync(new SabitKurInput { Kod = "EUR", Kur = 40m, Aktif = true });
+        await fixedValue.UpsertAsync(new FixedExchangeRateInput { Kod = "EUR", Kur = 40m, Aktif = true });
         var account = await TestCustomer.NewAsync(scope.ServiceProvider);
         var rentalId = await rentals.CreateDirectAsync(Rental(account, await TestVehicle.NewAsync(scope.ServiceProvider), "EUR"));
         await invoices.CreateFromRentalAsync(rentalId);
@@ -316,7 +316,7 @@ public sealed class KiraFaturaDovizProbe(PostgresFixture fx)
         var fixedValue = scope.ServiceProvider.GetRequiredService<FixedExchangeRateService>();
 
         // 1 gün × 1,000,000 = 1,000,000 EUR brüt; kur 6-dp garip 41.123456.
-        await fixedValue.UpsertAsync(new SabitKurInput { Kod = "EUR", Kur = 41.123456m, Aktif = true });
+        await fixedValue.UpsertAsync(new FixedExchangeRateInput { Kod = "EUR", Kur = 41.123456m, Aktif = true });
         var account = await TestCustomer.NewAsync(scope.ServiceProvider);
         var rentalId = await rentals.CreateDirectAsync(Rental(account, await TestVehicle.NewAsync(scope.ServiceProvider), "EUR", daily: 1_000_000m, day: 1));
         var invId = await invoices.CreateFromRentalAsync(rentalId); // denge guard patlarsa atar

@@ -93,8 +93,8 @@ public sealed class VehicleRepository(IDbContextFactory<AppDbContext> factory) :
         return new PagedResult<Vehicle>(items, total, filter.Page, filter.PageSize);
     }
 
-    public async Task<IReadOnlyList<VehicleDetayRow>> ListDetailAsync(
-        VehicleDetayFilter? filter = null, CancellationToken ct = default)
+    public async Task<IReadOnlyList<VehicleDetailRow>> ListDetailAsync(
+        VehicleDetailFilter? filter = null, CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
 
@@ -158,7 +158,7 @@ public sealed class VehicleRepository(IDbContextFactory<AppDbContext> factory) :
             .GroupBy(x => x.VehicleId)
             .ToDictionary(g => g.Key, g => g.OrderByDescending(x => x.Tarih).First());
 
-        // AKTİF kira CANLI çözülür — araçta böyle bir kolon YOK (bkz. VehicleDetayRow özeti).
+        // AKTİF kira CANLI çözülür — araçta böyle bir kolon YOK (bkz. VehicleDetailRow özeti).
         var activeRentals = (await (
                 from r in db.Rentals.AsNoTracking().Where(r => r.Durum == RentalStatus.Kirada && ids.Contains(r.VehicleId))
                 join c in db.Customers.AsNoTracking() on r.MusteriId equals c.Id into cg
@@ -176,7 +176,7 @@ public sealed class VehicleRepository(IDbContextFactory<AppDbContext> factory) :
         {
             sales.TryGetValue(v.Id, out var sell);
             activeRentals.TryGetValue(v.Id, out var rental);
-            return new VehicleDetayRow(
+            return new VehicleDetailRow(
                 v,
                 loans.GetValueOrDefault(v.Id),
                 inspection.TryGetValue(v.Id, out var mb) ? mb : null,
@@ -188,10 +188,10 @@ public sealed class VehicleRepository(IDbContextFactory<AppDbContext> factory) :
         }).ToList();
     }
 
-    public async Task<IReadOnlyDictionary<Guid, VehicleListeEk>> ListExtrasAsync(
+    public async Task<IReadOnlyDictionary<Guid, VehicleListExtra>> ListExtrasAsync(
         IReadOnlyCollection<Guid> vehicleIds, CancellationToken ct = default)
     {
-        if (vehicleIds.Count == 0) return new Dictionary<Guid, VehicleListeEk>();
+        if (vehicleIds.Count == 0) return new Dictionary<Guid, VehicleListExtra>();
         await using var db = await _factory.CreateDbContextAsync(ct);
         var ids = vehicleIds.ToList();
 
@@ -217,7 +217,7 @@ public sealed class VehicleRepository(IDbContextFactory<AppDbContext> factory) :
             .Select(x => x.VehicleId).Distinct().ToListAsync(ct)).ToHashSet();
 
         // Kasko: araç başına EN GEÇ biten poliçe (yürürlükteki). Trafik poliçesi AYRI bir üründür,
-        // buraya karıştırılmaz (VehicleDetayRow'daki ayrımla aynı).
+        // buraya karıştırılmaz (VehicleDetailRow'daki ayrımla aynı).
         var casco = (await db.InsurancePolicies.AsNoTracking()
                 .Where(p => ids.Contains(p.VehicleId) && p.Tip == InsuranceType.Kasko)
                 .Select(p => new { p.VehicleId, p.Bitis, p.Prim })
@@ -237,7 +237,7 @@ public sealed class VehicleRepository(IDbContextFactory<AppDbContext> factory) :
         {
             casco.TryGetValue(id, out var ks);
             loan.TryGetValue(id, out var kr);
-            return new VehicleListeEk(
+            return new VehicleListExtra(
                 rentalNo.GetValueOrDefault(id),
                 withService.Contains(id),
                 withBaf.Contains(id),
@@ -274,7 +274,7 @@ public sealed class VehicleRepository(IDbContextFactory<AppDbContext> factory) :
         }
         catch (DbUpdateException ex) when (IsUniqueViolation(ex))
         {
-            throw new DuplicatePlakaException(vehicle.Plaka);
+            throw new DuplicatePlateException(vehicle.Plaka);
         }
     }
 
@@ -291,7 +291,7 @@ public sealed class VehicleRepository(IDbContextFactory<AppDbContext> factory) :
         }
         catch (DbUpdateException ex) when (IsUniqueViolation(ex))
         {
-            throw new DuplicatePlakaException(vehicle.Plaka);
+            throw new DuplicatePlateException(vehicle.Plaka);
         }
         return true;
     }
@@ -308,7 +308,7 @@ public sealed class VehicleRepository(IDbContextFactory<AppDbContext> factory) :
         }
         catch (DbUpdateException ex) when (IsUniqueViolation(ex))
         {
-            throw new DuplicatePlakaException(plate ?? string.Empty);
+            throw new DuplicatePlateException(plate ?? string.Empty);
         }
     }
 

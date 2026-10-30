@@ -48,7 +48,7 @@ public sealed class AutoCollectionService(
     /// gösterim ile test aynı şeyi konuşsun.
     /// </summary>
     public static IReadOnlyList<(string Doviz, decimal Toplam)> CurrencyTotals(
-        IEnumerable<OtomatikTahsilatAdayi> candidates)
+        IEnumerable<PeriodAutoCollectionCandidate> candidates)
         => [.. candidates.GroupBy(a => a.Doviz)
                 .Select(g => (Doviz: g.Key, Toplam: g.Sum(x => x.KiraTutar)))
                 .OrderBy(x => x.Doviz, StringComparer.Ordinal)];
@@ -68,15 +68,15 @@ public sealed class AutoCollectionService(
 
     /// <summary>Aday listesi. Salt okuma ama para bilgisi (cari bakiye) taşıdığı için
     /// <see cref="Permission.FinanceWrite"/> istenir — ekranın kendisi zaten finans rolüne kapalı.</summary>
-    public async Task<IReadOnlyList<OtomatikTahsilatAdayi>> CandidatesAsync(
-        OtomatikTahsilatFiltre? filter = null, CancellationToken ct = default)
+    public async Task<IReadOnlyList<PeriodAutoCollectionCandidate>> CandidatesAsync(
+        PeriodAutoCollectionFilter? filter = null, CancellationToken ct = default)
     {
         PermissionGuard.Require(_currentUser, Permission.FinanceWrite);
         // KOPYA kurulur: çağıranın nesnesini mutasyona uğratmak (adversarial L3) sayfa yeniden
         // kullandığında sessizce kapsam sızdırabilirdi.
-        var k = filter ?? new OtomatikTahsilatFiltre();
+        var k = filter ?? new PeriodAutoCollectionFilter();
         var scope = BranchScope.EffectiveFilter(_currentUser);
-        var f = new OtomatikTahsilatFiltre
+        var f = new PeriodAutoCollectionFilter
         {
             SozlesmeNo = k.SozlesmeNo, VadeMin = k.VadeMin, VadeMax = k.VadeMax,
             SadeceBakiyeli = k.SadeceBakiyeli,

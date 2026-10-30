@@ -9,7 +9,7 @@ public interface IVehicleLoanRepository
     Task<IReadOnlyList<AracKredi>> ListAsync(CancellationToken ct = default);
     /// <summary>FAZ-13 — Cari/Plaka/Dosya/Durum/Tarih aralığı filtresi. Plaka Vehicles'a JOIN gerektirir
     /// (kredide plaka kolonu yok, VehicleId var) → SQL'de alt-sorguyla süzülür.</summary>
-    Task<IReadOnlyList<AracKredi>> SearchAsync(AracKrediFilter filter, CancellationToken ct = default);
+    Task<IReadOnlyList<AracKredi>> SearchAsync(VehicleLoanFilter filter, CancellationToken ct = default);
     Task<AracKredi?> FindAsync(Guid id, CancellationToken ct = default);
     Task CreateAsync(AracKredi row, CancellationToken ct = default);
     /// <summary>Taksit öde — FOR UPDATE satır kilidi altında sayaç + (FAZ 1.3) taksit GİDERİ aynı tx'te:

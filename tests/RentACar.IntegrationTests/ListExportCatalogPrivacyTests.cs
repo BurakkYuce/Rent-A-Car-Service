@@ -147,7 +147,7 @@ public sealed class ListExportCatalogPrivacyTests
             ListExportCatalog.CashTransactions([new NakitIslemSatirDto(cash, real, "K-1")], privacy),
             ListExportCatalog.Rentals([new RentalRow { SozlesmeNo = "K-1", MusteriId = anon.Id, MusteriAd = real }], privacy),
             ListExportCatalog.Reservations([new ReservationRow(rez, real, phone, "34AA01")], privacy),
-            ListExportCatalog.LegalCases([new HukukDosyaSatirDto(hukuk, real, phone)], privacy),
+            ListExportCatalog.LegalCases([new LegalCaseRowDto(hukuk, real, phone)], privacy),
             ListExportCatalog.FleetRentals([new FiloKiralama { No = "FK-1", MusteriId = anon.Id }], _ => "34AA01", Name, privacy),
             ListExportCatalog.VehicleLoans([new AracKredi { No = "KR-1", CariId = anon.Id }], privacy, Name),
             ListExportCatalog.VehicleOrders([new AracSiparis { No = "AS-1", TedarikciCariId = anon.Id }], privacy, Name),

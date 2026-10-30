@@ -79,7 +79,7 @@ public sealed class SortFieldMap<T>
     /// </summary>
     public SortFieldMap<T> Default(string sort)
     {
-        var resolve = new ListeIstegi(Sirala: sort).ParseSort()
+        var resolve = new ListRequest(Sirala: sort).ParseSort()
             ?? throw new ArgumentException("Varsayılan sıralama boş olamaz.", nameof(sort));
         if (!_fields.ContainsKey(resolve.Alan))
             throw new ArgumentException($"Varsayılan sıralama tanımsız alana işaret ediyor: '{resolve.Alan}'.", nameof(sort));
@@ -94,7 +94,7 @@ public sealed class SortFieldMap<T>
     public IOrderedQueryable<T> Apply(IQueryable<T> source, string? sort)
     {
         ArgumentNullException.ThrowIfNull(source);
-        var request = new ListeIstegi(Sirala: sort).ParseSort() ?? _default;
+        var request = new ListRequest(Sirala: sort).ParseSort() ?? _default;
 
         if (request is not { } selection)
             return _tieBreakerOnly(source);

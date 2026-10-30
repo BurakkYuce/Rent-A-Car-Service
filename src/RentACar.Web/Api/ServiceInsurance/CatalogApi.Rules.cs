@@ -146,7 +146,7 @@ internal static partial class CatalogApi
 
     // ------------------------------------------------------------------ broker yasakları
 
-    private static BrokerYasakInput BrokerInput(BrokerBanRequest r) => new()
+    private static BrokerBanInput BrokerInput(BrokerBanRequest r) => new()
     {
         Kod = r.Kod ?? "", Ad = r.Ad ?? "", Aciklama = r.Aciklama, Kaynak = r.Kaynak, AracGrupKod = r.AracGrupKod,
         Bolge = r.Bolge, MinGun = r.MinGun, TumSatisKapali = r.TumSatisKapali,

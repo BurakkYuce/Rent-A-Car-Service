@@ -939,7 +939,7 @@ public sealed record AracKarneDto(
     IReadOnlyList<AracKirilimRow> GiderKategori,
     IReadOnlyList<AracOlayRow> Olaylar,
     AracKpiDto Kpi,
-    MaliyetHesapSonuc? MaliyetModel,
+    CostCalculationResult? MaliyetModel,
     TutSatSinyalDto TutSat,
     decimal? BasaBasGunluk = null,
     KalintiProjeksiyonDto? Kalinti = null,

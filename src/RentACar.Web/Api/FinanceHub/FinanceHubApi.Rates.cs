@@ -77,7 +77,7 @@ public static partial class FinanceHubApi
         FixedRateCreateRequest req, FixedExchangeRateService fixedRates, CancellationToken ct)
     {
         FixedRateInput(req.Kur, req.BasTar, req.BitTar);
-        var id = await fixedRates.CreateAsync(new SabitKurInput
+        var id = await fixedRates.CreateAsync(new FixedExchangeRateInput
         {
             Kod = req.Kod ?? "", Kur = req.Kur, BasTar = Midnight(req.BasTar), BitTar = Midnight(req.BitTar), Aktif = req.Aktif,
         }, ct);
@@ -90,7 +90,7 @@ public static partial class FinanceHubApi
         if (string.IsNullOrWhiteSpace(req.Surum))
             throw new ValidationException("Kayıt sürümü (surum) zorunludur; kaydı yeniden yükleyin.", "surum");
         FixedRateInput(req.Kur, req.BasTar, req.BitTar);
-        var ok = await fixedRates.UpdateAsync(id, new SabitKurInput
+        var ok = await fixedRates.UpdateAsync(id, new FixedExchangeRateInput
         {
             Kur = req.Kur, BasTar = Midnight(req.BasTar), BitTar = Midnight(req.BitTar), Aktif = req.Aktif,
         }, req.Surum, ct);

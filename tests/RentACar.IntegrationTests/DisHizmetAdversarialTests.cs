@@ -26,7 +26,7 @@ namespace RentACar.IntegrationTests;
     // mutabakatı); (F) yeni tablonun RLS/tenant izolasyonu (CLAUDE.md §5 adım 9).
     private static readonly DateTimeOffset Start = new DateTimeOffset(DateTime.UtcNow.Date, TimeSpan.Zero).AddDays(-3);
 
-    private static DisHizmetInput Input(Guid rental, Guid supplier, decimal charge = 1000m, decimal rate = 10m) => new()
+    private static OutsourcedServiceInput Input(Guid rental, Guid supplier, decimal charge = 1000m, decimal rate = 10m) => new()
     {
         RentalId = rental, FaturaKesilecekCariId = supplier,
         AlinanHizmet = "Probe hizmet", HizmetBedeli = charge, TedarikciKomisyonOran = rate

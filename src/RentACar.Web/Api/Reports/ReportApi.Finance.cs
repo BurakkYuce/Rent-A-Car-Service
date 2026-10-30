@@ -66,7 +66,7 @@ public static partial class ReportApi
     {
         ReportScope.RequireFirmWide(user);
         var p = q.Validate();
-        var rowList = await cash.ListCashTransfersAsync(new KasaVirmanFilter
+        var rowList = await cash.ListCashTransfersAsync(new CashTransferFilter
         {
             Bas = p.FromUtc, Bit = p.ToUtc, HesapId = hesapId, Ara = F(ara),
         }, ct);

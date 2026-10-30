@@ -92,7 +92,7 @@ public static class ListExportCatalog
     /// <summary>FAZ-52 — fatura DETAY (satır) listesi. Tutarlar faturanın kesildiği andaki
     /// değerlerdir; burada yeniden hesaplanmaz. İptal satırları da yazılır (Durum kolonuyla ayrışır)
     /// — ekranda görünen ile indirilen aynı küme olmalı.</summary>
-    public static ExportTable InvoiceDetails(IReadOnlyList<RentACar.Application.Finance.FaturaSatirDto> rows, CustomerPrivacy privacy) => new(
+    public static ExportTable InvoiceDetails(IReadOnlyList<RentACar.Application.Finance.InvoiceLineRow> rows, CustomerPrivacy privacy) => new(
         "Fatura Detay",
         // Şehir / Mail / Vergi No YOK (#378 adversarial M1): ekran (InvoiceLineListRow) bunları göstermiyor ve bireysel
         // carinin vergi no'su TC olabilir — "gördüğün = indirdiğin".
@@ -287,7 +287,7 @@ public static class ListExportCatalog
         }).ToList());
 
     /// <summary>Birleşik vade panosu (sigorta/MTV/muayene bitişleri) — en yakına sıralı. Plaka endpoint'te çözülür.</summary>
-    public static ExportTable Dues(IReadOnlyList<VadeItem> v, Func<Guid, string?> plate) => new(
+    public static ExportTable Dues(IReadOnlyList<DueItem> v, Func<Guid, string?> plate) => new(
         "Vade (Sigorta-MTV-Muayene)",
         ["Plaka", "Tür", "Bitiş", "Kalan Gün", "Durum"],
         v.Select(x => new object?[]
@@ -303,7 +303,7 @@ public static class ListExportCatalog
     /// mali rapora karışmaz (bkz. HukukDosya.Tahsilat). Kalan entity'nin tek formülünden okunur,
     /// burada yeniden hesaplanmaz.</para>
     /// </summary>
-    public static ExportTable LegalCases(IReadOnlyList<HukukDosyaSatirDto> h, CustomerPrivacy privacy) => new(
+    public static ExportTable LegalCases(IReadOnlyList<LegalCaseRowDto> h, CustomerPrivacy privacy) => new(
         "Hukuk Dosyalari",
         ["Dosya No", "Müşteri", "Müşteri Tel", "Fatura No", "Tür", "Avukat", "Avukat Tel", "Avukat E-posta",
          "2. Avukat", "2. Avukat Tel", "2. Avukat E-posta",

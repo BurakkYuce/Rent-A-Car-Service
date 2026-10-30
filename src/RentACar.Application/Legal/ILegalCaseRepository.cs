@@ -7,7 +7,7 @@ public interface ILegalCaseRepository
     Task<IReadOnlyList<HukukDosya>> ListAsync(CancellationToken ct = default);
 
     /// <summary>FAZ-41 — filtreli liste; müşteri adı/telefonu ÇÖZÜLMÜŞ döner. <c>null</c> filtre → tümü.</summary>
-    Task<IReadOnlyList<HukukDosyaSatirDto>> SearchAsync(HukukDosyaFilter? filter = null, CancellationToken ct = default);
+    Task<IReadOnlyList<LegalCaseRowDto>> SearchAsync(LegalCaseFilter? filter = null, CancellationToken ct = default);
 
     Task<HukukDosya?> FindAsync(Guid id, CancellationToken ct = default);
     Task<bool> FileNoExistsAsync(string fileNo, Guid? excludeId = null, CancellationToken ct = default);

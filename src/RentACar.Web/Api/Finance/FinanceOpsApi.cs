@@ -227,7 +227,7 @@ public static class FinanceOpsApi
         BaseLimit(istek.HizmetBedeli, istek.Kur, "hizmetBedeli");
         await IsRentalInScopeAsync(kiralar, istek.KiraId, ct); // alan hatası + kapsam (servis de denetler)
 
-        var id = await svc.CreateAsync(new DisHizmetInput
+        var id = await svc.CreateAsync(new OutsourcedServiceInput
         {
             RentalId = istek.KiraId,
             FaturaKesilecekCariId = istek.CariId,

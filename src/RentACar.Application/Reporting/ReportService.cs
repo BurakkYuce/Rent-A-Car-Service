@@ -292,11 +292,11 @@ public sealed class ReportService(IReportRepository repository, TutSatEsikleri h
         // atar — null bırakılır). Ömür-boyu holding varsayımı; FaizOran=0 (uydurma finansman yazılmaz),
         // Residual = IkinciElDeger/AlimBedeli (yoksa varsayılan 0.30), AylikGider = gerçekleşen ortalama.
         // TEK payda: model her yerde AYNI clamp'lenmiş ayı kullanır (>120 ayda karışık-payda çarpıklığı olmaz).
-        MaliyetHesapSonuc? costModel = null;
+        CostCalculationResult? costModel = null;
         if (v.AlimBedeli is > 0m)
         {
             var modelMonth = Math.Clamp(durationMonths, 1, 120);
-            costModel = CostCalculationService.Calculate(new MaliyetHesapInput
+            costModel = CostCalculationService.Calculate(new CostCalculationParameters
             {
                 AlisBedeli = v.AlimBedeli.Value,
                 SureAy = modelMonth,

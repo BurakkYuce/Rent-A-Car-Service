@@ -13,7 +13,7 @@ public sealed class ReservationTermRepository(IDbContextFactory<AppDbContext> fa
 {
     private readonly IDbContextFactory<AppDbContext> _factory = factory;
 
-    public async Task<IReadOnlyList<RezSart>> ListAsync(RezSartFilter? filter = null, CancellationToken ct = default)
+    public async Task<IReadOnlyList<RezSart>> ListAsync(ReservationTermFilter? filter = null, CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
         var q = db.RezSartlar.AsNoTracking().AsQueryable();

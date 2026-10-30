@@ -7,11 +7,11 @@ using RentACar.Infrastructure.Persistence;
 
 namespace RentACar.Infrastructure.Identity;
 
-/// <summary>EkIzinler/YasakIzinler: kullanıcı-bazlı istisna ADLARI (login'de tek doğruluk
+/// <summary>ExtraPermissions/DeniedPermissions: kullanıcı-bazlı istisna ADLARI (login'de tek doğruluk
 /// kaynağından yüklenir; hem cookie hem JWT üreticisi buradan claim yazar — iki host ayrışamaz).</summary>
 public sealed record LoginResult(
     Tenant Tenant, User User,
-    IReadOnlyList<string> EkIzinler, IReadOnlyList<string> YasakIzinler);
+    IReadOnlyList<string> ExtraPermissions, IReadOnlyList<string> DeniedPermissions);
 
 /// <summary>
 /// İki aşamalı login doğrulaması: firma kodu → tenant, sonra (tenant + kullanıcı + şifre) →
@@ -71,7 +71,7 @@ public sealed class LoginService(
             .ToListAsync(ct);
 
         return new LoginResult(tenant, user,
-            EkIzinler: exceptions.Where(i => i.Ver).Select(i => i.Izin).ToList(),
-            YasakIzinler: exceptions.Where(i => !i.Ver).Select(i => i.Izin).ToList());
+            ExtraPermissions: exceptions.Where(i => i.Ver).Select(i => i.Izin).ToList(),
+            DeniedPermissions: exceptions.Where(i => !i.Ver).Select(i => i.Izin).ToList());
     }
 }

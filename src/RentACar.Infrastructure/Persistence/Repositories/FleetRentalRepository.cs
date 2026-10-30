@@ -13,7 +13,7 @@ public sealed class FleetRentalRepository(IDbContextFactory<AppDbContext> factor
     private readonly IDbContextFactory<AppDbContext> _factory = factory;
 
     public async Task<IReadOnlyList<FiloKiralama>> ListAsync(
-        RentACar.Application.FleetRentals.FiloKiralamaFilter? filter = null, CancellationToken ct = default)
+        RentACar.Application.FleetRentals.FleetRentalFilter? filter = null, CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
         var q = db.FiloKiralamalar.AsNoTracking();

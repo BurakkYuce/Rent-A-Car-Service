@@ -4,7 +4,7 @@ using RentACar.Domain.Enums;
 namespace RentACar.Web.Pricing;
 
 /// <summary>
-/// Form/querystring alanlarını <see cref="MaliyetHesapInput"/>'a çeviren TEK kaynak (FAZ-74).
+/// Form/querystring alanlarını <see cref="CostCalculationParameters"/>'a çeviren TEK kaynak (FAZ-74).
 ///
 /// <para><b>Neden tek yerde:</b> hesap ekranı (GET, önizleme) ile kaydetme ucu (POST) aynı alan
 /// adlarını okur. İki ayrı ayrıştırma yazılsaydı önizlemedeki rakamla kaydedilen rakam sessizce
@@ -16,11 +16,11 @@ namespace RentACar.Web.Pricing;
 public static class CostCalculationInput
 {
     /// <param name="read">Alan adı → ham metin (form ya da querystring).</param>
-    public static MaliyetHesapInput Setup(Func<string, string?> read)
+    public static CostCalculationParameters Setup(Func<string, string?> read)
     {
         decimal D(string name, decimal defaultValue) => FormParse.Dec(read(name)) ?? defaultValue;
 
-        return new MaliyetHesapInput
+        return new CostCalculationParameters
         {
             AlisBedeli = D("alisBedeli", 0m),
             ResidualYuzde = D("residual", 0.30m),

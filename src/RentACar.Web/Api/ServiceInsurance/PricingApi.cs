@@ -89,7 +89,7 @@ internal static partial class PricingApi
         => TypedResults.Ok(CostResultDto.From(CostCalculationService.Calculate(CostInput(r, ""))));
 
     /// <summary>Request → service input. Amounts: 2 decimals and below 10^15; rates (fractions): 4 decimals, |x| &lt; 1000.</summary>
-    internal static MaliyetHesapInput CostInput(CostInputDto r, string prefix)
+    internal static CostCalculationParameters CostInput(CostInputDto r, string prefix)
     {
         void Amount(decimal? v, string f) => S.RecordAmount(v, prefix + f);
         void Rate(decimal? v, string f)
@@ -109,8 +109,8 @@ internal static partial class PricingApi
         Rate(r.EnflasyonOran, "enflasyonOran");
         S.IntRange(r.SureAy, 1, 600, prefix + "sureAy");
         S.IntRange(r.AracSayisi, 1, 100_000, prefix + "aracSayisi");
-        var d = new MaliyetHesapInput();
-        return new MaliyetHesapInput
+        var d = new CostCalculationParameters();
+        return new CostCalculationParameters
         {
             AlisBedeli = r.AlisBedeli ?? 0m, ResidualYuzde = r.ResidualYuzde ?? d.ResidualYuzde, SureAy = r.SureAy ?? d.SureAy,
             FaizOran = r.FaizOran ?? 0m, KkdfOran = r.KkdfOran ?? d.KkdfOran, BsmvOran = r.BsmvOran ?? d.BsmvOran,

@@ -147,15 +147,15 @@ public sealed class VirmanGecmisiTests(PostgresFixture fx)
         // Süzgeçsiz: 3.
         Assert.Equal(3, (await cash.ListCashTransfersAsync()).Count);
         // Tarih penceresi son 7 gün: eski kayıt düşer → 2.
-        Assert.Equal(2, (await cash.ListCashTransfersAsync(new KasaVirmanFilter { Bas = Day(-7) })).Count);
+        Assert.Equal(2, (await cash.ListCashTransfersAsync(new CashTransferFilter { Bas = Day(-7) })).Count);
         // Hesap A: yalnız A→B → 1.
-        Assert.Single(await cash.ListCashTransfersAsync(new KasaVirmanFilter { HesapId = a }));
+        Assert.Single(await cash.ListCashTransfersAsync(new CashTransferFilter { HesapId = a }));
         // Hesap B kaynak VEYA hedef olduğu iki virmanda da geçer → 2.
-        Assert.Equal(2, (await cash.ListCashTransfersAsync(new KasaVirmanFilter { HesapId = b })).Count);
+        Assert.Equal(2, (await cash.ListCashTransfersAsync(new CashTransferFilter { HesapId = b })).Count);
         // Makbuz araması.
-        Assert.Single(await cash.ListCashTransfersAsync(new KasaVirmanFilter { Ara = "MK-BC" }));
+        Assert.Single(await cash.ListCashTransfersAsync(new CashTransferFilter { Ara = "MK-BC" }));
         // Boş süzgeç daraltmaz.
-        Assert.Equal(3, (await cash.ListCashTransfersAsync(new KasaVirmanFilter { Ara = "" })).Count);
+        Assert.Equal(3, (await cash.ListCashTransfersAsync(new CashTransferFilter { Ara = "" })).Count);
     }
 
     [Fact]

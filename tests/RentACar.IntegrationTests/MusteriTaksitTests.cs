@@ -37,11 +37,11 @@ public sealed class MusteriTaksitTests(PostgresFixture fx)
         var account = await CustomerAsync(sp);
 
         // ELLE: 10.000 TL, 3 taksit → 10000/3 = 3333,333… → 3333,33 · 3333,33 · KALAN 3333,34
-        var count = await svc.GeneratePlanAsync(new TaksitPlanInput
+        var count = await svc.GeneratePlanAsync(new InstallmentPlanInput
         { CariId = account, ToplamTutar = 10_000m, TaksitSayisi = 3, IlkVade = D(2026, 9, 15) });
         Assert.Equal(3, count);
 
-        var rows = (await svc.SearchAsync(new MusteriTaksitFilter { CariId = account })).OrderBy(x => x.Sira).ToList();
+        var rows = (await svc.SearchAsync(new CustomerInstallmentFilter { CariId = account })).OrderBy(x => x.Sira).ToList();
         Assert.Equal([3333.33m, 3333.33m, 3333.34m], rows.Select(x => x.TaksitTutari));
         Assert.Equal(10_000m, rows.Sum(x => x.TaksitTutari));   // kuruş kayması YOK
         Assert.Equal([1, 2, 3], rows.Select(x => x.Sira));
@@ -61,10 +61,10 @@ public sealed class MusteriTaksitTests(PostgresFixture fx)
         var svc = sp.GetRequiredService<CustomerInstallmentService>();
         var account = await CustomerAsync(sp);
 
-        await svc.GeneratePlanAsync(new TaksitPlanInput
+        await svc.GeneratePlanAsync(new InstallmentPlanInput
         { CariId = account, ToplamTutar = 120_000m, TaksitSayisi = 12, IlkVade = D(2026, 1, 31) });
 
-        var rows = (await svc.SearchAsync(new MusteriTaksitFilter { CariId = account })).OrderBy(x => x.Sira).ToList();
+        var rows = (await svc.SearchAsync(new CustomerInstallmentFilter { CariId = account })).OrderBy(x => x.Sira).ToList();
         Assert.Equal(12, rows.Count);
         Assert.All(rows, r => Assert.Equal(10_000m, r.TaksitTutari));   // 120000/12 tam bölünür
         // ELLE: 31 Ocak + 1 ay = 28 Şubat (AddMonths ay-sonu kırpar) — 12. taksit 31 Aralık.
@@ -72,9 +72,9 @@ public sealed class MusteriTaksitTests(PostgresFixture fx)
         Assert.Equal(D(2026, 12, 31), rows[11].Vade);
 
         // İKİNCİ plan aynı cari+araçsız → sıra 13'ten devam eder (13..15), 1'e dönmez.
-        await svc.GeneratePlanAsync(new TaksitPlanInput
+        await svc.GeneratePlanAsync(new InstallmentPlanInput
         { CariId = account, ToplamTutar = 300m, TaksitSayisi = 3, IlkVade = D(2027, 1, 15) });
-        var all = (await svc.SearchAsync(new MusteriTaksitFilter { CariId = account })).ToList();
+        var all = (await svc.SearchAsync(new CustomerInstallmentFilter { CariId = account })).ToList();
         Assert.Equal(15, all.Count);
         Assert.Equal([13, 14, 15], all.Where(x => x.TaksitTutari == 100m).OrderBy(x => x.Sira).Select(x => x.Sira));
     }
@@ -90,16 +90,16 @@ public sealed class MusteriTaksitTests(PostgresFixture fx)
         var today = DateTimeOffset.UtcNow;
 
         // ELLE: biri 10 gün GEÇMİŞ vadeli, biri 10 gün SONRA.
-        var history = await svc.CreateAsync(new MusteriTaksitInput
+        var history = await svc.CreateAsync(new CustomerInstallmentInput
         { CariId = account, Vade = today.AddDays(-10), TaksitTutari = 500m });
-        var future = await svc.CreateAsync(new MusteriTaksitInput
+        var future = await svc.CreateAsync(new CustomerInstallmentInput
         { CariId = account, Vade = today.AddDays(10), TaksitTutari = 500m });
 
         Assert.True((await svc.GetAsync(history))!.Gecikti);
         Assert.False((await svc.GetAsync(future))!.Gecikti);
 
         // Filtre: yalnız gecikenler → 1 satır (bellekte süzülür, kolon yok)
-        var overdueItems = await svc.SearchAsync(new MusteriTaksitFilter { SadeceGecikmis = true });
+        var overdueItems = await svc.SearchAsync(new CustomerInstallmentFilter { SadeceGecikmis = true });
         Assert.Equal(history, Assert.Single(overdueItems).Id);
 
         // Ödendi işaretlenince GECİKMİŞ SAYILMAZ — vadesi geçmiş olsa bile.
@@ -108,7 +108,7 @@ public sealed class MusteriTaksitTests(PostgresFixture fx)
         Assert.Equal(InstallmentStatus.Odendi, paid.Durum);
         Assert.False(paid.Gecikti);
         Assert.NotNull(paid.OdemeTarihi);
-        Assert.Empty(await svc.SearchAsync(new MusteriTaksitFilter { SadeceGecikmis = true }));
+        Assert.Empty(await svc.SearchAsync(new CustomerInstallmentFilter { SadeceGecikmis = true }));
 
         // GERİ AL: durum Bekliyor'a döner VE ödeme tarihi TEMİZLENİR (çelişkili satır kalmaz).
         Assert.True(await svc.MarkPaidAsync(history, paid: false));
@@ -129,9 +129,9 @@ public sealed class MusteriTaksitTests(PostgresFixture fx)
         var today = DateTimeOffset.UtcNow;
 
         // ELLE: 1000 TRY (kur 1) + 100 EUR (kur 40) = 1000 + 4000 = 5000 baz.
-        var a = await svc.CreateAsync(new MusteriTaksitInput
+        var a = await svc.CreateAsync(new CustomerInstallmentInput
         { CariId = account, Vade = today.AddDays(-5), TaksitTutari = 1000m });
-        await svc.CreateAsync(new MusteriTaksitInput
+        await svc.CreateAsync(new CustomerInstallmentInput
         { CariId = account, Vade = today.AddDays(20), TaksitTutari = 100m, Currency = "eur", Kur = 40m });
 
         await svc.MarkPaidAsync(a, paid: true, date: today.AddDays(-2));
@@ -160,28 +160,28 @@ public sealed class MusteriTaksitTests(PostgresFixture fx)
         var account = await CustomerAsync(sp);
         var today = DateTimeOffset.UtcNow;
 
-        await Assert.ThrowsAsync<ValidationException>(() => svc.CreateAsync(new MusteriTaksitInput
+        await Assert.ThrowsAsync<ValidationException>(() => svc.CreateAsync(new CustomerInstallmentInput
         { CariId = Guid.Empty, Vade = today, TaksitTutari = 100m }));                    // müşterisiz
-        await Assert.ThrowsAsync<ValidationException>(() => svc.CreateAsync(new MusteriTaksitInput
+        await Assert.ThrowsAsync<ValidationException>(() => svc.CreateAsync(new CustomerInstallmentInput
         { CariId = account, Vade = today, TaksitTutari = 0m }));                            // tutar 0
-        await Assert.ThrowsAsync<ValidationException>(() => svc.CreateAsync(new MusteriTaksitInput
+        await Assert.ThrowsAsync<ValidationException>(() => svc.CreateAsync(new CustomerInstallmentInput
         { CariId = account, Vade = null, TaksitTutari = 100m }));                           // vadesiz
         // Kur 0 → baz tutar sıfırlanırdı; negatif kur işareti çevirirdi.
-        await Assert.ThrowsAsync<ValidationException>(() => svc.CreateAsync(new MusteriTaksitInput
+        await Assert.ThrowsAsync<ValidationException>(() => svc.CreateAsync(new CustomerInstallmentInput
         { CariId = account, Vade = today, TaksitTutari = 100m, Kur = 0m }));
         // GELECEK tarihli ödeme reddi (TarihPolitikasi.ParaTarihi) — para bilgisi simetrisi.
-        await Assert.ThrowsAsync<ValidationException>(() => svc.CreateAsync(new MusteriTaksitInput
+        await Assert.ThrowsAsync<ValidationException>(() => svc.CreateAsync(new CustomerInstallmentInput
         {
             CariId = account, Vade = today, TaksitTutari = 100m,
             Durum = InstallmentStatus.Odendi, OdemeTarihi = today.AddDays(30)
         }));
 
         // Plan sınırları
-        await Assert.ThrowsAsync<ValidationException>(() => svc.GeneratePlanAsync(new TaksitPlanInput
+        await Assert.ThrowsAsync<ValidationException>(() => svc.GeneratePlanAsync(new InstallmentPlanInput
         { CariId = account, ToplamTutar = 1000m, TaksitSayisi = 0, IlkVade = today }));
-        await Assert.ThrowsAsync<ValidationException>(() => svc.GeneratePlanAsync(new TaksitPlanInput
+        await Assert.ThrowsAsync<ValidationException>(() => svc.GeneratePlanAsync(new InstallmentPlanInput
         { CariId = account, ToplamTutar = 1000m, TaksitSayisi = CustomerInstallmentService.MaxInstallments + 1, IlkVade = today }));
-        await Assert.ThrowsAsync<ValidationException>(() => svc.GeneratePlanAsync(new TaksitPlanInput
+        await Assert.ThrowsAsync<ValidationException>(() => svc.GeneratePlanAsync(new InstallmentPlanInput
         { CariId = account, ToplamTutar = 0m, TaksitSayisi = 3, IlkVade = today }));
 
         // Hiçbiri yazılmadı.
@@ -199,7 +199,7 @@ public sealed class MusteriTaksitTests(PostgresFixture fx)
         var account = await CustomerAsync(sp);
 
         var once = await LedgerCountAsync(sp);
-        var id = await svc.CreateAsync(new MusteriTaksitInput
+        var id = await svc.CreateAsync(new CustomerInstallmentInput
         { CariId = account, Vade = DateTimeOffset.UtcNow, TaksitTutari = 7500m });
         await svc.MarkPaidAsync(id, paid: true);
 
@@ -221,28 +221,28 @@ public sealed class MusteriTaksitTests(PostgresFixture fx)
             .CreateAsync(new VehicleInput { Plaka = "34 TK 66" });
         var today = DateTimeOffset.UtcNow;
 
-        await svc.CreateAsync(new MusteriTaksitInput
+        await svc.CreateAsync(new CustomerInstallmentInput
         { CariId = account1, VehicleId = vehicle, Vade = D(2026, 3, 10), TaksitTutari = 100m });
-        await svc.CreateAsync(new MusteriTaksitInput
+        await svc.CreateAsync(new CustomerInstallmentInput
         { CariId = account1, Vade = D(2026, 6, 10), TaksitTutari = 200m });
-        await svc.CreateAsync(new MusteriTaksitInput
+        await svc.CreateAsync(new CustomerInstallmentInput
         { CariId = account2, Vade = D(2026, 3, 20), TaksitTutari = 300m });
 
         Assert.Equal(3, (await svc.SearchAsync()).Count);
-        Assert.Equal(2, (await svc.SearchAsync(new MusteriTaksitFilter { CariId = account1 })).Count);
-        Assert.Equal(100m, Assert.Single(await svc.SearchAsync(new MusteriTaksitFilter { VehicleId = vehicle })).TaksitTutari);
+        Assert.Equal(2, (await svc.SearchAsync(new CustomerInstallmentFilter { CariId = account1 })).Count);
+        Assert.Equal(100m, Assert.Single(await svc.SearchAsync(new CustomerInstallmentFilter { VehicleId = vehicle })).TaksitTutari);
 
         // Vade aralığı: Mart ayı → 2 satır (10 ve 20 Mart), Haziran hariç.
-        var mart = await svc.SearchAsync(new MusteriTaksitFilter
+        var mart = await svc.SearchAsync(new CustomerInstallmentFilter
         { VadeMin = D(2026, 3, 1), VadeMax = D(2026, 3, 31) });
         Assert.Equal(2, mart.Count);
         Assert.DoesNotContain(mart, x => x.TaksitTutari == 200m);
 
         // Araçlı taksit AYRI sıra dizisinde: cari1'in araçsız ve araçlı kayıtları ikisi de 1.
-        Assert.All(await svc.SearchAsync(new MusteriTaksitFilter { CariId = account1 }), r => Assert.Equal(1, r.Sira));
+        Assert.All(await svc.SearchAsync(new CustomerInstallmentFilter { CariId = account1 }), r => Assert.Equal(1, r.Sira));
 
         // Silme
-        var remove = (await svc.SearchAsync(new MusteriTaksitFilter { CariId = account2 })).Single();
+        var remove = (await svc.SearchAsync(new CustomerInstallmentFilter { CariId = account2 })).Single();
         Assert.True(await svc.DeleteAsync(remove.Id));
         Assert.False(await svc.DeleteAsync(remove.Id));      // ikinci kez false
         Assert.Equal(2, (await svc.SearchAsync()).Count);
@@ -261,14 +261,14 @@ public sealed class MusteriTaksitTests(PostgresFixture fx)
         {
             var svc = op.ServiceProvider.GetRequiredService<CustomerInstallmentService>();
             await Assert.ThrowsAsync<NoPermissionException>(() => svc.SearchAsync());
-            await Assert.ThrowsAsync<NoPermissionException>(() => svc.CreateAsync(new MusteriTaksitInput
+            await Assert.ThrowsAsync<NoPermissionException>(() => svc.CreateAsync(new CustomerInstallmentInput
             { CariId = account, Vade = DateTimeOffset.UtcNow, TaksitTutari = 100m }));
         }
 
         // Muhasebe: FinanceWrite → yazar VE okur (yazan rol okuyabilmeli).
         using var mh = host.ScopeFor(tenant, Guid.NewGuid(), "mh", UserRole.Muhasebe);
         var m = mh.ServiceProvider.GetRequiredService<CustomerInstallmentService>();
-        await m.CreateAsync(new MusteriTaksitInput
+        await m.CreateAsync(new CustomerInstallmentInput
         { CariId = account, Vade = DateTimeOffset.UtcNow, TaksitTutari = 100m });
         Assert.Single(await m.SearchAsync());
     }
@@ -281,7 +281,7 @@ public sealed class MusteriTaksitTests(PostgresFixture fx)
         {
             var sp = a.ServiceProvider;
             var account = await CustomerAsync(sp, "Gizli");
-            await sp.GetRequiredService<CustomerInstallmentService>().CreateAsync(new MusteriTaksitInput
+            await sp.GetRequiredService<CustomerInstallmentService>().CreateAsync(new CustomerInstallmentInput
             { CariId = account, Vade = DateTimeOffset.UtcNow, TaksitTutari = 99_999m });
         }
 

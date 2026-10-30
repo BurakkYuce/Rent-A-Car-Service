@@ -76,7 +76,7 @@ public sealed class TestUiEndpoints : IUiApiEndpointRegistration
         t.MapPost("/yaz", () => TypedResults.Ok(new { yazildi = true }));
         t.MapGet("/yetki-yok", NoContent () => throw new NoPermissionException("Bu kayıt şube kapsamınız dışında."));
         t.MapPost("/dogrulama", NoContent () => throw new ValidationException("Plaka zorunludur.", "Plaka"));
-        t.MapPost("/cakisma", NoContent () => throw new DuplicatePlakaException("34 ABC 123"));
+        t.MapPost("/cakisma", NoContent () => throw new DuplicatePlateException("34 ABC 123"));
         t.MapPost("/mukerrer", NoContent () => throw new DuplicateOperationException("Bu işlem zaten kaydedildi."));
         t.MapGet("/patla", NoContent () => throw new InvalidOperationException(HiddenDetail));
         t.MapGet("/finans", () => TypedResults.Ok(new { finans = true })).RequirePermission(Permission.FinanceWrite);

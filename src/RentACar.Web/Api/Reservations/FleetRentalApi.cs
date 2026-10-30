@@ -52,7 +52,7 @@ public static class FleetRentalApi
         string? durum, DateOnly? bas, DateOnly? bit, int? sayfa, int? boyut, string? sirala, CancellationToken ct)
     {
         var (min, max) = F5Shared.DayRange(bas, bit);
-        var list = await filo.ListScopedAsync(new FiloKiralamaFilter
+        var list = await filo.ListScopedAsync(new FleetRentalFilter
         {
             MusteriId = musteriId, Plaka = F5Shared.Nz(plaka), Ara = F5Shared.Nz(ara),
             Durum = F5Shared.EnumAdi<FleetRentalStatus>(durum, "durum"), Bas = min, Bit = max,
@@ -123,7 +123,7 @@ public static class FleetRentalApi
             throw new ValidationException("Döviz 3 harfli ISO kodu olmalıdır (ör. TRY, EUR).", "doviz");
         Texts(i.SatisTemsilcisi, i.FaturaTuru, i.MakbuzNo, i.DosyaNo, i.SozlesmeNo, i.FiyatTuru, i.Kaynak, i.Aciklama);
         await BookingPartyCheck.RequireAsync(musteriler, araclar, i.MusteriId, i.VehicleId, ct);
-        var id = await filo.CreateComprehensiveAsync(new FiloKiralamaInput
+        var id = await filo.CreateComprehensiveAsync(new FleetRentalInput
         {
             MusteriId = i.MusteriId, VehicleId = i.VehicleId, BasTar = F5Shared.Utc(i.BasTar), SureAy = i.SureAy ?? 0,
             AylikUcret = i.AylikUcret ?? 0m, KdvOrani = i.KdvOrani ?? 0.20m, Doviz = currency, Kur = i.Kur ?? 1m,
@@ -146,7 +146,7 @@ public static class FleetRentalApi
         if (string.IsNullOrWhiteSpace(i.Surum))
             throw new ValidationException("Kayıt sürümü (surum) zorunludur; kaydı yeniden açın.", "surum");
         Texts(i.SatisTemsilcisi, i.FaturaTuru, i.MakbuzNo, i.DosyaNo, i.SozlesmeNo, i.FiyatTuru, i.Kaynak, i.Aciklama);
-        if (!await filo.UpdateMetaAsync(id, new FiloKiralamaMetaInput
+        if (!await filo.UpdateMetaAsync(id, new FleetRentalMetaInput
         {
             SatisTemsilcisi = i.SatisTemsilcisi, FaturaTuru = i.FaturaTuru, SozlesmeTarihi = F5Shared.Utc(i.SozlesmeTarihi),
             ImzaTarih = F5Shared.Utc(i.ImzaTarih), MakbuzNo = i.MakbuzNo, DosyaNo = i.DosyaNo, SozlesmeNo = i.SozlesmeNo,

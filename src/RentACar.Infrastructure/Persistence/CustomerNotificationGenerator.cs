@@ -29,7 +29,7 @@ public static class CustomerNotificationGenerator
         RentACar.Application.Integrations.ISmsService sms,
         CancellationToken ct = default)
     {
-        // Servis job'ın elindeki context üzerine kurulur (bkz. DogrudanMesajRepolari): şablon çözümü,
+        // Servis job'ın elindeki context üzerine kurulur (bkz. DirectRepositories.cs): şablon çözümü,
         // idempotency, deneme sayacı ve izin kuralı TEK yerde kalır — kopyalanmaz.
         var notification = new CustomerNotificationService(
             new DirectMessageRepository(db, tenantId),
@@ -116,7 +116,7 @@ public static class CustomerNotificationGenerator
 
             if (!string.IsNullOrWhiteSpace(a.Email))
             {
-                await notification.GonderAsync(new MesajIstegi(
+                await notification.GonderAsync(new MessageRequest(
                     type, MessageChannel.Eposta, a.Email!, $"{keyPrefix}:{a.Id:N}:{day}",
                     values, sourceType, a.Id),
                     // KVKK: hatırlatma pazarlama DEĞİL, kurulmuş sözleşmenin ifasına ilişkin bilgidir.
@@ -128,7 +128,7 @@ public static class CustomerNotificationGenerator
 
             if (!string.IsNullOrWhiteSpace(a.Telefon))
             {
-                await notification.GonderAsync(new MesajIstegi(
+                await notification.GonderAsync(new MessageRequest(
                     type, MessageChannel.Sms, a.Telefon!, $"{keyPrefix}-sms:{a.Id:N}:{day}",
                     values, sourceType, a.Id),
                     hasPermission: a.SmsIzin != false, ct);

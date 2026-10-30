@@ -33,7 +33,7 @@ public static class CostCalculationService
     /// </summary>
     public const decimal MaxItemAmount = 1_000_000_000_000m;
 
-    public static MaliyetHesapSonuc Calculate(MaliyetHesapInput x)
+    public static CostCalculationResult Calculate(CostCalculationParameters x)
     {
         // GÜVENLİ-RED, GİRİŞ NOKTASINDA: doğrulamalardan da önce. Rotatif bir girdi hatası değil,
         // "bu modelin cevabı yok" durumudur; alt formüllere hiç girilmemeli (KARARLAR.md FAZ-74).
@@ -75,7 +75,7 @@ public static class CostCalculationService
         var quoteMonthlyNet = R(quoteNet / x.SureAy);
         var quoteWithVat = R(quoteNet * (1m + x.KdvOran));
 
-        return new MaliyetHesapSonuc(
+        return new CostCalculationResult(
             residualValue, netDepreciation, financingInterest, financingTax, stamp, totalExpense,
             totalCost, breakEvenMonthly, profit, quoteNet, quoteMonthlyNet, quoteWithVat,
             items, x.AracSayisi);
@@ -85,7 +85,7 @@ public static class CostCalculationService
     /// Gider kalemlerinin dönem dökümü. Tutarı 0 olan kalem listeye GİRMEZ (döküm okunur kalsın;
     /// toplama katkısı zaten 0'dır).
     /// </summary>
-    private static List<MaliyetGiderKalem> BuildItems(MaliyetHesapInput x)
+    private static List<CostExpenseLine> BuildItems(CostCalculationParameters x)
     {
         // Ay faktörü: enflasyon eskalasyonuyla "kaç aylık birim" ödendiğini verir.
         // Eskalasyon YOK ise faktör = SureAy → eski formül birebir korunur.
@@ -108,7 +108,7 @@ public static class CostCalculationService
             ("Banka Dosya / Diğer Masraf", CostItemPeriod.TekSeferlik, x.BankaDosyaDigerMasraf)
         };
 
-        var list = new List<MaliyetGiderKalem>(raw.Length);
+        var list = new List<CostExpenseLine>(raw.Length);
         foreach (var (name, period, unit) in raw)
         {
             // Negatif kalem "gizli indirim" olurdu; tek tek reddedilir ki kullanıcı HANGİ kalemi
@@ -124,7 +124,7 @@ public static class CostCalculationService
                 CostItemPeriod.Aylik => R(unit * monthFactor),
                 _ => R(unit)   // TekSeferlik — süreyle ÇARPILMAZ, enflasyondan etkilenmez
             };
-            list.Add(new MaliyetGiderKalem(name, period, unit, periodAmount));
+            list.Add(new CostExpenseLine(name, period, unit, periodAmount));
         }
         return list;
     }

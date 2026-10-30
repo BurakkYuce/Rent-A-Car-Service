@@ -87,7 +87,7 @@ public sealed class ReportPeriodQuery
     public ReportPeriod Validate(int? maxDays = null) => ReportPeriod.Validate(Bas, Bit, maxDays);
 }
 
-/// <summary>Sayfalama/sıralama parametreleri (sorgu). Boyut en fazla 200 (<see cref="ListeIstegi"/>).</summary>
+/// <summary>Sayfalama/sıralama parametreleri (sorgu). Boyut en fazla 200 (<see cref="ListRequest"/>).</summary>
 public sealed class ReportPageQuery
 {
     [FromQuery(Name = "sayfa")] public int? Sayfa { get; set; }

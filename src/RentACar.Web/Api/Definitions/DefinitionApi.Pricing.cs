@@ -82,12 +82,12 @@ public static partial class DefinitionApi
         {
             OccupancyLimits(b.KodOnEk, b.AdOnEk, b.AracGrupKod, b.Sube);
             if ((b.Kademeler?.Count ?? 0) > 20) throw new ValidationException("En fazla 20 kademe girilebilir.", "kademeler");
-            var ids = await s.BulkCreateAsync(new DolulukTopluInput
+            var ids = await s.BulkCreateAsync(new OccupancyBulkInput
             {
                 KodOnEk = b.KodOnEk ?? "", AdOnEk = b.AdOnEk ?? "", AracGrupKod = b.AracGrupKod, Sube = b.Sube,
                 SadeceKendiSubeleri = b.SadeceKendiSubeleri, GecerlilikBas = Start(b.GecerlilikBas),
                 GecerlilikBit = Start(b.GecerlilikBit), Aktif = b.Aktif,
-                Kademeler = (b.Kademeler ?? []).Select(k => new DolulukKademeSatiri(k.EsikYuzde, k.CarpanYuzde)).ToList(),
+                Kademeler = (b.Kademeler ?? []).Select(k => new OccupancyTierRow(k.EsikYuzde, k.CarpanYuzde)).ToList(),
             }, ct);
             return TypedResults.Created($"{UiApiExtensions.V1}/doluluk-kurallari", new OccupancyBulkResult(ids));
         }).MapFields([("Kod ön eki", "kodOnEk"), ("Ad ön eki", "adOnEk"), ("En az bir kademe", "kademeler"),
@@ -114,14 +114,14 @@ public static partial class DefinitionApi
 
     private static DateOnly? Day(DateTimeOffset? at) => at is { } a ? TenantDay.Day(a) : null;
 
-    private static DropTanimInput DropInputOf(DropRequest b) => new()
+    private static DropDefinitionInput DropInputOf(DropRequest b) => new()
     {
         Lokasyon = b.Lokasyon ?? "", Sube = b.Sube ?? "", CikisLokasyon = F(b.CikisLokasyon),
         KarsilamaSekli = F(b.KarsilamaSekli), CalismaSekli = F(b.CalismaSekli), OzelIletisim = F(b.OzelIletisim),
         Ucret = b.Ucret, MinGun = b.MinGun, ManSuresi = b.ManSuresi, Drop2 = b.Drop2, Aktif = b.Aktif ?? true,
     };
 
-    private static DolulukFiyatKuralInput OccupancyInputOf(OccupancyRuleRequest b) => new()
+    private static OccupancyPriceRuleInput OccupancyInputOf(OccupancyRuleRequest b) => new()
     {
         Kod = b.Kod ?? "", Ad = b.Ad ?? "", AracGrupKod = b.AracGrupKod, EsikYuzde = b.EsikYuzde,
         CarpanYuzde = b.CarpanYuzde, Sube = b.Sube, SadeceKendiSubeleri = b.SadeceKendiSubeleri,

@@ -89,21 +89,21 @@ public interface ICashRepository
     /// <summary>Cari hesap ekstresi (kronolojik defter satırları).</summary>
     /// <summary>
     /// Cari ekstresi. <paramref name="filter"/> null/boş → carinin TÜM hareketleri (eski davranış).
-    /// Filtre verilirse görünen satırlar daralır ve <see cref="CariEkstreSonuc.Devir"/> kapsam
+    /// Filtre verilirse görünen satırlar daralır ve <see cref="CustomerStatementResult.Devir"/> kapsam
     /// dışında kalan ÖNCEKİ hareketlerin net toplamıyla dolar (yürüyen bakiye doğru devam etsin).
     /// </summary>
     /// <summary>
     /// FAZ-59 — cari↔cari virman geçmişi: künye tablosu + DEFTERDEN okunan tutar (tek kaynak).
     /// </summary>
     /// <summary>FAZ-50 — kasa/banka virman geçmişi (künye + defterden tutar).</summary>
-    Task<IReadOnlyList<KasaVirmanSatirDto>> ListCashTransfersAsync(
-        KasaVirmanFilter? filter = null, CancellationToken ct = default);
+    Task<IReadOnlyList<CashTransferRowDto>> ListCashTransfersAsync(
+        CashTransferFilter? filter = null, CancellationToken ct = default);
 
-    Task<IReadOnlyList<CariVirmanSatirDto>> ListAccountTransfersAsync(
-        CariVirmanFilter? filter = null, CancellationToken ct = default);
+    Task<IReadOnlyList<CustomerTransferRowDto>> ListAccountTransfersAsync(
+        CustomerTransferFilter? filter = null, CancellationToken ct = default);
 
-    Task<CariEkstreSonuc> GetAccountStatementAsync(
-        Guid customerId, CariEkstreFilter? filter = null, CancellationToken ct = default);
+    Task<CustomerStatementResult> GetAccountStatementAsync(
+        Guid customerId, CustomerStatementFilter? filter = null, CancellationToken ct = default);
 
     /// <summary>Kira başına kasa/banka işlem SAYISI (ters kayıtlar DAHİL → monoton artan sayaç).
     /// Deterministik tahsilat idempotency anahtarının zamansal bileşeni: yalnız (kira, bakiye)

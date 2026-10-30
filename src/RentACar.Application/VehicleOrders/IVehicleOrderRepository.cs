@@ -9,7 +9,7 @@ public interface IVehicleOrderRepository
     Task<IReadOnlyList<AracSiparis>> ListAsync(CancellationToken ct = default);
 
     /// <summary>FAZ-17 — filtreli liste (Cari/Ad-Soyad/Araç/Dosya/Durum/Tarih aralığı).</summary>
-    Task<IReadOnlyList<AracSiparis>> SearchAsync(AracSiparisFilter filter, CancellationToken ct = default);
+    Task<IReadOnlyList<AracSiparis>> SearchAsync(VehicleOrderFilter filter, CancellationToken ct = default);
 
     Task<AracSiparis?> FindAsync(Guid id, CancellationToken ct = default);
     Task CreateAsync(AracSiparis row, CancellationToken ct = default);

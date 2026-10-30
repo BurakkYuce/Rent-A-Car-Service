@@ -75,7 +75,7 @@ public sealed class KiraUzatmaTests(PostgresFixture fx)
         Assert.True(await sp.GetRequiredService<RentalService>().ExtendAsync(id, Start.AddDays(5))); // toplam 500
         // Ek hizmet: net 100, %20 KDV → brüt 120 → GenelToplam 500+120=620 (eski bug: 700+120).
         var definitionId = await sp.GetRequiredService<RentACar.Application.AddOnDefinitions.AddOnDefinitionService>().CreateAsync(
-            new RentACar.Application.AddOnDefinitions.EkHizmetTanimInput { Kod = "KLT", Ad = "Koltuk", BirimUcret = 100m, KdvOrani = 0.20m });
+            new RentACar.Application.AddOnDefinitions.AddOnDefinitionInput { Kod = "KLT", Ad = "Koltuk", BirimUcret = 100m, KdvOrani = 0.20m });
         await sp.GetRequiredService<RentACar.Application.RentalAddOns.RentalAddOnService>().AddAsync(id, definitionId, 1m);
 
         var c = await sp.GetRequiredService<RentalService>().GetAsync(id);

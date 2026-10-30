@@ -32,7 +32,7 @@ public sealed class MessageRepository(IDbContextFactory<AppDbContext> factory) :
 
     /// <summary>F11.1b — kilit + sürüm karşılaştırmasıyla (tür, kanal) upsert. Eşzamanlı ilk yazımın kaybedeni 409 alır
     /// (sürümsüz yoldaki "kaybeden mevcut satıra uygular" davranışı burada YOK: bayat form sessizce ezmesin).</summary>
-    public async Task UpsertAsync(MesajSablonInput input, string? expectedVersion, CancellationToken ct = default)
+    public async Task UpsertAsync(MessageTemplateInput input, string? expectedVersion, CancellationToken ct = default)
     {
         try
         {
@@ -72,12 +72,12 @@ public sealed class MessageRepository(IDbContextFactory<AppDbContext> factory) :
         }
     }
 
-    public async Task<IReadOnlyList<MesajSablonRow>> ListTemplatesAsync(CancellationToken ct = default)
+    public async Task<IReadOnlyList<MessageTemplateRow>> ListTemplatesAsync(CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
         return await db.MesajSablonlari.AsNoTracking()
             .OrderBy(x => x.Tur).ThenBy(x => x.Kanal)
-            .Select(x => new MesajSablonRow(x.Id, x.Tur, x.Kanal, x.Konu, x.Govde, x.Aktif))
+            .Select(x => new MessageTemplateRow(x.Id, x.Tur, x.Kanal, x.Konu, x.Govde, x.Aktif))
             .ToListAsync(ct);
     }
 
@@ -88,7 +88,7 @@ public sealed class MessageRepository(IDbContextFactory<AppDbContext> factory) :
             .FirstOrDefaultAsync(x => x.Tur == type && x.Kanal == channel, ct);
     }
 
-    public async Task UpsertTemplateAsync(MesajSablonInput input, CancellationToken ct = default)
+    public async Task UpsertTemplateAsync(MessageTemplateInput input, CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
         var s = await db.MesajSablonlari
@@ -152,8 +152,8 @@ public sealed class MessageRepository(IDbContextFactory<AppDbContext> factory) :
         await db.SaveChangesAsync(ct);
     }
 
-    public async Task<IReadOnlyList<GidenMesajRow>> ListMessagesAsync(
-        GidenMesajFilter? filter = null, CancellationToken ct = default)
+    public async Task<IReadOnlyList<OutgoingMessageRow>> ListMessagesAsync(
+        OutgoingMessageFilter? filter = null, CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
         var q = db.GidenMesajlar.AsNoTracking().AsQueryable();
@@ -164,7 +164,7 @@ public sealed class MessageRepository(IDbContextFactory<AppDbContext> factory) :
 
         var take = Math.Clamp(filter?.Take ?? 100, 1, 500);
         return await q.OrderByDescending(x => x.OlusturmaUtc).Take(take)
-            .Select(x => new GidenMesajRow(
+            .Select(x => new OutgoingMessageRow(
                 x.Id, x.Tur, x.Kanal, x.Alici, x.Konu, x.Durum, x.Hata, x.DenemeSayisi,
                 x.OlusturmaUtc, x.GonderimUtc, x.KaynakTur, x.KaynakId))
             .ToListAsync(ct);

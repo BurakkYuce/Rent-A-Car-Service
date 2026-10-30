@@ -68,7 +68,7 @@ public sealed class CustomerTests(PostgresFixture fx)
         var svc = scope.ServiceProvider.GetRequiredService<CustomerService>();
 
         await svc.CreateAsync(new CustomerInput { Tip = CustomerType.Bireysel, Ad = "A", TcKimlik = ValidNationalId });
-        await Assert.ThrowsAsync<DuplicateCariException>(
+        await Assert.ThrowsAsync<DuplicateCustomerException>(
             () => svc.CreateAsync(new CustomerInput { Tip = CustomerType.Bireysel, Ad = "B", TcKimlik = ValidNationalId }));
     }
 

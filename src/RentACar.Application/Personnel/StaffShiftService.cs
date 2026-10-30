@@ -42,10 +42,10 @@ public sealed class StaffShiftService(
 
     // ---- Okuma ----
 
-    public async Task<VardiyaMatris> MatrixAsync(VardiyaFilter? filter = null, CancellationToken ct = default)
+    public async Task<StaffShiftMatrix> MatrixAsync(StaffShiftFilter? filter = null, CancellationToken ct = default)
     {
         PermissionGuard.RequireAny(_currentUser, Permission.ViewReports, Permission.OperationsWrite);
-        filter ??= new VardiyaFilter();
+        filter ??= new StaffShiftFilter();
         var (start, bit) = Window(filter);
 
         var rows = await _repository.SearchAsync(
@@ -58,7 +58,7 @@ public sealed class StaffShiftService(
         var matrix = rows
             .GroupBy(x => (x.Vardiya.PersonelId, x.PersonelAd))
             .OrderBy(g => g.Key.PersonelAd, StringComparer.CurrentCulture)
-            .Select(g => new VardiyaMatrisSatir(
+            .Select(g => new StaffShiftMatrixRow(
                 g.Key.PersonelId,
                 g.Key.PersonelAd,
                 g.GroupBy(x => x.Vardiya.Tarih).ToDictionary(
@@ -68,14 +68,14 @@ public sealed class StaffShiftService(
                 g.Sum(x => x.Vardiya.SureDk)))
             .ToList();
 
-        return new VardiyaMatris(gunler, matrix, rows.Count, rows.Sum(x => x.Vardiya.SureDk));
+        return new StaffShiftMatrix(gunler, matrix, rows.Count, rows.Sum(x => x.Vardiya.SureDk));
     }
 
     /// <summary>Düz liste (matrisle AYNI kapsam/filtre) — düzenleme tablosu ve export için.</summary>
-    public async Task<IReadOnlyList<VardiyaSatir>> ListAsync(VardiyaFilter? filter = null, CancellationToken ct = default)
+    public async Task<IReadOnlyList<StaffShiftRow>> ListAsync(StaffShiftFilter? filter = null, CancellationToken ct = default)
     {
         PermissionGuard.RequireAny(_currentUser, Permission.ViewReports, Permission.OperationsWrite);
-        filter ??= new VardiyaFilter();
+        filter ??= new StaffShiftFilter();
         var (start, bit) = Window(filter);
         return await _repository.SearchAsync(start, bit, filter, BranchScope.EffectiveFilter(_currentUser), ct);
     }
@@ -90,7 +90,7 @@ public sealed class StaffShiftService(
     }
 
     /// <summary>İstenen pencere; boşsa varsayılan, ters verilirse düzeltilir, geniş verilirse kırpılır.</summary>
-    public static (DateOnly Bas, DateOnly Bit) Window(VardiyaFilter f)
+    public static (DateOnly Bas, DateOnly Bit) Window(StaffShiftFilter f)
     {
         var today = DateOnly.FromDateTime(DateTimeOffset.UtcNow.UtcDateTime);
         var start = f.Bas ?? f.Bit?.AddDays(-(DefaultDay - 1)) ?? today;
@@ -102,7 +102,7 @@ public sealed class StaffShiftService(
 
     // ---- Yazma ----
 
-    public async Task<Guid> CreateAsync(VardiyaInput input, CancellationToken ct = default)
+    public async Task<Guid> CreateAsync(StaffShiftInput input, CancellationToken ct = default)
     {
         PermissionGuard.Require(_currentUser, Permission.OperationsWrite);
         var row = new PersonelVardiya();
@@ -111,7 +111,7 @@ public sealed class StaffShiftService(
         return row.Id;
     }
 
-    public async Task<bool> UpdateAsync(Guid id, VardiyaInput input, CancellationToken ct = default)
+    public async Task<bool> UpdateAsync(Guid id, StaffShiftInput input, CancellationToken ct = default)
     {
         PermissionGuard.Require(_currentUser, Permission.OperationsWrite);
         var existing = await _repository.FindAsync(id, ct);
@@ -138,13 +138,13 @@ public sealed class StaffShiftService(
     /// F10.3 — one shift with the staff name (form of <c>/api/ui</c>). Same permission and branch scope as
     /// <see cref="GetAsync"/>; the name comes from the staff master (no PII: name only, like the matrix).
     /// </summary>
-    public async Task<VardiyaSatir?> GetWithStaffAsync(Guid id, CancellationToken ct = default)
+    public async Task<StaffShiftRow?> GetWithStaffAsync(Guid id, CancellationToken ct = default)
     {
         var row = await GetAsync(id, ct);
         if (row is null) return null;
         var staff = await _personnel.FindAsync(row.PersonelId, ct);
         var name = staff is null ? "—" : $"{staff.Ad} {staff.Soyad}".Trim();
-        return new VardiyaSatir(row, name, staff?.Sube);
+        return new StaffShiftRow(row, name, staff?.Sube);
     }
 
     /// <summary>
@@ -153,7 +153,7 @@ public sealed class StaffShiftService(
     /// with the row: a later PUT then gets 409 <c>cakisma</c> (safe direction) instead of a fresh version paired with
     /// stale fields, which would let the stale form silently overwrite the concurrent change.
     /// </summary>
-    public async Task<(VardiyaSatir Row, string Version)?> GetWithStaffAndVersionAsync(Guid id, CancellationToken ct = default)
+    public async Task<(StaffShiftRow Row, string Version)?> GetWithStaffAndVersionAsync(Guid id, CancellationToken ct = default)
     {
         PermissionGuard.RequireAny(_currentUser, Permission.ViewReports, Permission.OperationsWrite);
         var store = RowVersionStoreGuard.Require(rowVersions);
@@ -178,7 +178,7 @@ public sealed class StaffShiftService(
     /// (409 <c>cakisma</c>). The branch scope is checked on the stored row BEFORE validation (another branch's row
     /// must not leak its state) and again under the lock (the row may have moved to another branch meanwhile).
     /// </summary>
-    public async Task<bool> UpdateVersionedAsync(Guid id, VardiyaInput input, string expectedVersion,
+    public async Task<bool> UpdateVersionedAsync(Guid id, StaffShiftInput input, string expectedVersion,
         CancellationToken ct = default)
     {
         PermissionGuard.Require(_currentUser, Permission.OperationsWrite);
@@ -213,7 +213,7 @@ public sealed class StaffShiftService(
     }
 
     /// <summary>Doğrulama + alan yazımı. Yeni alan eklenirse BURAYA da eklenmeli (Normalize dersi).</summary>
-    private async Task ApplyAsync(PersonelVardiya row, VardiyaInput input, Guid? excludeId, CancellationToken ct)
+    private async Task ApplyAsync(PersonelVardiya row, StaffShiftInput input, Guid? excludeId, CancellationToken ct)
     {
         if (input.PersonelId == Guid.Empty) throw new ValidationException("Personel seçilmeli.");
         var staff = await _personnel.FindAsync(input.PersonelId, ct)
@@ -249,7 +249,7 @@ public sealed class StaffShiftService(
     }
 
     private async Task CheckConflictAsync(
-        VardiyaInput input, Guid? excludeId, Personel staff, CancellationToken ct)
+        StaffShiftInput input, Guid? excludeId, Personel staff, CancellationToken ct)
     {
         var (yStart, yBit) = VardiyaZaman.Range(input.Tarih, input.BaslangicSaat, input.BitisSaat);
         var neighbors = await _repository.ListForOverlapAsync(input.PersonelId, input.Tarih, excludeId, ct);

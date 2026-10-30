@@ -40,8 +40,8 @@ public sealed class InvoiceService(
     /// FAZ-52 — fatura SATIRI seviyesinde birleştirilmiş liste (canlı fatura_detay_listesi.aspx).
     /// Salt okuma; <see cref="Permission.ViewReports"/> ister (fatura listesi gibi finans görünümü).
     /// </summary>
-    public Task<IReadOnlyList<FaturaSatirDto>> ListLinesAsync(
-        FaturaSatirFilter? filter = null, CancellationToken ct = default)
+    public Task<IReadOnlyList<InvoiceLineRow>> ListLinesAsync(
+        InvoiceLineRowFilter? filter = null, CancellationToken ct = default)
     {
         PermissionGuard.Require(_currentUser, Permission.ViewReports);
         return repository.ListLinesAsync(filter, ct);
@@ -80,7 +80,7 @@ public sealed class InvoiceService(
     /// zaten faturalanmış kirada FARK faturasına düşer, fark yoksa "zaten tam faturalanmış" diye
     /// reddeder. Yani ikinci gönderim yeni belge üretmez, atlananlar listesine yazılır.</para>
     /// </summary>
-    public async Task<TopluFaturaSonuc> BatchCreateFromRentalsAsync(
+    public async Task<BulkInvoiceResult> BatchCreateFromRentalsAsync(
         IReadOnlyCollection<Guid> rentalIds, decimal? vatRate = null, CancellationToken ct = default)
     {
         PermissionGuard.Require(_currentUser, Permission.FinanceWrite);
@@ -108,7 +108,7 @@ public sealed class InvoiceService(
                 skipped.Add($"{label}: {ex.Message}");
             }
         }
-        return new TopluFaturaSonuc(issued, skipped);
+        return new BulkInvoiceResult(issued, skipped);
     }
 
     /// <summary>Tek seferde faturalanabilecek en fazla kira (kazara "hepsini seç" freni).</summary>

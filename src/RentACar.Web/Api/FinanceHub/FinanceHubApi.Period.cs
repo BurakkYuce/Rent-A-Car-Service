@@ -77,7 +77,7 @@ public static partial class FinanceHubApi
             if (d is { Year: < 2000 or > 2100 })
                 throw new ValidationException("Tarih 2000 ile 2100 arasında olmalıdır.", field);
         // Blazor ile aynı: vade günleri UTC takvim günü, bitiş günü DAHİL.
-        var candidates = await auto.CandidatesAsync(new OtomatikTahsilatFiltre
+        var candidates = await auto.CandidatesAsync(new PeriodAutoCollectionFilter
         {
             SozlesmeNo = F5Shared.Nz(sozlesmeNo),
             VadeMin = vadeMin is { } a ? new DateTimeOffset(a.ToDateTime(TimeOnly.MinValue), TimeSpan.Zero) : null,

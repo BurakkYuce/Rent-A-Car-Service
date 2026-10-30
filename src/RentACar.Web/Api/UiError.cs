@@ -60,7 +60,7 @@ public static class UiError
     {
         NoPermissionException => (StatusCodes.Status403Forbidden, Forbidden),
         DuplicateOperationException => (StatusCodes.Status409Conflict, Duplicate),
-        AvailabilityConflictException or DuplicateCariException or DuplicatePlakaException
+        AvailabilityConflictException or DuplicateCustomerException or DuplicatePlateException
             or ConcurrentModificationException // F4.3 adversarial F2: bayat sürüm — form korunur, kayıt yeniden okunur
             => (StatusCodes.Status409Conflict, ConflictCode),
         ValidationException => (StatusCodes.Status400BadRequest, Validation),

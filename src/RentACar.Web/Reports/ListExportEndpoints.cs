@@ -51,7 +51,7 @@ public static class ListExportEndpoints
                 var customerId = FormParse.Id(req.Query["cariId"].ToString());
                 if (customerId is null) return Results.BadRequest("cariId gerekli.");
                 // FAZ-65: ekrandaki filtre export'a AYNEN taşınır (gördüğün = indirdiğin).
-                var statement = await cash.GetStatementAsync(customerId.Value, new CariEkstreFilter
+                var statement = await cash.GetStatementAsync(customerId.Value, new CustomerStatementFilter
                 {
                     Bas = FormParse.Date(req.Query["bas"].ToString()),
                     Bit = FormParse.Date(req.Query["bit"].ToString())?.AddDays(1).AddTicks(-1),
@@ -83,7 +83,7 @@ public static class ListExportEndpoints
                 })),
                 // FAZ-52: fatura satır detayı — ekrandaki filtre export'a AYNEN taşınır.
                 "fatura-detaylari" => ListExportCatalog.InvoiceDetails(await inv.ListLinesAsync(
-                    new RentACar.Application.Finance.FaturaSatirFilter
+                    new RentACar.Application.Finance.InvoiceLineRowFilter
                     {
                         CariId = FormParse.Id(req.Query["cariId"].ToString()),
                         Ara = NullIfEmpty(req.Query["ara"].ToString()),
@@ -109,7 +109,7 @@ public static class ListExportEndpoints
                 // FAZ-17: ekrandaki filtre export'a AYNEN taşınır (giderler/AracKredi deseni) —
                 // kullanıcı gördüğü listeyi indirir, sessizce tüm tabloyu değil.
                 "arac-siparisleri" => ListExportCatalog.VehicleOrders(
-                    await asp.SearchAsync(new AracSiparisFilter
+                    await asp.SearchAsync(new VehicleOrderFilter
                     {
                         CariId = FormParse.Id(req.Query["cariF"].ToString()),
                         Ara = NullIfEmpty(req.Query["araF"].ToString()),
@@ -123,7 +123,7 @@ public static class ListExportEndpoints
                 // FAZ-13: ekrandaki filtre export'a AYNEN taşınır (giderler deseni) — kullanıcı
                 // gördüğü listeyi indirir, sessizce tüm tabloyu değil.
                 "arac-kredileri" => ListExportCatalog.VehicleLoans(
-                    await akr.SearchAsync(new AracKrediFilter
+                    await akr.SearchAsync(new VehicleLoanFilter
                     {
                         CariId = FormParse.Id(req.Query["cariF"].ToString()),
                         Plaka = NullIfEmpty(req.Query["plakaF"].ToString()),
@@ -156,7 +156,7 @@ public static class ListExportEndpoints
                 "vade" => ListExportCatalog.Dues(await vade.GetAllAsync(ct: default),
                     PlateResolver(await vs.ListAsync())),
                 // FAZ-41: ekrandaki süzgeç export'a AYNEN taşınır (gördüğün = indirdiğin).
-                "hukuk" => ListExportCatalog.LegalCases(await hukuk.SearchAsync(new HukukDosyaFilter
+                "hukuk" => ListExportCatalog.LegalCases(await hukuk.SearchAsync(new LegalCaseFilter
                 {
                     CariId = FormParse.Id(req.Query["cariId"].ToString()),
                     Bas = FormParse.Date(req.Query["bas"].ToString()),

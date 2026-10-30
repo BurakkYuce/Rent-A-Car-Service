@@ -40,17 +40,17 @@ public static class SharedQueries
 
     /// <summary>Vade kaynakları birleşimi: sigorta (Kasko/Trafik) + ödenmemiş MTV + muayene.
     /// Vade panosu (RegulationRepository) ve bildirim job'ı (VadeBildirimUretici) AYNI listeyi kullanır.</summary>
-    public static async Task<IReadOnlyList<VadeSource>> DueSourcesAsync(AppDbContext db, CancellationToken ct = default)
+    public static async Task<IReadOnlyList<DueSource>> DueSourcesAsync(AppDbContext db, CancellationToken ct = default)
     {
         var insurance = await db.InsurancePolicies.AsNoTracking()
-            .Select(x => new VadeSource(x.VehicleId, x.Tip == InsuranceType.Kasko ? "Kasko" : "Trafik", x.Bitis))
+            .Select(x => new DueSource(x.VehicleId, x.Tip == InsuranceType.Kasko ? "Kasko" : "Trafik", x.Bitis))
             .ToListAsync(ct);
         var mtv = await db.MtvRecords.AsNoTracking()
             .Where(x => !x.Odendi)
-            .Select(x => new VadeSource(x.VehicleId, "MTV", x.Vade))
+            .Select(x => new DueSource(x.VehicleId, "MTV", x.Vade))
             .ToListAsync(ct);
         var inspection = await db.InspectionRecords.AsNoTracking()
-            .Select(x => new VadeSource(x.VehicleId, "Muayene", x.Bitis))
+            .Select(x => new DueSource(x.VehicleId, "Muayene", x.Bitis))
             .ToListAsync(ct);
         return [.. insurance, .. mtv, .. inspection];
     }

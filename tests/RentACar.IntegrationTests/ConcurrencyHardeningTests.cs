@@ -61,7 +61,7 @@ public sealed class ConcurrencyHardeningTests(PostgresFixture fx)
         using (var scope = host.ScopeFor(tenant))
         {
             loanId = await scope.ServiceProvider.GetRequiredService<VehicleLoanService>()
-                .CreateAsync(new AracKrediInput { BankaAdi = "Test Bank", KrediTutari = 100000m, FaizOran = 0.1m, TaksitSayisi = 12 });
+                .CreateAsync(new VehicleLoanInput { BankaAdi = "Test Bank", KrediTutari = 100000m, FaizOran = 0.1m, TaksitSayisi = 12 });
         }
 
         // 3 paralel taksit ödemesi → OdenenTaksit tam 3 (kilitsiz sayaç yarışında < 3 olurdu).

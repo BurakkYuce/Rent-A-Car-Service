@@ -18,7 +18,7 @@ public sealed class ScreenPermissionAdminGuardTests(PostgresFixture fx)
     private static IServiceScope Manager(TestHost host, Guid tenant)
     {
         var scope = host.ScopeFor(tenant, role: UserRole.Yonetici);
-        scope.ServiceProvider.GetRequiredService<TestIdentity>().EkIzinler = ["ManageUsers"];
+        scope.ServiceProvider.GetRequiredService<TestIdentity>().ExtraPermissions = ["ManageUsers"];
         return scope;
     }
 

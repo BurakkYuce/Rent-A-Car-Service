@@ -174,7 +174,7 @@ public static partial class InvoiceUiApi
         Text(f.Q, 128, "q");
         Text(f.Plaka, 16, "plaka");
         var (start, bit) = F5Shared.DayRange(f.Bas, f.Bit);
-        var rows = await invoices.ListLinesAsync(new FaturaSatirFilter
+        var rows = await invoices.ListLinesAsync(new InvoiceLineRowFilter
         {
             Ara = F5Shared.Nz(f.Q), CariId = f.CariId, Plaka = F5Shared.Nz(f.Plaka), Ofis = F5Shared.Nz(f.Ofis),
             Bas = start, Bit = bit, IptalleriGizle = f.IptalleriGizle ?? false, EnFazla = 2000, // ölçek sınırı

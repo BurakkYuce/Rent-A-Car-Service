@@ -25,7 +25,7 @@ public sealed class BrokerBanService(IBrokerBanRepository repository, ICurrentUs
     public Task<BrokerYasak?> GetAsync(Guid id, CancellationToken ct = default)
         => _repository.FindAsync(id, ct);
 
-    public async Task<Guid> CreateAsync(BrokerYasakInput input, CancellationToken ct = default)
+    public async Task<Guid> CreateAsync(BrokerBanInput input, CancellationToken ct = default)
     {
         PermissionGuard.Require(_currentUser, Permission.OperationsWrite);
         var n = Normalize(input);
@@ -39,7 +39,7 @@ public sealed class BrokerBanService(IBrokerBanRepository repository, ICurrentUs
         return row.Id;
     }
 
-    public async Task<bool> UpdateAsync(Guid id, BrokerYasakInput input, CancellationToken ct = default)
+    public async Task<bool> UpdateAsync(Guid id, BrokerBanInput input, CancellationToken ct = default)
     {
         PermissionGuard.Require(_currentUser, Permission.OperationsWrite);
         var n = Normalize(input);
@@ -59,7 +59,7 @@ public sealed class BrokerBanService(IBrokerBanRepository repository, ICurrentUs
         => RowVersionStoreGuard.Require(rowVersions).GetVersionAsync<BrokerYasak>(id, ct);
 
     /// <summary>F9.1 — same rules as <see cref="UpdateAsync"/> under a row lock with a version check.</summary>
-    public async Task<bool> UpdateVersionedAsync(Guid id, BrokerYasakInput input, string expectedVersion, CancellationToken ct = default)
+    public async Task<bool> UpdateVersionedAsync(Guid id, BrokerBanInput input, string expectedVersion, CancellationToken ct = default)
     {
         PermissionGuard.Require(_currentUser, Permission.OperationsWrite);
         var n = Normalize(input);
@@ -79,7 +79,7 @@ public sealed class BrokerBanService(IBrokerBanRepository repository, ICurrentUs
         return _repository.DeleteAsync(id, ct);
     }
 
-    private static void Validate(BrokerYasakInput n)
+    private static void Validate(BrokerBanInput n)
     {
         if (string.IsNullOrWhiteSpace(n.Kod)) throw new ValidationException("Yasak kodu zorunludur.");
         if (n.Kod.Length > 32) throw new ValidationException("Yasak kodu en çok 32 karakter olabilir.");
@@ -92,7 +92,7 @@ public sealed class BrokerBanService(IBrokerBanRepository repository, ICurrentUs
             throw new ValidationException("En az bir kısıt tanımlanmalı: Min Gün veya 'Tüm satış kapalı'.");
     }
 
-    private static BrokerYasakInput Normalize(BrokerYasakInput input) => new()
+    private static BrokerBanInput Normalize(BrokerBanInput input) => new()
     {
         Kod = (input.Kod ?? string.Empty).Trim().ToUpperInvariant(),
         Ad = (input.Ad ?? string.Empty).Trim(),
@@ -149,7 +149,7 @@ public sealed class BrokerBanService(IBrokerBanRepository repository, ICurrentUs
             .Any(x => TurkishText.EqualsIgnoreTurkishCase(x, value.Trim()));
     }
 
-    private static void Apply(BrokerYasak row, BrokerYasakInput n)
+    private static void Apply(BrokerYasak row, BrokerBanInput n)
     {
         row.Kod = n.Kod;
         row.Ad = n.Ad;

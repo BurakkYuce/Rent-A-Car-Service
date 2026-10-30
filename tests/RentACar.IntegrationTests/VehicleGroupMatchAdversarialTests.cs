@@ -95,7 +95,7 @@ public sealed class VehicleGroupMatchAdversarialTests(PostgresFixture fx)
         await sp.GetRequiredService<RentalService>().CreateDirectAsync(new BookingInput
         { MusteriId = await TestCustomer.NewAsync(sp), VehicleId = suv, BasTar = Start, BitTar = Start.AddDays(5), GunlukUcret = 100m });
         await sp.GetRequiredService<OccupancyPriceRuleService>().CreateAsync(
-            new DolulukFiyatKuralInput { Kod = "D50", Ad = "Doluluk 50", EsikYuzde = 50, CarpanYuzde = 10m });
+            new OccupancyPriceRuleInput { Kod = "D50", Ad = "Doluluk 50", EsikYuzde = 50, CarpanYuzde = 10m });
 
         var engine = sp.GetRequiredService<RentalQuoteEngine>();
         var qa = await engine.QuoteAsync(new QuoteRequest { AracGrupKod = "A1", BasTar = Start, BitTar = Start.AddDays(5) });

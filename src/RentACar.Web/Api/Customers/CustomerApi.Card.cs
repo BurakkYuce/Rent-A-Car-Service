@@ -18,11 +18,11 @@ public static partial class CustomerApi
         return c is null ? null : CustomerInputMapper.ToCard(c, version);
     }
 
-    /// <summary>TC/vergi no çakışması (<see cref="DuplicateCariException"/>, alt tip) alanına işaretlenir; değer mesajda YOK.</summary>
+    /// <summary>TC/vergi no çakışması (<see cref="DuplicateCustomerException"/>, alt tip) alanına işaretlenir; değer mesajda YOK.</summary>
     private static async Task<T> DuplicateFieldAsync<T>(Func<Task<T>> work)
     {
         try { return await work(); }
-        catch (DuplicateCariException ex)
+        catch (DuplicateCustomerException ex)
         {
             throw new ValidationException(ex.Message, ex.Field == "TC Kimlik No" ? "tcKimlik" : ex.Field == "Vergi No" ? "vergiNo" : null);
         }

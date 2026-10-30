@@ -34,13 +34,13 @@ public sealed class IncomingEInvoiceService(
         => _repository.ListAsync(null, ct);
 
     /// <summary>FAZ-55: filtreli liste (firma / ETTN aralığı / plaka / durum / tarih).</summary>
-    public Task<IReadOnlyList<GelenEFatura>> ListAsync(GelenEFaturaFilter? filter, CancellationToken ct = default)
+    public Task<IReadOnlyList<GelenEFatura>> ListAsync(IncomingEInvoiceFilter? filter, CancellationToken ct = default)
         => _repository.ListAsync(filter, ct);
 
     public Task<GelenEFatura?> GetAsync(Guid id, CancellationToken ct = default)
         => _repository.FindAsync(id, ct);
 
-    public async Task<Guid> CreateManualAsync(GelenEFaturaInput input, CancellationToken ct = default)
+    public async Task<Guid> CreateManualAsync(IncomingEInvoiceInput input, CancellationToken ct = default)
     {
         PermissionGuard.Require(_currentUser, Permission.FinanceWrite);
         var ettn = (input.Ettn ?? string.Empty).Trim();
@@ -155,7 +155,7 @@ public sealed class IncomingEInvoiceService(
     /// "sonradan düzeltme" yasağının bu ekrandaki karşılığı.</para>
     /// </summary>
     public async Task<bool> LinkAsync(
-        GelenEFaturaBaglamaInput input, CancellationToken ct = default, string? expectedVersion = null)
+        IncomingEInvoiceLinkInput input, CancellationToken ct = default, string? expectedVersion = null)
     {
         PermissionGuard.Require(_currentUser, Permission.FinanceWrite);
         // #286 M3: tam değiştirme — satır kilidi + (verilirse) sürüm karşılaştırması; bayat form 409 cakisma.
@@ -214,7 +214,7 @@ public sealed class IncomingEInvoiceService(
     /// oluşan her gider satırı kendi oranını (<c>KdvOrani</c>) ve ETTN'i taşır. Kilit
     /// (<c>GiderlestirilmeUtc</c>) bu aralıktan sonraki tüm değişiklikleri kapatır.</para>
     /// </summary>
-    public async Task<int> ConvertToExpenseAsync(GelenEFaturaGiderInput input, CancellationToken ct = default)
+    public async Task<int> ConvertToExpenseAsync(IncomingEInvoiceExpenseInput input, CancellationToken ct = default)
     {
         PermissionGuard.Require(_currentUser, Permission.FinanceWrite);
 
@@ -294,7 +294,7 @@ public sealed class IncomingEInvoiceService(
         }, ct);
 
     /// <summary>Faturanın KDV kademelerinden gider kalemleri (kırılım + cari + araç doğrulamasıyla).</summary>
-    private static List<ExpenseInput> BuildExpenseLines(GelenEFatura row, GelenEFaturaGiderInput input)
+    private static List<ExpenseInput> BuildExpenseLines(GelenEFatura row, IncomingEInvoiceExpenseInput input)
     {
         var rows = IncomingEInvoiceVatBreakdown.Resolve(row); // kuruş-birebir doğrulama + oran çözümü
 

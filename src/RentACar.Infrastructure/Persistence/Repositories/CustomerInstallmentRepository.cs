@@ -10,7 +10,7 @@ public sealed class CustomerInstallmentRepository(IDbContextFactory<AppDbContext
     private readonly IDbContextFactory<AppDbContext> _factory = factory;
 
     public async Task<IReadOnlyList<MusteriTaksit>> SearchAsync(
-        MusteriTaksitFilter filter, CancellationToken ct = default)
+        CustomerInstallmentFilter filter, CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
         var q = db.MusteriTaksitleri.AsNoTracking();

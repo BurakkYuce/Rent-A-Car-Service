@@ -13,7 +13,7 @@ namespace RentACar.IntegrationTests;
 /// FAZ-21 — Filo kiralama künye alanları + liste araması.
 ///
 /// <para><b>Fazın en önemli kısıtı:</b> künye güncelleme yolu taksit planını DEĞİŞTİREMEZ.
-/// <see cref="FiloKiralamaMetaInput"/> para/süre alanlarını TİP DÜZEYİNDE taşımaz
+/// <see cref="FleetRentalMetaInput"/> para/süre alanlarını TİP DÜZEYİNDE taşımaz
 /// (<c>RentalUpdateInput</c> deseni) — yani "bir alanı maplemeyi unutmak" gibi bir risk yok, yol
 /// yapısal olarak kapalı. Aşağıda bir yansıma testi bu sözleşmeyi kilitliyor.</para>
 ///
@@ -43,7 +43,7 @@ public sealed class FiloKiralamaDerinlikTests(PostgresFixture fx)
         var (m, v) = await BaseAsync(sp, "Alfa A.Ş.", "34 FK 01");
         var svc = sp.GetRequiredService<FleetRentalService>();
 
-        var id = await svc.CreateAsync(new FiloKiralamaInput
+        var id = await svc.CreateAsync(new FleetRentalInput
         {
             MusteriId = m, VehicleId = v, BasTar = T0, SureAy = 12, AylikUcret = 10000m,
             SatisTemsilcisi = "  Ayşe Yılmaz  ", FaturaTuru = "Dönem",
@@ -83,7 +83,7 @@ public sealed class FiloKiralamaDerinlikTests(PostgresFixture fx)
         var (m, v) = await BaseAsync(sp, "Beta Ltd.", "34 FK 02");
         var svc = sp.GetRequiredService<FleetRentalService>();
 
-        var id = await svc.CreateAsync(new FiloKiralamaInput
+        var id = await svc.CreateAsync(new FleetRentalInput
         { MusteriId = m, VehicleId = v, BasTar = T0, SureAy = 6, AylikUcret = 5000m, KdvOrani = 0.20m, DamgaVergisi = 100m });
 
         var once = FleetRentalService.InstallmentPlan((await svc.GetAsync(id))!);
@@ -93,7 +93,7 @@ public sealed class FiloKiralamaDerinlikTests(PostgresFixture fx)
         Assert.Equal(36100m, once.GenelToplam);
         Assert.Equal(6, once.Taksitler.Count);
 
-        await svc.UpdateMetaAsync(id, new FiloKiralamaMetaInput
+        await svc.UpdateMetaAsync(id, new FleetRentalMetaInput
         { SatisTemsilcisi = "Yeni Temsilci", VadeGun = 30, Kaynak = "Acente", ToplamKm = 1000, CikisKm = 500 });
 
         var after = await svc.GetAsync(id);
@@ -117,7 +117,7 @@ public sealed class FiloKiralamaDerinlikTests(PostgresFixture fx)
         // eklerse taksit planı sessizce değiştirilebilir hâle gelir. Test o anda kırmızıya döner.
         var ban = new[] { "AylikUcret", "SureAy", "KdvOrani", "Kur", "Doviz", "BasTar", "DamgaVergisi",
                             "MusteriId", "VehicleId", "Durum" };
-        var fields = typeof(FiloKiralamaMetaInput)
+        var fields = typeof(FleetRentalMetaInput)
             .GetProperties(BindingFlags.Public | BindingFlags.Instance).Select(p => p.Name).ToHashSet();
         foreach (var y in ban)
             Assert.DoesNotContain(y, fields);
@@ -131,19 +131,19 @@ public sealed class FiloKiralamaDerinlikTests(PostgresFixture fx)
         var sp = s.ServiceProvider;
         var (m, v) = await BaseAsync(sp, "Gama", "34 FK 03");
         var svc = sp.GetRequiredService<FleetRentalService>();
-        var id = await svc.CreateAsync(new FiloKiralamaInput
+        var id = await svc.CreateAsync(new FleetRentalInput
         { MusteriId = m, VehicleId = v, SureAy = 3, AylikUcret = 1000m });
 
         // Toplam KM çıkış KM'sinden küçük olamaz.
         var ex = await Assert.ThrowsAsync<ValidationException>(() => svc.UpdateMetaAsync(id,
-            new FiloKiralamaMetaInput { CikisKm = 5000, ToplamKm = 4000 }));
+            new FleetRentalMetaInput { CikisKm = 5000, ToplamKm = 4000 }));
         Assert.Contains("Toplam KM", ex.Message);
         await Assert.ThrowsAsync<ValidationException>(() => svc.UpdateMetaAsync(id,
-            new FiloKiralamaMetaInput { VadeGun = -1 }));
+            new FleetRentalMetaInput { VadeGun = -1 }));
 
         await svc.CancelAsync(id);
         var ex2 = await Assert.ThrowsAsync<ValidationException>(() => svc.UpdateMetaAsync(id,
-            new FiloKiralamaMetaInput { SatisTemsilcisi = "X" }));
+            new FleetRentalMetaInput { SatisTemsilcisi = "X" }));
         Assert.Contains("İptal edilmiş", ex2.Message);
     }
 
@@ -159,7 +159,7 @@ public sealed class FiloKiralamaDerinlikTests(PostgresFixture fx)
         var sp = s.ServiceProvider;
         var (m, v) = await BaseAsync(sp, "Delta", "34 FK 04");
         var svc = sp.GetRequiredService<FleetRentalService>();
-        var id = await svc.CreateAsync(new FiloKiralamaInput
+        var id = await svc.CreateAsync(new FleetRentalInput
         { MusteriId = m, VehicleId = v, SureAy = 3, AylikUcret = 1000m });
 
         await svc.CancelAsync(id);
@@ -169,7 +169,7 @@ public sealed class FiloKiralamaDerinlikTests(PostgresFixture fx)
 
         // Aktif sözleşme hâlâ tamamlanabilir (guard yalnız İptal'i kapatır).
         var (m2, v2) = await BaseAsync(sp, "Epsilon", "34 FK 05");
-        var active = await svc.CreateAsync(new FiloKiralamaInput
+        var active = await svc.CreateAsync(new FleetRentalInput
         { MusteriId = m2, VehicleId = v2, SureAy = 3, AylikUcret = 1000m });
         Assert.True(await svc.CompleteAsync(active));
         Assert.Equal(FleetRentalStatus.Tamamlandi, (await svc.GetAsync(active))!.Durum);
@@ -186,45 +186,45 @@ public sealed class FiloKiralamaDerinlikTests(PostgresFixture fx)
         var (m1, v1) = await BaseAsync(sp, "Alfa Lojistik", "34 AL 01");
         var (m2, v2) = await BaseAsync(sp, "Beta Turizm", "06 BT 02");
 
-        var a = await svc.CreateAsync(new FiloKiralamaInput
+        var a = await svc.CreateAsync(new FleetRentalInput
         { MusteriId = m1, VehicleId = v1, BasTar = T0, SureAy = 12, AylikUcret = 9000m, SozlesmeNo = "FRM-A" });
-        var b = await svc.CreateAsync(new FiloKiralamaInput
+        var b = await svc.CreateAsync(new FleetRentalInput
         { MusteriId = m2, VehicleId = v2, BasTar = T0.AddDays(50), SureAy = 6, AylikUcret = 4000m, MakbuzNo = "MKB-B" });
-        var c = await svc.CreateAsync(new FiloKiralamaInput
+        var c = await svc.CreateAsync(new FleetRentalInput
         { MusteriId = m1, VehicleId = v1, BasTar = T0.AddDays(80), SureAy = 3, AylikUcret = 3000m, DosyaNo = "DSY-C" });
 
         // Filtresiz: eski davranış (3 kayıt).
         Assert.Equal(3, (await svc.ListAsync()).Count);
-        Assert.Equal(3, (await svc.ListAsync(new FiloKiralamaFilter())).Count);
+        Assert.Equal(3, (await svc.ListAsync(new FleetRentalFilter())).Count);
 
         // Müşteri
-        Assert.Equal(2, (await svc.ListAsync(new FiloKiralamaFilter { MusteriId = m1 })).Count);
-        Assert.Equal(b, Assert.Single(await svc.ListAsync(new FiloKiralamaFilter { MusteriId = m2 })).Id);
+        Assert.Equal(2, (await svc.ListAsync(new FleetRentalFilter { MusteriId = m1 })).Count);
+        Assert.Equal(b, Assert.Single(await svc.ListAsync(new FleetRentalFilter { MusteriId = m2 })).Id);
 
         // Plaka — BOŞLUKLU ve küçük harfli giriş de bulmalı (DB'de "34AL01" saklanıyor).
-        Assert.Equal(2, (await svc.ListAsync(new FiloKiralamaFilter { Plaka = "34 AL" })).Count);
-        Assert.Equal(b, Assert.Single(await svc.ListAsync(new FiloKiralamaFilter { Plaka = "bt" })).Id);
+        Assert.Equal(2, (await svc.ListAsync(new FleetRentalFilter { Plaka = "34 AL" })).Count);
+        Assert.Equal(b, Assert.Single(await svc.ListAsync(new FleetRentalFilter { Plaka = "bt" })).Id);
 
         // Metin araması: sözleşme/makbuz/dosya no
-        Assert.Equal(a, Assert.Single(await svc.ListAsync(new FiloKiralamaFilter { Ara = "FRM-A" })).Id);
-        Assert.Equal(b, Assert.Single(await svc.ListAsync(new FiloKiralamaFilter { Ara = "mkb-b" })).Id);
-        Assert.Equal(c, Assert.Single(await svc.ListAsync(new FiloKiralamaFilter { Ara = "DSY" })).Id);
-        Assert.Empty(await svc.ListAsync(new FiloKiralamaFilter { Ara = "yok-boyle" }));
+        Assert.Equal(a, Assert.Single(await svc.ListAsync(new FleetRentalFilter { Ara = "FRM-A" })).Id);
+        Assert.Equal(b, Assert.Single(await svc.ListAsync(new FleetRentalFilter { Ara = "mkb-b" })).Id);
+        Assert.Equal(c, Assert.Single(await svc.ListAsync(new FleetRentalFilter { Ara = "DSY" })).Id);
+        Assert.Empty(await svc.ListAsync(new FleetRentalFilter { Ara = "yok-boyle" }));
 
         // Tarih: T0+40 sonrası → b ve c
-        Assert.Equal(2, (await svc.ListAsync(new FiloKiralamaFilter { Bas = T0.AddDays(40) })).Count);
+        Assert.Equal(2, (await svc.ListAsync(new FleetRentalFilter { Bas = T0.AddDays(40) })).Count);
         // Kapalı aralık → yalnız b
         Assert.Equal(b, Assert.Single(await svc.ListAsync(
-            new FiloKiralamaFilter { Bas = T0.AddDays(40), Bit = T0.AddDays(60) })).Id);
+            new FleetRentalFilter { Bas = T0.AddDays(40), Bit = T0.AddDays(60) })).Id);
 
         // Durum: c iptal edilince Aktif filtresi 2 döner
         await svc.CancelAsync(c);
-        Assert.Equal(2, (await svc.ListAsync(new FiloKiralamaFilter { Durum = FleetRentalStatus.Aktif })).Count);
-        Assert.Equal(c, Assert.Single(await svc.ListAsync(new FiloKiralamaFilter { Durum = FleetRentalStatus.Iptal })).Id);
+        Assert.Equal(2, (await svc.ListAsync(new FleetRentalFilter { Durum = FleetRentalStatus.Aktif })).Count);
+        Assert.Equal(c, Assert.Single(await svc.ListAsync(new FleetRentalFilter { Durum = FleetRentalStatus.Iptal })).Id);
 
         // Birleşik: m1 + Aktif → yalnız a
         Assert.Equal(a, Assert.Single(await svc.ListAsync(
-            new FiloKiralamaFilter { MusteriId = m1, Durum = FleetRentalStatus.Aktif })).Id);
+            new FleetRentalFilter { MusteriId = m1, Durum = FleetRentalStatus.Aktif })).Id);
     }
 
     [Fact]
@@ -238,9 +238,9 @@ public sealed class FiloKiralamaDerinlikTests(PostgresFixture fx)
         var (m, v) = await BaseAsync(sp, "Delta", "34 FK 04");
         var svc = sp.GetRequiredService<FleetRentalService>();
 
-        var id = await svc.CreateAsync(new FiloKiralamaInput
+        var id = await svc.CreateAsync(new FleetRentalInput
         { MusteriId = m, VehicleId = v, SureAy = 12, AylikUcret = 25000m, SozlesmeNo = "FRM-D" });
-        await svc.UpdateMetaAsync(id, new FiloKiralamaMetaInput { SatisTemsilcisi = "Temsilci" });
+        await svc.UpdateMetaAsync(id, new FleetRentalMetaInput { SatisTemsilcisi = "Temsilci" });
 
         // Cari bakiye SIFIR kalmalı — sözleşme deftere hiçbir şey postlamadı.
         Assert.Equal(0m, await sp.GetRequiredService<RentACar.Application.Finance.CashService>()
@@ -256,14 +256,14 @@ public sealed class FiloKiralamaDerinlikTests(PostgresFixture fx)
         {
             var sp = s1.ServiceProvider;
             var (m, v) = await BaseAsync(sp, "Gizli A.Ş.", "34 GZ 01");
-            await sp.GetRequiredService<FleetRentalService>().CreateAsync(new FiloKiralamaInput
+            await sp.GetRequiredService<FleetRentalService>().CreateAsync(new FleetRentalInput
             { MusteriId = m, VehicleId = v, SureAy = 12, AylikUcret = 1000m, SozlesmeNo = "GIZLI" });
         }
 
         using var s2 = host.ScopeFor(Guid.NewGuid());
         var svc = s2.ServiceProvider.GetRequiredService<FleetRentalService>();
         Assert.Empty(await svc.ListAsync());
-        Assert.Empty(await svc.ListAsync(new FiloKiralamaFilter { Ara = "GIZLI" }));
-        Assert.Empty(await svc.ListAsync(new FiloKiralamaFilter { Plaka = "34 GZ" }));
+        Assert.Empty(await svc.ListAsync(new FleetRentalFilter { Ara = "GIZLI" }));
+        Assert.Empty(await svc.ListAsync(new FleetRentalFilter { Plaka = "34 GZ" }));
     }
 }

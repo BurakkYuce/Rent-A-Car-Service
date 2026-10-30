@@ -39,7 +39,7 @@ public sealed class DisHizmetTests(PostgresFixture fx)
         return (kira: rental, v, t);
     }
 
-    private static DisHizmetInput Input(Guid rental, Guid supplier, decimal charge = 1000m, decimal rate = 10m) => new()
+    private static OutsourcedServiceInput Input(Guid rental, Guid supplier, decimal charge = 1000m, decimal rate = 10m) => new()
     {
         RentalId = rental, FaturaKesilecekCariId = supplier,
         AlinanHizmet = "Şoförlü transfer", HizmetBedeli = charge, TedarikciKomisyonOran = rate
@@ -84,7 +84,7 @@ public sealed class DisHizmetTests(PostgresFixture fx)
         using var scope = host.ScopeFor(Guid.NewGuid());
         var sp = scope.ServiceProvider;
         var (rental, vehicle, supplier) = await ExchangeRateAsync(sp, "34 DH 02");
-        await sp.GetRequiredService<FixedExchangeRateService>().UpsertAsync(new SabitKurInput { Kod = "EUR", Kur = 40m, Aktif = true });
+        await sp.GetRequiredService<FixedExchangeRateService>().UpsertAsync(new FixedExchangeRateInput { Kod = "EUR", Kur = 40m, Aktif = true });
         var svc = sp.GetRequiredService<OutsourcedServiceService>();
 
         // 100 EUR + %10: base gider 100×40=4000; komisyon 10 EUR → base 400 (satır-bazlı — K2 elle).

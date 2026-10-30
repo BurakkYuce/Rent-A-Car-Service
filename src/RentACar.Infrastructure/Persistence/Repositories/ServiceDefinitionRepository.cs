@@ -50,7 +50,7 @@ public sealed class ServiceDefinitionRepository(IDbContextFactory<AppDbContext> 
         return true;
     }
 
-    public async Task<IReadOnlyList<FiloKombinasyon>> FleetCombinationsAsync(CancellationToken ct = default)
+    public async Task<IReadOnlyList<FleetCombination>> FleetCombinationsAsync(CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
         // Yalnız KİRALANABİLİR filo: satılmış/pasif araca bakım tanımı önermek gürültüdür.
@@ -65,7 +65,7 @@ public sealed class ServiceDefinitionRepository(IDbContextFactory<AppDbContext> 
         return raw
             .GroupBy(v => ServiceDefinitionCombination.Key(v.Marka, v.Tip, v.Yakit?.ToString(), v.Vites?.ToString()),
                 StringComparer.Ordinal)
-            .Select(g => new FiloKombinasyon(
+            .Select(g => new FleetCombination(
                 Representative(g.Select(x => x.Marka)),
                 Representative(g.Select(x => x.Tip)),
                 Representative(g.Select(x => x.Yakit?.ToString())),

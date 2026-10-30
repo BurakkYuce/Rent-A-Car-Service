@@ -22,7 +22,7 @@ public sealed class VehicleOrderRepository(IDbContextFactory<AppDbContext> facto
 
     /// <summary>FAZ-17 — filtreli liste. Sıralama <see cref="ListAsync"/> ile AYNI (en yeni üstte)
     /// ki filtre açıp kapatmak satır sırasını değiştirmesin.</summary>
-    public async Task<IReadOnlyList<AracSiparis>> SearchAsync(AracSiparisFilter filter, CancellationToken ct = default)
+    public async Task<IReadOnlyList<AracSiparis>> SearchAsync(VehicleOrderFilter filter, CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
         var q = db.AracSiparisleri.AsNoTracking();
@@ -54,7 +54,7 @@ public sealed class VehicleOrderRepository(IDbContextFactory<AppDbContext> facto
         if (!string.IsNullOrWhiteSpace(filter.Arac))
         {
             // Siparişte filo plakası YOK (araç teslimde doğar) → TSB/geçici plaka kaydı + araç
-            // tanımı metinleri taranır (bkz. AracSiparisFilter.Arac notu).
+            // tanımı metinleri taranır (bkz. VehicleOrderFilter.Arac notu).
             var p = filter.Arac.Trim();
             q = q.Where(x => (x.TsbKayitNo != null && EF.Functions.ILike(x.TsbKayitNo, $"%{p}%"))
                 || (x.Marka != null && EF.Functions.ILike(x.Marka, $"%{p}%"))

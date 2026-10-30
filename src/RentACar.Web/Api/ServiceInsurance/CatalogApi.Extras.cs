@@ -16,7 +16,7 @@ internal static partial class CatalogApi
 {
     // ------------------------------------------------------------------ servis tanımları
 
-    private static ServisTanimInput ServiceDefinitionInput(ServiceDefinitionRequest r) => new()
+    private static ServiceDefinitionInput ToServiceDefinitionInput(ServiceDefinitionRequest r) => new()
     {
         Kod = r.Kod ?? "", AracTipi = r.AracTipi ?? "", BakimKm = r.BakimKm ?? 0, Marka = r.Marka, Tip = r.Tip,
         Yakit = r.Yakit, Vites = r.Vites, Aciklama = r.Aciklama, Aktif = r.Aktif,
@@ -30,8 +30,8 @@ internal static partial class CatalogApi
         WritePermission = Permission.OperationsWrite,
         List = (s, ct) => s.ListAsync(ct), Get = (s, id, ct) => s.GetAsync(id, ct), Version = (s, id, ct) => s.GetVersionAsync(id, ct),
         ToDto = ServiceDefinitionDto.From,
-        Create = (s, r, _, ct) => s.CreateAsync(ServiceDefinitionInput(r), ct),
-        Update = (s, id, r, _, v, _, ct) => s.UpdateVersionedAsync(id, ServiceDefinitionInput(r), v, ct),
+        Create = (s, r, _, ct) => s.CreateAsync(ToServiceDefinitionInput(r), ct),
+        Update = (s, id, r, _, v, _, ct) => s.UpdateVersionedAsync(id, ToServiceDefinitionInput(r), v, ct),
         Delete = (s, id, ct) => s.DeleteAsync(id, ct),
         Validate = (r, _) =>
         {

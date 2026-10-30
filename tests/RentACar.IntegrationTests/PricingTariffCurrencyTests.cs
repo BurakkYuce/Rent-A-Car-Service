@@ -39,7 +39,7 @@ public sealed class PricingTariffCurrencyTests(PostgresFixture fx)
     }
 
     private static Task PinEurAsync(IServiceProvider sp) =>
-        sp.GetRequiredService<FixedExchangeRateService>().UpsertAsync(new SabitKurInput { Kod = "EUR", Kur = 40m, Aktif = true });
+        sp.GetRequiredService<FixedExchangeRateService>().UpsertAsync(new FixedExchangeRateInput { Kod = "EUR", Kur = 40m, Aktif = true });
 
     private static BookingInput Booking(Guid vehicleId, Guid account, string? currency, string? priceType = "Otomatik") => new()
     {

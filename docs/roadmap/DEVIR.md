@@ -180,6 +180,10 @@ olabilir). Açık PR yoksa "Sırada" listesinin ilk maddesi.
    yeniden adlandırma (graphify envanteri) — ~18.700 sembol, sözleşmeler (entity/DTO özellikleri, JSON, DB, enum
    üyeleri, i18n, CSS, seçiciler) DOKUNULMADI. Kalan (ayrı küçük PR'lar): Türkçe namespace/klasörler (78 + Angular
    klasörleri), bilinçli atlanan ~840 frontend adı (çakışma / betik-test okuması) ve `ICurrentUser.EkIzinler/YasakIzinler`.
+   C# tarafı: namespace/klasörler #423'te; Türkçe C# dosya adları, içlerindeki sözleşme-dışı tip adları ve
+   `ICurrentUser.EkIzinler/YasakIzinler` (→ `ExtraPermissions`/`DeniedPermissions`; claim adları aynı) 2026-10-30
+   PR'ında BİTTİ. Bilinçli kalanlar: OpenAPI şema kimliği olan DTO tip adları (`ui-v1.json`, `/api/v1`), Türkçe EF
+   entity tipleri (tablo/snapshot) ve test sınıfı adları (filtre adı olarak belgelerde geçiyor) — ayrı karar.
 
 ### 🧑 Kullanıcıda bekleyenler (cevap gelmeden ilgili işe dokunma)
 - **F2.2 sunucu adımları:** `docs/ops/f2-2-sunucu-adimlari.md`. Bitmeden `/app` üretimde yok. **F13 söküm main'de
@@ -452,7 +456,7 @@ Durum 2026-09-25: **Low A (#280) ve Low B (#277) main'de** — "[sürüyor — L
 Etiketsiz madde açıktır.
 
 **Para ve backend** (para dokunanlar → §4)
-- [sürüyor — Low B] R04 `FaturaDonemFiles`: mevcut RowKey'li kaydın tutar ve dövizi de karşılaştırılsın (Blazor
+- [sürüyor — Low B] R04 `InvoicePeriodPlanService.cs`: mevcut RowKey'li kaydın tutar ve dövizi de karşılaştırılsın (Blazor
   ham anahtarla dönem tahsilatını önden alabiliyor).
 - [sürüyor — Low B] N4 `DonemFaturaUretici`: kilitten sonra kira durumu yeniden denetlensin (iş iptal kiraya dönem
   faturası kesebiliyor).

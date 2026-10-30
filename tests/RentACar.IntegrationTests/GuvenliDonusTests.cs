@@ -310,7 +310,7 @@ public sealed class GuvenliDonusTests
             // (dosya adı verilmez → Content-Disposition yok, görsel satır içi gösterilir) ve /api/ui 401'i
             // yönlendirmesiz JSON'dur (cookie challenge ReturnUrl üretmez). İkisi de UiAracTests
             // .Photo_content_is_inline_and_401_has_no_redirect'te kilitli. IndirmeAdresiMi kapsamı gerekmez.
-            "Api/Vehicles/VehicleApi.Foto.cs",
+            "Api/Vehicles/VehicleApi.Photos.cs",
             "Documents/CompanyDocumentEndpoints.cs",
             "Documents/CompanyFileEndpoints.cs",
             "Reports/ListExportEndpoints.cs",

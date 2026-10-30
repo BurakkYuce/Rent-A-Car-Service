@@ -12,7 +12,7 @@ namespace RentACar.IntegrationTests;
 [Collection("postgres")]
 public sealed class KdvAlisEslesmeTests(PostgresFixture fx)
 {
-    private static GelenEFaturaInput Incoming(string ettn, decimal net, decimal vat, DateTimeOffset date)
+    private static IncomingEInvoiceInput Incoming(string ettn, decimal net, decimal vat, DateTimeOffset date)
         => new()
         {
             Ettn = TestEttn.Of(ettn), GonderenVkn = "1234567890", GonderenUnvan = "Tedarikçi A.Ş.",
@@ -36,7 +36,7 @@ public sealed class KdvAlisEslesmeTests(PostgresFixture fx)
 
         var incoming = scope.ServiceProvider.GetRequiredService<IncomingEInvoiceService>();
         var id = await incoming.CreateManualAsync(Incoming(ettn, 1000m, 200m, date));
-        Assert.True(await incoming.LinkAsync(new GelenEFaturaBaglamaInput { Id = id, Kdv20Matrah = 1000m, Kdv20 = 200m }));
+        Assert.True(await incoming.LinkAsync(new IncomingEInvoiceLinkInput { Id = id, Kdv20Matrah = 1000m, Kdv20 = 200m }));
         Assert.True(await incoming.ApproveAsync(id));
         Assert.True(await incoming.IsleAsync(id));
 

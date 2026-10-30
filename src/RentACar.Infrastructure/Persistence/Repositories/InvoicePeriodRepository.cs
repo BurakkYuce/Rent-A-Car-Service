@@ -18,8 +18,8 @@ public sealed class InvoicePeriodRepository(IDbContextFactory<AppDbContext> fact
             .OrderBy(d => d.DonemSira).ToListAsync(ct);
     }
 
-    public async Task<IReadOnlyList<OtomatikTahsilatAdayi>> CandidatesAsync(
-        OtomatikTahsilatFiltre filter, CancellationToken ct = default)
+    public async Task<IReadOnlyList<PeriodAutoCollectionCandidate>> CandidatesAsync(
+        PeriodAutoCollectionFilter filter, CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
         var now = DateTimeOffset.UtcNow;
@@ -81,7 +81,7 @@ public sealed class InvoicePeriodRepository(IDbContextFactory<AppDbContext> fact
             })
             .ToDictionaryAsync(x => x.CariId, x => x.Bakiye, ct);
 
-        var result = raw.Select(x => new OtomatikTahsilatAdayi(
+        var result = raw.Select(x => new PeriodAutoCollectionCandidate(
             x.Id, x.SozlesmeNo, x.DonemSira, x.DonemBas, x.DonemBit, x.CariId,
             x.Tip == CustomerType.Bireysel ? $"{x.Ad} {x.Soyad}".Trim() : (x.Unvan ?? string.Empty),
             x.CikisOfisi, x.CikisSubeId,

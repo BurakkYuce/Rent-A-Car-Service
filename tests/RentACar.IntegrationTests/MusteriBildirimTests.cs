@@ -59,10 +59,10 @@ public sealed class MusteriBildirimTests(PostgresFixture fx)
     {
         using var scope = host.ScopeFor(tenant);
         await scope.ServiceProvider.GetRequiredService<CustomerNotificationService>()
-            .SaveTemplateAsync(new MesajSablonInput { Tur = type, Kanal = channel, Konu = subject, Govde = body, Aktif = active });
+            .SaveTemplateAsync(new MessageTemplateInput { Tur = type, Kanal = channel, Konu = subject, Govde = body, Aktif = active });
     }
 
-    private static MesajIstegi Request(string key = "rez-onay:1") => new(
+    private static MessageRequest Request(string key = "rez-onay:1") => new(
         MessageType.RezervasyonOnay, MessageChannel.Eposta, "musteri@ornek.com", key,
         new Dictionary<string, string?> { ["MusteriAd"] = "Ahmet Yılmaz", ["Plaka"] = "34ABC123" },
         "Rezervasyon", Guid.NewGuid());
@@ -215,7 +215,7 @@ public sealed class MusteriBildirimTests(PostgresFixture fx)
         using var scope = host.ScopeFor(tenant, role: UserRole.Operator);
         var svc = scope.ServiceProvider.GetRequiredService<CustomerNotificationService>();
 
-        MesajSonuc last = null!;
+        MessageResult last = null!;
         for (var i = 0; i < CustomerNotificationService.MaxAttempts; i++)
             last = await svc.GonderAsync(Request("rez-onay:hep-hatali"), hasPermission: true);
 
@@ -241,7 +241,7 @@ public sealed class MusteriBildirimTests(PostgresFixture fx)
 
         // Operatör şablon YAZAMAZ...
         await Assert.ThrowsAsync<NoPermissionException>(() => svc.SaveTemplateAsync(
-            new MesajSablonInput { Tur = MessageType.RezervasyonOnay, Kanal = MessageChannel.Sms, Govde = "x" }));
+            new MessageTemplateInput { Tur = MessageType.RezervasyonOnay, Kanal = MessageChannel.Sms, Govde = "x" }));
 
         // ...ama bildirim GÖNDEREBİLİR (gönderim bir operasyon yan etkisidir, ayrı izin kapısı yok).
         var result = await svc.GonderAsync(Request("rez-onay:operator"), hasPermission: true);
@@ -258,10 +258,10 @@ public sealed class MusteriBildirimTests(PostgresFixture fx)
         var svc = scope.ServiceProvider.GetRequiredService<CustomerNotificationService>();
 
         await Assert.ThrowsAsync<ValidationException>(() => svc.SaveTemplateAsync(
-            new MesajSablonInput { Tur = MessageType.TalepAlindi, Kanal = MessageChannel.Eposta, Govde = "gövde" }));
+            new MessageTemplateInput { Tur = MessageType.TalepAlindi, Kanal = MessageChannel.Eposta, Govde = "gövde" }));
 
         await svc.SaveTemplateAsync(
-            new MesajSablonInput { Tur = MessageType.TalepAlindi, Kanal = MessageChannel.Sms, Govde = "kısa mesaj" });
+            new MessageTemplateInput { Tur = MessageType.TalepAlindi, Kanal = MessageChannel.Sms, Govde = "kısa mesaj" });
 
         var templates = await svc.ListTemplatesAsync();
         Assert.Single(templates);

@@ -19,7 +19,7 @@ public sealed class AracKrediTests(PostgresFixture fx)
         using var scope = host.ScopeFor(Guid.NewGuid());
         var svc = scope.ServiceProvider.GetRequiredService<VehicleLoanService>();
 
-        var id = await svc.CreateAsync(new AracKrediInput
+        var id = await svc.CreateAsync(new VehicleLoanInput
         { BankaAdi = "X Bank", KrediTutari = 120_000m, FaizOran = 0m, TaksitSayisi = 12 });
 
         var k0 = await svc.GetAsync(id);
@@ -46,7 +46,7 @@ public sealed class AracKrediTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
         var svc = scope.ServiceProvider.GetRequiredService<VehicleLoanService>();
-        var id = await svc.CreateAsync(new AracKrediInput
+        var id = await svc.CreateAsync(new VehicleLoanInput
         { BankaAdi = "Y Bank", KrediTutari = 100_000m, FaizOran = 0.20m, TaksitSayisi = 12 });
         var o = VehicleLoanService.Calculate((await svc.GetAsync(id))!);
         Assert.Equal(20_000m, o.ToplamFaiz);          // 100000×0.20×12/12
@@ -61,7 +61,7 @@ public sealed class AracKrediTests(PostgresFixture fx)
         using (var a = host.ScopeFor(Guid.NewGuid()))
         {
             await a.ServiceProvider.GetRequiredService<VehicleLoanService>()
-                .CreateAsync(new AracKrediInput { BankaAdi = "Gizli Bank", KrediTutari = 50_000m, TaksitSayisi = 6 });
+                .CreateAsync(new VehicleLoanInput { BankaAdi = "Gizli Bank", KrediTutari = 50_000m, TaksitSayisi = 6 });
         }
         using var b = host.ScopeFor(Guid.NewGuid());
         Assert.Empty(await b.ServiceProvider.GetRequiredService<VehicleLoanService>().ListAsync());

@@ -5,7 +5,7 @@ namespace RentACar.Application.ReservationTerms;
 public interface IReservationTermRepository
 {
     /// <summary>Filtreli liste. <paramref name="filter"/> null → tüm kayıtlar.</summary>
-    Task<IReadOnlyList<RezSart>> ListAsync(RezSartFilter? filter = null, CancellationToken ct = default);
+    Task<IReadOnlyList<RezSart>> ListAsync(ReservationTermFilter? filter = null, CancellationToken ct = default);
     Task<RezSart?> FindAsync(Guid id, CancellationToken ct = default);
     Task CreateAsync(RezSart row, CancellationToken ct = default);
     Task<bool> UpdateAsync(Guid id, Action<RezSart> apply, CancellationToken ct = default);

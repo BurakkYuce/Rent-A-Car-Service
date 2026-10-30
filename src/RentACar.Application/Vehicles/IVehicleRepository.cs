@@ -19,28 +19,28 @@ public interface IVehicleRepository
     /// FAZ-28 — detaylı liste: araç + son kredi bankası + en yakın muayene/kasko/trafik bitişi +
     /// satış ihale bilgisi + AKTİF kira (canlı çözülür, depolanmaz).
     /// </summary>
-    Task<IReadOnlyList<VehicleDetayRow>> ListDetailAsync(
-        VehicleDetayFilter? filter = null, CancellationToken ct = default);
+    Task<IReadOnlyList<VehicleDetailRow>> ListDetailAsync(
+        VehicleDetailFilter? filter = null, CancellationToken ct = default);
 
     /// <summary>
     /// FAZ-11 — verilen araçlar için diğer tablolardan çözülen liste ek bilgisi (aktif kira sözleşme
     /// no, açık servis/BAF/satış bayrakları, kasko, kredi). Yalnız GÖRÜNEN sayfa için çağrılır.
     /// </summary>
-    Task<IReadOnlyDictionary<Guid, VehicleListeEk>> ListExtrasAsync(
+    Task<IReadOnlyDictionary<Guid, VehicleListExtra>> ListExtrasAsync(
         IReadOnlyCollection<Guid> vehicleIds, CancellationToken ct = default);
 
     Task<Vehicle?> FindAsync(Guid id, CancellationToken ct = default);
 
     Task<bool> PlateExistsAsync(string plate, Guid? excludeId = null, CancellationToken ct = default);
 
-    /// <summary>Yeni araç ekler. Plaka benzersizlik ihlalinde DuplicatePlakaException fırlatır.</summary>
+    /// <summary>Yeni araç ekler. Plaka benzersizlik ihlalinde DuplicatePlateException fırlatır.</summary>
     Task CreateAsync(Vehicle vehicle, CancellationToken ct = default);
 
     /// <summary>Aracı yükler, <paramref name="apply"/> ile mutasyonu uygular, kaydeder. Yoksa false.</summary>
     Task<bool> UpdateAsync(Guid id, Action<Vehicle> apply, CancellationToken ct = default);
 
     /// <summary>F6.1a — satır kilidi + iyimser sürüm karşılaştırması (<paramref name="expectedVersion"/> null → yalnız
-    /// kilit); uyuşmazlık <c>EszamanliDegisiklikException</c>. Plaka çakışması <c>DuplicatePlakaException</c>.</summary>
+    /// kilit); uyuşmazlık <c>EszamanliDegisiklikException</c>. Plaka çakışması <c>DuplicatePlateException</c>.</summary>
     Task<bool> UpdateAsync(Guid id, string? expectedVersion, Action<Vehicle> apply, CancellationToken ct = default);
 
     /// <summary>F6.1a — satır sürümü (Postgres <c>xmin</c>, opak). Yoksa / RLS dışında <c>null</c>.</summary>

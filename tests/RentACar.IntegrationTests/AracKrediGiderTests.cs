@@ -22,7 +22,7 @@ public sealed class AracKrediGiderTests(PostgresFixture fx)
 {
     private static async Task<Guid> LoanAsync(IServiceProvider sp, Guid? vehicleId,
         decimal amount = 12_000m, decimal interest = 0.20m, int installment = 12, string currency = "TRY")
-        => await sp.GetRequiredService<VehicleLoanService>().CreateAsync(new AracKrediInput
+        => await sp.GetRequiredService<VehicleLoanService>().CreateAsync(new VehicleLoanInput
         {
             BankaAdi = "Banka", VehicleId = vehicleId, KrediTutari = amount,
             FaizOran = interest, TaksitSayisi = installment, Doviz = currency, Kur = 1m
@@ -114,7 +114,7 @@ public sealed class AracKrediGiderTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
         var sp = scope.ServiceProvider;
-        await sp.GetRequiredService<FixedExchangeRateService>().UpsertAsync(new SabitKurInput { Kod = "EUR", Kur = 40m, Aktif = true });
+        await sp.GetRequiredService<FixedExchangeRateService>().UpsertAsync(new FixedExchangeRateInput { Kod = "EUR", Kur = 40m, Aktif = true });
         var vehicle = await sp.GetRequiredService<VehicleService>().CreateAsync(new VehicleInput { Plaka = "34 KG 03" });
         // 1.200 EUR, %0 faiz, 12 taksit → aylık 100 EUR × kur 40 = 4.000 base (elle).
         var loanId = await LoanAsync(sp, vehicle, amount: 1200m, interest: 0m, installment: 12, currency: "EUR");

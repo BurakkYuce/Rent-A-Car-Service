@@ -83,7 +83,7 @@ public static class ShiftApi
     private static ProblemHttpResult NotFound() => F5Shared.NotFound("Vardiya bulunamadı.");
 
     /// <summary>Endpoint limits + parsing; business rules stay in the service (same path as Blazor).</summary>
-    private static VardiyaInput Input(ShiftRequest i)
+    private static StaffShiftInput Input(ShiftRequest i)
     {
         ReportPeriod.ValidateDay(i.Tarih, "tarih");
         var branch = F5Shared.Nz(i.Sube);
@@ -92,7 +92,7 @@ public static class ShiftApi
         var note = F5Shared.Nz(i.Aciklama);
         if (note is { Length: > NoteMax })
             throw new ValidationException($"Açıklama en fazla {NoteMax} karakter olabilir.", "aciklama");
-        return new VardiyaInput
+        return new StaffShiftInput
         {
             PersonelId = i.PersonelId ?? Guid.Empty,
             Tarih = i.Tarih ?? default,

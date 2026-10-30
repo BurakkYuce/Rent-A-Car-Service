@@ -68,7 +68,7 @@ public static partial class CrmApi
         RentalLimits.Text(f.FaturaNo, 64, "faturaNo", "Fatura no");
         RentalLimits.Text(f.DosyaNo, 64, "dosyaNo", "Dosya no");
         var (min, max) = F5Shared.DayRange(f.TarihBas, f.TarihBit);
-        var items = await files.SearchAsync(new HukukDosyaFilter
+        var items = await files.SearchAsync(new LegalCaseFilter
         {
             CariId = f.CariId, Bas = min, Bit = max, FaturaNo = F5Shared.Nz(f.FaturaNo), DosyaNo = F5Shared.Nz(f.DosyaNo),
             Ara = F5Shared.Nz(f.Ara), Tur = F5Shared.EnumAdi<LegalType>(f.Tur, "tur"),
@@ -103,7 +103,7 @@ public static partial class CrmApi
         return h is null ? null : new LegalFileCardDto((await LegalRowsAsync(dbf, [h], ct))[0], version);
     }
 
-    private static async Task<HukukDosyaInput> LegalInputAsync(LegalFileRequest r, IDbContextFactory<AppDbContext> dbf, CancellationToken ct)
+    private static async Task<LegalCaseInput> LegalInputAsync(LegalFileRequest r, IDbContextFactory<AppDbContext> dbf, CancellationToken ct)
     {
         RentalLimits.Text(r.DosyaNo, 64, "dosyaNo", "Dosya no");
         RentalLimits.Text(r.Avukat, 128, "avukat", "Avukat");
@@ -117,7 +117,7 @@ public static partial class CrmApi
         RentalLimits.Amount(r.Tutar, "tutar", "Tutar");
         RentalLimits.Amount(r.Tahsilat, "tahsilat", "Tahsilat");
         await CrmScope.RequireCustomerAsync(dbf, r.CariId, "cariId", ct);
-        return new HukukDosyaInput
+        return new LegalCaseInput
         {
             DosyaNo = r.DosyaNo, CariId = r.CariId, Tur = F5Shared.EnumAdi<LegalType>(r.Tur, "tur") ?? LegalType.Dava,
             Avukat = r.Avukat, Tutar = r.Tutar, Durum = F5Shared.EnumAdi<LegalStatus>(r.Durum, "durum") ?? LegalStatus.Acik,

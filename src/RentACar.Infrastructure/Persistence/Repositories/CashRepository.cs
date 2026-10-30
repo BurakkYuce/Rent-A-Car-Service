@@ -575,11 +575,11 @@ public sealed class CashRepository(IDbContextFactory<AppDbContext> factory) : IC
     ///
     /// <para>Tutar Debit (hedef) bacağından okunur — künye para taşımaz.</para>
     /// </summary>
-    public async Task<IReadOnlyList<KasaVirmanSatirDto>> ListCashTransfersAsync(
-        KasaVirmanFilter? filter = null, CancellationToken ct = default)
+    public async Task<IReadOnlyList<CashTransferRowDto>> ListCashTransfersAsync(
+        CashTransferFilter? filter = null, CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
-        var f = filter ?? new KasaVirmanFilter();
+        var f = filter ?? new CashTransferFilter();
         var limit = Math.Clamp(f.EnFazla, 1, 2000);
 
         var q = db.AccountLedgerEntries.AsNoTracking().Where(e => e.SourceType == "Virman");
@@ -604,7 +604,7 @@ public sealed class CashRepository(IDbContextFactory<AppDbContext> factory) : IC
         var profiles = (await db.KasaVirmanBilgileri.AsNoTracking()
             .Where(k => ids.Contains(k.Id)).ToListAsync(ct)).ToDictionary(k => k.Id);
 
-        var rows = new List<KasaVirmanSatirDto>(groups.Count);
+        var rows = new List<CashTransferRowDto>(groups.Count);
         foreach (var g in groups)
         {
             // Dengeli çift: Debit = hedef (para giren), Credit = kaynak (para çıkan).
@@ -613,7 +613,7 @@ public sealed class CashRepository(IDbContextFactory<AppDbContext> factory) : IC
             if (target is null || source is null) continue;   // yarım küme olamaz (LedgerPoster dengeyi zorlar)
 
             profiles.TryGetValue(g.Key, out var k);
-            rows.Add(new KasaVirmanSatirDto(
+            rows.Add(new CashTransferRowDto(
                 g.Key, k?.Tarih ?? target.EntryDateUtc,
                 source.AccountType, target.AccountType,
                 source.AccountRef, target.AccountRef,
@@ -634,8 +634,8 @@ public sealed class CashRepository(IDbContextFactory<AppDbContext> factory) : IC
         return [.. rows.OrderByDescending(x => x.Tarih).ThenBy(x => x.Id).Take(limit)];
     }
 
-    public async Task<IReadOnlyList<CariVirmanSatirDto>> ListAccountTransfersAsync(
-        CariVirmanFilter? filter = null, CancellationToken ct = default)
+    public async Task<IReadOnlyList<CustomerTransferRowDto>> ListAccountTransfersAsync(
+        CustomerTransferFilter? filter = null, CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
 
@@ -677,7 +677,7 @@ public sealed class CashRepository(IDbContextFactory<AppDbContext> factory) : IC
         return profiles.Select(k =>
         {
             amountMap.TryGetValue(k.Id, out var t);
-            return new CariVirmanSatirDto(
+            return new CustomerTransferRowDto(
                 k.Id, k.Tarih, k.Vade,
                 k.KaynakCariId, Name(k.KaynakCariId), k.HedefCariId, Name(k.HedefCariId),
                 t?.Amount ?? 0m, t?.Currency ?? "TRY", t?.Rate ?? 1m,
@@ -685,15 +685,15 @@ public sealed class CashRepository(IDbContextFactory<AppDbContext> factory) : IC
         }).ToList();
     }
 
-    public async Task<CariEkstreSonuc> GetAccountStatementAsync(
-        Guid customerId, CariEkstreFilter? filter = null, CancellationToken ct = default)
+    public async Task<CustomerStatementResult> GetAccountStatementAsync(
+        Guid customerId, CustomerStatementFilter? filter = null, CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
         var floor = db.AccountLedgerEntries.AsNoTracking()
             .Where(e => e.AccountType == LedgerAccountType.Cari && e.AccountRef == customerId);
 
         if (filter is null || filter.BosMu)
-            return new CariEkstreSonuc(0m, await floor.OrderBy(e => e.EntryDateUtc).ToListAsync(ct));
+            return new CustomerStatementResult(0m, await floor.OrderBy(e => e.EntryDateUtc).ToListAsync(ct));
 
         // Tarih DIŞI daraltmalar hem görünen satırlara hem DEVİR'e uygulanır: devir "aynı süzgeçten
         // geçen önceki hareketlerin toplamı" olmalı, yoksa yürüyen bakiye tutmaz.
@@ -736,7 +736,7 @@ public sealed class CashRepository(IDbContextFactory<AppDbContext> factory) : IC
         }
         if (filter.Bit is { } bit) filtered = filtered.Where(e => e.EntryDateUtc <= bit);
 
-        return new CariEkstreSonuc(carryForward, await filtered.OrderBy(e => e.EntryDateUtc).ToListAsync(ct));
+        return new CustomerStatementResult(carryForward, await filtered.OrderBy(e => e.EntryDateUtc).ToListAsync(ct));
     }
 
     public async Task<Dictionary<Guid, int>> GetRentalTransactionCountsAsync(

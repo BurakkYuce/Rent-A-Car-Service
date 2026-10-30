@@ -25,8 +25,8 @@ public interface ICurrentUser
     // dahil) davranış değiştirmeden derlenir; yalnız claim okuyan kimlikler override eder.
 
     /// <summary>Role EK verilen izin adları (login'de claim'e yazılır; sonraki girişte etkin).</summary>
-    IReadOnlyCollection<string> EkIzinler => Array.Empty<string>();
+    IReadOnlyCollection<string> ExtraPermissions => Array.Empty<string>();
 
     /// <summary>Bu kullanıcıdan GERİ ALINAN izin adları. Yasak, matristen ve ek izinden DAİMA üstündür.</summary>
-    IReadOnlyCollection<string> YasakIzinler => Array.Empty<string>();
+    IReadOnlyCollection<string> DeniedPermissions => Array.Empty<string>();
 }

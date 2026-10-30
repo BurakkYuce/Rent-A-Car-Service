@@ -111,7 +111,7 @@ public static partial class ReportApi
         DateOnly? bas, DateOnly? bit, Guid? personelId, string? sube, StaffShiftService shifts, CancellationToken ct)
     {
         ReportPeriod.Validate(bas, bit);
-        var filter = new VardiyaFilter { Bas = bas, Bit = bit, PersonelId = personelId, Sube = F(sube) };
+        var filter = new StaffShiftFilter { Bas = bas, Bit = bit, PersonelId = personelId, Sube = F(sube) };
         var (b, t) = StaffShiftService.Window(filter);
         var clamped = bas is { } fb && bit is { } ft && ft.DayNumber - fb.DayNumber + 1 > StaffShiftService.MaxDays;
         var matrix = await shifts.MatrixAsync(filter, ct);

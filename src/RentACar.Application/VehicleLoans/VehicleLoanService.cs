@@ -26,17 +26,17 @@ public sealed class VehicleLoanService(IVehicleLoanRepository repository, ICurre
     /// <summary>FAZ-13 — filtreli liste (Cari/Plaka/Dosya/Durum/Tarih aralığı). Salt-okur; ekranın
     /// açık olduğu dört rol de görebilsin diye izin OR'lanır (Operatör'de yalnız OperationsWrite var,
     /// Muhasebe'de yalnız FinanceWrite/ViewReports).</summary>
-    public Task<IReadOnlyList<AracKredi>> SearchAsync(AracKrediFilter? filter = null, CancellationToken ct = default)
+    public Task<IReadOnlyList<AracKredi>> SearchAsync(VehicleLoanFilter? filter = null, CancellationToken ct = default)
     {
         PermissionGuard.RequireAny(_currentUser,
             Permission.OperationsWrite, Permission.FinanceWrite, Permission.ViewReports);
-        return _repository.SearchAsync(filter ?? new AracKrediFilter(), ct);
+        return _repository.SearchAsync(filter ?? new VehicleLoanFilter(), ct);
     }
 
     public Task<AracKredi?> GetAsync(Guid id, CancellationToken ct = default)
         => _repository.FindAsync(id, ct);
 
-    public async Task<Guid> CreateAsync(AracKrediInput input, CancellationToken ct = default)
+    public async Task<Guid> CreateAsync(VehicleLoanInput input, CancellationToken ct = default)
     {
         PermissionGuard.Require(_currentUser, Permission.OperationsWrite);
         if (string.IsNullOrWhiteSpace(input.BankaAdi)) throw new ValidationException("Banka adı zorunludur.");

@@ -20,7 +20,7 @@ namespace RentACar.IntegrationTests;
 [Collection("postgres")]
 public sealed class DropDerinlikTests(PostgresFixture fx)
 {
-    private static DropTanimInput T(string returnLocation, string pickupBranch, decimal? fee,
+    private static DropDefinitionInput T(string returnLocation, string pickupBranch, decimal? fee,
         string? pickupLocation = null, int? minDays = null, bool active = true)
         => new()
         {
@@ -35,7 +35,7 @@ public sealed class DropDerinlikTests(PostgresFixture fx)
         using var s = host.ScopeFor(Guid.NewGuid());
         var svc = s.ServiceProvider.GetRequiredService<DropDefinitionService>();
 
-        var id = await svc.CreateAsync(new DropTanimInput
+        var id = await svc.CreateAsync(new DropDefinitionInput
         {
             Lokasyon = " Ankara Ofis ", Sube = " İstanbul ", Ucret = 500m,
             CikisLokasyon = " IST Havalimanı ", MinGun = 3, ManSuresi = 45, Drop2 = 120m
@@ -50,7 +50,7 @@ public sealed class DropDerinlikTests(PostgresFixture fx)
         Assert.Equal(120m, d.Drop2);
 
         // Düzenleme ucu FAZ-22'de eklendi; yeni alanlar güncellemede DÜŞMEMELİ.
-        Assert.True(await svc.UpdateAsync(id, new DropTanimInput
+        Assert.True(await svc.UpdateAsync(id, new DropDefinitionInput
         {
             Lokasyon = "Ankara Ofis", Sube = "İstanbul", Ucret = 600m,
             CikisLokasyon = "SAW Havalimanı", MinGun = 5, ManSuresi = 60, Drop2 = 200m, Aktif = false
@@ -87,10 +87,10 @@ public sealed class DropDerinlikTests(PostgresFixture fx)
 
         await Assert.ThrowsAsync<ValidationException>(() => svc.CreateAsync(T("A", "B", -1m)));
         await Assert.ThrowsAsync<ValidationException>(() => svc.CreateAsync(
-            new DropTanimInput { Lokasyon = "A", Sube = "B", Drop2 = -5m }));
+            new DropDefinitionInput { Lokasyon = "A", Sube = "B", Drop2 = -5m }));
         await Assert.ThrowsAsync<ValidationException>(() => svc.CreateAsync(T("A", "B", 100m, minDays: 0)));
         await Assert.ThrowsAsync<ValidationException>(() => svc.CreateAsync(
-            new DropTanimInput { Lokasyon = "A", Sube = "B", ManSuresi = -1 }));
+            new DropDefinitionInput { Lokasyon = "A", Sube = "B", ManSuresi = -1 }));
         Assert.Empty(await svc.ListAsync());
     }
 
@@ -107,27 +107,27 @@ public sealed class DropDerinlikTests(PostgresFixture fx)
         await svc.CreateAsync(T("Bursa", "İstanbul", 300m, active: false));
 
         Assert.Equal(3, (await svc.SearchAsync()).Count);
-        Assert.Equal(2, (await svc.SearchAsync(new DropTanimFilter { DonusLokasyon = "Ankara" })).Count);
-        Assert.Equal(2, (await svc.SearchAsync(new DropTanimFilter { Sube = "İstanbul" })).Count);
-        Assert.Single(await svc.SearchAsync(new DropTanimFilter { CikisLokasyon = "IST Havalimanı" }));
-        Assert.Equal(2, (await svc.SearchAsync(new DropTanimFilter { Aktif = true })).Count);
-        Assert.Single(await svc.SearchAsync(new DropTanimFilter { Aktif = false }));
+        Assert.Equal(2, (await svc.SearchAsync(new DropDefinitionFilter { DonusLokasyon = "Ankara" })).Count);
+        Assert.Equal(2, (await svc.SearchAsync(new DropDefinitionFilter { Sube = "İstanbul" })).Count);
+        Assert.Single(await svc.SearchAsync(new DropDefinitionFilter { CikisLokasyon = "IST Havalimanı" }));
+        Assert.Equal(2, (await svc.SearchAsync(new DropDefinitionFilter { Aktif = true })).Count);
+        Assert.Single(await svc.SearchAsync(new DropDefinitionFilter { Aktif = false }));
         // Birleşik: Ankara + İstanbul → 1
-        Assert.Single(await svc.SearchAsync(new DropTanimFilter { DonusLokasyon = "Ankara", Sube = "İstanbul" }));
+        Assert.Single(await svc.SearchAsync(new DropDefinitionFilter { DonusLokasyon = "Ankara", Sube = "İstanbul" }));
 
         // KÜLTÜR/COLLATION KİLİDİ: karşılaştırma motorla AYNI (OrdinalIgnoreCase) ve BELLEKTE.
         // SQL lower() kullanılsaydı sonuç DB collation'ına bağlanırdı — PG (en_US.UTF-8)
         // lower('İstanbul')='istanbul' üretirken .NET 'i̇stanbul' (i + U+0307) üretiyor; bu test
         // yerelde geçip CI'da patlamıştı.
-        Assert.Equal(2, (await svc.SearchAsync(new DropTanimFilter { Sube = "  İSTANBUL  " })).Count);
-        Assert.Equal(2, (await svc.SearchAsync(new DropTanimFilter { DonusLokasyon = "ankara" })).Count);
-        Assert.Single(await svc.SearchAsync(new DropTanimFilter { CikisLokasyon = " ist Havalimanı " }));
+        Assert.Equal(2, (await svc.SearchAsync(new DropDefinitionFilter { Sube = "  İSTANBUL  " })).Count);
+        Assert.Equal(2, (await svc.SearchAsync(new DropDefinitionFilter { DonusLokasyon = "ankara" })).Count);
+        Assert.Single(await svc.SearchAsync(new DropDefinitionFilter { CikisLokasyon = " ist Havalimanı " }));
 
         // PARİTE (ve ortak SINIR): OrdinalIgnoreCase Türkçe İ/ı'yı katlamaz — "HAVALIMANI"
         // (ASCII I) kayıttaki "Havalimanı" (U+0131) ile eşleşmez. FİLTRE de MOTOR da aynı şekilde
         // eşleşmez; önemli olan ikisinin AYNI davranması (liste, ücret uygulanan bir kuralı
         // gizlemesin). Comparer'ı Türkçeye çevirmek ayrı ve incelemeli bir iş (kodda AÇIK İŞ).
-        Assert.Empty(await svc.SearchAsync(new DropTanimFilter { CikisLokasyon = "IST HAVALIMANI" }));
+        Assert.Empty(await svc.SearchAsync(new DropDefinitionFilter { CikisLokasyon = "IST HAVALIMANI" }));
         var fee = s.ServiceProvider.GetRequiredService<FeeLineService>();
         // Doğru yazımda özgül satır seçilir (500). İ/ı sapmasında o satır MOTORDA DA seçilmez —
         // ücret İzmir satırının fallback'inden (400) gelir. İkisi de aynı sınırı yaşıyor.
@@ -254,7 +254,7 @@ public sealed class DropDerinlikTests(PostgresFixture fx)
 
         await svc.CreateAsync(T("Ankara", "İstanbul", 500m));
         // Fiyat kararı TAŞIMAYAN (Ucret=null) not satırı — aynı çıkış lokasyonuna bağlı.
-        await svc.CreateAsync(new DropTanimInput
+        await svc.CreateAsync(new DropDefinitionInput
         {
             Lokasyon = "Ankara", Sube = "İstanbul", CikisLokasyon = "İstanbul",
             KarsilamaSekli = "Vale ile karşılama", Ucret = null
@@ -339,7 +339,7 @@ public sealed class DropDerinlikTests(PostgresFixture fx)
         var svc = sp.GetRequiredService<DropDefinitionService>();
         var fee = sp.GetRequiredService<FeeLineService>();
 
-        await svc.CreateAsync(new DropTanimInput
+        await svc.CreateAsync(new DropDefinitionInput
         { Lokasyon = "Ankara", Sube = "İstanbul", Ucret = 500m, Drop2 = 250m, ManSuresi = 90 });
 
         // ELLE: yalnız Ucret döner — Drop2 eklenmez (formülü kalibre edilmedi, bilinçli).

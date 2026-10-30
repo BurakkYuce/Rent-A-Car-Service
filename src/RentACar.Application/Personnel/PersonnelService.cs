@@ -32,10 +32,10 @@ public sealed class PersonnelService(
     /// SQL lower()/ILIKE sonucu DB collation'ına bağlanıyor ve İ/ı'da yerelde geçip CI'da patlıyor
     /// (FAZ-22'de ölçüldü). Personel küçük bir master tablo, bellekte süzmek uygun.
     /// </summary>
-    public async Task<IReadOnlyList<Personel>> SearchAsync(PersonelFilter? filter = null, CancellationToken ct = default)
+    public async Task<IReadOnlyList<Personel>> SearchAsync(PersonnelFilter? filter = null, CancellationToken ct = default)
     {
         var all = await ListAsync(ct);
-        var f = filter ?? new PersonelFilter();
+        var f = filter ?? new PersonnelFilter();
 
         IEnumerable<Personel> q = all;
         if (f.Aktif is bool a) q = q.Where(p => p.Aktif == a);
@@ -67,29 +67,29 @@ public sealed class PersonnelService(
     /// (Muhasebe kullanıcısında sayfanın patlaması) doğardı. Projeksiyon PII taşımadığı için
     /// finans rolüne açmak yeni bir sızıntı yüzeyi yaratmaz.</para>
     /// </summary>
-    public async Task<IReadOnlyList<PersonelSecim>> ListForSelectAsync(CancellationToken ct = default)
+    public async Task<IReadOnlyList<PersonnelOption>> ListForSelectAsync(CancellationToken ct = default)
     {
         PermissionGuard.RequireAny(_currentUser, Permission.OperationsWrite, Permission.FinanceWrite);
         var rows = await _repository.ListAsync(ct);
         return rows.Where(p => p.Aktif)
-            .Select(p => new PersonelSecim(p.Id, p.Ad, p.Soyad, p.Sube, p.SubeId))
+            .Select(p => new PersonnelOption(p.Id, p.Ad, p.Soyad, p.Sube, p.SubeId))
             .ToList();
     }
 
     /// <summary>Detay (PII çözülmüş) — düzenleme formu için.</summary>
-    public async Task<PersonelDetail?> GetDetailAsync(Guid id, CancellationToken ct = default)
+    public async Task<PersonnelDetail?> GetDetailAsync(Guid id, CancellationToken ct = default)
     {
         PermissionGuard.Require(_currentUser, Permission.ManageUsers);
         await _screens.EnsureScreenAccessAsync("personel", Permission.ManageUsers, ct);
         var r = await _repository.FindAsync(id, ct);
         if (r is null) return null;
-        return new PersonelDetail(
+        return new PersonnelDetail(
             r.Id, r.Kod, r.Ad, r.Soyad, _secrets.Unprotect(r.TcKimlikEnc),
             r.IseGiris, r.IseCikis, r.SurucuBelgeNo, ParseSalary(_secrets.Unprotect(r.MaasEnc)), r.Sube, r.Aktif,
             Ham: r);
     }
 
-    public async Task<Guid> CreateAsync(PersonelInput input, CancellationToken ct = default)
+    public async Task<Guid> CreateAsync(PersonnelInput input, CancellationToken ct = default)
     {
         PermissionGuard.Require(_currentUser, Permission.ManageUsers);
         await _screens.EnsureScreenAccessAsync("personel", Permission.ManageUsers, ct);
@@ -106,7 +106,7 @@ public sealed class PersonnelService(
         return row.Id;
     }
 
-    public Task<bool> UpdateAsync(Guid id, PersonelInput input, CancellationToken ct = default)
+    public Task<bool> UpdateAsync(Guid id, PersonnelInput input, CancellationToken ct = default)
         => UpdateAsync(id, input, expectedVersion: null, ct);
 
     /// <summary>F11.1b — satır sürümü (opak); yoksa <c>null</c>. ManageUsers (sürüm tekil detayla birlikte döner).</summary>
@@ -118,7 +118,7 @@ public sealed class PersonnelService(
 
     /// <summary>F11.1b — <paramref name="expectedVersion"/> doluysa kilit altında sürüm karşılaştırmalı tam değiştirme.
     /// PII (TC/maaş) BOŞ gelirse mevcut cipher korunur (tek yazma kuralı aşağıda).</summary>
-    public async Task<bool> UpdateAsync(Guid id, PersonelInput input, string? expectedVersion, CancellationToken ct = default)
+    public async Task<bool> UpdateAsync(Guid id, PersonnelInput input, string? expectedVersion, CancellationToken ct = default)
     {
         PermissionGuard.Require(_currentUser, Permission.ManageUsers);
         await _screens.EnsureScreenAccessAsync("personel", Permission.ManageUsers, ct);
@@ -132,7 +132,7 @@ public sealed class PersonnelService(
             : await _repository.UpdateAsync(id, expectedVersion, row => ApplyUpdate(row, n), ct);
     }
 
-    private void ApplyUpdate(Personel row, PersonelInput n)
+    private void ApplyUpdate(Personel row, PersonnelInput n)
     {
         ApplyPlain(row, n);
         // PII: dolu ise şifrele+güncelle; boş ise mevcut cipher KORUNUR; açık silme bayrağı → null.
@@ -152,7 +152,7 @@ public sealed class PersonnelService(
         return await _repository.DeleteAsync(id, ct);
     }
 
-    private static void Validate(PersonelInput n)
+    private static void Validate(PersonnelInput n)
     {
         if (string.IsNullOrWhiteSpace(n.Kod)) throw new ValidationException("Sicil (kod) zorunludur.");
         if (n.Kod!.Length > 32) throw new ValidationException("Sicil en çok 32 karakter olabilir.");
@@ -166,7 +166,7 @@ public sealed class PersonnelService(
             throw new ValidationException("Doğum tarihi gelecekte olamaz.");
     }
 
-    private static PersonelInput Normalize(PersonelInput input) => new()
+    private static PersonnelInput Normalize(PersonnelInput input) => new()
     {
         Kod = (input.Kod ?? string.Empty).Trim().ToUpperInvariant(),
         Ad = (input.Ad ?? string.Empty).Trim(),
@@ -208,7 +208,7 @@ public sealed class PersonnelService(
         ClearMaas = input.ClearMaas,
     };
 
-    private static void ApplyPlain(Personel row, PersonelInput n)
+    private static void ApplyPlain(Personel row, PersonnelInput n)
     {
         row.Kod = n.Kod!;
         row.Ad = n.Ad!;

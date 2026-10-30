@@ -71,7 +71,7 @@ public static class VehicleOrderApi
     {
         var write = AuthExtensions.HasPermission(http.User, Permission.OperationsWrite);
         var (min, max) = F5Shared.DayRange(bas, bit);
-        var list = await svc.SearchAsync(new AracSiparisFilter
+        var list = await svc.SearchAsync(new VehicleOrderFilter
         {
             CariId = cariId, Ara = F5Shared.Nz(ara), Arac = F5Shared.Nz(arac), DosyaNo = F5Shared.Nz(dosyaNo),
             Durum = F5Shared.EnumAdi<OrderStatus>(durum, "durum"), Bas = min, Bit = max,
@@ -113,7 +113,7 @@ public static class VehicleOrderApi
         => await DtoAsync(id, http, svc, dbf, ct) is { } d ? TypedResults.Ok(d) : NotFoundProblem();
 
     /// <summary>Uç sınırları + varlık (tedarikçi cari, kredi bu kiracıda) + TRY'de kur = 1.</summary>
-    private static async Task<AracSiparisInput> InputAsync(AracSiparisIstegi i, IDbContextFactory<AppDbContext> dbf,
+    private static async Task<VehicleOrderInput> InputAsync(AracSiparisIstegi i, IDbContextFactory<AppDbContext> dbf,
         ExchangeRateResolver exchangeRateResolver, CancellationToken ct)
     {
         VehicleFinanceShared.Amount(i.BirimFiyat, "birimFiyat", zeroFree: true);

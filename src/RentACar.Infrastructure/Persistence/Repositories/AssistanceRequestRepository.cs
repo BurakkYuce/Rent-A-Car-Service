@@ -10,7 +10,7 @@ public sealed class AssistanceRequestRepository(IDbContextFactory<AppDbContext> 
     private readonly IDbContextFactory<AppDbContext> _factory = factory;
 
     public async Task<IReadOnlyList<AssistansTalep>> SearchAsync(
-        AssistansFilter filter, CancellationToken ct = default)
+        AssistanceRequestFilter filter, CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
         var q = db.AssistansTalepleri.AsNoTracking();

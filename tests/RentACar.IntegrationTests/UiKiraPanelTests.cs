@@ -1227,7 +1227,7 @@ public sealed class UiKiraPanelTests(WebFixture fx)
             using var sc = host.ScopeFor(o.TenantId, Guid.NewGuid(), "op", UserRole.Operator, "SubeA");
             var svc = sc.ServiceProvider.GetRequiredService<RentACar.Application.AddOnDefinitions.AddOnDefinitionService>();
             var t = (await svc.GetAsync(definitionId))!;
-            RentACar.Application.AddOnDefinitions.EkHizmetTanimInput Input(string code) =>
+            RentACar.Application.AddOnDefinitions.AddOnDefinitionInput Input(string code) =>
                 new() { Kod = code, Ad = t.Ad, BirimUcret = t.BirimUcret, KdvOrani = t.KdvOrani, Aktif = t.Aktif };
             await Assert.ThrowsAsync<ValidationException>(() => svc.UpdateAsync(definitionId, Input("DROPX")));   // kod değişmez
             await Assert.ThrowsAsync<NoPermissionException>(() => svc.DeleteAsync(definitionId));                  // operatör silemez (güvenlik F3)

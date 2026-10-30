@@ -306,7 +306,7 @@ public sealed class UiFinansAdversarialTests(WebFixture fx)
     {
         // Otomatik kurla (uç çarpımı bilemez) 9e14 USD × 40 = 3,6e16 baz → kira Tahsilat numeric(19,4) taşar (22003).
         var o = await SetUpEnvironmentAsync(sp => sp.GetRequiredService<RentACar.Application.ExchangeRates.FixedExchangeRateService>()
-            .UpsertAsync(new RentACar.Application.ExchangeRates.SabitKurInput { Kod = "USD", Kur = 40m, Aktif = true }));
+            .UpsertAsync(new RentACar.Application.ExchangeRates.FixedExchangeRateInput { Kod = "USD", Kur = 40m, Aktif = true }));
         var s = await LoginAsync(o, Kim.Muhasebe);
 
         var (st, code, g) = await Read(await PostAsync(s, "/finans/tahsilat",
@@ -648,7 +648,7 @@ public sealed class UiFinansAdversarialTests(WebFixture fx)
     public async Task USD_kira_TRY_ya_da_EUR_tahsilat_400_USD_tahsilat_ham_tutar()
     {
         var o = await SetUpEnvironmentAsync(sp => sp.GetRequiredService<RentACar.Application.ExchangeRates.FixedExchangeRateService>()
-            .UpsertAsync(new RentACar.Application.ExchangeRates.SabitKurInput { Kod = "USD", Kur = 30m, Aktif = true }));
+            .UpsertAsync(new RentACar.Application.ExchangeRates.FixedExchangeRateInput { Kod = "USD", Kur = 30m, Aktif = true }));
         var (rentalUsd, _) = await ReadAsync(o, sp => RentalAsync(sp, o.Musteri, RentalStart.AddDays(20), day: 3, currency: "USD"));
         var s = await LoginAsync(o, Kim.Muhasebe);
 

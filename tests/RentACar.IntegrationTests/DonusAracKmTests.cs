@@ -96,7 +96,7 @@ public sealed class DonusAracKmTests(PostgresFixture fx)
         using var scope = host.ScopeFor(Guid.NewGuid());
         var sp = scope.ServiceProvider;
         // ServisTanim: Sedan → 15.000 km aralık. Araç: Tip=Sedan, SonBakimKm=40.000, Km=52.000.
-        await sp.GetRequiredService<ServiceDefinitionService>().CreateAsync(new ServisTanimInput
+        await sp.GetRequiredService<ServiceDefinitionService>().CreateAsync(new ServiceDefinitionInput
         { Kod = "PB-SEDAN", AracTipi = "Sedan", BakimKm = 15000, Aktif = true });
         await sp.GetRequiredService<VehicleService>().CreateAsync(new VehicleInput
         { Plaka = "34 BK 01", Tip = "sedan", Km = 52000, SonBakimKm = 40000 }); // case-insensitive eşleşme
@@ -114,7 +114,7 @@ public sealed class DonusAracKmTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
         var sp = scope.ServiceProvider;
-        await sp.GetRequiredService<ServiceDefinitionService>().CreateAsync(new ServisTanimInput
+        await sp.GetRequiredService<ServiceDefinitionService>().CreateAsync(new ServiceDefinitionInput
         { Kod = "PB-SUV", AracTipi = "SUV", BakimKm = 20000, Aktif = true });
         var veh = await sp.GetRequiredService<VehicleService>().CreateAsync(new VehicleInput
         { Plaka = "34 BK 02", Tip = "SUV", Km = 50000, SonBakimKm = 45000, Durum = VehicleStatus.Musait });

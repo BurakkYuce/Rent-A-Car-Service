@@ -44,7 +44,7 @@ public sealed class EkHizmetDetayTests(PostgresFixture fx)
     }
 
     private static Task<Guid> DefinitionAsync(IServiceProvider sp, string code, string name, decimal fee)
-        => sp.GetRequiredService<AddOnDefinitionService>().CreateAsync(new EkHizmetTanimInput
+        => sp.GetRequiredService<AddOnDefinitionService>().CreateAsync(new AddOnDefinitionInput
         { Kod = code, Ad = name, BirimUcret = fee, KdvOrani = 0.20m });
 
     [Fact]
@@ -56,7 +56,7 @@ public sealed class EkHizmetDetayTests(PostgresFixture fx)
         var (rental, _) = await RentalAsync(sp, "Alfa A.Ş.", "34 EH 01", "Merkez Ofis", "Web");
         var gps = await DefinitionAsync(sp, "GPS", "Navigasyon", 150m);
         var staff = await sp.GetRequiredService<PersonnelService>()
-            .CreateAsync(new PersonelInput { Kod = "P1", Ad = "Ayşe", Soyad = "Yılmaz" });
+            .CreateAsync(new PersonnelInput { Kod = "P1", Ad = "Ayşe", Soyad = "Yılmaz" });
 
         // ELLE: 2 × 150 = 300 net, %20 → 60 KDV, 360 brüt.
         await sp.GetRequiredService<RentalAddOnService>()
@@ -154,7 +154,7 @@ public sealed class EkHizmetDetayTests(PostgresFixture fx)
         var gps = await DefinitionAsync(sp, "GPS", "Navigasyon", 100m);
         var seat = await DefinitionAsync(sp, "BBK", "Bebek Koltuğu", 50m);
         var p1 = await sp.GetRequiredService<PersonnelService>()
-            .CreateAsync(new PersonelInput { Kod = "P1", Ad = "Ayşe", Soyad = "Yılmaz" });
+            .CreateAsync(new PersonnelInput { Kod = "P1", Ad = "Ayşe", Soyad = "Yılmaz" });
 
         await addOns.AddAsync(k1, gps, 1m, staffId: p1);
         await addOns.AddAsync(k1, seat, 1m);

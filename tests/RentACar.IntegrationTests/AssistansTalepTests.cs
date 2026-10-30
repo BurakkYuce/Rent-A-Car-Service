@@ -44,7 +44,7 @@ public sealed class AssistansTalepTests(PostgresFixture fx)
         var (rental, vehicle, _) = await RentalAsync(sp, "34 AS 01", "Alfa A.Ş.", "05551112233");
         var svc = sp.GetRequiredService<AssistanceRequestService>();
 
-        var id = await svc.CreateAsync(new AssistansInput
+        var id = await svc.CreateAsync(new AssistanceRequestInput
         {
             RentalId = rental, Mesaj = "  Lastik patladı, yolda kaldık  ",
             Sebep = " Lastik ", YedekLastikMi = true, AracHareketMi = false, Zaman = T0.AddDays(1)
@@ -76,7 +76,7 @@ public sealed class AssistansTalepTests(PostgresFixture fx)
         var svc = sp.GetRequiredService<AssistanceRequestService>();
 
         // Çağrıyı ikinci sürücü yapıyor: telefon FARKLI, ad farklı. Otomatik doldurma bunu ezmemeli.
-        var id = await svc.CreateAsync(new AssistansInput
+        var id = await svc.CreateAsync(new AssistanceRequestInput
         { RentalId = rental, Mesaj = "Akü bitti", AdSoyad = "İkinci Sürücü", CepTel = "05559998877" });
 
         var t = await svc.GetAsync(id);
@@ -92,7 +92,7 @@ public sealed class AssistansTalepTests(PostgresFixture fx)
         using var s = host.ScopeFor(Guid.NewGuid());
         var svc = s.ServiceProvider.GetRequiredService<AssistanceRequestService>();
 
-        var id = await svc.CreateAsync(new AssistansInput
+        var id = await svc.CreateAsync(new AssistanceRequestInput
         { Mesaj = "Sözleşmesi bulunamadı, plaka 34 XX 99", Plaka = "34 xx 99", CepTel = "05551110000" });
 
         var t = await svc.GetAsync(id);
@@ -108,12 +108,12 @@ public sealed class AssistansTalepTests(PostgresFixture fx)
         using var s = host.ScopeFor(Guid.NewGuid());
         var svc = s.ServiceProvider.GetRequiredService<AssistanceRequestService>();
 
-        await Assert.ThrowsAsync<ValidationException>(() => svc.CreateAsync(new AssistansInput { Mesaj = "   " }));
+        await Assert.ThrowsAsync<ValidationException>(() => svc.CreateAsync(new AssistanceRequestInput { Mesaj = "   " }));
         await Assert.ThrowsAsync<ValidationException>(() => svc.CreateAsync(
-            new AssistansInput { Mesaj = "x", RentalId = Guid.NewGuid() }));
+            new AssistanceRequestInput { Mesaj = "x", RentalId = Guid.NewGuid() }));
         // Gelecek tarihli olay tutanağı olmaz.
         var ex = await Assert.ThrowsAsync<ValidationException>(() => svc.CreateAsync(
-            new AssistansInput { Mesaj = "x", Zaman = DateTimeOffset.UtcNow.AddYears(5) }));
+            new AssistanceRequestInput { Mesaj = "x", Zaman = DateTimeOffset.UtcNow.AddYears(5) }));
         Assert.Contains("gelecekte olamaz", ex.Message);
 
         Assert.Empty(await svc.SearchAsync());
@@ -128,34 +128,34 @@ public sealed class AssistansTalepTests(PostgresFixture fx)
         var svc = sp.GetRequiredService<AssistanceRequestService>();
 
         // ELLE: 3 talep.
-        await svc.CreateAsync(new AssistansInput
+        await svc.CreateAsync(new AssistanceRequestInput
         { Mesaj = "Lastik patladı", Plaka = "34 FL 01", Zaman = T0, YedekLastikMi = true, AracHareketMi = false });
-        await svc.CreateAsync(new AssistansInput
+        await svc.CreateAsync(new AssistanceRequestInput
         { Mesaj = "Akü bitti", Plaka = "34 FL 02", Zaman = T0.AddDays(1), AracHareketMi = true, CepTel = "05551234567" });
-        await svc.CreateAsync(new AssistansInput
+        await svc.CreateAsync(new AssistanceRequestInput
         { Mesaj = "Anahtar içeride kaldı", Plaka = "06 XY 03", Zaman = T0.AddDays(2), Kapandi = true, AracHareketMi = true });
 
         Assert.Equal(3, (await svc.SearchAsync()).Count);
 
         // Plaka: kullanıcı BOŞLUKLU yazsa da bulunur (DB'de normalize saklanıyor).
-        Assert.Equal(2, (await svc.SearchAsync(new AssistansFilter { Plaka = "34 FL" })).Count);
-        Assert.Single(await svc.SearchAsync(new AssistansFilter { Plaka = "34fl01" }));
-        Assert.Empty(await svc.SearchAsync(new AssistansFilter { Plaka = "99 ZZ" }));
+        Assert.Equal(2, (await svc.SearchAsync(new AssistanceRequestFilter { Plaka = "34 FL" })).Count);
+        Assert.Single(await svc.SearchAsync(new AssistanceRequestFilter { Plaka = "34fl01" }));
+        Assert.Empty(await svc.SearchAsync(new AssistanceRequestFilter { Plaka = "99 ZZ" }));
 
         // Tarih aralığı (kapsayıcı).
-        Assert.Equal(2, (await svc.SearchAsync(new AssistansFilter { TarihMin = T0.AddDays(1) })).Count);
-        Assert.Equal(2, (await svc.SearchAsync(new AssistansFilter { TarihMax = T0.AddDays(1) })).Count);
+        Assert.Equal(2, (await svc.SearchAsync(new AssistanceRequestFilter { TarihMin = T0.AddDays(1) })).Count);
+        Assert.Equal(2, (await svc.SearchAsync(new AssistanceRequestFilter { TarihMax = T0.AddDays(1) })).Count);
 
-        Assert.Equal(2, (await svc.SearchAsync(new AssistansFilter { Kapandi = false })).Count);
-        Assert.Single(await svc.SearchAsync(new AssistansFilter { Kapandi = true }));
-        Assert.Single(await svc.SearchAsync(new AssistansFilter { YedekLastikMi = true }));
+        Assert.Equal(2, (await svc.SearchAsync(new AssistanceRequestFilter { Kapandi = false })).Count);
+        Assert.Single(await svc.SearchAsync(new AssistanceRequestFilter { Kapandi = true }));
+        Assert.Single(await svc.SearchAsync(new AssistanceRequestFilter { YedekLastikMi = true }));
         // "Çekici gerekenler" = hareket EDEMEYENLER.
-        Assert.Single(await svc.SearchAsync(new AssistansFilter { HareketEdemiyor = true }));
-        Assert.Equal(2, (await svc.SearchAsync(new AssistansFilter { HareketEdemiyor = false })).Count);
+        Assert.Single(await svc.SearchAsync(new AssistanceRequestFilter { HareketEdemiyor = true }));
+        Assert.Equal(2, (await svc.SearchAsync(new AssistanceRequestFilter { HareketEdemiyor = false })).Count);
 
         // Metin araması mesaj/telefon içinde.
-        Assert.Equal("Akü bitti", Assert.Single(await svc.SearchAsync(new AssistansFilter { Ara = "akü" })).Mesaj);
-        Assert.Single(await svc.SearchAsync(new AssistansFilter { Ara = "0555123" }));
+        Assert.Equal("Akü bitti", Assert.Single(await svc.SearchAsync(new AssistanceRequestFilter { Ara = "akü" })).Mesaj);
+        Assert.Single(await svc.SearchAsync(new AssistanceRequestFilter { Ara = "0555123" }));
 
         // Liste en yeniden eskiye.
         var all = await svc.SearchAsync();
@@ -168,9 +168,9 @@ public sealed class AssistansTalepTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var s = host.ScopeFor(Guid.NewGuid());
         var svc = s.ServiceProvider.GetRequiredService<AssistanceRequestService>();
-        var id = await svc.CreateAsync(new AssistansInput { Mesaj = "Yolda kaldık", Plaka = "34 GU 01" });
+        var id = await svc.CreateAsync(new AssistanceRequestInput { Mesaj = "Yolda kaldık", Plaka = "34 GU 01" });
 
-        Assert.True(await svc.UpdateAsync(id, new AssistansInput
+        Assert.True(await svc.UpdateAsync(id, new AssistanceRequestInput
         { Mesaj = "Yolda kaldık", Plaka = "34 GU 01", Kapandi = true, Cozum = "Çekici gönderildi", AracHareketMi = true }));
 
         var t = await svc.GetAsync(id);
@@ -190,13 +190,13 @@ public sealed class AssistansTalepTests(PostgresFixture fx)
         Guid id;
         using (var s1 = host.ScopeFor(t1))
             id = await s1.ServiceProvider.GetRequiredService<AssistanceRequestService>()
-                .CreateAsync(new AssistansInput { Mesaj = "Gizli çağrı", Plaka = "34 GZ 01" });
+                .CreateAsync(new AssistanceRequestInput { Mesaj = "Gizli çağrı", Plaka = "34 GZ 01" });
 
         using (var s2 = host.ScopeFor(Guid.NewGuid()))
         {
             var svc2 = s2.ServiceProvider.GetRequiredService<AssistanceRequestService>();
             Assert.Empty(await svc2.SearchAsync());
-            Assert.Empty(await svc2.SearchAsync(new AssistansFilter { Plaka = "34GZ01" }));
+            Assert.Empty(await svc2.SearchAsync(new AssistanceRequestFilter { Plaka = "34GZ01" }));
             Assert.Null(await svc2.GetAsync(id));
             Assert.False(await svc2.DeleteAsync(id));
         }
@@ -205,7 +205,7 @@ public sealed class AssistansTalepTests(PostgresFixture fx)
         using var acct = host.ScopeFor(t1, Guid.NewGuid(), "muh", UserRole.Muhasebe);
         await Assert.ThrowsAsync<NoPermissionException>(() =>
             acct.ServiceProvider.GetRequiredService<AssistanceRequestService>()
-                .CreateAsync(new AssistansInput { Mesaj = "Yetkisiz" }));
+                .CreateAsync(new AssistanceRequestInput { Mesaj = "Yetkisiz" }));
 
         // Kaynak tenant'ta kayıt duruyor.
         using var s1b = host.ScopeFor(t1);
