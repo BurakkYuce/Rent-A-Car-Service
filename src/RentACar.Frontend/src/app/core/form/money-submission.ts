@@ -119,6 +119,11 @@ const RELOGIN_REQUIRED_NOTICE = customNotice('paraIslemi.yenidenGirisGerekli');
  * gönderimde silindiği için bu not onun yerini alır; çağıranın daha özgül notu (`rejected` kancası) bunu ezer.
  */
 const RETRY_REJECTED_NOTICE = customNotice('paraIslemi.tekrarReddedildi');
+/**
+ * #320 L2: sunucu 409 `oturum_degisti` döndü — istek denemenin kimliğiyle (`X-Beklenen-Oturum`) gitti ama ortak çerez
+ * başka kullanıcı/kiracınındı. YAZILMADI; deneme (anahtar + gövde) donmuş KORUNUR, `ben` tazelenir.
+ */
+const SESSION_REJECTED_NOTICE = customNotice('paraIslemi.oturumUyusmadi');
 
 /**
  * Para yazan formların TEK gönderim çekirdeği (DEVIR §5 "Para formu yaşam döngüsü"; işlem başına rastgele anahtar):
@@ -320,6 +325,8 @@ export class MoneySubmission<TBody = unknown> implements MoneySubmissionState {
     this.lock(o.form);
     const options = {
       islemAnahtari: attempt.key,
+      // #320 L2: tekrar öncesi `ben` doğrulaması ile POST arasındaki TOCTOU'yu sunucu kapatır — kimlik farklıysa yazmaz.
+      ...(attempt.context === null ? {} : { beklenenOturum: attempt.context }),
       context: requestContext({ mukerrerCagiranGosterir: true }),
     };
     const request =
@@ -360,17 +367,31 @@ export class MoneySubmission<TBody = unknown> implements MoneySubmissionState {
   ): void {
     const uncertain = unknownOutcomeError(error);
     const duplicate = error.kod === 'mukerrer' ? classifyDuplicate(error) : null;
+    const sessionChanged = error.kod === 'oturum_degisti';
     const notice = duplicate
       ? duplicateNotice(error, attempt.content, this.config.recordedMessage)
-      : UNCERTAIN_NOTICE;
+      : sessionChanged
+        ? SESSION_REJECTED_NOTICE
+        : UNCERTAIN_NOTICE;
     // Kayıt, bileşen yok edilmiş olsa da güncellenir: sonucu hâlâ kesin olmayan deneme (belirsiz ya da `mevcut`suz
-    // 409) kalır, gerisi (kesin sonuç) düşer.
+    // 409) ve sunucunun kimlik uyuşmazlığıyla geri çevirdiği deneme kalır, gerisi (kesin sonuç) düşer.
     // Bağlam değiştiyse `set` yazmaz (yanıt çıkıştan sonra geldi).
-    if ((uncertain || duplicate === 'recordedEarlier') && (this.restorable || !this.destroyed))
+    if (
+      (uncertain || duplicate === 'recordedEarlier' || sessionChanged) &&
+      (this.restorable || !this.destroyed)
+    )
       this.attempts.set(scope, { ...attempt, inFlight: false, notice });
     else this.attempts.delete(scope, attempt.context);
     if (this.destroyed || this.staleContext(attempt)) return;
     this.sendingState.set(false);
+    if (sessionChanged) {
+      // #320 L2: yazılmadı ama deneme BIRAKILMAZ (ilk denemenin sonucu bilinmiyor olabilir): aynı anahtar + gövdeyle
+      // donar. `ben` tazelenir; kimlik gerçekten değiştiyse kimlik kuralı (`contextChanged`) bırakır ve açıklar, aynı
+      // kimlikte kalındıysa tekrar AYNI anahtarla gider. Yeni anahtarla ikinci işlem yolu açılmaz.
+      this.freeze(attempt, notice);
+      void this.session?.yukle?.();
+      return;
+    }
     if (uncertain) {
       this.freeze(attempt, UNCERTAIN_NOTICE);
       return; // interceptor hata toast'u + formda kalıcı "sonucu bilinmiyor" notu

@@ -73,6 +73,16 @@ import { RentalFinanceState, type TahsilatFormu } from './rental-finance-state';
           </p>
         }
         <rc-form-hatalari [hatalar]="t.gonderim.genelHatalar()" />
+        @if (f.otherCollectedFor() === t.hesap && t.form.dirty) {
+          <p class="kf-not" role="note" [attr.data-testid]="'tahsilat-diger-yazildi-' + t.hesap">
+            {{
+              (t.hesap === 'Kasa'
+                ? 'kiraFinans.tahsilat.digerKartYazildi'
+                : 'kiraFinans.tahsilat.digerNakitYazildi'
+              ) | transloco
+            }}
+          </p>
+        }
         @if (f.collectionLoadFailed()) {
           <div class="kf-finans__satir" role="alert">
             <p class="kf-not kf-not--uyari">

@@ -328,6 +328,7 @@
     "oturumDegistiUcusta": "Oturum başka bir kullanıcıya geçti ya da kapandı; bu sırada gönderilmiş olan işlemin sonucu bilinmiyor (yazılmış olabilir). Form temizlendi. Yeniden girmeden önce işlemin durumunu hareketlerden kontrol edin.",
     "oturumDogrulanamadi": "Oturum doğrulanamadığı için işlem tekrar gönderilmedi (bağlantı ya da sunucu hatası). Bağlantıyı kontrol edip yeniden deneyin; işlem ve anahtarı korunuyor.",
     "yenidenGirisGerekli": "Oturumunuz kapanmış; işlem tekrar gönderilmedi. Aynı kullanıcıyla yeniden giriş yapıp tekrar gönderin — işlem ve anahtarı korunuyor, ikinci kez yazılmaz.",
-    "tekrarReddedildi": "Tekrar gönderim reddedildi; bu gönderim yazılmadı. Ancak ÖNCEKİ denemenin sonucu hâlâ bilinmiyor (kaydedilmiş olabilir). Yeniden göndermeden önce hareketleri kontrol edin."
+    "tekrarReddedildi": "Tekrar gönderim reddedildi; bu gönderim yazılmadı. Ancak ÖNCEKİ denemenin sonucu hâlâ bilinmiyor (kaydedilmiş olabilir). Yeniden göndermeden önce hareketleri kontrol edin.",
+    "oturumUyusmadi": "Tarayıcıdaki oturum bu işlemi başlatan kullanıcıdan farklı (başka sekmede başka kullanıcı ya da firmayla giriş yapılmış olabilir). Sunucu bu gönderimi YAZMADI; işlem ve anahtarı korunuyor. Aynı kullanıcıyla devam ediyorsanız \"Aynı işlemi tekrar gönder\" ile gönderin, çift kayıt oluşmaz. Daha önceki bir denemenin sonucu bilinmiyorsa önce hareketleri kontrol edin."
   }
 }
