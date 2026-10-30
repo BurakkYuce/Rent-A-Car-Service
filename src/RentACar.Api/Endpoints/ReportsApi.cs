@@ -11,7 +11,8 @@ public static class ReportsApi
 {
     public static IEndpointRouteBuilder MapReportsApi(this IEndpointRouteBuilder app)
     {
-        var grp = app.MapGroup("/api/v1/reports").WithTags("Reports").RequirePermission(Permission.ViewReports);
+        var grp = app.MapGroup("/api/v1/reports").WithTags("Reports").RequirePermission(Permission.ViewReports)
+            .AddEndpointFilter(UtcDates.Filter); // from/to/asOf sorgu tarihleri DB'ye UTC gider
 
         grp.MapGet("/kasa-banka", async (DateTimeOffset? from, DateTimeOffset? to, ReportService svc, CancellationToken ct) =>
             Results.Ok(await svc.GetCashBankSummaryAsync(from, to, ct)));
