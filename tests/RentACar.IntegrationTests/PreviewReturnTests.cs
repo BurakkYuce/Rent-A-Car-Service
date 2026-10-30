@@ -78,7 +78,7 @@ public sealed class PreviewReturnTests(PostgresFixture fx)
         var sp = scope.ServiceProvider;
         var (rental, rentals, _) = await DeliveredRentalAsync(sp, "34 PR 03");
         var definition = await sp.GetRequiredService<AddOnDefinitionService>().CreateAsync(
-            new EkHizmetTanimInput { Kod = "NAV", Ad = "Navigasyon", BirimUcret = 50m, KdvOrani = 0.20m });
+            new AddOnDefinitionInput { Kod = "NAV", Ad = "Navigasyon", BirimUcret = 50m, KdvOrani = 0.20m });
         await sp.GetRequiredService<RentalAddOnService>().AddAsync(rental, definition, 2m); // 2×50 net → 120 brüt (elle)
 
         var p = await rentals.PreviewReturnAsync(rental, 10400, 8, Start.AddDays(3));

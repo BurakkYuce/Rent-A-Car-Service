@@ -14,7 +14,7 @@ namespace RentACar.IntegrationTests;
 [Collection("postgres")]
 public sealed class BelgeSablonTests(PostgresFixture fx)
 {
-    private static BelgeSablonInput New(BelgeTuru type, string name, bool defaultValue = false) => new()
+    private static DocumentTemplateInput New(BelgeTuru type, string name, bool defaultValue = false) => new()
     {
         BelgeTuru = type, Ad = name, VarsayilanMi = defaultValue, Aktif = true
     };
@@ -26,7 +26,7 @@ public sealed class BelgeSablonTests(PostgresFixture fx)
         using var scope = host.ScopeFor(Guid.NewGuid());
         var svc = scope.ServiceProvider.GetRequiredService<DocumentTemplateService>();
 
-        var id = await svc.CreateAsync(new BelgeSablonInput
+        var id = await svc.CreateAsync(new DocumentTemplateInput
         {
             BelgeTuru = BelgeTuru.KiraSozlesmesi, Ad = "  Kurumsal  ", VarsayilanMi = true, Aktif = true,
             BelgeBasligi = "KURUMSAL SÖZLEŞME", HukukiMetinSol = "Sol metin", HukukiMetinSag = "Sağ metin",
@@ -51,7 +51,7 @@ public sealed class BelgeSablonTests(PostgresFixture fx)
         using var scope = host.ScopeFor(Guid.NewGuid());
         var svc = scope.ServiceProvider.GetRequiredService<DocumentTemplateService>();
 
-        var id = await svc.CreateAsync(new BelgeSablonInput
+        var id = await svc.CreateAsync(new DocumentTemplateInput
         {
             BelgeTuru = BelgeTuru.Fatura, Ad = "Sade", BelgeBasligi = "   ", HukukiMetinSol = ""
         });
@@ -84,7 +84,7 @@ public sealed class BelgeSablonTests(PostgresFixture fx)
 
         await Assert.ThrowsAsync<ValidationException>(() => svc.CreateAsync(New(BelgeTuru.Makbuz, "   ")));
         await Assert.ThrowsAsync<ValidationException>(
-            () => svc.CreateAsync(new BelgeSablonInput { BelgeTuru = BelgeTuru.Makbuz, Ad = new string('x', 129) }));
+            () => svc.CreateAsync(new DocumentTemplateInput { BelgeTuru = BelgeTuru.Makbuz, Ad = new string('x', 129) }));
     }
 
     [Fact]
@@ -145,12 +145,12 @@ public sealed class BelgeSablonTests(PostgresFixture fx)
         Assert.Null(empty.Baslik);
 
         // Varsayılan şablon → seçim yapılmadan çözülür.
-        var vId = await svc.CreateAsync(new BelgeSablonInput
+        var vId = await svc.CreateAsync(new DocumentTemplateInput
         { BelgeTuru = BelgeTuru.KiraSozlesmesi, Ad = "Vars", VarsayilanMi = true, HukukiMetinSol = "VARS-SOL" });
         Assert.Equal("VARS-SOL", (await resolver.RentalAsync(null)).HukukiMetinSol);
 
         // Açık seçim → varsayılanı ezer.
-        var selId = await svc.CreateAsync(new BelgeSablonInput
+        var selId = await svc.CreateAsync(new DocumentTemplateInput
         { BelgeTuru = BelgeTuru.KiraSozlesmesi, Ad = "Secili", BelgeBasligi = "SECILI-BASLIK" });
         var selected = await resolver.RentalAsync(selId);
         Assert.Equal("SECILI-BASLIK", selected.Baslik);
@@ -160,7 +160,7 @@ public sealed class BelgeSablonTests(PostgresFixture fx)
         Assert.Equal("VARS-SOL", (await resolver.RentalAsync(Guid.NewGuid())).HukukiMetinSol);
 
         // Fatura varsayılanı kira çözümüne SIZMAZ (tür ayrımı).
-        await svc.CreateAsync(new BelgeSablonInput
+        await svc.CreateAsync(new DocumentTemplateInput
         { BelgeTuru = BelgeTuru.Fatura, Ad = "F", VarsayilanMi = true, AltBilgi = "FT-ALT" });
         Assert.Equal("FT-ALT", (await resolver.DefaultAsync(BelgeTuru.Fatura)).AltBilgi);
         Assert.Null((await resolver.RentalAsync(null)).AltBilgi); // kira varsayılanında AltBilgi yok

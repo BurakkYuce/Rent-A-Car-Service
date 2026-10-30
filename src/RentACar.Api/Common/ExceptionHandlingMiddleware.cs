@@ -26,7 +26,7 @@ public sealed class ExceptionHandlingMiddleware(RequestDelegate next, ILogger<Ex
         {
             await WriteAsync(ctx, StatusCodes.Status409Conflict, "conflict", ex.Message);
         }
-        catch (DuplicateCariException ex)
+        catch (DuplicateCustomerException ex)
         {
             await WriteAsync(ctx, StatusCodes.Status409Conflict, "duplicate", ex.Message);
         }

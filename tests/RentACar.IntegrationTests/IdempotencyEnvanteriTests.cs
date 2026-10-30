@@ -861,16 +861,16 @@ public sealed class IdempotencyEnvanteriTests(PostgresFixture fx)
         var sp = scope.ServiceProvider;
         var svc = sp.GetRequiredService<IncomingEInvoiceService>();
         var t = new DateTimeOffset(DateTime.SpecifyKind(DateTime.UtcNow.Date.AddDays(-30), DateTimeKind.Utc), TimeSpan.Zero);
-        var id = await svc.CreateManualAsync(new GelenEFaturaInput
+        var id = await svc.CreateManualAsync(new IncomingEInvoiceInput
         {
             Ettn = TestEttn.Of("IDEM-F14"), GonderenVkn = "1234567890", GonderenUnvan = "Tedarikçi A.Ş.", Tarih = t,
             NetTutar = 1000m, KdvTutar = 200m, GenelToplam = 1200m, Currency = "TRY"
         });
         await svc.ApproveAsync(id);
 
-        await svc.ConvertToExpenseAsync(new GelenEFaturaGiderInput { Id = id, OdemeYontemi = PaymentMethod.Nakit });
+        await svc.ConvertToExpenseAsync(new IncomingEInvoiceExpenseInput { Id = id, OdemeYontemi = PaymentMethod.Nakit });
         await Assert.ThrowsAsync<DuplicateOperationException>(() =>
-            svc.ConvertToExpenseAsync(new GelenEFaturaGiderInput { Id = id, OdemeYontemi = PaymentMethod.Nakit }));
+            svc.ConvertToExpenseAsync(new IncomingEInvoiceExpenseInput { Id = id, OdemeYontemi = PaymentMethod.Nakit }));
 
         Assert.Equal(-1200m, await Balance(sp, LedgerAccountType.Kasa));     // ELLE: tek çıkış 1200
         Assert.Equal(1, await Say(sp, db => db.Expenses));
@@ -1146,7 +1146,7 @@ public sealed class IdempotencyEnvanteriTests(PostgresFixture fx)
         using var scope = host.ScopeFor(Guid.NewGuid());
         var sp = scope.ServiceProvider;
         var svc = sp.GetRequiredService<VehicleLoanService>();
-        var loan = await svc.CreateAsync(new AracKrediInput { BankaAdi = "Banka", KrediTutari = 12000m, FaizOran = 0m, TaksitSayisi = 12 });
+        var loan = await svc.CreateAsync(new VehicleLoanInput { BankaAdi = "Banka", KrediTutari = 12000m, FaizOran = 0m, TaksitSayisi = 12 });
         var k = Guid.NewGuid();
 
         Assert.True(await svc.PayInstallmentAsync(loan, operationKey: k));
@@ -1167,7 +1167,7 @@ public sealed class IdempotencyEnvanteriTests(PostgresFixture fx)
         using var scope = host.ScopeFor(Guid.NewGuid());
         var sp = scope.ServiceProvider;
         var svc = sp.GetRequiredService<VehicleLoanService>();
-        var loan = await svc.CreateAsync(new AracKrediInput { BankaAdi = "Banka", KrediTutari = 1000m, FaizOran = 0m, TaksitSayisi = 1 });
+        var loan = await svc.CreateAsync(new VehicleLoanInput { BankaAdi = "Banka", KrediTutari = 1000m, FaizOran = 0m, TaksitSayisi = 1 });
         var k = Guid.NewGuid();
 
         Assert.True(await svc.PayInstallmentAsync(loan, operationKey: k));
@@ -1195,7 +1195,7 @@ public sealed class IdempotencyEnvanteriTests(PostgresFixture fx)
         var svc = sp.GetRequiredService<OutsourcedServiceService>();
         var (rental, supplier) = await SetupOutsourcedService(sp, "34 ID 34");
         var k = Guid.NewGuid();
-        DisHizmetInput Input() => new()
+        OutsourcedServiceInput Input() => new()
         {
             RentalId = rental, FaturaKesilecekCariId = supplier, AlinanHizmet = "Transfer",
             HizmetBedeli = 1000m, TedarikciKomisyonOran = 10m, IslemAnahtari = k
@@ -1217,7 +1217,7 @@ public sealed class IdempotencyEnvanteriTests(PostgresFixture fx)
         var sp = scope.ServiceProvider;
         var svc = sp.GetRequiredService<OutsourcedServiceService>();
         var (rental, supplier) = await SetupOutsourcedService(sp, "34 ID 35");
-        var id = await svc.CreateAsync(new DisHizmetInput
+        var id = await svc.CreateAsync(new OutsourcedServiceInput
         { RentalId = rental, FaturaKesilecekCariId = supplier, AlinanHizmet = "Transfer", HizmetBedeli = 1000m, TedarikciKomisyonOran = 10m });
 
         await svc.CancelAsync(id);

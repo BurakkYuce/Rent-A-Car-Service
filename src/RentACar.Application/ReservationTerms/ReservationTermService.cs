@@ -20,13 +20,13 @@ public sealed class ReservationTermService(
     private readonly ICustomerRepository _customers = customers;
     private readonly ICurrentUser _currentUser = currentUser;
 
-    public Task<IReadOnlyList<RezSart>> ListAsync(RezSartFilter? filter = null, CancellationToken ct = default)
+    public Task<IReadOnlyList<RezSart>> ListAsync(ReservationTermFilter? filter = null, CancellationToken ct = default)
         => _repository.ListAsync(filter, ct);
 
     public Task<RezSart?> GetAsync(Guid id, CancellationToken ct = default)
         => _repository.FindAsync(id, ct);
 
-    public async Task<Guid> CreateAsync(RezSartInput input, CancellationToken ct = default)
+    public async Task<Guid> CreateAsync(ReservationTermInput input, CancellationToken ct = default)
     {
         PermissionGuard.Require(_currentUser, Permission.OperationsWrite);
         var n = Normalize(input);
@@ -39,12 +39,12 @@ public sealed class ReservationTermService(
         return row.Id;
     }
 
-    public Task<bool> UpdateAsync(Guid id, RezSartInput input, CancellationToken ct = default)
+    public Task<bool> UpdateAsync(Guid id, ReservationTermInput input, CancellationToken ct = default)
         => UpdateAsync(id, input, expectedVersion: null, ct);
 
     /// <summary>F5.1 — <paramref name="expectedVersion"/> doluysa satır kilidi altında sürüm karşılaştırmalı tam
     /// değiştirme (<see cref="ConcurrentModificationException"/>); null → Blazor yolu (davranış değişmedi).</summary>
-    public async Task<bool> UpdateAsync(Guid id, RezSartInput input, string? expectedVersion, CancellationToken ct = default)
+    public async Task<bool> UpdateAsync(Guid id, ReservationTermInput input, string? expectedVersion, CancellationToken ct = default)
     {
         PermissionGuard.Require(_currentUser, Permission.OperationsWrite);
         var n = Normalize(input);
@@ -103,7 +103,7 @@ public sealed class ReservationTermService(
             throw new ValidationException("Seçilen müşteri bulunamadı.");
     }
 
-    private static void Validate(RezSartInput n)
+    private static void Validate(ReservationTermInput n)
     {
         if (n.MusteriId == Guid.Empty) throw new ValidationException("Müşteri seçilmelidir.");
         if (string.IsNullOrWhiteSpace(n.Sart)) throw new ValidationException("Şart/talep metni zorunludur.");
@@ -120,7 +120,7 @@ public sealed class ReservationTermService(
             throw new ValidationException("Karşılama tarihi gelecekte olamaz.");
     }
 
-    private static RezSartInput Normalize(RezSartInput input) => new()
+    private static ReservationTermInput Normalize(ReservationTermInput input) => new()
     {
         MusteriId = input.MusteriId,
         Sart = (input.Sart ?? string.Empty).Trim(),
@@ -136,7 +136,7 @@ public sealed class ReservationTermService(
 
     private static string? TrimOrNull(string? s) => string.IsNullOrWhiteSpace(s) ? null : s.Trim();
 
-    private static void Apply(RezSart row, RezSartInput n)
+    private static void Apply(RezSart row, ReservationTermInput n)
     {
         row.MusteriId = n.MusteriId;
         row.Sart = n.Sart;

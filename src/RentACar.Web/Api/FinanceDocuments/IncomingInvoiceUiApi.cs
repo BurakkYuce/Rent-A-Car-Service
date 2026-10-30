@@ -82,7 +82,7 @@ public static class IncomingInvoiceUiApi
         Text(f.EttnBit, 64, "ettnBit");
         Text(f.Plaka, 16, "plaka");
         var (start, bit) = F5Shared.DayRange(f.Bas, f.Bit);
-        var rows = await svc.ListAsync(new GelenEFaturaFilter
+        var rows = await svc.ListAsync(new IncomingEInvoiceFilter
         {
             Firma = F5Shared.Nz(f.Firma), EttnBas = F5Shared.Nz(f.EttnBas), EttnBit = F5Shared.Nz(f.EttnBit),
             Plaka = F5Shared.Nz(f.Plaka), Durum = F5Shared.EnumAdi<IncomingEInvoiceStatus>(f.Durum, "durum"),
@@ -145,7 +145,7 @@ public static class IncomingInvoiceUiApi
         if (req.NetTutar < 0m) throw new ValidationException("Net tutar negatif olamaz.", "netTutar");
         if (req.KdvTutar < 0m) throw new ValidationException("KDV tutarı negatif olamaz.", "kdvTutar");
         WithField("tarih", () => DatePolicy.MoneyDate(req.Tarih, "Fatura"));
-        var id = await svc.CreateManualAsync(new GelenEFaturaInput
+        var id = await svc.CreateManualAsync(new IncomingEInvoiceInput
         {
             Ettn = req.Ettn.Trim(), GonderenVkn = req.GonderenVkn.Trim(), GonderenUnvan = req.GonderenUnvan.Trim(),
             Tarih = F5Shared.Utc(req.Tarih), NetTutar = req.NetTutar, KdvTutar = req.KdvTutar,
@@ -201,7 +201,7 @@ public static class IncomingInvoiceUiApi
             if (req.GiderKategoriId is { } k && !await db.ExpenseCategories.AsNoTracking().AnyAsync(x => x.Id == k, ct))
                 throw new ValidationException("Gider kategorisi bulunamadı.", "giderKategoriId");
         }
-        await svc.LinkAsync(new GelenEFaturaBaglamaInput
+        await svc.LinkAsync(new IncomingEInvoiceLinkInput
         {
             Id = id, Kdv20Matrah = req.Kdv20Matrah, Kdv20 = req.Kdv20, Kdv10Matrah = req.Kdv10Matrah, Kdv10 = req.Kdv10,
             Kdv1Matrah = req.Kdv1Matrah, Kdv1 = req.Kdv1, Kdv0Matrah = req.Kdv0Matrah, VehicleId = req.AracId,
@@ -224,7 +224,7 @@ public static class IncomingInvoiceUiApi
         await using (var db = await dbf.CreateDbContextAsync(ct))
             await RequireCustomerAsync(db, method == PaymentMethod.AcikHesap ? req.CariId ?? row.CariId : null, "cariId", ct);
         WithField("doviz", () => Currency(row.Currency)); // eski "TL"/etiket belge: defter ISO koda indirger (N1)
-        var count = await svc.ConvertToExpenseAsync(new GelenEFaturaGiderInput
+        var count = await svc.ConvertToExpenseAsync(new IncomingEInvoiceExpenseInput
         {
             Id = id, OdemeYontemi = method, CariId = req.CariId, Sube = Trimmed(req.Sube),
         }, ct);

@@ -58,7 +58,7 @@ public sealed class AracDurumRaporlariTests(PostgresFixture fx)
         });
 
     private static Task<Guid> DefinitionAsync(IServiceProvider sp, string code, string name, decimal fee)
-        => sp.GetRequiredService<AddOnDefinitionService>().CreateAsync(new EkHizmetTanimInput
+        => sp.GetRequiredService<AddOnDefinitionService>().CreateAsync(new AddOnDefinitionInput
         { Kod = code, Ad = name, BirimUcret = fee, KdvOrani = 0.20m });
 
     // ==================== Bölüm A — araç kırılımı ====================

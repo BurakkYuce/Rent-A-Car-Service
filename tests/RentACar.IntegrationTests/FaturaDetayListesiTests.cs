@@ -164,23 +164,23 @@ public sealed class FaturaDetayListesiTests(PostgresFixture fx)
 
         // ELLE: 3 fatura → 3 kalem (manuel fatura tek satırlıdır).
         Assert.Equal(3, (await inv.ListLinesAsync()).Count);
-        Assert.Equal(3, (await inv.ListLinesAsync(new FaturaSatirFilter())).Count);
+        Assert.Equal(3, (await inv.ListLinesAsync(new InvoiceLineRowFilter())).Count);
 
-        Assert.Single(await inv.ListLinesAsync(new FaturaSatirFilter { CariId = a }));
-        Assert.Equal(2, (await inv.ListLinesAsync(new FaturaSatirFilter { CariId = b })).Count);
+        Assert.Single(await inv.ListLinesAsync(new InvoiceLineRowFilter { CariId = a }));
+        Assert.Equal(2, (await inv.ListLinesAsync(new InvoiceLineRowFilter { CariId = b })).Count);
 
         // Metin araması satır açıklamasında da çalışmalı (küçük-büyük harf duyarsız).
         Assert.Contains("Yakıt",
-            Assert.Single(await inv.ListLinesAsync(new FaturaSatirFilter { Ara = "yakıt" })).Aciklama);
-        Assert.Empty(await inv.ListLinesAsync(new FaturaSatirFilter { Ara = "yok-boyle-bir-sey" }));
+            Assert.Single(await inv.ListLinesAsync(new InvoiceLineRowFilter { Ara = "yakıt" })).Aciklama);
+        Assert.Empty(await inv.ListLinesAsync(new InvoiceLineRowFilter { Ara = "yok-boyle-bir-sey" }));
 
         var today = TestZaman.Now();
-        Assert.Equal(3, (await inv.ListLinesAsync(new FaturaSatirFilter { Bas = today.AddDays(-1) })).Count);
-        Assert.Empty(await inv.ListLinesAsync(new FaturaSatirFilter { Bit = today.AddDays(-1) }));
+        Assert.Equal(3, (await inv.ListLinesAsync(new InvoiceLineRowFilter { Bas = today.AddDays(-1) })).Count);
+        Assert.Empty(await inv.ListLinesAsync(new InvoiceLineRowFilter { Bit = today.AddDays(-1) }));
 
         // Eşleşmeyen plaka/ofis: manuel faturaların kirası yok → bu filtreler hepsini eler.
-        Assert.Empty(await inv.ListLinesAsync(new FaturaSatirFilter { Plaka = "34" }));
-        Assert.Empty(await inv.ListLinesAsync(new FaturaSatirFilter { Ofis = "Merkez" }));
+        Assert.Empty(await inv.ListLinesAsync(new InvoiceLineRowFilter { Plaka = "34" }));
+        Assert.Empty(await inv.ListLinesAsync(new InvoiceLineRowFilter { Ofis = "Merkez" }));
     }
 
     [Fact]
@@ -231,6 +231,6 @@ public sealed class FaturaDetayListesiTests(PostgresFixture fx)
         using var s2 = host.ScopeFor(Guid.NewGuid());
         var inv = s2.ServiceProvider.GetRequiredService<InvoiceService>();
         Assert.Empty(await inv.ListLinesAsync());
-        Assert.Empty(await inv.ListLinesAsync(new FaturaSatirFilter { Ara = "Gizli" }));
+        Assert.Empty(await inv.ListLinesAsync(new InvoiceLineRowFilter { Ara = "Gizli" }));
     }
 }

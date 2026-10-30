@@ -8,13 +8,13 @@ using RentACar.IntegrationTests.Infrastructure;
 namespace RentACar.IntegrationTests;
 
 /// <summary>
-/// F1.3 liste sözleşmesi — saf kısım: <see cref="ListeIstegi"/> normalizasyonu,
+/// F1.3 liste sözleşmesi — saf kısım: <see cref="ListRequest"/> normalizasyonu,
 /// <see cref="Sayfa{T}"/> hesapları ve <see cref="SortFieldMap{T}"/> beyaz listesi.
 /// Beklenen değerler ELLE yazılmış tablolardır (üretim kodundan türetilmez).
 /// </summary>
 public sealed class ListeSozlesmesiTests
 {
-    // ---- ListeIstegi normalizasyonu ----
+    // ---- ListRequest normalizasyonu ----
 
     [Theory]
     [InlineData(0, 1)]
@@ -24,7 +24,7 @@ public sealed class ListeSozlesmesiTests
     [InlineData(201, 201)]      // sayfa numarasının üst sınırı yok
     [InlineData(10000, 10000)]
     public void Sayfa_numarasi_birden_kucukse_bire_cekilir(int given, int expected)
-        => Assert.Equal(expected, new ListeIstegi(Sayfa: given).Sayfa);
+        => Assert.Equal(expected, new ListRequest(Sayfa: given).Sayfa);
 
     [Theory]
     [InlineData(0, 1)]
@@ -34,12 +34,12 @@ public sealed class ListeSozlesmesiTests
     [InlineData(201, 200)]
     [InlineData(10000, 200)]
     public void Boyut_bir_ile_iki_yuz_arasina_kirpilir(int given, int expected)
-        => Assert.Equal(expected, new ListeIstegi(Boyut: given).Boyut);
+        => Assert.Equal(expected, new ListRequest(Boyut: given).Boyut);
 
     [Fact]
     public void Varsayilanlar_sayfa_bir_boyut_elli_siralama_yok()
     {
-        var i = new ListeIstegi();
+        var i = new ListRequest();
         Assert.Equal(1, i.Sayfa);
         Assert.Equal(50, i.Boyut);
         Assert.Null(i.Sirala);
@@ -49,7 +49,7 @@ public sealed class ListeSozlesmesiTests
     [Fact]
     public void With_ifadesi_normalizasyonu_atlatamaz()
     {
-        var i = new ListeIstegi() with { Sayfa = -3, Boyut = 10000, Sirala = "   " };
+        var i = new ListRequest() with { Sayfa = -3, Boyut = 10000, Sirala = "   " };
         Assert.Equal(1, i.Sayfa);
         Assert.Equal(200, i.Boyut);
         Assert.Null(i.Sirala);
@@ -63,7 +63,7 @@ public sealed class ListeSozlesmesiTests
     [InlineData("-", "", true)] // alan adı boş → beyaz liste reddeder
     public void Sirala_alan_ve_yon_olarak_cozulur(string given, string alan, bool descending)
     {
-        var resolve = new ListeIstegi(Sirala: given).ParseSort();
+        var resolve = new ListRequest(Sirala: given).ParseSort();
         Assert.NotNull(resolve);
         Assert.Equal(alan, resolve!.Value.Alan);
         Assert.Equal(descending, resolve.Value.Azalan);
@@ -75,7 +75,7 @@ public sealed class ListeSozlesmesiTests
     [InlineData("   ")]
     public void Bos_sirala_null_olur(string? given)
     {
-        var i = new ListeIstegi(Sirala: given);
+        var i = new ListRequest(Sirala: given);
         Assert.Null(i.Sirala);
         Assert.Null(i.ParseSort());
     }
@@ -83,10 +83,10 @@ public sealed class ListeSozlesmesiTests
     [Fact]
     public void Atla_long_hesaplanir_int_tasmaz()
     {
-        Assert.Equal(0L, new ListeIstegi(1, 50).Atla);
-        Assert.Equal(40L, new ListeIstegi(3, 20).Atla);
+        Assert.Equal(0L, new ListRequest(1, 50).Atla);
+        Assert.Equal(40L, new ListRequest(3, 20).Atla);
         // (2147483647 - 1) × 200 = 429 496 729 200 — int'e sığmaz; elle hesaplandı.
-        Assert.Equal(429_496_729_200L, new ListeIstegi(int.MaxValue, 200).Atla);
+        Assert.Equal(429_496_729_200L, new ListRequest(int.MaxValue, 200).Atla);
     }
 
     // ---- Sayfa<T> ----
@@ -243,16 +243,16 @@ public sealed class ListeSozlesmesiPostgresTests(PostgresFixture fx)
             await db.SaveChangesAsync();
         }
 
-        async Task<Sayfa<Guid>> Fetch(ListeIstegi request)
+        async Task<Sayfa<Guid>> Fetch(ListRequest request)
         {
             await using var db = await factory.CreateDbContextAsync();
             return await db.Brands.AsNoTracking().PaginateAsync(request, Map, b => b.Id);
         }
 
         // Artan ad: Audi(2), BMW(4), Fiat(1), Fiat(3), Fiat(5) — Fiat'lar Id artan.
-        var s1 = await Fetch(new ListeIstegi(1, 2, "ad"));
-        var s2 = await Fetch(new ListeIstegi(2, 2, "ad"));
-        var s3 = await Fetch(new ListeIstegi(3, 2, "ad"));
+        var s1 = await Fetch(new ListRequest(1, 2, "ad"));
+        var s2 = await Fetch(new ListRequest(2, 2, "ad"));
+        var s3 = await Fetch(new ListRequest(3, 2, "ad"));
         Assert.Equal([Id(2), Id(4)], s1.Kayitlar);
         Assert.Equal([Id(1), Id(3)], s2.Kayitlar);
         Assert.Equal([Id(5)], s3.Kayitlar);
@@ -261,34 +261,34 @@ public sealed class ListeSozlesmesiPostgresTests(PostgresFixture fx)
         Assert.Equal((2, 2), (s2.SayfaNo, s2.Boyut));
 
         // Azalan ad: Fiat(5), Fiat(3), Fiat(1), BMW(4), Audi(2) — artanın tam tersi.
-        Assert.Equal([Id(5), Id(3)], (await Fetch(new ListeIstegi(1, 2, "-ad"))).Kayitlar);
-        Assert.Equal([Id(1), Id(4)], (await Fetch(new ListeIstegi(2, 2, "-ad"))).Kayitlar);
-        Assert.Equal([Id(2)], (await Fetch(new ListeIstegi(3, 2, "-ad"))).Kayitlar);
+        Assert.Equal([Id(5), Id(3)], (await Fetch(new ListRequest(1, 2, "-ad"))).Kayitlar);
+        Assert.Equal([Id(1), Id(4)], (await Fetch(new ListRequest(2, 2, "-ad"))).Kayitlar);
+        Assert.Equal([Id(2)], (await Fetch(new ListRequest(3, 2, "-ad"))).Kayitlar);
 
         // Sıralama boş → varsayılan "kod": K1..K5.
-        Assert.Equal([Id(1), Id(2), Id(3)], (await Fetch(new ListeIstegi(1, 3))).Kayitlar);
+        Assert.Equal([Id(1), Id(2), Id(3)], (await Fetch(new ListRequest(1, 3))).Kayitlar);
 
         // Son sayfanın ötesi ve int taşıracak sayfa numarası → boş sayfa, toplam yine 5.
-        var empty = await Fetch(new ListeIstegi(4, 2, "ad"));
+        var empty = await Fetch(new ListRequest(4, 2, "ad"));
         Assert.Empty(empty.Kayitlar);
         Assert.Equal((5, 4), (empty.Toplam, empty.SayfaNo));
-        var dev = await Fetch(new ListeIstegi(int.MaxValue, 200, "ad"));
+        var dev = await Fetch(new ListRequest(int.MaxValue, 200, "ad"));
         Assert.Empty(dev.Kayitlar);
         Assert.Equal(5, dev.Toplam);
 
         // Boyut 10000 → 200'e kırpılır; hepsi tek sayfada.
-        var all = await Fetch(new ListeIstegi(1, 10000, "-kod"));
+        var all = await Fetch(new ListRequest(1, 10000, "-kod"));
         Assert.Equal(200, all.Boyut);
         Assert.Equal([Id(5), Id(4), Id(3), Id(2), Id(1)], all.Kayitlar);
 
         // Entity izdüşümsüz aşırı yükleme de aynı sırayı verir.
         await using (var db = await factory.CreateDbContextAsync())
         {
-            var brands = await db.Brands.AsNoTracking().PaginateAsync(new ListeIstegi(1, 2, "ad"), Map);
+            var brands = await db.Brands.AsNoTracking().PaginateAsync(new ListRequest(1, 2, "ad"), Map);
             Assert.Equal(["Audi", "BMW"], brands.Kayitlar.Select(b => b.Ad));
         }
 
         // Beyaz liste dışı alan → ValidationException (sorgu atılmadan).
-        await Assert.ThrowsAsync<ValidationException>(() => Fetch(new ListeIstegi(1, 2, "TenantId")));
+        await Assert.ThrowsAsync<ValidationException>(() => Fetch(new ListRequest(1, 2, "TenantId")));
     }
 }

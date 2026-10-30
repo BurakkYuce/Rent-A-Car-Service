@@ -33,7 +33,7 @@ public sealed record CostInputDto(decimal? AlisBedeli, decimal? ResidualYuzde, i
     decimal? MuayeneEmisyonYillik, decimal? YedekAracYillik, decimal? YonetimGideriAylik, decimal? AylikGider,
     decimal? BankaDosyaDigerMasraf)
 {
-    public static CostInputDto From(MaliyetHesapInput x) => new(x.AlisBedeli, x.ResidualYuzde, x.SureAy, x.FaizOran, x.KkdfOran,
+    public static CostInputDto From(CostCalculationParameters x) => new(x.AlisBedeli, x.ResidualYuzde, x.SureAy, x.FaizOran, x.KkdfOran,
         x.BsmvOran, x.DamgaOran, x.KarMarji, x.KdvOran, x.EnflasyonOran, x.KrediHesaplamaSekli.ToString(), x.AracSayisi,
         x.KaskoYillik, x.TrafikSigortasiYillik, x.MtvYillik, x.BakimYillik, x.LastikYillik, x.LastikKisYillik, x.AracTakipYillik,
         x.TescilPlakaYillik, x.MuayeneEmisyonYillik, x.YedekAracYillik, x.YonetimGideriAylik, x.AylikGider, x.BankaDosyaDigerMasraf);
@@ -47,13 +47,13 @@ public sealed record CostResultDto(decimal ResidualDeger, decimal NetAmortisman,
     decimal TeklifAylikNet, decimal TeklifKdvli, int AracSayisi, decimal FiloToplamMaliyet, decimal FiloTeklifNet,
     decimal FiloTeklifAylikNet, decimal FiloTeklifKdvli, IReadOnlyList<CostItemDto> Kalemler)
 {
-    public static CostResultDto From(MaliyetHesapSonuc s) => new(s.ResidualDeger, s.NetAmortisman, s.FinansmanFaiz,
+    public static CostResultDto From(CostCalculationResult s) => new(s.ResidualDeger, s.NetAmortisman, s.FinansmanFaiz,
         s.FinansmanVergi, s.Damga, s.ToplamGider, s.ToplamMaliyet, s.BasaBasAylik, s.Kar, s.TeklifNet, s.TeklifAylikNet,
         s.TeklifKdvli, s.AracSayisi, s.FiloToplamMaliyet, s.FiloTeklifNet, s.FiloTeklifAylikNet, s.FiloTeklifKdvli,
         s.Kalemler.Select(k => new CostItemDto(k.Ad, k.Periyot.ToString(), k.Birim, k.DonemTutar)).ToList());
 
     /// <summary>Kayıtlı teklifin SNAPSHOT'ı (yeniden fiyatlama değil); kalemler kayıtlı girdiden.</summary>
-    public static CostResultDto From(MaliyetTeklifi t, IReadOnlyList<MaliyetGiderKalem> items) => new(t.ResidualDeger,
+    public static CostResultDto From(MaliyetTeklifi t, IReadOnlyList<CostExpenseLine> items) => new(t.ResidualDeger,
         t.NetAmortisman, t.FinansmanFaiz, t.FinansmanVergi, t.Damga, t.ToplamGider, t.ToplamMaliyet, t.BasaBasAylik, t.Kar,
         t.TeklifNet, t.TeklifAylikNet, t.TeklifKdvli, t.AracSayisi, t.FiloToplamMaliyet, t.TeklifNet * t.AracSayisi,
         t.FiloTeklifAylikNet, t.FiloTeklifKdvli,

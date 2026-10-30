@@ -34,7 +34,7 @@ public sealed class SozlesmeViewTests(PostgresFixture fx)
         });
         var veh = await sp.GetRequiredService<VehicleService>().CreateAsync(new VehicleInput
         { Plaka = "07 BOP 605", Marka = "Fiat", Tip = "Egea", Km = 10000 });
-        var pid = await sp.GetRequiredService<PersonnelService>().CreateAsync(new PersonelInput
+        var pid = await sp.GetRequiredService<PersonnelService>().CreateAsync(new PersonnelInput
         { Kod = "P-SZ", Ad = "Onur", Soyad = "Yuce" });
 
         var rentals = sp.GetRequiredService<RentalService>();
@@ -70,7 +70,7 @@ public sealed class SozlesmeViewTests(PostgresFixture fx)
         var sp = scope.ServiceProvider;
 
         // Bağımsız oracle: metinleri BURADA kuruyoruz; SozlesmeView aynen taşımalı.
-        var templateId = await sp.GetRequiredService<DocumentTemplateService>().CreateAsync(new BelgeSablonInput
+        var templateId = await sp.GetRequiredService<DocumentTemplateService>().CreateAsync(new DocumentTemplateInput
         {
             BelgeTuru = BelgeTuru.KiraSozlesmesi, Ad = "Test",
             BelgeBasligi = "TEST-BASLIK", HukukiMetinSol = "TEST-SOL", EkKosullarVarsayilan = "SABLON-EK-KOSUL"

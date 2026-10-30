@@ -228,7 +228,7 @@ public sealed class PublicBookingRequestTimeTests(PostgresFixture fx)
             {
                 FirmaUnvan = "Talep A.Ş.", SmtpHost = "smtp.test.local", SmtpPort = 587, SmtpGonderenAdres = "talep@ornek.com",
             });
-            await admin.ServiceProvider.GetRequiredService<CustomerNotificationService>().SaveTemplateAsync(new MesajSablonInput
+            await admin.ServiceProvider.GetRequiredService<CustomerNotificationService>().SaveTemplateAsync(new MessageTemplateInput
             {
                 Tur = MessageType.TalepAlindi, Kanal = MessageChannel.Eposta, Konu = "Talep", Govde = "[{CikisTarih}|{DonusTarih}]",
             });

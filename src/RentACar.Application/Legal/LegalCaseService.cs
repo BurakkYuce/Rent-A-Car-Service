@@ -52,8 +52,8 @@ public sealed class LegalCaseService(ILegalCaseRepository repository, ICurrentUs
     }
 
     /// <summary>FAZ-41 — filtreli liste (müşteri adı çözülmüş), şube kapsamına süzülmüş (export da bu yoldan).</summary>
-    public async Task<IReadOnlyList<HukukDosyaSatirDto>> SearchAsync(
-        HukukDosyaFilter? filter = null, CancellationToken ct = default)
+    public async Task<IReadOnlyList<LegalCaseRowDto>> SearchAsync(
+        LegalCaseFilter? filter = null, CancellationToken ct = default)
     {
         var rows = await _repository.SearchAsync(filter, ct);
         var visible = await VisibilityAsync(rows.Select(r => r.Dosya.CariId), ct);
@@ -63,7 +63,7 @@ public sealed class LegalCaseService(ILegalCaseRepository repository, ICurrentUs
     /// <summary>Kapsam dışı dosya "yok"tur (null → 404).</summary>
     public Task<HukukDosya?> GetAsync(Guid id, CancellationToken ct = default) => VisibleAsync(id, ct);
 
-    public async Task<Guid> CreateAsync(HukukDosyaInput input, CancellationToken ct = default)
+    public async Task<Guid> CreateAsync(LegalCaseInput input, CancellationToken ct = default)
     {
         PermissionGuard.Require(_currentUser, Permission.OperationsWrite);
         var n = Normalize(input);
@@ -78,7 +78,7 @@ public sealed class LegalCaseService(ILegalCaseRepository repository, ICurrentUs
         return row.Id;
     }
 
-    public async Task<bool> UpdateAsync(Guid id, HukukDosyaInput input, CancellationToken ct = default)
+    public async Task<bool> UpdateAsync(Guid id, LegalCaseInput input, CancellationToken ct = default)
     {
         PermissionGuard.Require(_currentUser, Permission.OperationsWrite);
         if (await VisibleAsync(id, ct) is null) return false; // kapsam doğrulamadan ÖNCE
@@ -96,7 +96,7 @@ public sealed class LegalCaseService(ILegalCaseRepository repository, ICurrentUs
     }
 
     /// <summary>F7.1 — tam değiştirme, iyimser eşzamanlılıkla (satır kilidi altında sürüm; farklı → 409).</summary>
-    public async Task<bool> UpdateAsync(Guid id, HukukDosyaInput input, string expectedVersion, CancellationToken ct = default)
+    public async Task<bool> UpdateAsync(Guid id, LegalCaseInput input, string expectedVersion, CancellationToken ct = default)
     {
         PermissionGuard.Require(_currentUser, Permission.OperationsWrite);
         if (await VisibleAsync(id, ct) is null) return false; // kapsam doğrulamadan/sürümden ÖNCE
@@ -122,7 +122,7 @@ public sealed class LegalCaseService(ILegalCaseRepository repository, ICurrentUs
         return await _repository.DeleteAsync(id, ct);
     }
 
-    private static void Validate(HukukDosyaInput n)
+    private static void Validate(LegalCaseInput n)
     {
         if (string.IsNullOrWhiteSpace(n.DosyaNo)) throw new ValidationException("Dosya no zorunludur.");
         if (n.DosyaNo!.Length > 64) throw new ValidationException("Dosya no en çok 64 karakter olabilir.");
@@ -138,7 +138,7 @@ public sealed class LegalCaseService(ILegalCaseRepository repository, ICurrentUs
             throw new ValidationException("E-posta en çok 256 karakter olabilir.");
     }
 
-    private static HukukDosyaInput Normalize(HukukDosyaInput input) => new()
+    private static LegalCaseInput Normalize(LegalCaseInput input) => new()
     {
         DosyaNo = (input.DosyaNo ?? string.Empty).Trim().ToUpperInvariant(),
         CariId = input.CariId,
@@ -160,7 +160,7 @@ public sealed class LegalCaseService(ILegalCaseRepository repository, ICurrentUs
 
     private static string? TrimOrNull(string? s) => string.IsNullOrWhiteSpace(s) ? null : s.Trim();
 
-    private static void Apply(HukukDosya row, HukukDosyaInput n)
+    private static void Apply(HukukDosya row, LegalCaseInput n)
     {
         row.DosyaNo = n.DosyaNo!;
         row.CariId = n.CariId;

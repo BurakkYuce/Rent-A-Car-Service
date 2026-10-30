@@ -27,7 +27,7 @@ public sealed class AddOnDefinitionService(IAddOnDefinitionRepository repository
     public Task<EkHizmetTanim?> GetAsync(Guid id, CancellationToken ct = default)
         => _repository.FindAsync(id, ct);
 
-    public async Task<Guid> CreateAsync(EkHizmetTanimInput input, CancellationToken ct = default)
+    public async Task<Guid> CreateAsync(AddOnDefinitionInput input, CancellationToken ct = default)
     {
         PermissionGuard.Require(_currentUser, Permission.OperationsWrite);
         var n = Normalize(input);
@@ -46,7 +46,7 @@ public sealed class AddOnDefinitionService(IAddOnDefinitionRepository repository
         return t.Id;
     }
 
-    public async Task<bool> UpdateAsync(Guid id, EkHizmetTanimInput input, CancellationToken ct = default)
+    public async Task<bool> UpdateAsync(Guid id, AddOnDefinitionInput input, CancellationToken ct = default)
     {
         PermissionGuard.Require(_currentUser, Permission.OperationsWrite);
         var n = Normalize(input);
@@ -76,7 +76,7 @@ public sealed class AddOnDefinitionService(IAddOnDefinitionRepository repository
 
     /// <summary>F9.1 — same rules as <see cref="UpdateAsync"/> (incl. the SYS-* code fence, re-checked under the
     /// row lock) with a version check; cache invalidated after the write.</summary>
-    public async Task<bool> UpdateVersionedAsync(Guid id, EkHizmetTanimInput input, string expectedVersion, CancellationToken ct = default)
+    public async Task<bool> UpdateVersionedAsync(Guid id, AddOnDefinitionInput input, string expectedVersion, CancellationToken ct = default)
     {
         PermissionGuard.Require(_currentUser, Permission.OperationsWrite);
         var n = Normalize(input);
@@ -113,7 +113,7 @@ public sealed class AddOnDefinitionService(IAddOnDefinitionRepository repository
 
     private static bool SystemCode(string? code) => code?.StartsWith("SYS-", StringComparison.OrdinalIgnoreCase) == true;
 
-    private static void Validate(EkHizmetTanimInput n)
+    private static void Validate(AddOnDefinitionInput n)
     {
         if (string.IsNullOrWhiteSpace(n.Kod)) throw new ValidationException("Ek hizmet kodu zorunludur.");
         if (n.Kod.Length > 32) throw new ValidationException("Ek hizmet kodu en çok 32 karakter olabilir.");
@@ -125,7 +125,7 @@ public sealed class AddOnDefinitionService(IAddOnDefinitionRepository repository
         if (n.Aciklama is { Length: > 512 }) throw new ValidationException("Açıklama en çok 512 karakter olabilir.");
     }
 
-    private static EkHizmetTanimInput Normalize(EkHizmetTanimInput input) => new()
+    private static AddOnDefinitionInput Normalize(AddOnDefinitionInput input) => new()
     {
         Kod = (input.Kod ?? string.Empty).Trim().ToUpperInvariant(),
         Ad = (input.Ad ?? string.Empty).Trim(),
@@ -136,7 +136,7 @@ public sealed class AddOnDefinitionService(IAddOnDefinitionRepository repository
         Aktif = input.Aktif
     };
 
-    private static void Apply(EkHizmetTanim t, EkHizmetTanimInput n)
+    private static void Apply(EkHizmetTanim t, AddOnDefinitionInput n)
     {
         t.Kod = n.Kod;
         t.Ad = n.Ad;

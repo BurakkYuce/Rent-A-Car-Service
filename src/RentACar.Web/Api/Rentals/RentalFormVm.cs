@@ -25,10 +25,10 @@ public sealed class RentalFormVm
 
     // Edit modu verileri (sayfa şube-kapsamlı GetAsync BAŞARILI olduktan sonra doldurur — sızıntı kapısı)
     public IReadOnlyList<RentalAddOn> Kalemler { get; set; } = [];
-    public IReadOnlyList<RentACar.Application.Personnel.PersonelSecim> Personeller { get; set; } = [];
+    public IReadOnlyList<RentACar.Application.Personnel.PersonnelOption> Personeller { get; set; } = [];
     public IReadOnlyList<Invoice> Faturalar { get; set; } = [];
     /// <summary>FAZ 4.2-B3: dönem planı + tahakkuk önizlemesi (uygun kirada; boş = plansız kira).</summary>
-    public IReadOnlyList<RentACar.Application.InvoicePeriods.FaturaDonemOnizleme> FaturaDonemleri { get; set; } = [];
+    public IReadOnlyList<RentACar.Application.InvoicePeriods.InvoicePeriodPreview> FaturaDonemleri { get; set; } = [];
     /// <summary>FAZ 4.3: kiraya bağlı B2B dış hizmet alımları (grid).</summary>
     public IReadOnlyList<DisHizmetAlimi> DisHizmetler { get; set; } = [];
     public IReadOnlyList<Penalty> Cezalar { get; set; } = [];

@@ -103,7 +103,7 @@ public sealed class VehicleGroupNamePricingTests(PostgresFixture fx)
         await sp.GetRequiredService<RentalService>().CreateDirectAsync(new BookingInput
         { MusteriId = customer, VehicleId = byName, BasTar = Start, BitTar = Start.AddDays(5), GunlukUcret = 100m });
         await sp.GetRequiredService<RentACar.Application.OccupancyPricing.OccupancyPriceRuleService>().CreateAsync(
-            new RentACar.Application.OccupancyPricing.DolulukFiyatKuralInput { Kod = "D50", Ad = "Doluluk 50", EsikYuzde = 50, CarpanYuzde = 10m });
+            new RentACar.Application.OccupancyPricing.OccupancyPriceRuleInput { Kod = "D50", Ad = "Doluluk 50", EsikYuzde = 50, CarpanYuzde = 10m });
 
         var q = await sp.GetRequiredService<RentACar.Application.Pricing.RentalQuoteEngine>().QuoteAsync(
             new RentACar.Application.Pricing.QuoteRequest { AracGrupKod = requestGroup, BasTar = Start, BitTar = Start.AddDays(5) });

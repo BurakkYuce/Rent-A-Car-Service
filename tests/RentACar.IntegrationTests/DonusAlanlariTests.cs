@@ -113,7 +113,7 @@ public sealed class DonusAlanlariTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
         var sp = scope.ServiceProvider;
-        var pid = await sp.GetRequiredService<PersonnelService>().CreateAsync(new PersonelInput
+        var pid = await sp.GetRequiredService<PersonnelService>().CreateAsync(new PersonnelInput
         { Kod = "P-01", Ad = "Onur", Soyad = "Yuce" });
         var (rental, rentals) = await DeliveredRentalAsync(sp, "34 DA 06");
 

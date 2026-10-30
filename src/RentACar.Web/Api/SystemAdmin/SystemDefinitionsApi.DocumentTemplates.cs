@@ -55,7 +55,7 @@ public static partial class SystemDefinitionsApi
 
     /// <summary>Belge türü ZORUNLU ve adla (Blazor'daki "tanınmazsa KiraSozlesmesi" sessiz varsayılanı yeni yüzeyde yok).
     /// Uzunluk sınırları servisle aynı (Validate) — burada ayrıca yazılmaz.</summary>
-    private static BelgeSablonInput TemplateInput(DocumentTemplateRequest i) => new()
+    private static DocumentTemplateInput TemplateInput(DocumentTemplateRequest i) => new()
     {
         BelgeTuru = EnumName<BelgeTuru>(i.BelgeTuru, "belgeTuru")
             ?? throw new ValidationException("Belge türü zorunludur.", "belgeTuru"),

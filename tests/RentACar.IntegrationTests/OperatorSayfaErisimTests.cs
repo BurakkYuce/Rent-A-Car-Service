@@ -35,7 +35,7 @@ public sealed class OperatorSayfaErisimTests(PostgresFixture fx)
         using (var admin = host.ScopeFor(tenant))
         {
             await admin.ServiceProvider.GetRequiredService<PersonnelService>().CreateAsync(
-                new PersonelInput { Kod = "OP-001", Ad = "Op", Soyad = "Test" });
+                new PersonnelInput { Kod = "OP-001", Ad = "Op", Soyad = "Test" });
             await admin.ServiceProvider.GetRequiredService<VehicleService>().CreateAsync(
                 new VehicleInput { Plaka = "34 OP 01" });
         }

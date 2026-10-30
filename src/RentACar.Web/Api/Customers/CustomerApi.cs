@@ -89,7 +89,7 @@ public static partial class CustomerApi
     private static async Task<Ok<Sayfa<CustomerListRow>>> List(
         [AsParameters] CustomerListFilter f, CustomerService customers, int? sayfa, int? boyut, string? sirala, CancellationToken ct)
     {
-        var request = new ListeIstegi(Math.Min(sayfa ?? 1, MaxPage), boyut ?? 50, sirala);
+        var request = new ListRequest(Math.Min(sayfa ?? 1, MaxPage), boyut ?? 50, sirala);
         var q = F5Shared.Nz(f.Q);
         if (q is { Length: > 100 }) throw new ValidationException("Arama metni en fazla 100 karakter olabilir.", "q");
         var filter = new CustomerFilter

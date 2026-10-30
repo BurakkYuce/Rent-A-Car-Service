@@ -10,7 +10,7 @@ namespace RentACar.Application.Notifications;
 public sealed record BildirimDto(
     int VadeGecmis,
     int VadeYakin,
-    IReadOnlyList<VadeItem> Vadeler,
+    IReadOnlyList<DueItem> Vadeler,
     int AcikSikayet,
     IReadOnlyList<Sikayet> Sikayetler,
     DateTimeOffset? DonemKapanis);

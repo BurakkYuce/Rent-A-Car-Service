@@ -57,8 +57,8 @@ public sealed class VehicleService(
     /// Şube kapsamı burada UYGULANMAZ: liste zaten `ListAsync` gibi tüm filoyu gösteren bir
     /// yönetim görünümü ve sayfa Admin/Yönetici kapılı.
     /// </summary>
-    public Task<IReadOnlyList<VehicleDetayRow>> ListDetailAsync(
-        VehicleDetayFilter? filter = null, CancellationToken ct = default)
+    public Task<IReadOnlyList<VehicleDetailRow>> ListDetailAsync(
+        VehicleDetailFilter? filter = null, CancellationToken ct = default)
         => _repository.ListDetailAsync(filter, ct);
 
     /// <summary>
@@ -69,7 +69,7 @@ public sealed class VehicleService(
     /// <para>Şube kapsamı burada ayrıca zorlanmaz: çağıran zaten kapsamlı bir listeden gelen
     /// araç kimliklerini verir; RLS + tenant filtresi çapraz-tenant sızıntıyı kapatır.</para>
     /// </summary>
-    public Task<IReadOnlyDictionary<Guid, VehicleListeEk>> ListExtrasAsync(
+    public Task<IReadOnlyDictionary<Guid, VehicleListExtra>> ListExtrasAsync(
         IReadOnlyCollection<Guid> vehicleIds, CancellationToken ct = default)
         => _repository.ListExtrasAsync(vehicleIds, ct);
 
@@ -87,7 +87,7 @@ public sealed class VehicleService(
         Validate(plate, input);
 
         if (await _repository.PlateExistsAsync(plate, excludeId: null, ct))
-            throw new DuplicatePlakaException(plate);
+            throw new DuplicatePlateException(plate);
 
         var branchId = await ResolveBranchAsync(input.Sube, ct);
         // PR-10: grup BELİRTİLMEMİŞSE varsayılana düşer. Web formu grubu <select> ile önseçili
@@ -145,7 +145,7 @@ public sealed class VehicleService(
         Validate(plate, input, existing);
 
         if (await _repository.PlateExistsAsync(plate, excludeId: id, ct))
-            throw new DuplicatePlakaException(plate);
+            throw new DuplicatePlateException(plate);
 
         var branchId = await ResolveBranchAsync(input.Sube, ct);
         // Kabul bulgusu: durum elle açık kira/servis/tahsisle çelişen değere çekilemez. Açık kayıtlar her güncellemede

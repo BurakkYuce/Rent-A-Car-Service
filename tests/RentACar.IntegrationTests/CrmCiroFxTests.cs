@@ -34,7 +34,7 @@ public sealed class CrmCiroFxTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
         var sp = scope.ServiceProvider;
-        await sp.GetRequiredService<FixedExchangeRateService>().UpsertAsync(new SabitKurInput { Kod = "EUR", Kur = 40m, Aktif = true });
+        await sp.GetRequiredService<FixedExchangeRateService>().UpsertAsync(new FixedExchangeRateInput { Kod = "EUR", Kur = 40m, Aktif = true });
 
         var accountFx = await sp.GetRequiredService<CustomerService>().CreateAsync(new CustomerInput { Tip = CustomerType.Bireysel, Ad = "Euro", Soyad = "Musteri" });
         var accountTry = await sp.GetRequiredService<CustomerService>().CreateAsync(new CustomerInput { Tip = CustomerType.Bireysel, Ad = "Lira", Soyad = "Musteri" });

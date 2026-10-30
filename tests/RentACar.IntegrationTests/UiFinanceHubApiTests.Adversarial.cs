@@ -24,7 +24,7 @@ public sealed partial class UiFinanceHubApiTests
         // Sabit kur servis sınırının (≤ 1.000.000) üstü → 400, API ve servis (Blazor yolu) aynı.
         await Problem(await PostAsync(s, "/kurlar/sabit", new { kod = "XYZ", kur = 1_000_001m }), HttpStatusCode.BadRequest, "dogrulama", "kur");
         await Assert.ThrowsAsync<ValidationException>(() => ReadAsync(e, sp =>
-            sp.GetRequiredService<FixedExchangeRateService>().UpsertAsync(new SabitKurInput { Kod = "XYZ", Kur = 9_999_999_999_999m })));
+            sp.GetRequiredService<FixedExchangeRateService>().UpsertAsync(new FixedExchangeRateInput { Kod = "XYZ", Kur = 9_999_999_999_999m })));
 
         // Eski (sınır öncesi) veri: dev sabit kur doğrudan tabloda. Kursuz işlem ÇÖZÜLEN kurla baz sınırına takılır.
         await DbAsync(e, async db =>

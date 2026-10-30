@@ -21,7 +21,7 @@ public sealed class TestZamanTests(PostgresFixture fx)
     private static async Task<DateTimeOffset> WriteReadAsync(IServiceProvider sp, Guid customer, DateTimeOffset t)
     {
         var svc = sp.GetRequiredService<ReservationTermService>();
-        var id = await svc.CreateAsync(new RezSartInput { MusteriId = customer, Sart = "zaman", TalepTarihi = t });
+        var id = await svc.CreateAsync(new ReservationTermInput { MusteriId = customer, Sart = "zaman", TalepTarihi = t });
         return (await svc.GetAsync(id))!.TalepTarihi;
     }
 

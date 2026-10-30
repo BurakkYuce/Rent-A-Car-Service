@@ -20,7 +20,7 @@ namespace RentACar.IntegrationTests;
 public sealed class TahsilatKurOtomatikTests(PostgresFixture fx)
 {
     private static Task FixedExchangeRateAsync(IServiceProvider sp, string code, decimal exchangeRate)
-        => sp.GetRequiredService<FixedExchangeRateService>().UpsertAsync(new SabitKurInput { Kod = code, Kur = exchangeRate, Aktif = true });
+        => sp.GetRequiredService<FixedExchangeRateService>().UpsertAsync(new FixedExchangeRateInput { Kod = code, Kur = exchangeRate, Aktif = true });
 
     private static Task<Guid> CustomerAsync(IServiceProvider sp, string name = "Fx") =>
         sp.GetRequiredService<CustomerService>()

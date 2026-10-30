@@ -19,12 +19,12 @@ public sealed class MasterEksikN1Tests(PostgresFixture fx)
         using var scope = host.ScopeFor(Guid.NewGuid());
         var svc = scope.ServiceProvider.GetRequiredService<AccountCodeService>();
 
-        await svc.CreateAsync(new HesapKoduInput { Kod = "600", Ad = "Yurtiçi Satışlar" });
+        await svc.CreateAsync(new AccountCodeInput { Kod = "600", Ad = "Yurtiçi Satışlar" });
         var list = await svc.ListAsync();
         Assert.Contains(list, h => h.Kod == "600" && h.Ad == "Yurtiçi Satışlar");
 
         await Assert.ThrowsAsync<RentACar.Application.Common.ValidationException>(
-            () => svc.CreateAsync(new HesapKoduInput { Kod = "600", Ad = "Çift" })); // aynı kod
+            () => svc.CreateAsync(new AccountCodeInput { Kod = "600", Ad = "Çift" })); // aynı kod
     }
 
     [Fact]
@@ -34,7 +34,7 @@ public sealed class MasterEksikN1Tests(PostgresFixture fx)
         using var scope = host.ScopeFor(Guid.NewGuid());
         var svc = scope.ServiceProvider.GetRequiredService<ServiceDefinitionService>();
 
-        var id = await svc.CreateAsync(new ServisTanimInput { Kod = "EKO-PER", AracTipi = "Ekonomik", BakimKm = 15000 });
+        var id = await svc.CreateAsync(new ServiceDefinitionInput { Kod = "EKO-PER", AracTipi = "Ekonomik", BakimKm = 15000 });
         var s = await svc.GetAsync(id);
         Assert.Equal("Ekonomik", s!.AracTipi);
         Assert.Equal(15000, s.BakimKm);
@@ -46,8 +46,8 @@ public sealed class MasterEksikN1Tests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using (var a = host.ScopeFor(Guid.NewGuid()))
         {
-            await a.ServiceProvider.GetRequiredService<AccountCodeService>().CreateAsync(new HesapKoduInput { Kod = "X", Ad = "Gizli" });
-            await a.ServiceProvider.GetRequiredService<ServiceDefinitionService>().CreateAsync(new ServisTanimInput { Kod = "X", AracTipi = "Gizli", BakimKm = 100 });
+            await a.ServiceProvider.GetRequiredService<AccountCodeService>().CreateAsync(new AccountCodeInput { Kod = "X", Ad = "Gizli" });
+            await a.ServiceProvider.GetRequiredService<ServiceDefinitionService>().CreateAsync(new ServiceDefinitionInput { Kod = "X", AracTipi = "Gizli", BakimKm = 100 });
         }
         using var b = host.ScopeFor(Guid.NewGuid());
         Assert.Empty(await b.ServiceProvider.GetRequiredService<AccountCodeService>().ListAsync());

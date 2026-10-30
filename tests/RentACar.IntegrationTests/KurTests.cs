@@ -137,15 +137,15 @@ public sealed class KurServiceTests(PostgresFixture fx)
         var exchangeRate = scope.ServiceProvider.GetRequiredService<ExchangeRateService>();
 
         // Süresiz sabit kur → TCMB'yi ezer
-        await fixedValue.UpsertAsync(new SabitKurInput { Kod = "USD", Kur = 40m, Aktif = true });
+        await fixedValue.UpsertAsync(new FixedExchangeRateInput { Kod = "USD", Kur = 40m, Aktif = true });
         Assert.Equal(40m, await exchangeRate.GetRateAsync("USD", Friday));
 
         // Pencere gelecekte → bugün TCMB'ye düşer
-        await fixedValue.UpsertAsync(new SabitKurInput { Kod = "USD", Kur = 40m, Aktif = true, BasTar = Friday.AddDays(10) });
+        await fixedValue.UpsertAsync(new FixedExchangeRateInput { Kod = "USD", Kur = 40m, Aktif = true, BasTar = Friday.AddDays(10) });
         Assert.Equal(34.50m, await exchangeRate.GetRateAsync("USD", Friday));
 
         // Pasif → TCMB
-        await fixedValue.UpsertAsync(new SabitKurInput { Kod = "USD", Kur = 40m, Aktif = false });
+        await fixedValue.UpsertAsync(new FixedExchangeRateInput { Kod = "USD", Kur = 40m, Aktif = false });
         Assert.Equal(34.50m, await exchangeRate.GetRateAsync("USD", Friday));
     }
 
@@ -163,7 +163,7 @@ public sealed class KurServiceTests(PostgresFixture fx)
         // A kendi sabit kurunu tanımlar
         using (var sa = host.ScopeFor(tenantA))
             await sa.ServiceProvider.GetRequiredService<FixedExchangeRateService>()
-                .UpsertAsync(new SabitKurInput { Kod = "USD", Kur = 40m, Aktif = true });
+                .UpsertAsync(new FixedExchangeRateInput { Kod = "USD", Kur = 40m, Aktif = true });
 
         // A → 40 (kendi sabiti); B → 34.50 (A'nınkini GÖRMEZ, TCMB'ye düşer)
         using (var sa = host.ScopeFor(tenantA))

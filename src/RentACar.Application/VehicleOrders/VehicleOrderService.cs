@@ -28,17 +28,17 @@ public sealed class VehicleOrderService(IVehicleOrderRepository repository, ICur
     /// <summary>FAZ-17 — filtreli liste (Cari/Ad-Soyad/Araç/Dosya/Durum/Tarih aralığı). Salt-okur;
     /// ekranın açık olduğu rollerin hepsi görebilsin diye izin OR'lanır (Operatör'de yalnız
     /// OperationsWrite, Muhasebe'de yalnız FinanceWrite/ViewReports var).</summary>
-    public Task<IReadOnlyList<AracSiparis>> SearchAsync(AracSiparisFilter? filter = null, CancellationToken ct = default)
+    public Task<IReadOnlyList<AracSiparis>> SearchAsync(VehicleOrderFilter? filter = null, CancellationToken ct = default)
     {
         PermissionGuard.RequireAny(_currentUser,
             Permission.OperationsWrite, Permission.FinanceWrite, Permission.ViewReports);
-        return _repository.SearchAsync(filter ?? new AracSiparisFilter(), ct);
+        return _repository.SearchAsync(filter ?? new VehicleOrderFilter(), ct);
     }
 
     public Task<AracSiparis?> GetAsync(Guid id, CancellationToken ct = default)
         => _repository.FindAsync(id, ct);
 
-    public async Task<Guid> CreateAsync(AracSiparisInput input, CancellationToken ct = default)
+    public async Task<Guid> CreateAsync(VehicleOrderInput input, CancellationToken ct = default)
     {
         PermissionGuard.Require(_currentUser, Permission.OperationsWrite);
         Validate(input);
@@ -59,7 +59,7 @@ public sealed class VehicleOrderService(IVehicleOrderRepository repository, ICur
     /// ayrı akış); <c>No</c> da değişmez (boşluksuz sıra). İptal edilmiş sipariş düzenlenemez —
     /// kapanmış bir dosyanın alanlarını sessizce değiştirmek geçmişi yeniden yazmak olurdu.
     /// </summary>
-    public async Task<bool> UpdateAsync(Guid id, AracSiparisInput input, CancellationToken ct = default)
+    public async Task<bool> UpdateAsync(Guid id, VehicleOrderInput input, CancellationToken ct = default)
     {
         PermissionGuard.Require(_currentUser, Permission.OperationsWrite);
         Validate(input);
@@ -107,7 +107,7 @@ public sealed class VehicleOrderService(IVehicleOrderRepository repository, ICur
     /// karşılaştırması satır kilidinin ALTINDA: eşzamanlı iptal ile düzenleme yarışı iptal kaydı değiştiremez; bayat
     /// sürüm → 409 <c>cakisma</c>. Durum ve No değişmez.
     /// </summary>
-    public async Task<bool> UpdateVersionedAsync(Guid id, AracSiparisInput input, string version, CancellationToken ct = default)
+    public async Task<bool> UpdateVersionedAsync(Guid id, VehicleOrderInput input, string version, CancellationToken ct = default)
     {
         PermissionGuard.Require(_currentUser, Permission.OperationsWrite);
         Validate(input);
@@ -145,7 +145,7 @@ public sealed class VehicleOrderService(IVehicleOrderRepository repository, ICur
 
     /// <summary>Ortak doğrulama — create ve update AYNI kuralları uygular (biri gevşek kalırsa
     /// güncelleme yoluyla geçersiz kayıt üretilirdi).</summary>
-    private static void Validate(AracSiparisInput input)
+    private static void Validate(VehicleOrderInput input)
     {
         if (string.IsNullOrWhiteSpace(input.Tedarikci)) throw new ValidationException("Tedarikçi zorunludur.");
         if (input.Adet is < 1 or > 10000) throw new ValidationException("Adet 1 ile 10000 arasında olmalıdır.");
@@ -184,7 +184,7 @@ public sealed class VehicleOrderService(IVehicleOrderRepository repository, ICur
 
     /// <summary>Girişten entity'ye tek eşleme noktası — create/update sapmasın (bir alan yalnız
     /// birinde eşlenirse o form kaydettiğinde alan sessizce sıfırlanırdı).</summary>
-    private static void Apply(AracSiparis row, AracSiparisInput input)
+    private static void Apply(AracSiparis row, VehicleOrderInput input)
     {
         row.Tedarikci = input.Tedarikci!.Trim();
         row.TedarikciCariId = input.TedarikciCariId;

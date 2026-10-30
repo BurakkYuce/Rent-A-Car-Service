@@ -43,7 +43,7 @@ public sealed class KiraTahsilatDovizTests(PostgresFixture fx)
         var isoCode = RentACar.Application.ExchangeRates.ExchangeRateService.NormalizeCode(currency);
         if (isoCode != "TRY" && isoCode.Length == 3)
             await sp.GetRequiredService<FixedExchangeRateService>()
-                .UpsertAsync(new SabitKurInput { Kod = isoCode, Kur = 40m });
+                .UpsertAsync(new FixedExchangeRateInput { Kod = isoCode, Kur = 40m });
         var account = await TestCustomer.NewAsync(sp);
         var veh = await sp.GetRequiredService<VehicleService>().CreateAsync(new VehicleInput { Plaka = plate, Durum = VehicleStatus.Musait });
         var id = await sp.GetRequiredService<RentalService>().CreateDirectAsync(new BookingInput

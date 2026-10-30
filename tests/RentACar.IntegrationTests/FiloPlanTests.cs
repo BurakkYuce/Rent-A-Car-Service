@@ -39,8 +39,8 @@ public sealed class FiloPlanTests(PostgresFixture fx)
         await VehicleAsync(sp, "34 FP 06", "LUX");
 
         var svc = sp.GetRequiredService<FleetPlanService>();
-        await svc.CreateAsync(new FiloPlanInput { AracGrupAdi = "EKO", HedefAdet = 5 });
-        await svc.CreateAsync(new FiloPlanInput { AracGrupAdi = "LUX", HedefAdet = 1 });
+        await svc.CreateAsync(new FleetPlanInput { AracGrupAdi = "EKO", HedefAdet = 5 });
+        await svc.CreateAsync(new FleetPlanInput { AracGrupAdi = "LUX", HedefAdet = 1 });
 
         var rows = await svc.ListWithCountAsync();
         var eko = rows.Single(x => x.Hedef.AracGrupAdi == "EKO");
@@ -70,9 +70,9 @@ public sealed class FiloPlanTests(PostgresFixture fx)
         await VehicleAsync(sp, "34 SP 04", "LUX", "EDMR");
 
         var svc = sp.GetRequiredService<FleetPlanService>();
-        await svc.CreateAsync(new FiloPlanInput { AracGrupAdi = "EKO", HedefAdet = 3 });                 // yalnız grup
-        await svc.CreateAsync(new FiloPlanInput { Sipp = "edmr", HedefAdet = 3 });                        // yalnız sipp (küçük harf)
-        await svc.CreateAsync(new FiloPlanInput { AracGrupAdi = "EKO", Sipp = "EDMR", HedefAdet = 3 });   // ikisi (AND)
+        await svc.CreateAsync(new FleetPlanInput { AracGrupAdi = "EKO", HedefAdet = 3 });                 // yalnız grup
+        await svc.CreateAsync(new FleetPlanInput { Sipp = "edmr", HedefAdet = 3 });                        // yalnız sipp (küçük harf)
+        await svc.CreateAsync(new FleetPlanInput { AracGrupAdi = "EKO", Sipp = "EDMR", HedefAdet = 3 });   // ikisi (AND)
 
         var rows = await svc.ListWithCountAsync();
         Assert.Equal(3, rows.Single(x => x.Hedef.AracGrupAdi == "EKO" && x.Hedef.Sipp is null).Gerceklesen);
@@ -90,7 +90,7 @@ public sealed class FiloPlanTests(PostgresFixture fx)
         await VehicleAsync(sp, "34 TR 02", "iş araçları");
 
         var svc = sp.GetRequiredService<FleetPlanService>();
-        await svc.CreateAsync(new FiloPlanInput { AracGrupAdi = "İŞ ARAÇLARI", HedefAdet = 2 });
+        await svc.CreateAsync(new FleetPlanInput { AracGrupAdi = "İŞ ARAÇLARI", HedefAdet = 2 });
 
         // ELLE: iki yazım da aynı gruba sayılır (TurkishText — greenfield olduğu için doğru
         // karşılaştırıcı baştan seçildi).
@@ -103,7 +103,7 @@ public sealed class FiloPlanTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var s = host.ScopeFor(Guid.NewGuid());
         var svc = s.ServiceProvider.GetRequiredService<FleetPlanService>();
-        var id = await svc.CreateAsync(new FiloPlanInput { AracGrupAdi = "EKO", HedefAdet = 1 });
+        var id = await svc.CreateAsync(new FleetPlanInput { AracGrupAdi = "EKO", HedefAdet = 1 });
 
         Assert.True(await svc.ChangeTargetAsync(id, +1));
         Assert.Equal(2, (await svc.GetAsync(id))!.HedefAdet);
@@ -126,20 +126,20 @@ public sealed class FiloPlanTests(PostgresFixture fx)
 
         // Grup ve SIPP ikisi de boş → TÜM filoyu sayan sessiz kural olurdu.
         var ex = await Assert.ThrowsAsync<ValidationException>(() =>
-            svc.CreateAsync(new FiloPlanInput { HedefAdet = 5 }));
+            svc.CreateAsync(new FleetPlanInput { HedefAdet = 5 }));
         Assert.Contains("en az biri zorunludur", ex.Message);
 
         await Assert.ThrowsAsync<ValidationException>(() =>
-            svc.CreateAsync(new FiloPlanInput { AracGrupAdi = "EKO", HedefAdet = -1 }));
+            svc.CreateAsync(new FleetPlanInput { AracGrupAdi = "EKO", HedefAdet = -1 }));
 
-        await svc.CreateAsync(new FiloPlanInput { AracGrupAdi = "EKO", HedefAdet = 5 });
+        await svc.CreateAsync(new FleetPlanInput { AracGrupAdi = "EKO", HedefAdet = 5 });
         // Doğal anahtar (grup, sipp, dönem) — NULL'lar da çakışır (NULLS NOT DISTINCT).
         var dup = await Assert.ThrowsAsync<ValidationException>(() =>
-            svc.CreateAsync(new FiloPlanInput { AracGrupAdi = "EKO", HedefAdet = 9 }));
+            svc.CreateAsync(new FleetPlanInput { AracGrupAdi = "EKO", HedefAdet = 9 }));
         Assert.Contains("zaten tanımlı", dup.Message);
 
         // Farklı DÖNEM serbest — plan dönemsel olabilir.
-        await svc.CreateAsync(new FiloPlanInput { AracGrupAdi = "EKO", Donem = "2026-Q2", HedefAdet = 9 });
+        await svc.CreateAsync(new FleetPlanInput { AracGrupAdi = "EKO", Donem = "2026-Q2", HedefAdet = 9 });
         Assert.Equal(2, (await svc.ListWithCountAsync()).Count);
     }
 
@@ -152,8 +152,8 @@ public sealed class FiloPlanTests(PostgresFixture fx)
         using (var s1 = host.ScopeFor(t1))
         {
             var svc = s1.ServiceProvider.GetRequiredService<FleetPlanService>();
-            id = await svc.CreateAsync(new FiloPlanInput { AracGrupAdi = "EKO", HedefAdet = 3 });
-            Assert.True(await svc.UpdateAsync(id, new FiloPlanInput
+            id = await svc.CreateAsync(new FleetPlanInput { AracGrupAdi = "EKO", HedefAdet = 3 });
+            Assert.True(await svc.UpdateAsync(id, new FleetPlanInput
             { AracGrupAdi = "LUX", Sipp = "cdar", Donem = " 2026-Q1 ", HedefAdet = 7, Aciklama = " not " }));
             var h = await svc.GetAsync(id);
             Assert.Equal("LUX", h!.AracGrupAdi);
@@ -170,7 +170,7 @@ public sealed class FiloPlanTests(PostgresFixture fx)
             Assert.Single(await svc.ListWithCountAsync());
             await Assert.ThrowsAsync<NoPermissionException>(() => svc.ChangeTargetAsync(id, 1));
             await Assert.ThrowsAsync<NoPermissionException>(() =>
-                svc.CreateAsync(new FiloPlanInput { AracGrupAdi = "X", HedefAdet = 1 }));
+                svc.CreateAsync(new FleetPlanInput { AracGrupAdi = "X", HedefAdet = 1 }));
         }
 
         // Operatör YAZABİLİR ve okuyabilir (ViewReports'u yok — RequireAny kilidi).
@@ -198,7 +198,7 @@ public sealed class FiloPlanTests(PostgresFixture fx)
         {
             await VehicleAsync(s1.ServiceProvider, "34 TZ 01", "EKO");
             await s1.ServiceProvider.GetRequiredService<FleetPlanService>()
-                .CreateAsync(new FiloPlanInput { AracGrupAdi = "EKO", HedefAdet = 1 });
+                .CreateAsync(new FleetPlanInput { AracGrupAdi = "EKO", HedefAdet = 1 });
         }
 
         using var s2 = host.ScopeFor(Guid.NewGuid());
@@ -208,7 +208,7 @@ public sealed class FiloPlanTests(PostgresFixture fx)
         // Diğer tenant kendi hedefini kurduğunda SAYIM da yalnız kendi araçlarını görmeli.
         await VehicleAsync(sp, "34 TZ 02", "EKO");
         await sp.GetRequiredService<FleetPlanService>()
-            .CreateAsync(new FiloPlanInput { AracGrupAdi = "EKO", HedefAdet = 5 });
+            .CreateAsync(new FleetPlanInput { AracGrupAdi = "EKO", HedefAdet = 5 });
         var row = Assert.Single(await sp.GetRequiredService<FleetPlanService>().ListWithCountAsync());
         Assert.Equal(1, row.Gerceklesen);     // ELLE: kendi 1 aracı — diğer tenant'ınki sayılmadı
     }

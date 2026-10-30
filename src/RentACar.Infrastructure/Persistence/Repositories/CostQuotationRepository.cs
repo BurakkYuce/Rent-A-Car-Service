@@ -12,7 +12,7 @@ public sealed class CostQuotationRepository(IDbContextFactory<AppDbContext> fact
     private readonly IDbContextFactory<AppDbContext> _factory = factory;
 
     public async Task<IReadOnlyList<MaliyetTeklifi>> SearchAsync(
-        MaliyetTeklifiFilter filter, CancellationToken ct = default)
+        CostQuotationFilter filter, CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
         var q = db.MaliyetTeklifleri.AsNoTracking();

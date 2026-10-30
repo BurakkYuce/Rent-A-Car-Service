@@ -7,8 +7,8 @@ namespace RentACar.Application.Personnel;
 public interface IPersonnelShiftRepository
 {
     /// <summary>Tarih aralığı + rol kapsamı + kullanıcı filtresiyle vardiyalar (personel adıyla).</summary>
-    Task<IReadOnlyList<VardiyaSatir>> SearchAsync(
-        DateOnly start, DateOnly bit, VardiyaFilter filter,
+    Task<IReadOnlyList<StaffShiftRow>> SearchAsync(
+        DateOnly start, DateOnly bit, StaffShiftFilter filter,
         BranchScope.BranchFilter scope, CancellationToken ct = default);
 
     /// <summary>Çakışma kontrolü için: personelin [bas-1, bit+1] penceresindeki TÜM vardiyaları.

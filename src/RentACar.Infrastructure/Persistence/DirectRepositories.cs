@@ -1,0 +1,78 @@
+using Microsoft.EntityFrameworkCore;
+using Npgsql;
+using RentACar.Application.Notifications;
+using RentACar.Application.TenantSettings;
+using RentACar.Domain.Entities;
+using RentACar.Domain.Enums;
+using Ayar = RentACar.Domain.Entities.TenantSettings;
+
+namespace RentACar.Infrastructure.Persistence;
+
+/// <summary>
+/// Scheduler'ın DOĞRUDAN-CONTEXT yolu için repository uyarlamaları.
+///
+/// <para><b>Neden gerekli:</b> arka plan işleri DI scope'u olmadan, tenant'a elle kapsanmış tek bir
+/// <see cref="AppDbContext"/> ile çalışır (bkz. <c>VadeBildirimJob</c>). Uygulama servisleri ise
+/// <c>IDbContextFactory</c> üzerinden KENDİ context'ini açan repository'lere bağlıdır — job içinde
+/// o factory doğru tenant'a kapsanmış olmaz. Bu iki uyarlama, aynı repository sözleşmesini job'ın
+/// elindeki context üzerinden karşılar; böylece <see cref="CustomerNotificationService"/>'in mantığı
+/// (şablon çözümü, idempotency, deneme sayacı, izin kuralı) job yolunda DA aynen kullanılır —
+/// kopyalanmaz.</para>
+/// </summary>
+public sealed class DirectMessageRepository(AppDbContext db, Guid tenantId) : IMessageRepository
+{
+    public Task<IReadOnlyList<MessageTemplateRow>> ListTemplatesAsync(CancellationToken ct = default)
+        => throw new NotSupportedException("Şablon listesi job yolunda kullanılmaz.");
+
+    public Task<MesajSablon?> FindTemplateAsync(MessageType type, MessageChannel channel, CancellationToken ct = default)
+        => db.MesajSablonlari.AsNoTracking().FirstOrDefaultAsync(x => x.Tur == type && x.Kanal == channel, ct);
+
+    public Task UpsertTemplateAsync(MessageTemplateInput input, CancellationToken ct = default)
+        => throw new NotSupportedException("Şablon yazımı job yolunda kullanılmaz.");
+
+    public Task<GidenMesaj?> FindMessageAsync(string key, CancellationToken ct = default)
+        => db.GidenMesajlar.AsNoTracking().FirstOrDefaultAsync(x => x.Anahtar == key, ct);
+
+    public async Task<bool> AddMessageAsync(GidenMesaj message, CancellationToken ct = default)
+    {
+        message.TenantId = tenantId; // interceptor'sız job yolu → açık damga (VadeBildirimUretici deseni)
+        db.GidenMesajlar.Add(message);
+        try
+        {
+            await db.SaveChangesAsync(ct);
+            return true;
+        }
+        catch (DbUpdateException ex) when (ex.InnerException is PostgresException { SqlState: PostgresErrorCodes.UniqueViolation })
+        {
+            // Başka bir replika/koşu aynı olayı yazdı → idempotent no-op. Batch geri alındığı için
+            // izleyici temizlenir, aksi halde sonraki SaveChanges aynı hatayı tekrarlardı.
+            db.ChangeTracker.Clear();
+            return false;
+        }
+    }
+
+    public async Task UpdateMessageAsync(Guid id, Action<GidenMesaj> apply, CancellationToken ct = default)
+    {
+        var m = await db.GidenMesajlar.FirstOrDefaultAsync(x => x.Id == id, ct);
+        if (m is null) return;
+        apply(m);
+        await db.SaveChangesAsync(ct);
+    }
+
+    public Task<IReadOnlyList<OutgoingMessageRow>> ListMessagesAsync(
+        OutgoingMessageFilter? filter = null, CancellationToken ct = default)
+        => throw new NotSupportedException("Giden mesaj listesi job yolunda kullanılmaz.");
+}
+
+/// <summary>Job yolunda tenant ayarını elindeki context'ten okuyan uyarlama (yalnız okuma).</summary>
+public sealed class DirectSettingsRepository(AppDbContext db) : ITenantSettingsRepository
+{
+    public Task<Ayar?> GetAsync(CancellationToken ct = default)
+        => db.TenantSettings.AsNoTracking().FirstOrDefaultAsync(ct);
+
+    public Task UpsertAsync(Action<Ayar> apply, CancellationToken ct = default)
+        => throw new NotSupportedException("Ayar yazımı job yolunda kullanılmaz.");
+
+    public Task<IReadOnlyList<WhatsAppGonderim>> ListWhatsAppDispatchesAsync(int take = 7, CancellationToken ct = default)
+        => throw new NotSupportedException("WhatsApp gönderim listesi job yolunda kullanılmaz.");
+}

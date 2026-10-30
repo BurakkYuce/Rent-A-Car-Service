@@ -96,7 +96,7 @@ public static partial class ReportApi
                 h.HesapId is { } id ? names.GetValueOrDefault(id, "(silinmiş hesap)") : null,
                 h.Giris, h.Cikis, h.Bakiye)).ToList(), option);
 
-        var request = new ListeIstegi(sayfa ?? 1, boyut ?? 50);
+        var request = new ListRequest(sayfa ?? 1, boyut ?? 50);
         var records = request.Atla >= visible.Count ? [] : visible.Skip((int)request.Atla).Take(request.Boyut).ToList();
         var export = ReportExport.Links(http, user, "kasa-banka",
         [

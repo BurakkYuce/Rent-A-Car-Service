@@ -171,25 +171,25 @@ public sealed class CariVirmanDerinlikTests(PostgresFixture fx)
 
         // ELLE: 3 virman.
         Assert.Equal(3, (await cash.ListAccountTransfersAsync()).Count);
-        Assert.Equal(3, (await cash.ListAccountTransfersAsync(new CariVirmanFilter())).Count);
+        Assert.Equal(3, (await cash.ListAccountTransfersAsync(new CustomerTransferFilter())).Count);
 
         // Cari filtresi KAYNAK ya da HEDEF olmayı kapsar: a → 1. ve 3. virman.
-        Assert.Equal(2, (await cash.ListAccountTransfersAsync(new CariVirmanFilter { CariId = a })).Count);
-        Assert.Equal(2, (await cash.ListAccountTransfersAsync(new CariVirmanFilter { CariId = b })).Count);
+        Assert.Equal(2, (await cash.ListAccountTransfersAsync(new CustomerTransferFilter { CariId = a })).Count);
+        Assert.Equal(2, (await cash.ListAccountTransfersAsync(new CustomerTransferFilter { CariId = b })).Count);
 
         // Metin: makbuz / açıklama / şube
         Assert.Equal("MK-B", Assert.Single(await cash.ListAccountTransfersAsync(
-            new CariVirmanFilter { Ara = "mk-b" })).MakbuzNo);
+            new CustomerTransferFilter { Ara = "mk-b" })).MakbuzNo);
         Assert.Equal("Şube2", Assert.Single(await cash.ListAccountTransfersAsync(
-            new CariVirmanFilter { Ara = "şube2" })).Sube);
+            new CustomerTransferFilter { Ara = "şube2" })).Sube);
         Assert.Equal("son virman", Assert.Single(await cash.ListAccountTransfersAsync(
-            new CariVirmanFilter { Ara = "son vir" })).Aciklama);
+            new CustomerTransferFilter { Ara = "son vir" })).Aciklama);
 
         // Tarih: son 15 gün → 2 kayıt
-        Assert.Equal(2, (await cash.ListAccountTransfersAsync(new CariVirmanFilter { Bas = t.AddDays(-15) })).Count);
+        Assert.Equal(2, (await cash.ListAccountTransfersAsync(new CustomerTransferFilter { Bas = t.AddDays(-15) })).Count);
         // Kapalı aralık → yalnız ortadaki
         Assert.Equal("MK-B", Assert.Single(await cash.ListAccountTransfersAsync(
-            new CariVirmanFilter { Bas = t.AddDays(-15), Bit = t.AddDays(-5) })).MakbuzNo);
+            new CustomerTransferFilter { Bas = t.AddDays(-15), Bit = t.AddDays(-5) })).MakbuzNo);
 
         // Sıralama: en yeni önce.
         var all = await cash.ListAccountTransfersAsync();
@@ -239,7 +239,7 @@ public sealed class CariVirmanDerinlikTests(PostgresFixture fx)
         {
             var cash = s2.ServiceProvider.GetRequiredService<CashService>();
             Assert.Empty(await cash.ListAccountTransfersAsync());
-            Assert.Empty(await cash.ListAccountTransfersAsync(new CariVirmanFilter { Ara = "GIZLI" }));
+            Assert.Empty(await cash.ListAccountTransfersAsync(new CustomerTransferFilter { Ara = "GIZLI" }));
         }
 
         // Operatör: ViewReports yok → göremez.

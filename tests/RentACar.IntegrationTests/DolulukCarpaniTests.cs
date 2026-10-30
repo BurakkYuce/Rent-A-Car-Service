@@ -52,7 +52,7 @@ public sealed class DolulukCarpaniTests(PostgresFixture fx)
     }
 
     private static Task<Guid> RuleAsync(IServiceProvider sp, int threshold, decimal multiplier) =>
-        sp.GetRequiredService<OccupancyPriceRuleService>().CreateAsync(new DolulukFiyatKuralInput
+        sp.GetRequiredService<OccupancyPriceRuleService>().CreateAsync(new OccupancyPriceRuleInput
         { Kod = $"D{threshold}", Ad = $"Doluluk {threshold}", EsikYuzde = threshold, CarpanYuzde = multiplier });
 
     [Fact]
@@ -255,7 +255,7 @@ public sealed class DolulukCarpaniTests(PostgresFixture fx)
 
         // Servis katmanı 0..50 doğrular (kemer #1).
         await Assert.ThrowsAsync<RentACar.Application.Common.ValidationException>(
-            () => sp.GetRequiredService<OccupancyPriceRuleService>().CreateAsync(new DolulukFiyatKuralInput
+            () => sp.GetRequiredService<OccupancyPriceRuleService>().CreateAsync(new OccupancyPriceRuleInput
             { Kod = "D99", Ad = "Aşırı", EsikYuzde = 80, CarpanYuzde = 70m }));
 
         // Servis atlanıp repo'dan yazılsa bile DB CHECK reddeder (pantolon askısı; şemadaki ilk CHECK).

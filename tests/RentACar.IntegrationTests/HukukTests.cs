@@ -20,7 +20,7 @@ namespace RentACar.IntegrationTests;
 [Collection("postgres")]
 public sealed class HukukTests(PostgresFixture fx)
 {
-    private static HukukDosyaInput Input(string no) => new()
+    private static LegalCaseInput Input(string no) => new()
     {
         DosyaNo = no, Tur = LegalType.Icra, Avukat = "Av. Demir", Tutar = 15000m,
         Durum = LegalStatus.Acik, Tarih = new DateTimeOffset(2026, 3, 1, 0, 0, 0, TimeSpan.Zero), Aciklama = "İcra takibi"
@@ -41,7 +41,7 @@ public sealed class HukukTests(PostgresFixture fx)
         Assert.Equal(15000m, h.Tutar);
         Assert.Equal(LegalStatus.Acik, h.Durum);
 
-        Assert.True(await svc.UpdateAsync(id, new HukukDosyaInput
+        Assert.True(await svc.UpdateAsync(id, new LegalCaseInput
         { DosyaNo = "2026/123", Tur = LegalType.Icra, Tutar = 15000m, Durum = LegalStatus.Kapali }));
         Assert.Equal(LegalStatus.Kapali, (await svc.GetAsync(id))!.Durum);
 
@@ -98,7 +98,7 @@ public sealed class HukukTests(PostgresFixture fx)
         using var scope = host.ScopeFor(Guid.NewGuid());
         var svc = scope.ServiceProvider.GetRequiredService<LegalCaseService>();
 
-        var id = await svc.CreateAsync(new HukukDosyaInput
+        var id = await svc.CreateAsync(new LegalCaseInput
         {
             DosyaNo = "2026/41", Tur = LegalType.Icra, Tutar = 1000m, Tahsilat = 300m,
             FaturaNoTemp = "FTR-77", Avukat = "Av. Demir", AvukatTel = "0212 111 22 33",
@@ -117,7 +117,7 @@ public sealed class HukukTests(PostgresFixture fx)
         Assert.Equal(700m, h.Kalan);   // 1000 − 300 (elle kurulmuş sabit)
 
         // Tahsilat temizlenebilir: null → Kalan tutarın kendisi.
-        await svc.UpdateAsync(id, new HukukDosyaInput { DosyaNo = "2026/41", Tutar = 1000m, Tahsilat = null });
+        await svc.UpdateAsync(id, new LegalCaseInput { DosyaNo = "2026/41", Tutar = 1000m, Tahsilat = null });
         var h2 = (await svc.GetAsync(id))!;
         Assert.Null(h2.Tahsilat);
         Assert.Equal(1000m, h2.Kalan);
@@ -132,9 +132,9 @@ public sealed class HukukTests(PostgresFixture fx)
         var svc = scope.ServiceProvider.GetRequiredService<LegalCaseService>();
 
         await Assert.ThrowsAsync<ValidationException>(() => svc.CreateAsync(
-            new HukukDosyaInput { DosyaNo = "2026/NEG", Tutar = 100m, Tahsilat = -1m }));
+            new LegalCaseInput { DosyaNo = "2026/NEG", Tutar = 100m, Tahsilat = -1m }));
 
-        var id = await svc.CreateAsync(new HukukDosyaInput { DosyaNo = "2026/FAZ", Tutar = 100m, Tahsilat = 150m });
+        var id = await svc.CreateAsync(new LegalCaseInput { DosyaNo = "2026/FAZ", Tutar = 100m, Tahsilat = 150m });
         Assert.Equal(-50m, (await svc.GetAsync(id))!.Kalan); // 100 − 150 (sıfıra kırpılmaz)
     }
 
@@ -175,9 +175,9 @@ public sealed class HukukTests(PostgresFixture fx)
         Assert.Equal(-700m, balanceBefore);   // müşteri alacaklı (Credit → negatif)
 
         var svc = sp.GetRequiredService<LegalCaseService>();
-        var file = await svc.CreateAsync(new HukukDosyaInput
+        var file = await svc.CreateAsync(new LegalCaseInput
         { DosyaNo = "2026/LEDGER", CariId = account, Tutar = 5_000m, Tahsilat = 987_654_321m });
-        await svc.UpdateAsync(file, new HukukDosyaInput
+        await svc.UpdateAsync(file, new LegalCaseInput
         { DosyaNo = "2026/LEDGER", CariId = account, Tutar = 9_999_999m, Tahsilat = 123_456_789m });
 
         Assert.Equal(rowBefore, await RowCountAsync());  // defter büyümedi
@@ -199,29 +199,29 @@ public sealed class HukukTests(PostgresFixture fx)
         var ayse = await cust.CreateAsync(new CustomerInput { Tip = CustomerType.Bireysel, Ad = "Ayşe", Soyad = "Kaya" });
         var svc = sp.GetRequiredService<LegalCaseService>();
 
-        await svc.CreateAsync(new HukukDosyaInput
+        await svc.CreateAsync(new LegalCaseInput
         { DosyaNo = "2026/A1", CariId = ali, Tutar = 100m, FaturaNoTemp = "FTR-1", Tarih = D(2026, 1, 10) });
-        await svc.CreateAsync(new HukukDosyaInput
+        await svc.CreateAsync(new LegalCaseInput
         { DosyaNo = "2026/A2", CariId = ali, Tutar = 200m, Tarih = D(2026, 5, 10), Avukat = "Av. Özdemir" });
-        await svc.CreateAsync(new HukukDosyaInput
+        await svc.CreateAsync(new LegalCaseInput
         { DosyaNo = "2027/B1", CariId = ayse, Tutar = 300m, FaturaNoTemp = "FTR-2", Tarih = D(2026, 9, 10) });
 
         Assert.Equal(3, (await svc.SearchAsync()).Count);
-        Assert.Equal(2, (await svc.SearchAsync(new HukukDosyaFilter { CariId = ali })).Count);
+        Assert.Equal(2, (await svc.SearchAsync(new LegalCaseFilter { CariId = ali })).Count);
 
-        var tekAyse = Assert.Single(await svc.SearchAsync(new HukukDosyaFilter { CariId = ayse }));
+        var tekAyse = Assert.Single(await svc.SearchAsync(new LegalCaseFilter { CariId = ayse }));
         Assert.Equal("2027/B1", tekAyse.Dosya.DosyaNo);
         Assert.Equal("Ayşe Kaya", tekAyse.MusteriAd);   // ad dosyada saklanmaz, cariden çözülür
 
         Assert.Equal("2026/A1", Assert.Single(
-            await svc.SearchAsync(new HukukDosyaFilter { FaturaNo = "ftr-1" })).Dosya.DosyaNo); // harf duyarsız
-        Assert.Equal(2, (await svc.SearchAsync(new HukukDosyaFilter { DosyaNo = "2026/" })).Count);
+            await svc.SearchAsync(new LegalCaseFilter { FaturaNo = "ftr-1" })).Dosya.DosyaNo); // harf duyarsız
+        Assert.Equal(2, (await svc.SearchAsync(new LegalCaseFilter { DosyaNo = "2026/" })).Count);
         Assert.Equal("2026/A2", Assert.Single(
-            await svc.SearchAsync(new HukukDosyaFilter { Ara = "özdemir" })).Dosya.DosyaNo);
+            await svc.SearchAsync(new LegalCaseFilter { Ara = "özdemir" })).Dosya.DosyaNo);
 
         // Tarih aralığı: 01.02.2026 – 30.06.2026 → yalnız 2026/A2 (10.05).
         Assert.Equal("2026/A2", Assert.Single(await svc.SearchAsync(
-            new HukukDosyaFilter { Bas = D(2026, 2, 1), Bit = D(2026, 6, 30) })).Dosya.DosyaNo);
+            new LegalCaseFilter { Bas = D(2026, 2, 1), Bit = D(2026, 6, 30) })).Dosya.DosyaNo);
     }
 
     /// <summary>Süzgeçli liste de tenant sınırını aşmaz (racar_app + RLS).</summary>
@@ -234,7 +234,7 @@ public sealed class HukukTests(PostgresFixture fx)
 
         using var s2 = host.ScopeFor(Guid.NewGuid());
         Assert.Empty(await s2.ServiceProvider.GetRequiredService<LegalCaseService>()
-            .SearchAsync(new HukukDosyaFilter { DosyaNo = "2026" }));
+            .SearchAsync(new LegalCaseFilter { DosyaNo = "2026" }));
     }
 
     private static DateTimeOffset D(int y, int m, int d) => new(y, m, d, 0, 0, 0, TimeSpan.Zero);

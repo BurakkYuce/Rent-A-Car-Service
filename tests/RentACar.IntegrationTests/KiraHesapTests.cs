@@ -133,7 +133,7 @@ public sealed class KiraHesapTests(PostgresFixture fx)
         using var scope = host.ScopeFor(Guid.NewGuid());
         var sp = scope.ServiceProvider;
         var definition = await sp.GetRequiredService<AddOnDefinitionService>().CreateAsync(
-            new EkHizmetTanimInput { Kod = "BKS", Ad = "Bebek Koltuğu", BirimUcret = 50m, KdvOrani = 0.20m });
+            new AddOnDefinitionInput { Kod = "BKS", Ad = "Bebek Koltuğu", BirimUcret = 50m, KdvOrani = 0.20m });
         var svc = sp.GetRequiredService<RentalCalculationService>();
         var r = await svc.CalculateAsync(Request(extra: [new KiraHesapEkHizmet(definition, 2m)]));
         // ELLE: net 2×50=100; KDV %20 → 20; kalem brüt 120; genel = 300 + 120 = 420.
@@ -165,7 +165,7 @@ public sealed class KiraHesapTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
         var sp = scope.ServiceProvider;
-        await sp.GetRequiredService<FixedExchangeRateService>().UpsertAsync(new SabitKurInput { Kod = "USD", Kur = 40m, Aktif = true });
+        await sp.GetRequiredService<FixedExchangeRateService>().UpsertAsync(new FixedExchangeRateInput { Kod = "USD", Kur = 40m, Aktif = true });
         var r = await sp.GetRequiredService<RentalCalculationService>().CalculateAsync(Request(currency: "USD"));
         Assert.Equal(300m, r.GenelToplam);     // kira dövizinde (USD)
         Assert.Equal(40m, r.Kur);
@@ -258,7 +258,7 @@ public sealed class KiraHesapTests(PostgresFixture fx)
         Assert.False(r2.Ok);
         // Devasa ek hizmet miktarı → nazik red (round(birim×miktar) taşması)
         var definition = await sp.GetRequiredService<AddOnDefinitionService>().CreateAsync(
-            new EkHizmetTanimInput { Kod = "TSM", Ad = "Taşma", BirimUcret = 50m, KdvOrani = 0.20m });
+            new AddOnDefinitionInput { Kod = "TSM", Ad = "Taşma", BirimUcret = 50m, KdvOrani = 0.20m });
         var r3 = await svc.CalculateAsync(Request(extra: [new KiraHesapEkHizmet(definition, decimal.MaxValue)]));
         Assert.False(r3.Ok);
 

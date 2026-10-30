@@ -58,9 +58,9 @@ public sealed class WireInKapsamaTests
     {
         // Formda sorulup uçta okunmaması da aynı sınıf hata: kullanıcı doldurur, veri kaybolur. /api/ui gövdesi
         // camelCase JSON → C# PascalCase özellik.
-        var endpoint = file == Loan ? "src/RentACar.Web/Api/VehicleFinance/AracKrediDtolari.cs"
+        var endpoint = file == Loan ? "src/RentACar.Web/Api/VehicleFinance/VehicleLoanDtos.cs"
             : file == Sale ? "src/RentACar.Web/Api/FinanceDocuments/VehicleSaleUiApi.cs"
-            : "src/RentACar.Web/Api/VehicleFinance/OperasyonDtolari.cs";
+            : "src/RentACar.Web/Api/VehicleFinance/OperationsDtos.cs";
         var property = char.ToUpperInvariant(alan[0]) + alan[1..];
         Assert.True(Regex.IsMatch(Read(endpoint), $@"\b{Regex.Escape(property)}\b"),
             $"`{property}` uçta ({endpoint}) okunmuyor — {reason}.");

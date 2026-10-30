@@ -89,7 +89,7 @@ public sealed class PiiBlindIndexTests(PostgresFixture fx)
         await svc.CreateAsync(Individual(NationalId1));
 
         // 1) Servis ön-kontrolü (hash exists)
-        await Assert.ThrowsAsync<DuplicateCariException>(() => svc.CreateAsync(Individual(NationalId1, name: "Veli")));
+        await Assert.ThrowsAsync<DuplicateCustomerException>(() => svc.CreateAsync(Individual(NationalId1, name: "Veli")));
 
         // 2) DB savunması: ön-kontrolü ATLAYIP aynı hash'le doğrudan repo'ya yaz → kısmi unique index
         var repo = sp.GetRequiredService<ICustomerRepository>();
@@ -98,7 +98,7 @@ public sealed class PiiBlindIndexTests(PostgresFixture fx)
         {
             Tip = CustomerType.Bireysel, Ad = "Yarış", TcKimlikHash = hash, TcKimlikEnc = "x"
         };
-        await Assert.ThrowsAsync<DuplicateCariException>(() => repo.CreateAsync(raw));
+        await Assert.ThrowsAsync<DuplicateCustomerException>(() => repo.CreateAsync(raw));
     }
 
     [Fact]
@@ -267,7 +267,7 @@ public sealed class PiiBlindIndexTests(PostgresFixture fx)
         }
 
         // Backfill'lenmiş kayda karşı benzersizlik: aynı TC ile yeni kayıt reddedilir
-        await Assert.ThrowsAsync<DuplicateCariException>(() => svc.CreateAsync(Individual(NationalId2, name: "Yeni")));
+        await Assert.ThrowsAsync<DuplicateCustomerException>(() => svc.CreateAsync(Individual(NationalId2, name: "Yeni")));
     }
 
     [Fact]

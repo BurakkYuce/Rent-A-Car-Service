@@ -383,9 +383,9 @@ public sealed class KiraFormAlanlariTests(PostgresFixture fx)
         using (var admin = host.ScopeFor(tenant))
         {
             await admin.ServiceProvider.GetRequiredService<PersonnelService>().CreateAsync(
-                new PersonelInput { Kod = "P-10", Ad = "Aktif", Soyad = "Personel" });
+                new PersonnelInput { Kod = "P-10", Ad = "Aktif", Soyad = "Personel" });
             await admin.ServiceProvider.GetRequiredService<PersonnelService>().CreateAsync(
-                new PersonelInput { Kod = "P-11", Ad = "Pasif", Soyad = "Personel", Aktif = false });
+                new PersonnelInput { Kod = "P-11", Ad = "Pasif", Soyad = "Personel", Aktif = false });
         }
         using var op = host.ScopeFor(tenant, Guid.NewGuid(), "op", UserRole.Operator, assignedBranch: "Merkez");
         var svc = op.ServiceProvider.GetRequiredService<PersonnelService>();

@@ -175,7 +175,7 @@ public sealed class KurServiceAdversarialProbe(PostgresFixture fx)
 
         var start = new DateTimeOffset(2026, 7, 4, 0, 0, 0, TimeSpan.Zero);
         var bit = new DateTimeOffset(2026, 7, 6, 0, 0, 0, TimeSpan.Zero);
-        await fixedValue.UpsertAsync(new SabitKurInput { Kod = "USD", Kur = 40m, Aktif = true, BasTar = start, BitTar = bit });
+        await fixedValue.UpsertAsync(new FixedExchangeRateInput { Kod = "USD", Kur = 40m, Aktif = true, BasTar = start, BitTar = bit });
 
         Assert.Equal(40m, await exchangeRate.GetRateAsync("USD", start)); // BasTar günü başı — dahil
         Assert.Equal(40m, await exchangeRate.GetRateAsync("USD", new DateTimeOffset(2026, 7, 6, 23, 0, 0, TimeSpan.Zero))); // BitTar günü öğleden sonra — DAHİL (fix)
@@ -197,11 +197,11 @@ public sealed class KurServiceAdversarialProbe(PostgresFixture fx)
         var endDay = new DateTimeOffset(2026, 7, 3, 0, 0, 0, TimeSpan.Zero);
         var afternoon = new DateTimeOffset(2026, 7, 3, 14, 0, 0, TimeSpan.Zero);
 
-        await fixedValue.UpsertAsync(new SabitKurInput { Kod = "USD", Kur = 40m, Aktif = true, BitTar = endDay });
+        await fixedValue.UpsertAsync(new FixedExchangeRateInput { Kod = "USD", Kur = 40m, Aktif = true, BitTar = endDay });
         Assert.Equal(40m, await exchangeRate.GetRateAsync("USD", afternoon)); // son gün öğleden sonra DAHİL (eskiden 34.50 sızardı)
 
         // "Bugün için sabitle" (Bas=Bit=aynı gün) → o gün TÜMÜYLE geçerli.
-        await fixedValue.UpsertAsync(new SabitKurInput { Kod = "USD", Kur = 40m, Aktif = true, BasTar = endDay, BitTar = endDay });
+        await fixedValue.UpsertAsync(new FixedExchangeRateInput { Kod = "USD", Kur = 40m, Aktif = true, BasTar = endDay, BitTar = endDay });
         Assert.Equal(40m, await exchangeRate.GetRateAsync("USD", afternoon));
         // Ertesi gün → pencere-dışı → TCMB.
         Assert.Equal(34.50m, await exchangeRate.GetRateAsync("USD", new DateTimeOffset(2026, 7, 4, 10, 0, 0, TimeSpan.Zero)));
@@ -248,7 +248,7 @@ public sealed class SabitKurCrossTenantProbe(PostgresFixture fx)
         Guid aId;
         using (var sa = host.ScopeFor(a))
             aId = await sa.ServiceProvider.GetRequiredService<FixedExchangeRateService>()
-                .UpsertAsync(new SabitKurInput { Kod = "USD", Kur = 40m, Aktif = true });
+                .UpsertAsync(new FixedExchangeRateInput { Kod = "USD", Kur = 40m, Aktif = true });
 
         using (var sb = host.ScopeFor(b))
         {
@@ -291,7 +291,7 @@ public sealed class SabitKurCrossTenantProbe(PostgresFixture fx)
         using (var s0 = host.ScopeFor(a)) await SeedUsdAsync(s0);
         using (var sa = host.ScopeFor(a))
             await sa.ServiceProvider.GetRequiredService<FixedExchangeRateService>()
-                .UpsertAsync(new SabitKurInput { Kod = "USD", Kur = 40m, Aktif = true });
+                .UpsertAsync(new FixedExchangeRateInput { Kod = "USD", Kur = 40m, Aktif = true });
 
         // racar_app bağlantısı + B'nin GUC'u → A'nın satırı görünmemeli
         await using var conn = new NpgsqlConnection(fx.AppConnectionString);

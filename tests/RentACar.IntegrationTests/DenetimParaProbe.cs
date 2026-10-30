@@ -51,7 +51,7 @@ public sealed class DenetimParaProbe(PostgresFixture fx)
         var isoCode = RentACar.Application.ExchangeRates.ExchangeRateService.NormalizeCode(currency);
         if (isoCode != "TRY" && isoCode.Length == 3)
             await sp.GetRequiredService<FixedExchangeRateService>()
-                .UpsertAsync(new SabitKurInput { Kod = isoCode, Kur = 40m });
+                .UpsertAsync(new FixedExchangeRateInput { Kod = isoCode, Kur = 40m });
         var account = await sp.GetRequiredService<CustomerService>()
             .CreateAsync(new CustomerInput { Tip = CustomerType.Bireysel, Ad = "Probe-" + plate });
         var veh = await sp.GetRequiredService<VehicleService>()
@@ -119,7 +119,7 @@ public sealed class DenetimParaProbe(PostgresFixture fx)
         Assert.True(await svc.ExtendAsync(id, Start.AddDays(5)));      // baz 500
 
         var definition = await sp.GetRequiredService<AddOnDefinitionService>().CreateAsync(
-            new EkHizmetTanimInput { Kod = "KLT", Ad = "Koltuk", BirimUcret = 100m, KdvOrani = 0.20m });
+            new AddOnDefinitionInput { Kod = "KLT", Ad = "Koltuk", BirimUcret = 100m, KdvOrani = 0.20m });
         await sp.GetRequiredService<RentalAddOnService>().AddAsync(id, definition, 1m); // +120 brüt
         Assert.Equal(620m, (await svc.GetAsync(id))!.GenelToplam);
 
@@ -139,7 +139,7 @@ public sealed class DenetimParaProbe(PostgresFixture fx)
 
         Assert.True(await svc.DeliverAsync(id, 1000, 8));
         var definition = await sp.GetRequiredService<AddOnDefinitionService>().CreateAsync(
-            new EkHizmetTanimInput { Kod = "KLT", Ad = "Koltuk", BirimUcret = 100m, KdvOrani = 0.20m });
+            new AddOnDefinitionInput { Kod = "KLT", Ad = "Koltuk", BirimUcret = 100m, KdvOrani = 0.20m });
         await sp.GetRequiredService<RentalAddOnService>().AddAsync(id, definition, 1m); // 300+120=420
         Assert.True(await svc.ExtendAsync(id, Start.AddDays(5)));                    // +200 → 620
         Assert.Equal(620m, (await svc.GetAsync(id))!.GenelToplam);
@@ -323,7 +323,7 @@ public sealed class DenetimParaProbe(PostgresFixture fx)
         // O5 (KurSnapshot): FX kira oluşturma kur ister → GBP sabit kuru seed (snapshot raporlama-amaçlı;
         // bu testin ham-toplam invariant'ını etkilemez).
         await scope.ServiceProvider.GetRequiredService<FixedExchangeRateService>()
-            .UpsertAsync(new SabitKurInput { Kod = "GBP", Kur = 48m, Aktif = true });
+            .UpsertAsync(new FixedExchangeRateInput { Kod = "GBP", Kur = 48m, Aktif = true });
         var (sp, id, account) = await Seed(scope, "34 DP 09", "GBP"); // 300 GBP
         var cash = sp.GetRequiredService<CashService>();
         await cash.CollectAsync(Ci(account, id, 100m, "GBP", 47m));
@@ -429,7 +429,7 @@ public sealed class DenetimParaProbe(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
         var (sp, id, account) = await Seed(scope, "34 DP 15", "EURO"); // 300 EUR kira
-        await sp.GetRequiredService<FixedExchangeRateService>().UpsertAsync(new SabitKurInput { Kod = "EUR", Kur = 40m });
+        await sp.GetRequiredService<FixedExchangeRateService>().UpsertAsync(new FixedExchangeRateInput { Kod = "EUR", Kur = 40m });
 
         // Guard-öncesi veriyi simüle et: addon doğrudan DB'ye (repo guard'ı yoktu) — 100 TL net + 20 KDV.
         await using (var db = await Factory(scope).CreateDbContextAsync())
@@ -457,7 +457,7 @@ public sealed class DenetimParaProbe(PostgresFixture fx)
         using var scope = host.ScopeFor(Guid.NewGuid());
         var (sp, id, _) = await Seed(scope, "34 DP 16", "EURO");
         var definition = await sp.GetRequiredService<AddOnDefinitionService>().CreateAsync(
-            new EkHizmetTanimInput { Kod = "GPS", Ad = "GPS", BirimUcret = 50m, KdvOrani = 0.20m });
+            new AddOnDefinitionInput { Kod = "GPS", Ad = "GPS", BirimUcret = 50m, KdvOrani = 0.20m });
         // Override fiyat yolu da aynı repo AddAsync'inden geçer → guard çalışmalı.
         await Assert.ThrowsAsync<ValidationException>(() =>
             sp.GetRequiredService<RentalAddOnService>().AddAsync(id, definition, 1m, unitNetOverride: 75m));
@@ -556,7 +556,7 @@ public sealed class DenetimParaProbe(PostgresFixture fx)
 
         await cash.CollectAsync(Ci(account, id, 100m, "TRY", 1m)); // Tahsilat 100, Bakiye 200
         var definition = await sp.GetRequiredService<AddOnDefinitionService>().CreateAsync(
-            new EkHizmetTanimInput { Kod = "BS", Ad = "Bebek koltuğu", BirimUcret = 100m, KdvOrani = 0.20m });
+            new AddOnDefinitionInput { Kod = "BS", Ad = "Bebek koltuğu", BirimUcret = 100m, KdvOrani = 0.20m });
         await sp.GetRequiredService<RentalAddOnService>().AddAsync(id, definition, 1m); // GenelToplam 420
         var a = await sp.GetRequiredService<RentalService>().GetAsync(id);
         Assert.Equal(420m, a!.GenelToplam);

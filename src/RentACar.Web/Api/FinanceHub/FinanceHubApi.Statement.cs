@@ -45,7 +45,7 @@ public static partial class FinanceHubApi
         var balance = await cash.GetAccountBalanceAsync(cariId, ct);
         var all = (await cash.GetStatementAsync(cariId, null, ct)).Satirlar;
         var (min, max) = F5Shared.DayRange(bas, bit);
-        var filter = new CariEkstreFilter
+        var filter = new CustomerStatementFilter
         {
             Bas = min, Bit = max, Doviz = F5Shared.Nz(doviz), SourceType = F5Shared.Nz(kaynak), KiraDurum = rentalStatus,
         };

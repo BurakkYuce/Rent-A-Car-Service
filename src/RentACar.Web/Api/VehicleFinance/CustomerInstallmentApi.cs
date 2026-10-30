@@ -56,7 +56,7 @@ public static partial class CustomerInstallmentApi
         bool? overdue, CancellationToken ct)
     {
         var (min, max) = F5Shared.DayRange(dueMin, dueMax);
-        var list = await svc.SearchAsync(new MusteriTaksitFilter
+        var list = await svc.SearchAsync(new CustomerInstallmentFilter
         {
             CariId = customerId, VehicleId = vehicleId, Durum = F5Shared.EnumAdi<InstallmentStatus>(status, "durum"),
             VadeMin = min, VadeMax = max, SadeceGecikmis = overdue,

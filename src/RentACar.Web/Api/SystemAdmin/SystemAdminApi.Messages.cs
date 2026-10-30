@@ -33,7 +33,7 @@ public static partial class SystemAdminApi
             // Satır varsa sürüm zorunlu (bayat sekme başka oturumun şablonunu sessizce ezmesin); yoksa ilk kayıt.
             if ((await TemplatesAsync(s, ct)).Any(x => x.Tur == type.ToString() && x.Kanal == channel.ToString() && x.Surum is not null))
                 SystemApiCommon.RequireVersion(i.Surum);
-            await s.SaveTemplateAsync(new MesajSablonInput { Tur = type, Kanal = channel, Konu = i.Konu, Govde = i.Govde ?? "", Aktif = i.Aktif },
+            await s.SaveTemplateAsync(new MessageTemplateInput { Tur = type, Kanal = channel, Konu = i.Konu, Govde = i.Govde ?? "", Aktif = i.Aktif },
                 SystemApiCommon.Clean(i.Surum), ct);
             return TypedResults.Ok((await TemplatesAsync(s, ct)).First(x => x.Tur == type.ToString() && x.Kanal == channel.ToString()));
         }).MapFields([("Mesaj gövdesi", "govde"), ("SMS gövdesi", "govde"), ("E-posta şablonunda konu", "konu")]);

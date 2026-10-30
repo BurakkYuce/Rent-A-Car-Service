@@ -49,28 +49,28 @@ public sealed class CashService(
 
     /// <summary>
     /// Cari ekstresi (satırlar + devir). <paramref name="filter"/> null → carinin TÜM hareketleri.
-    /// Devir yalnız tarih alt sınırı verildiğinde dolar; bkz. <see cref="CariEkstreSonuc"/>.
+    /// Devir yalnız tarih alt sınırı verildiğinde dolar; bkz. <see cref="CustomerStatementResult"/>.
     /// </summary>
     /// <summary>
     /// FAZ-59 — cari↔cari virman geçmişi (tüm cariler). Salt okuma; tutar defterden gelir.
     /// </summary>
     /// <summary>FAZ-50 — kasa/banka virman geçmişi (künye + defterden tutar). Salt okuma.</summary>
-    public Task<IReadOnlyList<KasaVirmanSatirDto>> ListCashTransfersAsync(
-        KasaVirmanFilter? filter = null, CancellationToken ct = default)
+    public Task<IReadOnlyList<CashTransferRowDto>> ListCashTransfersAsync(
+        CashTransferFilter? filter = null, CancellationToken ct = default)
     {
         PermissionGuard.Require(_currentUser, Permission.ViewReports);
         return _repository.ListCashTransfersAsync(filter, ct);
     }
 
-    public Task<IReadOnlyList<CariVirmanSatirDto>> ListAccountTransfersAsync(
-        CariVirmanFilter? filter = null, CancellationToken ct = default)
+    public Task<IReadOnlyList<CustomerTransferRowDto>> ListAccountTransfersAsync(
+        CustomerTransferFilter? filter = null, CancellationToken ct = default)
     {
         PermissionGuard.Require(_currentUser, Permission.ViewReports);
         return _repository.ListAccountTransfersAsync(filter, ct);
     }
 
-    public Task<CariEkstreSonuc> GetStatementAsync(
-        Guid customerId, CariEkstreFilter? filter = null, CancellationToken ct = default)
+    public Task<CustomerStatementResult> GetStatementAsync(
+        Guid customerId, CustomerStatementFilter? filter = null, CancellationToken ct = default)
         => _repository.GetAccountStatementAsync(customerId, filter, ct);
 
     /// <summary>Kira başına işlem SAYISI (ters kayıt dahil, monoton) — deterministik tahsilat

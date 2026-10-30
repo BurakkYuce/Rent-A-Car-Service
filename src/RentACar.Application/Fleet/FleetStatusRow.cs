@@ -10,7 +10,7 @@ namespace RentACar.Application.Fleet;
 /// oluyor" özeti kira ile sınırlı değil — açık servis, açık BAF tahsisi, sıradaki rezervasyon ve
 /// (varsa) uzun-dönem filo kiralama dosyası da aynı satırda görünür. Hepsi <b>canlı</b> çözülür;
 /// araç kartındaki <c>Kiralayan</c>/<c>KiraBitTar</c> gibi elle girilen "not" alanları kaynak
-/// DEĞİLDİR (VehicleDetayRow'daki aynı ayrım).</para>
+/// DEĞİLDİR (VehicleDetailRow'daki aynı ayrım).</para>
 /// </summary>
 public sealed class FleetStatusRow
 {

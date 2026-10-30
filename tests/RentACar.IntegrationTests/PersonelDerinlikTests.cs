@@ -19,7 +19,7 @@ namespace RentACar.IntegrationTests;
 [Collection("postgres")]
 public sealed class PersonelDerinlikTests(PostgresFixture fx)
 {
-    private static PersonelInput Filled(string code) => new()
+    private static PersonnelInput Filled(string code) => new()
     {
         Kod = code, Ad = "Ali", Soyad = "Yılmaz", TcKimlik = "11111111110", Maas = 50000m,
         Sube = "Merkez", SurucuBelgeNo = "SB-1",
@@ -106,7 +106,7 @@ public sealed class PersonelDerinlikTests(PostgresFixture fx)
         var t1 = Guid.NewGuid();
         using (var admin = host.ScopeFor(t1))
             await admin.ServiceProvider.GetRequiredService<PersonnelService>()
-                .CreateAsync(new PersonelInput { Kod = "YON", Ad = "Veli", Soyad = "Yön", GorevTanimi = "Yönetici" });
+                .CreateAsync(new PersonnelInput { Kod = "YON", Ad = "Veli", Soyad = "Yön", GorevTanimi = "Yönetici" });
 
         // Operatör rolü personel listesini HÂLÂ göremez (ManageUsers gerekiyor) — kayıttaki
         // "Yönetici" etiketi hiçbir kapı açmaz.
@@ -124,7 +124,7 @@ public sealed class PersonelDerinlikTests(PostgresFixture fx)
         using var s = host.ScopeFor(Guid.NewGuid());
         var svc = s.ServiceProvider.GetRequiredService<PersonnelService>();
 
-        var ex = await Assert.ThrowsAsync<ValidationException>(() => svc.CreateAsync(new PersonelInput
+        var ex = await Assert.ThrowsAsync<ValidationException>(() => svc.CreateAsync(new PersonnelInput
         { Kod = "GT", Ad = "A", Soyad = "B", DogumTarihi = DateTimeOffset.UtcNow.AddYears(1) }));
         Assert.Contains("Doğum tarihi gelecekte olamaz", ex.Message);
         Assert.Empty(await svc.ListAsync());
@@ -138,31 +138,31 @@ public sealed class PersonelDerinlikTests(PostgresFixture fx)
         var svc = s.ServiceProvider.GetRequiredService<PersonnelService>();
 
         // ELLE: 3 personel.
-        await svc.CreateAsync(new PersonelInput
+        await svc.CreateAsync(new PersonnelInput
         { Kod = "F1", Ad = "Ali", Soyad = "Yılmaz", Sube = "Merkez", GorevTanimi = "Operasyon",
           CepTel = "05551112233", MailAdresi = "ali@ornek.com" });
-        await svc.CreateAsync(new PersonelInput
+        await svc.CreateAsync(new PersonnelInput
         { Kod = "F2", Ad = "Ayşe", Soyad = "Kaya", Sube = "Şube 2", GorevTanimi = "Yönetici",
           CepTel = "05559998877" });
-        await svc.CreateAsync(new PersonelInput
+        await svc.CreateAsync(new PersonnelInput
         { Kod = "F3", Ad = "Mehmet", Soyad = "Demir", Sube = "Merkez", GorevTanimi = "Operasyon", Aktif = false });
 
         Assert.Equal(3, (await svc.SearchAsync()).Count);
-        Assert.Equal(2, (await svc.SearchAsync(new PersonelFilter { Sube = "merkez" })).Count);       // harf duyarsız
-        Assert.Equal(2, (await svc.SearchAsync(new PersonelFilter { GorevTanimi = "OPERASYON" })).Count);
-        Assert.Equal(2, (await svc.SearchAsync(new PersonelFilter { Aktif = true })).Count);
-        Assert.Single(await svc.SearchAsync(new PersonelFilter { Aktif = false }));
+        Assert.Equal(2, (await svc.SearchAsync(new PersonnelFilter { Sube = "merkez" })).Count);       // harf duyarsız
+        Assert.Equal(2, (await svc.SearchAsync(new PersonnelFilter { GorevTanimi = "OPERASYON" })).Count);
+        Assert.Equal(2, (await svc.SearchAsync(new PersonnelFilter { Aktif = true })).Count);
+        Assert.Single(await svc.SearchAsync(new PersonnelFilter { Aktif = false }));
 
         // Metin araması: sicil / ad / soyad / tam ad / cep / mail
-        Assert.Single(await svc.SearchAsync(new PersonelFilter { Ara = "F2" }));
-        Assert.Single(await svc.SearchAsync(new PersonelFilter { Ara = "Demir" }));
-        Assert.Single(await svc.SearchAsync(new PersonelFilter { Ara = "Ayşe Kaya" }));
-        Assert.Single(await svc.SearchAsync(new PersonelFilter { Ara = "0555999" }));
-        Assert.Single(await svc.SearchAsync(new PersonelFilter { Ara = "ali@ornek" }));
-        Assert.Empty(await svc.SearchAsync(new PersonelFilter { Ara = "yok-boyle" }));
+        Assert.Single(await svc.SearchAsync(new PersonnelFilter { Ara = "F2" }));
+        Assert.Single(await svc.SearchAsync(new PersonnelFilter { Ara = "Demir" }));
+        Assert.Single(await svc.SearchAsync(new PersonnelFilter { Ara = "Ayşe Kaya" }));
+        Assert.Single(await svc.SearchAsync(new PersonnelFilter { Ara = "0555999" }));
+        Assert.Single(await svc.SearchAsync(new PersonnelFilter { Ara = "ali@ornek" }));
+        Assert.Empty(await svc.SearchAsync(new PersonnelFilter { Ara = "yok-boyle" }));
 
         // Birleşik: Merkez + aktif → 1
-        Assert.Single(await svc.SearchAsync(new PersonelFilter { Sube = "Merkez", Aktif = true }));
+        Assert.Single(await svc.SearchAsync(new PersonnelFilter { Sube = "Merkez", Aktif = true }));
 
         // Sıralama ada göre.
         Assert.Equal(["Ali", "Ayşe", "Mehmet"], (await svc.SearchAsync()).Select(p => p.Ad).ToArray());
@@ -178,7 +178,7 @@ public sealed class PersonelDerinlikTests(PostgresFixture fx)
         using var s2 = host.ScopeFor(Guid.NewGuid());
         var svc = s2.ServiceProvider.GetRequiredService<PersonnelService>();
         Assert.Empty(await svc.SearchAsync());
-        Assert.Empty(await svc.SearchAsync(new PersonelFilter { Ara = "Ali" }));
+        Assert.Empty(await svc.SearchAsync(new PersonnelFilter { Ara = "Ali" }));
         // Aynı sicil başka tenant'ta serbest.
         Assert.NotEqual(Guid.Empty, await svc.CreateAsync(Filled("GIZLI")));
     }

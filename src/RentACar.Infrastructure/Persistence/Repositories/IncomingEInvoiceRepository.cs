@@ -15,7 +15,7 @@ public sealed class IncomingEInvoiceRepository(IDbContextFactory<AppDbContext> f
     private readonly IDbContextFactory<AppDbContext> _factory = factory;
 
     public async Task<IReadOnlyList<GelenEFatura>> ListAsync(
-        GelenEFaturaFilter? filter, CancellationToken ct = default)
+        IncomingEInvoiceFilter? filter, CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
         var q = db.GelenEFaturalar.AsNoTracking();

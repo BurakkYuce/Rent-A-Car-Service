@@ -7,12 +7,12 @@ namespace RentACar.Application.FleetRentals;
 public interface IFleetRentalRepository
 {
     /// <summary>Sözleşmeler; <paramref name="filter"/> null → tüm kayıtlar (eski davranış).</summary>
-    Task<IReadOnlyList<FiloKiralama>> ListAsync(FiloKiralamaFilter? filter = null, CancellationToken ct = default);
+    Task<IReadOnlyList<FiloKiralama>> ListAsync(FleetRentalFilter? filter = null, CancellationToken ct = default);
     Task<FiloKiralama?> FindAsync(Guid id, CancellationToken ct = default);
     Task CreateAsync(FiloKiralama row, CancellationToken ct = default);
     Task<bool> SetStatusAsync(Guid id, FleetRentalStatus status, CancellationToken ct = default);
 
-    /// <summary>Künye alanlarını günceller (para/süre alanları çağıran tipte YOK — bkz. FiloKiralamaMetaInput).</summary>
+    /// <summary>Künye alanlarını günceller (para/süre alanları çağıran tipte YOK — bkz. FleetRentalMetaInput).</summary>
     Task<bool> UpdateAsync(Guid id, Action<FiloKiralama> apply, CancellationToken ct = default);
     /// <summary>F5.1 — satır kilidi + iyimser sürüm karşılaştırması (bkz. <c>IBookingRepository.UpdateReservationAsync</c>).</summary>
     Task<bool> UpdateAsync(Guid id, string? expectedVersion, Action<FiloKiralama> apply, CancellationToken ct = default);

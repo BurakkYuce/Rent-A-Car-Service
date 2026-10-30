@@ -26,8 +26,8 @@ public sealed class UiHataTests
         { new NoPermissionException("Bu işlem için yetkiniz yok (FinanceWrite)."), 403, "yetki_yok" },
         { new DuplicateOperationException("Bu işlem zaten kaydedilmiş."), 409, "mukerrer" },
         { new AvailabilityConflictException(), 409, "cakisma" },
-        { new DuplicateCariException("TC", "11111111111"), 409, "cakisma" },
-        { new DuplicatePlakaException("34ABC01"), 409, "cakisma" },
+        { new DuplicateCustomerException("TC", "11111111111"), 409, "cakisma" },
+        { new DuplicatePlateException("34ABC01"), 409, "cakisma" },
         { new ValidationException("Plaka zorunludur.", "plaka"), 400, "dogrulama" },
         { new ValidationException("Genel iş kuralı."), 400, "dogrulama" },
     };

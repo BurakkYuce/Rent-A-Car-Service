@@ -72,12 +72,12 @@ public sealed class VadeBildirimJobSaatDilimiTests(PostgresFixture fx)
             SmtpGonderenAdres = "rezervasyon@yucerent.com",
         });
         var svc = sp.GetRequiredService<CustomerNotificationService>();
-        await svc.SaveTemplateAsync(new MesajSablonInput
+        await svc.SaveTemplateAsync(new MessageTemplateInput
         {
             Tur = MessageType.TeslimHatirlatma, Kanal = MessageChannel.Eposta,
             Konu = "Yarın teslim", Govde = "<p>{MusteriAd}, {No} yarın.</p>", Aktif = true,
         });
-        await svc.SaveTemplateAsync(new MesajSablonInput
+        await svc.SaveTemplateAsync(new MessageTemplateInput
         {
             Tur = MessageType.IadeHatirlatma, Kanal = MessageChannel.Eposta,
             Konu = "Bugün iade", Govde = "<p>{MusteriAd}, {No} bugün.</p>", Aktif = true,

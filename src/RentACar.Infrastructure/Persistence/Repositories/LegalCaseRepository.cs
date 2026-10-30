@@ -41,8 +41,8 @@ public sealed class LegalCaseRepository(IDbContextFactory<AppDbContext> factory)
     /// FAZ-41 — filtreli liste. Müşteri adı/telefonu SNAPSHOT DEĞİL: cari bağından her istekte
     /// okunur (cari yeniden adlandırılırsa liste doğru kalır). Carisiz dosya DÜŞMEZ → LEFT JOIN.
     /// </summary>
-    public async Task<IReadOnlyList<HukukDosyaSatirDto>> SearchAsync(
-        HukukDosyaFilter? filter = null, CancellationToken ct = default)
+    public async Task<IReadOnlyList<LegalCaseRowDto>> SearchAsync(
+        LegalCaseFilter? filter = null, CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
 
@@ -89,7 +89,7 @@ public sealed class LegalCaseRepository(IDbContextFactory<AppDbContext> factory)
             })
             .ToListAsync(ct);
 
-        return rows.Select(x => new HukukDosyaSatirDto(
+        return rows.Select(x => new LegalCaseRowDto(
             x.h, string.IsNullOrWhiteSpace(x.MusteriAd) ? null : x.MusteriAd!.Trim(), x.MusteriTel)).ToList();
     }
 

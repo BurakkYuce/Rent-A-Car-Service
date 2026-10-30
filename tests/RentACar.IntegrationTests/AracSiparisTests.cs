@@ -37,7 +37,7 @@ public sealed class AracSiparisTests(PostgresFixture fx)
         using var scope = host.ScopeFor(Guid.NewGuid());
         var svc = scope.ServiceProvider.GetRequiredService<VehicleOrderService>();
 
-        var id = await svc.CreateAsync(new AracSiparisInput
+        var id = await svc.CreateAsync(new VehicleOrderInput
         { Tedarikci = "ABC Otomotiv", Marka = "Toyota", Adet = 2, BirimFiyat = 500_000m });
 
         var s = await svc.GetAsync(id);
@@ -58,7 +58,7 @@ public sealed class AracSiparisTests(PostgresFixture fx)
         using var scope = host.ScopeFor(Guid.NewGuid());
         await Assert.ThrowsAsync<ValidationException>(() =>
             scope.ServiceProvider.GetRequiredService<VehicleOrderService>()
-                .CreateAsync(new AracSiparisInput { Tedarikci = "  ", Adet = 1, BirimFiyat = 100m }));
+                .CreateAsync(new VehicleOrderInput { Tedarikci = "  ", Adet = 1, BirimFiyat = 100m }));
     }
 
     [Fact]
@@ -68,13 +68,13 @@ public sealed class AracSiparisTests(PostgresFixture fx)
         using (var a = host.ScopeFor(Guid.NewGuid()))
         {
             await a.ServiceProvider.GetRequiredService<VehicleOrderService>()
-                .CreateAsync(new AracSiparisInput { Tedarikci = "Gizli Tedarikçi", Adet = 1, BirimFiyat = 100m });
+                .CreateAsync(new VehicleOrderInput { Tedarikci = "Gizli Tedarikçi", Adet = 1, BirimFiyat = 100m });
         }
         using var b = host.ScopeFor(Guid.NewGuid());
         var svc = b.ServiceProvider.GetRequiredService<VehicleOrderService>();
         Assert.Empty(await svc.ListAsync());
         // FAZ-17: filtreli yol da izole olmalı — süzgeç açıkken de başka tenant'ın satırı GÖRÜNMEZ.
-        Assert.Empty(await svc.SearchAsync(new AracSiparisFilter { Ara = "Gizli" }));
+        Assert.Empty(await svc.SearchAsync(new VehicleOrderFilter { Ara = "Gizli" }));
     }
 
     // ------------------------------------------------------------------ FAZ-17 alan derinliği
@@ -92,10 +92,10 @@ public sealed class AracSiparisTests(PostgresFixture fx)
         var account = await sp.GetRequiredService<CustomerService>()
             .CreateAsync(new CustomerInput { Tip = CustomerType.Kurumsal, Unvan = "Yetkili Bayi A.Ş." });
         var loan = await sp.GetRequiredService<VehicleLoanService>()
-            .CreateAsync(new AracKrediInput { BankaAdi = "Ziraat", KrediTutari = 900_000m, TaksitSayisi = 24 });
+            .CreateAsync(new VehicleLoanInput { BankaAdi = "Ziraat", KrediTutari = 900_000m, TaksitSayisi = 24 });
         var svc = sp.GetRequiredService<VehicleOrderService>();
 
-        var id = await svc.CreateAsync(new AracSiparisInput
+        var id = await svc.CreateAsync(new VehicleOrderInput
         {
             Tedarikci = "Yetkili Bayi",
             TedarikciCariId = account,
@@ -154,7 +154,7 @@ public sealed class AracSiparisTests(PostgresFixture fx)
         using var scope = host.ScopeFor(Guid.NewGuid());
         var svc = scope.ServiceProvider.GetRequiredService<VehicleOrderService>();
 
-        var id = await svc.CreateAsync(new AracSiparisInput { Tedarikci = "Bayi", Adet = 1, BirimFiyat = 100m });
+        var id = await svc.CreateAsync(new VehicleOrderInput { Tedarikci = "Bayi", Adet = 1, BirimFiyat = 100m });
         var s = (await svc.GetAsync(id))!;
         Assert.Null(s.PiyasaFiyat);
         Assert.Null(s.OpsFiyat);
@@ -170,7 +170,7 @@ public sealed class AracSiparisTests(PostgresFixture fx)
         using var scope = host.ScopeFor(Guid.NewGuid());
         var svc = scope.ServiceProvider.GetRequiredService<VehicleOrderService>();
 
-        await Assert.ThrowsAsync<ValidationException>(() => svc.CreateAsync(new AracSiparisInput
+        await Assert.ThrowsAsync<ValidationException>(() => svc.CreateAsync(new VehicleOrderInput
         { Tedarikci = "Bayi", Adet = 1, BirimFiyat = 100m, PiyasaFiyat = -1m }));
     }
 
@@ -187,14 +187,14 @@ public sealed class AracSiparisTests(PostgresFixture fx)
         var sp = scope.ServiceProvider;
         var svc = sp.GetRequiredService<VehicleOrderService>();
 
-        var id = await svc.CreateAsync(new AracSiparisInput
+        var id = await svc.CreateAsync(new VehicleOrderInput
         {
             Tedarikci = "İlk Bayi", Adet = 1, BirimFiyat = 100_000m, Doviz = "USD", Kur = 34m,
             SiparisTarihi = D(2026, 2, 3), DosyaNo = "DS-A", Renk = "Kırmızı", PiyasaFiyat = 111_000m
         });
         await svc.ApproveAsync(id);   // durum güncellemeden ETKİLENMEMELİ
 
-        var newItem = new AracSiparisInput
+        var newItem = new VehicleOrderInput
         {
             Tedarikci = "İkinci Bayi", Adet = 4, BirimFiyat = 250_000m, Doviz = "EUR", Kur = 38.25m,
             SiparisTarihi = D(2026, 2, 3), ImzaTarih = D(2026, 2, 5), BeklenenTeslim = D(2026, 9, 1),
@@ -235,9 +235,9 @@ public sealed class AracSiparisTests(PostgresFixture fx)
         using var scope = host.ScopeFor(Guid.NewGuid());
         var svc = scope.ServiceProvider.GetRequiredService<VehicleOrderService>();
 
-        var id = await svc.CreateAsync(new AracSiparisInput
+        var id = await svc.CreateAsync(new VehicleOrderInput
         { Tedarikci = "Bayi", Adet = 1, BirimFiyat = 10m, SiparisTarihi = D(2026, 1, 20) });
-        await svc.UpdateAsync(id, new AracSiparisInput { Tedarikci = "Bayi", Adet = 1, BirimFiyat = 10m });
+        await svc.UpdateAsync(id, new VehicleOrderInput { Tedarikci = "Bayi", Adet = 1, BirimFiyat = 10m });
 
         Assert.Equal(D(2026, 1, 20), (await svc.GetAsync(id))!.SiparisTarihi);
     }
@@ -249,11 +249,11 @@ public sealed class AracSiparisTests(PostgresFixture fx)
         using var scope = host.ScopeFor(Guid.NewGuid());
         var svc = scope.ServiceProvider.GetRequiredService<VehicleOrderService>();
 
-        var id = await svc.CreateAsync(new AracSiparisInput { Tedarikci = "Bayi", Adet = 1, BirimFiyat = 10m });
+        var id = await svc.CreateAsync(new VehicleOrderInput { Tedarikci = "Bayi", Adet = 1, BirimFiyat = 10m });
         await svc.CancelAsync(id);
 
         await Assert.ThrowsAsync<ValidationException>(() => svc.UpdateAsync(id,
-            new AracSiparisInput { Tedarikci = "Yeni", Adet = 2, BirimFiyat = 20m }));
+            new VehicleOrderInput { Tedarikci = "Yeni", Adet = 2, BirimFiyat = 20m }));
     }
 
     /// <summary>
@@ -269,7 +269,7 @@ public sealed class AracSiparisTests(PostgresFixture fx)
         var svc = scope.ServiceProvider.GetRequiredService<VehicleOrderService>();
 
         // Bekliyor → İptal, sonra Onayla / Teslim Al.
-        var a = await svc.CreateAsync(new AracSiparisInput { Tedarikci = "Bayi", Adet = 1, BirimFiyat = 10m });
+        var a = await svc.CreateAsync(new VehicleOrderInput { Tedarikci = "Bayi", Adet = 1, BirimFiyat = 10m });
         await svc.CancelAsync(a);
         // F6.1b M1: izinsiz geçiş artık 409 cakisma tipi (EszamanliDegisiklikException : ValidationException).
         await Assert.ThrowsAsync<ConcurrentModificationException>(() => svc.ApproveAsync(a));
@@ -277,7 +277,7 @@ public sealed class AracSiparisTests(PostgresFixture fx)
         Assert.Equal(OrderStatus.Iptal, (await svc.GetAsync(a))!.Durum);
 
         // Onaylandı → İptal, sonra Teslim Al.
-        var b = await svc.CreateAsync(new AracSiparisInput { Tedarikci = "Bayi", Adet = 1, BirimFiyat = 10m });
+        var b = await svc.CreateAsync(new VehicleOrderInput { Tedarikci = "Bayi", Adet = 1, BirimFiyat = 10m });
         Assert.True(await svc.ApproveAsync(b));
         await svc.CancelAsync(b);
         await Assert.ThrowsAsync<ConcurrentModificationException>(() => svc.ReceiveAsync(b));
@@ -300,27 +300,27 @@ public sealed class AracSiparisTests(PostgresFixture fx)
         using var scope = host.ScopeFor(Guid.NewGuid());
         var sp = scope.ServiceProvider;
         var loan = await sp.GetRequiredService<VehicleLoanService>()
-            .CreateAsync(new AracKrediInput { BankaAdi = "Vakıf", KrediTutari = 500_000m, TaksitSayisi = 12 });
+            .CreateAsync(new VehicleLoanInput { BankaAdi = "Vakıf", KrediTutari = 500_000m, TaksitSayisi = 12 });
         var account = await sp.GetRequiredService<CustomerService>()
             .CreateAsync(new CustomerInput { Tip = CustomerType.Kurumsal, Unvan = "Bayi A.Ş." });
         var svc = sp.GetRequiredService<VehicleOrderService>();
 
-        var id = await svc.CreateAsync(new AracSiparisInput
+        var id = await svc.CreateAsync(new VehicleOrderInput
         { Tedarikci = "Bayi", Adet = 1, BirimFiyat = 100m, KrediId = loan, TedarikciCariId = account });
         var s = (await svc.GetAsync(id))!;
         Assert.Equal(loan, s.KrediId);
         Assert.Equal(account, s.TedarikciCariId);
 
         // Olmayan kredi → FK ihlali ValidationException'a çevrilir.
-        await Assert.ThrowsAsync<ValidationException>(() => svc.CreateAsync(new AracSiparisInput
+        await Assert.ThrowsAsync<ValidationException>(() => svc.CreateAsync(new VehicleOrderInput
         { Tedarikci = "Bayi", Adet = 1, BirimFiyat = 100m, KrediId = Guid.NewGuid() }));
 
         // Olmayan cari → aynı şekilde.
-        await Assert.ThrowsAsync<ValidationException>(() => svc.CreateAsync(new AracSiparisInput
+        await Assert.ThrowsAsync<ValidationException>(() => svc.CreateAsync(new VehicleOrderInput
         { Tedarikci = "Bayi", Adet = 1, BirimFiyat = 100m, TedarikciCariId = Guid.NewGuid() }));
 
         // Güncelleme yolu da korunmalı (yalnız create'te yakalamak yarım savunma olurdu).
-        await Assert.ThrowsAsync<ValidationException>(() => svc.UpdateAsync(id, new AracSiparisInput
+        await Assert.ThrowsAsync<ValidationException>(() => svc.UpdateAsync(id, new VehicleOrderInput
         { Tedarikci = "Bayi", Adet = 1, BirimFiyat = 100m, KrediId = Guid.NewGuid() }));
     }
 
@@ -337,12 +337,12 @@ public sealed class AracSiparisTests(PostgresFixture fx)
         using (var sa = host.ScopeFor(a))
         {
             loanA = await sa.ServiceProvider.GetRequiredService<VehicleLoanService>()
-                .CreateAsync(new AracKrediInput { BankaAdi = "A Bank", KrediTutari = 100_000m, TaksitSayisi = 6 });
+                .CreateAsync(new VehicleLoanInput { BankaAdi = "A Bank", KrediTutari = 100_000m, TaksitSayisi = 6 });
         }
 
         using var sb = host.ScopeFor(Guid.NewGuid());
         await Assert.ThrowsAsync<ValidationException>(() =>
-            sb.ServiceProvider.GetRequiredService<VehicleOrderService>().CreateAsync(new AracSiparisInput
+            sb.ServiceProvider.GetRequiredService<VehicleOrderService>().CreateAsync(new VehicleOrderInput
             { Tedarikci = "B Bayi", Adet = 1, BirimFiyat = 10m, KrediId = loanA }));
     }
 
@@ -365,35 +365,35 @@ public sealed class AracSiparisTests(PostgresFixture fx)
             .CreateAsync(new CustomerInput { Tip = CustomerType.Kurumsal, Unvan = "Zümrüt Filo A.Ş." });
         var svc = sp.GetRequiredService<VehicleOrderService>();
 
-        await svc.CreateAsync(new AracSiparisInput
+        await svc.CreateAsync(new VehicleOrderInput
         {
             Tedarikci = "Alfa Otomotiv", TedarikciCariId = accountX, SiparisTarihi = D(2026, 1, 10),
             Adet = 1, BirimFiyat = 100m, TsbKayitNo = "34ABC01", Marka = "Fiat"
         });
-        await svc.CreateAsync(new AracSiparisInput
+        await svc.CreateAsync(new VehicleOrderInput
         {
             Tedarikci = "Beta Motors", SiparisTarihi = D(2026, 2, 20),
             Adet = 1, BirimFiyat = 200m, Marka = "Renault"
         });
-        await svc.CreateAsync(new AracSiparisInput
+        await svc.CreateAsync(new VehicleOrderInput
         {
             Tedarikci = "Alfa Servis", SiparisTarihi = D(2026, 3, 5),
             Adet = 1, BirimFiyat = 300m, DosyaNo = "DS-77"
         });
 
         Assert.Equal(3, (await svc.SearchAsync()).Count);                                        // süzgeçsiz
-        Assert.Single(await svc.SearchAsync(new AracSiparisFilter { CariId = accountX }));          // 1: cari X
-        Assert.Equal(2, (await svc.SearchAsync(new AracSiparisFilter { Ara = "alfa" })).Count);  // 1+3 (harf-duyarsız)
+        Assert.Single(await svc.SearchAsync(new VehicleOrderFilter { CariId = accountX }));          // 1: cari X
+        Assert.Equal(2, (await svc.SearchAsync(new VehicleOrderFilter { Ara = "alfa" })).Count);  // 1+3 (harf-duyarsız)
         // Cari ÜNVANINDAN arama: serbest metin tedarikçide "Zümrüt" geçmiyor, yalnız cari kartında.
-        Assert.Single(await svc.SearchAsync(new AracSiparisFilter { Ara = "Zümrüt" }));
-        Assert.Single(await svc.SearchAsync(new AracSiparisFilter { Arac = "34ABC" }));          // TSB/geçici plaka
-        Assert.Single(await svc.SearchAsync(new AracSiparisFilter { Arac = "renault" }));        // marka
-        Assert.Single(await svc.SearchAsync(new AracSiparisFilter { DosyaNo = "77" }));
+        Assert.Single(await svc.SearchAsync(new VehicleOrderFilter { Ara = "Zümrüt" }));
+        Assert.Single(await svc.SearchAsync(new VehicleOrderFilter { Arac = "34ABC" }));          // TSB/geçici plaka
+        Assert.Single(await svc.SearchAsync(new VehicleOrderFilter { Arac = "renault" }));        // marka
+        Assert.Single(await svc.SearchAsync(new VehicleOrderFilter { DosyaNo = "77" }));
         // Tarih aralığı: 01.02–28.02 penceresine yalnız 2. sipariş girer.
-        Assert.Single(await svc.SearchAsync(new AracSiparisFilter { Bas = D(2026, 2, 1), Bit = D(2026, 2, 28) }));
-        Assert.Equal(2, (await svc.SearchAsync(new AracSiparisFilter { Bas = D(2026, 2, 1) })).Count);
-        Assert.Empty(await svc.SearchAsync(new AracSiparisFilter { Durum = OrderStatus.TeslimAlindi }));
-        Assert.Equal(3, (await svc.SearchAsync(new AracSiparisFilter { Durum = OrderStatus.Bekliyor })).Count);
+        Assert.Single(await svc.SearchAsync(new VehicleOrderFilter { Bas = D(2026, 2, 1), Bit = D(2026, 2, 28) }));
+        Assert.Equal(2, (await svc.SearchAsync(new VehicleOrderFilter { Bas = D(2026, 2, 1) })).Count);
+        Assert.Empty(await svc.SearchAsync(new VehicleOrderFilter { Durum = OrderStatus.TeslimAlindi }));
+        Assert.Equal(3, (await svc.SearchAsync(new VehicleOrderFilter { Durum = OrderStatus.Bekliyor })).Count);
     }
 
     // ------------------------------------------------------------------ yetki
@@ -406,7 +406,7 @@ public sealed class AracSiparisTests(PostgresFixture fx)
         using (var admin = host.ScopeFor(tenant))
         {
             await admin.ServiceProvider.GetRequiredService<VehicleOrderService>()
-                .CreateAsync(new AracSiparisInput { Tedarikci = "Bayi", Adet = 1, BirimFiyat = 10m });
+                .CreateAsync(new VehicleOrderInput { Tedarikci = "Bayi", Adet = 1, BirimFiyat = 10m });
         }
 
         // Muhasebe'de OperationsWrite YOK → yazma reddedilir, okuma (ViewReports/FinanceWrite) serbest.
@@ -415,7 +415,7 @@ public sealed class AracSiparisTests(PostgresFixture fx)
             var svc = accounting.ServiceProvider.GetRequiredService<VehicleOrderService>();
             Assert.Single(await svc.SearchAsync());
             await Assert.ThrowsAsync<NoPermissionException>(() => svc.CreateAsync(
-                new AracSiparisInput { Tedarikci = "X", Adet = 1, BirimFiyat = 1m }));
+                new VehicleOrderInput { Tedarikci = "X", Adet = 1, BirimFiyat = 1m }));
         }
 
         // Operatör'de OperationsWrite VAR → geçer.
@@ -423,8 +423,8 @@ public sealed class AracSiparisTests(PostgresFixture fx)
         {
             var svc = op.ServiceProvider.GetRequiredService<VehicleOrderService>();
             Assert.Single(await svc.SearchAsync());
-            var id = await svc.CreateAsync(new AracSiparisInput { Tedarikci = "Y", Adet = 1, BirimFiyat = 1m });
-            Assert.True(await svc.UpdateAsync(id, new AracSiparisInput { Tedarikci = "Y2", Adet = 1, BirimFiyat = 1m }));
+            var id = await svc.CreateAsync(new VehicleOrderInput { Tedarikci = "Y", Adet = 1, BirimFiyat = 1m });
+            Assert.True(await svc.UpdateAsync(id, new VehicleOrderInput { Tedarikci = "Y2", Adet = 1, BirimFiyat = 1m }));
         }
     }
 
@@ -464,15 +464,15 @@ public sealed class AracSiparisTests(PostgresFixture fx)
         Assert.Equal(-700m, balanceBefore);   // müşteri alacaklı (Credit → negatif)
 
         var loan = await sp.GetRequiredService<VehicleLoanService>()
-            .CreateAsync(new AracKrediInput { BankaAdi = "Halk", KrediTutari = 1_000_000m, TaksitSayisi = 24 });
+            .CreateAsync(new VehicleLoanInput { BankaAdi = "Halk", KrediTutari = 1_000_000m, TaksitSayisi = 24 });
         var svc = sp.GetRequiredService<VehicleOrderService>();
-        var id = await svc.CreateAsync(new AracSiparisInput
+        var id = await svc.CreateAsync(new VehicleOrderInput
         {
             Tedarikci = "Sipariş Bayisi", TedarikciCariId = account, KrediId = loan,
             Adet = 2, BirimFiyat = 400_000m,
             PiyasaFiyat = 987_654_321m, OpsFiyat = 123_456_789m, FiloFiyat = 555_555_555m
         });
-        await svc.UpdateAsync(id, new AracSiparisInput
+        await svc.UpdateAsync(id, new VehicleOrderInput
         {
             Tedarikci = "Sipariş Bayisi", TedarikciCariId = account, KrediId = loan,
             Adet = 2, BirimFiyat = 400_000m,

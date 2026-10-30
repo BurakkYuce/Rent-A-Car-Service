@@ -11,7 +11,7 @@ public sealed class DueService(IRegulationRepository repository)
     private readonly IRegulationRepository _repository = repository;
 
     /// <summary>Tüm vade kalemleri, en yakın bitişe göre sıralı.</summary>
-    public async Task<IReadOnlyList<VadeItem>> GetAllAsync(DateTimeOffset? now = null, CancellationToken ct = default)
+    public async Task<IReadOnlyList<DueItem>> GetAllAsync(DateTimeOffset? now = null, CancellationToken ct = default)
     {
         var reference = now ?? DateTimeOffset.UtcNow;
         var sources = await _repository.GetDueSourcesAsync(ct);
@@ -19,19 +19,19 @@ public sealed class DueService(IRegulationRepository repository)
             .Select(s =>
             {
                 var (remaining, bucket) = DueCalculation.Classify(reference, s.Bitis);
-                return new VadeItem(s.VehicleId, s.Tur, s.Bitis, remaining, bucket);
+                return new DueItem(s.VehicleId, s.Tur, s.Bitis, remaining, bucket);
             })
             .OrderBy(i => i.Bitis)
             .ToList();
     }
 
     /// <summary>Yalnız uyarı gerektirenler (geçmiş / ≤30 gün).</summary>
-    public async Task<IReadOnlyList<VadeItem>> GetWarningsAsync(DateTimeOffset? now = null, CancellationToken ct = default)
+    public async Task<IReadOnlyList<DueItem>> GetWarningsAsync(DateTimeOffset? now = null, CancellationToken ct = default)
         => (await GetAllAsync(now, ct)).Where(i => i.Bucket != DueBucket.Ileri).ToList();
 
     /// <summary>FAZ 2.1: tek aracın vade kalemleri (karne "Yaklaşan Vadeler" bloğu). Union'a
     /// dokunulmaz (bildirim üreticiyle paylaşımlı — O12a); saf filtre.</summary>
-    public async Task<IReadOnlyList<VadeItem>> GetForVehicleAsync(
+    public async Task<IReadOnlyList<DueItem>> GetForVehicleAsync(
         Guid vehicleId, DateTimeOffset? now = null, CancellationToken ct = default)
         => (await GetAllAsync(now, ct)).Where(i => i.VehicleId == vehicleId).ToList();
 

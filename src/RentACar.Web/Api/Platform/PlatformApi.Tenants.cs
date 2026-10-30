@@ -77,7 +77,7 @@ public static partial class PlatformApi
         PlatformAdminService svc, string? q, string? durum, int? sayfa, int? boyut, string? sirala, CancellationToken ct)
     {
         var status = ParseStatus(durum, "durum");
-        var request = new ListeIstegi(Math.Min(sayfa ?? 1, 1_000_000), boyut ?? 50, sirala);
+        var request = new ListRequest(Math.Min(sayfa ?? 1, 1_000_000), boyut ?? 50, sirala);
         var query = F5Shared.Nz(q);
         var rows = (await svc.ListTenantsAsync(ct))
             .Select(r => new ListRow(r, StatusOf(r.IsActive, r.KapanisTarihiUtc)))

@@ -141,7 +141,7 @@ public sealed class KiraMegaFormDerinlikTests(PostgresFixture fx)
         var account = await CustomerAsync(scope, "Mega");
         var vehicle = await VehicleAsync(scope, "34 MF 01");
         var staff = await sp.GetRequiredService<PersonnelService>()
-            .CreateAsync(new PersonelInput { Kod = "P1", Ad = "Teslim", Soyad = "Eden" });
+            .CreateAsync(new PersonnelInput { Kod = "P1", Ad = "Teslim", Soyad = "Eden" });
 
         // CREATE yolu: ödeme şekli + misafir 2. sürücü formdan gelir.
         var id = await RentalAsync(scope, account, vehicle, i =>
@@ -206,7 +206,7 @@ public sealed class KiraMegaFormDerinlikTests(PostgresFixture fx)
         var account = await CustomerAsync(scope, "Para");
         var vehicle = await VehicleAsync(scope, "34 MF 02");
         var staff = await sp.GetRequiredService<PersonnelService>()
-            .CreateAsync(new PersonelInput { Kod = "P2", Ad = "Para", Soyad = "Personel" });
+            .CreateAsync(new PersonnelInput { Kod = "P2", Ad = "Para", Soyad = "Personel" });
 
         // 1. senaryo: yeni alanlar BOŞ — elle kurulan oracle (3 gün × 100 = 300).
         var id = await RentalAsync(scope, account, vehicle);
@@ -364,7 +364,7 @@ public sealed class KiraMegaFormDerinlikTests(PostgresFixture fx)
             account = await CustomerAsync(admin, "Op");
             vehicle = await VehicleAsync(admin, "34 MF 05");
             staff = await admin.ServiceProvider.GetRequiredService<PersonnelService>()
-                .CreateAsync(new PersonelInput { Kod = "P3", Ad = "Ofis", Soyad = "Görevlisi" });
+                .CreateAsync(new PersonnelInput { Kod = "P3", Ad = "Ofis", Soyad = "Görevlisi" });
             rental = await RentalAsync(admin, account, vehicle);
         }
 

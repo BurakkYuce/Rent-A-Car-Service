@@ -13,5 +13,5 @@ public interface IMessageTemplateVersionStore
     /// (tür, kanal) satırını kilit + sürüm karşılaştırmasıyla upsert eder. Satır varsa <paramref name="expectedVersion"/>
     /// onun sürümüne eşit olmalı; yoksa <c>null</c> olmalı. Aksi halde <see cref="Common.ConcurrentModificationException"/>.
     /// </summary>
-    Task UpsertAsync(MesajSablonInput input, string? expectedVersion, CancellationToken ct = default);
+    Task UpsertAsync(MessageTemplateInput input, string? expectedVersion, CancellationToken ct = default);
 }

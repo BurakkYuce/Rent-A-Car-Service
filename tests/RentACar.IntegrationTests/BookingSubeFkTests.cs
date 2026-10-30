@@ -160,7 +160,7 @@ public sealed class BookingSubeFkTests(PostgresFixture fx)
             var sp = seed.ServiceProvider;
             (b1, _, rentalH, rentalA, _) = await ExchangeRateAsync(sp);
             definition = await sp.GetRequiredService<AddOnDefinitionService>()
-                .CreateAsync(new EkHizmetTanimInput { Kod = "BEBEK", Ad = "Bebek Koltuğu", BirimUcret = 100m, KdvOrani = 0.20m });
+                .CreateAsync(new AddOnDefinitionInput { Kod = "BEBEK", Ad = "Bebek Koltuğu", BirimUcret = 100m, KdvOrani = 0.20m });
             foreignItem = await sp.GetRequiredService<RentalAddOnService>().AddAsync(rentalA, definition, 1m);
         }
 

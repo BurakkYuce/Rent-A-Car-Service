@@ -126,7 +126,7 @@ public static partial class VehicleApi
     private static async Task<Ok<Sayfa<AracListeSatiri>>> GetList(
         [AsParameters] VehicleListFilter f, VehicleService araclar, int? sayfa, int? boyut, string? sirala, CancellationToken ct)
     {
-        var request = new ListeIstegi(Math.Min(sayfa ?? 1, MaxPage), boyut ?? 50, sirala);
+        var request = new ListRequest(Math.Min(sayfa ?? 1, MaxPage), boyut ?? 50, sirala);
         var filter = f.ToFilter();
         if (request.Sirala is { } s)
         {
@@ -141,7 +141,7 @@ public static partial class VehicleApi
         return TypedResults.Ok(new Sayfa<AracListeSatiri>(rows, result.Total, request.Sayfa, request.Boyut));
     }
 
-    private static AracListeSatiri Row(Vehicle v, VehicleListeEk? e) => new(
+    private static AracListeSatiri Row(Vehicle v, VehicleListExtra? e) => new(
         v.Id, v.Plaka, v.Marka, v.Tip, v.DetayTipi, v.Grup, v.Segment, v.Sipp, v.ModelYili, v.Renk,
         v.Vites?.ToString(), v.Yakit?.ToString(), v.Km, v.Sube, v.Durum.ToString(), v.FiloDurum?.ToString(),
         v.SasiNo, v.MotorNo, v.MotorGucu, v.AracSahibi, v.HgsNo, v.OgsNo, v.KasaTipi, v.SonBakimKm,

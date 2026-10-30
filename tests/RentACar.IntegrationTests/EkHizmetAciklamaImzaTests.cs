@@ -29,7 +29,7 @@ public sealed class EkHizmetAciklamaImzaTests(PostgresFixture fx)
         using var s = host.ScopeFor(Guid.NewGuid());
         var svc = s.ServiceProvider.GetRequiredService<AddOnDefinitionService>();
 
-        var id = await svc.CreateAsync(new EkHizmetTanimInput
+        var id = await svc.CreateAsync(new AddOnDefinitionInput
         {
             Kod = "genc", Ad = "Genç Sürücü", BirimUcret = 150m, KdvOrani = 0.20m,
             Aciklama = "  25 yaş altı sürücüler için zorunlu ek ücret.  ", MaxGun = 30
@@ -41,7 +41,7 @@ public sealed class EkHizmetAciklamaImzaTests(PostgresFixture fx)
         Assert.Equal("25 yaş altı sürücüler için zorunlu ek ücret.", t.Aciklama);   // trim
         Assert.Equal(30, t.MaxGun);
 
-        await svc.UpdateAsync(id, new EkHizmetTanimInput
+        await svc.UpdateAsync(id, new AddOnDefinitionInput
         { Kod = "GENC", Ad = "Genç Sürücü", BirimUcret = 150m, Aciklama = "Güncellendi", MaxGun = 45 });
         var g = await svc.GetAsync(id);
         Assert.Equal("Güncellendi", g!.Aciklama);
@@ -56,7 +56,7 @@ public sealed class EkHizmetAciklamaImzaTests(PostgresFixture fx)
         var svc = s.ServiceProvider.GetRequiredService<AddOnDefinitionService>();
 
         // Yeni alanlar HİÇ verilmeden eski çağrı biçimi çalışmalı.
-        var id = await svc.CreateAsync(new EkHizmetTanimInput { Kod = "GPS", Ad = "Navigasyon", BirimUcret = 50m });
+        var id = await svc.CreateAsync(new AddOnDefinitionInput { Kod = "GPS", Ad = "Navigasyon", BirimUcret = 50m });
         var t = await svc.GetAsync(id);
         Assert.Null(t!.Aciklama);
         Assert.Null(t.MaxGun);
@@ -64,7 +64,7 @@ public sealed class EkHizmetAciklamaImzaTests(PostgresFixture fx)
         Assert.True(t.Aktif);
 
         // Yalnız boşluktan oluşan açıklama da null'a düşer (boş metin saklanmaz).
-        var id2 = await svc.CreateAsync(new EkHizmetTanimInput
+        var id2 = await svc.CreateAsync(new AddOnDefinitionInput
         { Kod = "BBK", Ad = "Bebek Koltuğu", BirimUcret = 40m, Aciklama = "   " });
         Assert.Null((await svc.GetAsync(id2))!.Aciklama);
     }
@@ -78,20 +78,20 @@ public sealed class EkHizmetAciklamaImzaTests(PostgresFixture fx)
 
         // 0 ve negatif anlamsız: "sınırsız" için null kullanılır.
         var ex0 = await Assert.ThrowsAsync<ValidationException>(() => svc.CreateAsync(
-            new EkHizmetTanimInput { Kod = "S0", Ad = "Sıfır", MaxGun = 0 }));
+            new AddOnDefinitionInput { Kod = "S0", Ad = "Sıfır", MaxGun = 0 }));
         Assert.Contains("Max gün pozitif olmalıdır", ex0.Message);
         await Assert.ThrowsAsync<ValidationException>(() => svc.CreateAsync(
-            new EkHizmetTanimInput { Kod = "SN", Ad = "Negatif", MaxGun = -5 }));
+            new AddOnDefinitionInput { Kod = "SN", Ad = "Negatif", MaxGun = -5 }));
 
         var exU = await Assert.ThrowsAsync<ValidationException>(() => svc.CreateAsync(
-            new EkHizmetTanimInput { Kod = "UZN", Ad = "Uzun", Aciklama = new string('x', 513) }));
+            new AddOnDefinitionInput { Kod = "UZN", Ad = "Uzun", Aciklama = new string('x', 513) }));
         Assert.Contains("512 karakter", exU.Message);
 
         // Reddedilenler yazılmamış olmalı.
         Assert.Empty(await svc.ListAsync());
 
         // Tam sınır (512) kabul.
-        var id = await svc.CreateAsync(new EkHizmetTanimInput
+        var id = await svc.CreateAsync(new AddOnDefinitionInput
         { Kod = "SNR", Ad = "Sınır", Aciklama = new string('y', 512), MaxGun = 1 });
         Assert.Equal(512, (await svc.GetAsync(id))!.Aciklama!.Length);
     }
@@ -106,17 +106,17 @@ public sealed class EkHizmetAciklamaImzaTests(PostgresFixture fx)
         var svc = s.ServiceProvider.GetRequiredService<DocumentTemplateService>();
 
         // Alan HİÇ set edilmeden: varsayılan true (mevcut PDF davranışı korunur).
-        var id = await svc.CreateAsync(new BelgeSablonInput
+        var id = await svc.CreateAsync(new DocumentTemplateInput
         { BelgeTuru = BelgeTuru.KiraSozlesmesi, Ad = "Varsayılan Şablon" });
         Assert.True((await svc.ListAsync()).Single(x => x.Id == id).ImzaAlaniGoster);
 
         // Kapatılabilir…
-        await svc.UpdateAsync(id, new BelgeSablonInput
+        await svc.UpdateAsync(id, new DocumentTemplateInput
         { BelgeTuru = BelgeTuru.KiraSozlesmesi, Ad = "Varsayılan Şablon", ImzaAlaniGoster = false });
         Assert.False((await svc.ListAsync()).Single(x => x.Id == id).ImzaAlaniGoster);
 
         // …ve geri açılabilir.
-        await svc.UpdateAsync(id, new BelgeSablonInput
+        await svc.UpdateAsync(id, new DocumentTemplateInput
         { BelgeTuru = BelgeTuru.KiraSozlesmesi, Ad = "Varsayılan Şablon", ImzaAlaniGoster = true });
         Assert.True((await svc.ListAsync()).Single(x => x.Id == id).ImzaAlaniGoster);
     }
@@ -133,7 +133,7 @@ public sealed class EkHizmetAciklamaImzaTests(PostgresFixture fx)
         Assert.True((await resolve.RentalAsync(null)).ImzaAlaniGoster);
 
         // Kapalı varsayılan şablon tanımlanırsa çözümleyici onu taşır.
-        await s.ServiceProvider.GetRequiredService<DocumentTemplateService>().CreateAsync(new BelgeSablonInput
+        await s.ServiceProvider.GetRequiredService<DocumentTemplateService>().CreateAsync(new DocumentTemplateInput
         {
             BelgeTuru = BelgeTuru.KiraSozlesmesi, Ad = "E-imza", VarsayilanMi = true,
             ImzaAlaniGoster = false

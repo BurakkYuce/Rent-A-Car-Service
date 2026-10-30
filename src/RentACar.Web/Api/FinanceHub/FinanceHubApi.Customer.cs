@@ -63,7 +63,7 @@ public static partial class FinanceHubApi
     {
         FinanceOpsApi.Text(ara, 100, "ara");
         var (min, max) = F5Shared.DayRange(bas, bit);
-        var rows = await cash.ListAccountTransfersAsync(new CariVirmanFilter
+        var rows = await cash.ListAccountTransfersAsync(new CustomerTransferFilter
         {
             CariId = cariId, Ara = F5Shared.Nz(ara), Bas = min, Bit = max, EnFazla = Math.Clamp(limit ?? 200, 1, 1000),
         }, ct);

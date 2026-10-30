@@ -21,7 +21,7 @@ public sealed class FleetRentalService(
 
     /// <summary>Sözleşmeler; <paramref name="filter"/> null → tüm kayıtlar (FAZ-21 öncesi davranış).</summary>
     public Task<IReadOnlyList<FiloKiralama>> ListAsync(
-        FiloKiralamaFilter? filter = null, CancellationToken ct = default)
+        FleetRentalFilter? filter = null, CancellationToken ct = default)
         => _repository.ListAsync(filter, ct);
 
     public Task<FiloKiralama?> GetAsync(Guid id, CancellationToken ct = default)
@@ -32,7 +32,7 @@ public sealed class FleetRentalService(
     // kuralı (FK iki tarafta doluysa FK, aksi metin). /api/ui yüzeyi bu yolları kullanır; Blazor yolları değişmedi.
 
     /// <summary>Liste, çağıranın şube kapsamıyla süzülür (operatör yalnız kendi şubesinin araçlarının sözleşmeleri).</summary>
-    public Task<IReadOnlyList<FiloKiralama>> ListScopedAsync(FiloKiralamaFilter filter, CancellationToken ct = default)
+    public Task<IReadOnlyList<FiloKiralama>> ListScopedAsync(FleetRentalFilter filter, CancellationToken ct = default)
     {
         filter.Kapsam = BranchScope.EffectiveFilter(_currentUser);
         return _repository.ListAsync(filter, ct);
@@ -54,14 +54,14 @@ public sealed class FleetRentalService(
     }
 
     /// <summary>Oluşturma, araç kapsamı GİRİŞ NOKTASINDA denetlenerek (başka şubenin aracına sözleşme açılamaz).</summary>
-    public async Task<Guid> CreateComprehensiveAsync(FiloKiralamaInput input, CancellationToken ct = default)
+    public async Task<Guid> CreateComprehensiveAsync(FleetRentalInput input, CancellationToken ct = default)
     {
         PermissionGuard.Require(_currentUser, Permission.OperationsWrite);
         if (input.VehicleId != Guid.Empty) await VehicleScopeAsync(input.VehicleId, ct);
         return await CreateAsync(input, ct);
     }
 
-    public async Task<Guid> CreateAsync(FiloKiralamaInput input, CancellationToken ct = default)
+    public async Task<Guid> CreateAsync(FleetRentalInput input, CancellationToken ct = default)
     {
         PermissionGuard.Require(_currentUser, Permission.OperationsWrite);
         if (input.MusteriId == Guid.Empty) throw new ValidationException("Müşteri seçilmelidir.");
@@ -112,16 +112,16 @@ public sealed class FleetRentalService(
     }
 
     /// <summary>
-    /// Sözleşme KÜNYESİNİ günceller. Para/süre alanları <see cref="FiloKiralamaMetaInput"/> tipinde
+    /// Sözleşme KÜNYESİNİ günceller. Para/süre alanları <see cref="FleetRentalMetaInput"/> tipinde
     /// BULUNMAZ → taksit planı bu yoldan sessizce değiştirilemez (RentalUpdateInput deseni).
     /// İptal edilmiş sözleşme düzenlenemez: kapanmış bir belgenin künyesini değiştirmek geçmişi bozar.
     /// </summary>
-    public Task<bool> UpdateMetaAsync(Guid id, FiloKiralamaMetaInput input, CancellationToken ct = default)
+    public Task<bool> UpdateMetaAsync(Guid id, FleetRentalMetaInput input, CancellationToken ct = default)
         => UpdateMetaAsync(id, input, expectedVersion: null, ct);
 
     /// <summary>F5.1 — <paramref name="expectedVersion"/> doluysa satır kilidi altında sürüm karşılaştırmalı künye
     /// güncellemesi; kilit ALTINDA "iptal edilmiş sözleşme düzenlenemez" yeniden denetlenir. null → Blazor yolu.</summary>
-    public async Task<bool> UpdateMetaAsync(Guid id, FiloKiralamaMetaInput input, string? expectedVersion, CancellationToken ct = default)
+    public async Task<bool> UpdateMetaAsync(Guid id, FleetRentalMetaInput input, string? expectedVersion, CancellationToken ct = default)
     {
         PermissionGuard.Require(_currentUser, Permission.OperationsWrite);
         if (input.VadeGun is < 0) throw new ValidationException("Vade günü negatif olamaz.");
@@ -206,19 +206,19 @@ public sealed class FleetRentalService(
 
     /// <summary>Taksit planı + mali özet (salt-hesap). Her ay: net = aylık ücret, kdv = net × oran;
     /// vade = BasTar + n ay. ToplamNet/Kdv = taksit toplamları (yuvarlama tutarlı).</summary>
-    public static FiloKiraOzet InstallmentPlan(FiloKiralama k)
+    public static FleetRentalSummary InstallmentPlan(FiloKiralama k)
     {
-        var installments = new List<FiloKiraTaksit>(k.SureAy);
+        var installments = new List<FleetRentalInstallment>(k.SureAy);
         for (var i = 0; i < k.SureAy; i++)
         {
             var net = Round(k.AylikUcret);
             var vat = Round(k.AylikUcret * k.KdvOrani);
-            installments.Add(new FiloKiraTaksit(i + 1, Due(k.BasTar, i), net, vat, net + vat));
+            installments.Add(new FleetRentalInstallment(i + 1, Due(k.BasTar, i), net, vat, net + vat));
         }
         var totalNet = installments.Sum(t => t.Net);
         var totalVat = installments.Sum(t => t.Kdv);
         var stamp = k.DamgaVergisi ?? 0m;
-        return new FiloKiraOzet(totalNet, totalVat, stamp, totalNet + totalVat + stamp, installments);
+        return new FleetRentalSummary(totalNet, totalVat, stamp, totalNet + totalVat + stamp, installments);
     }
 
     /// <summary>F5.1 adversarial M2 — savunmacı vade: sınırdan önce yazılmış bozuk bir satır (ör. BasTar 9999) takvim

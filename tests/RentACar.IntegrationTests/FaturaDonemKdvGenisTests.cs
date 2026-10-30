@@ -395,7 +395,7 @@ public sealed class FaturaDonemKdvGenisTests(PostgresFixture fx)
 
     // ================================================================ (3) alış (gelen e-Fatura) KDV
 
-    private static GelenEFaturaInput Incoming(string ettn, decimal net, decimal vat, DateTimeOffset date, string currency = "TRY")
+    private static IncomingEInvoiceInput Incoming(string ettn, decimal net, decimal vat, DateTimeOffset date, string currency = "TRY")
         => new()
         {
             Ettn = TestEttn.Of(ettn), GonderenVkn = "1234567890", GonderenUnvan = "Tedarikçi A.Ş.",
@@ -427,7 +427,7 @@ public sealed class FaturaDonemKdvGenisTests(PostgresFixture fx)
 
         var incoming = scope.ServiceProvider.GetRequiredService<IncomingEInvoiceService>();
         var gid = await incoming.CreateManualAsync(Incoming("ETTN-A1", 1000m, 200m, date));
-        Assert.True(await incoming.LinkAsync(new GelenEFaturaBaglamaInput { Id = gid, Kdv20Matrah = 1000m, Kdv20 = 200m }));
+        Assert.True(await incoming.LinkAsync(new IncomingEInvoiceLinkInput { Id = gid, Kdv20Matrah = 1000m, Kdv20 = 200m }));
 
         var svc = scope.ServiceProvider.GetRequiredService<ReportService>();
         var from = D(2026, 6, 1); var to = D(2026, 6, 30).AddDays(1).AddTicks(-1);
@@ -466,10 +466,10 @@ public sealed class FaturaDonemKdvGenisTests(PostgresFixture fx)
 
         // A: kırılımlı + Beklemede → GİRER
         var a = await incoming.CreateManualAsync(Incoming("ETTN-R1", 100m, 20m, date));
-        await incoming.LinkAsync(new GelenEFaturaBaglamaInput { Id = a, Kdv20Matrah = 100m, Kdv20 = 20m });
+        await incoming.LinkAsync(new IncomingEInvoiceLinkInput { Id = a, Kdv20Matrah = 100m, Kdv20 = 20m });
         // B: kırılımlı ama REDDEDİLDİ → GİRMEZ
         var b = await incoming.CreateManualAsync(Incoming("ETTN-R2", 500m, 100m, date));
-        await incoming.LinkAsync(new GelenEFaturaBaglamaInput { Id = b, Kdv20Matrah = 500m, Kdv20 = 100m });
+        await incoming.LinkAsync(new IncomingEInvoiceLinkInput { Id = b, Kdv20Matrah = 500m, Kdv20 = 100m });
         await incoming.RejectAsync(b, "Yanlış firma");
         // C: kırılım GİRİLMEMİŞ, 900 × %20 = 180 → %20 kademesine GİRER
         await incoming.CreateManualAsync(Incoming("ETTN-R3", 900m, 180m, date));
@@ -528,9 +528,9 @@ public sealed class FaturaDonemKdvGenisTests(PostgresFixture fx)
         Assert.True(await incoming.ApproveAsync(e1));
         Assert.True(await incoming.IsleAsync(e1));
         var e2 = await incoming.CreateManualAsync(Incoming("ETTN-G2", 250m, 50m, date));
-        Assert.True(await incoming.LinkAsync(new GelenEFaturaBaglamaInput { Id = e2, Kdv20Matrah = 250m, Kdv20 = 50m }));
+        Assert.True(await incoming.LinkAsync(new IncomingEInvoiceLinkInput { Id = e2, Kdv20Matrah = 250m, Kdv20 = 50m }));
         Assert.True(await incoming.ApproveAsync(e2));
-        await incoming.ConvertToExpenseAsync(new GelenEFaturaGiderInput { Id = e2, OdemeYontemi = PaymentMethod.Nakit });
+        await incoming.ConvertToExpenseAsync(new IncomingEInvoiceExpenseInput { Id = e2, OdemeYontemi = PaymentMethod.Nakit });
 
         var g = await scope.ServiceProvider.GetRequiredService<ReportService>()
             .GetVatExtendedAsync(TestZaman.DaysLater(-5, 0), TestZaman.DaysLater(1, 0), includePurchases: true);
@@ -565,9 +565,9 @@ public sealed class FaturaDonemKdvGenisTests(PostgresFixture fx)
         var incoming = scope.ServiceProvider.GetRequiredService<IncomingEInvoiceService>();
 
         var tl = await incoming.CreateManualAsync(Incoming("ETTN-D1", 100m, 20m, date));
-        await incoming.LinkAsync(new GelenEFaturaBaglamaInput { Id = tl, Kdv20Matrah = 100m, Kdv20 = 20m });
+        await incoming.LinkAsync(new IncomingEInvoiceLinkInput { Id = tl, Kdv20Matrah = 100m, Kdv20 = 20m });
         var usd = await incoming.CreateManualAsync(Incoming("ETTN-D2", 1000m, 200m, date, "USD"));
-        await incoming.LinkAsync(new GelenEFaturaBaglamaInput { Id = usd, Kdv20Matrah = 1000m, Kdv20 = 200m });
+        await incoming.LinkAsync(new IncomingEInvoiceLinkInput { Id = usd, Kdv20Matrah = 1000m, Kdv20 = 200m });
 
         var g = await scope.ServiceProvider.GetRequiredService<ReportService>()
             .GetVatExtendedAsync(D(2026, 6, 1), D(2026, 6, 30).AddDays(1).AddTicks(-1), includePurchases: true);

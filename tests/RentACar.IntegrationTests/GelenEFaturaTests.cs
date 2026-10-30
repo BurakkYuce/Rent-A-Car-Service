@@ -14,7 +14,7 @@ namespace RentACar.IntegrationTests;
 [Collection("postgres")]
 public sealed class GelenEFaturaTests(PostgresFixture fx)
 {
-    private static GelenEFaturaInput Sample(string ettn = "ETTN-1") => new()
+    private static IncomingEInvoiceInput Sample(string ettn = "ETTN-1") => new()
     {
         Ettn = TestEttn.Of(ettn), GonderenVkn = "1234567890", GonderenUnvan = "Tedarikçi A.Ş.",
         Tarih = new DateTimeOffset(2026, 5, 1, 0, 0, 0, TimeSpan.Zero),
@@ -56,10 +56,10 @@ public sealed class GelenEFaturaTests(PostgresFixture fx)
         using var scope = host.ScopeFor(Guid.NewGuid());
         var svc = scope.ServiceProvider.GetRequiredService<IncomingEInvoiceService>();
 
-        await Assert.ThrowsAsync<ValidationException>(() => svc.CreateManualAsync(new GelenEFaturaInput { Ettn = "", GonderenVkn = "1", GonderenUnvan = "X" }));
+        await Assert.ThrowsAsync<ValidationException>(() => svc.CreateManualAsync(new IncomingEInvoiceInput { Ettn = "", GonderenVkn = "1", GonderenUnvan = "X" }));
         var ettn = TestEttn.Of("E");
-        await Assert.ThrowsAsync<ValidationException>(() => svc.CreateManualAsync(new GelenEFaturaInput { Ettn = ettn, GonderenVkn = "", GonderenUnvan = "X" }));
-        await Assert.ThrowsAsync<ValidationException>(() => svc.CreateManualAsync(new GelenEFaturaInput { Ettn = ettn, GonderenVkn = "1", GonderenUnvan = "X", GenelToplam = -5m }));
+        await Assert.ThrowsAsync<ValidationException>(() => svc.CreateManualAsync(new IncomingEInvoiceInput { Ettn = ettn, GonderenVkn = "", GonderenUnvan = "X" }));
+        await Assert.ThrowsAsync<ValidationException>(() => svc.CreateManualAsync(new IncomingEInvoiceInput { Ettn = ettn, GonderenVkn = "1", GonderenUnvan = "X", GenelToplam = -5m }));
     }
 
     /// <summary>
@@ -75,16 +75,16 @@ public sealed class GelenEFaturaTests(PostgresFixture fx)
 
         foreach (var bad in new[] { "ETTN-1", "FT2026000000001", "ETTN 3F2504E0-4F89-11D3-9A0C-0305E82C3301" })
         {
-            var ex = await Assert.ThrowsAsync<ValidationException>(() => svc.CreateManualAsync(new GelenEFaturaInput
+            var ex = await Assert.ThrowsAsync<ValidationException>(() => svc.CreateManualAsync(new IncomingEInvoiceInput
             { Ettn = bad, GonderenVkn = "1234567890", GonderenUnvan = "X", NetTutar = 1m, KdvTutar = 0m, GenelToplam = 1m }));
             Assert.Equal("ettn", ex.Alan);
         }
 
         var lower = "3f2504e0-4f89-11d3-9a0c-0305e82c3301";
-        var id = await svc.CreateManualAsync(new GelenEFaturaInput
+        var id = await svc.CreateManualAsync(new IncomingEInvoiceInput
         { Ettn = "  " + lower + " ", GonderenVkn = "1234567890", GonderenUnvan = "X", NetTutar = 1m, KdvTutar = 0m, GenelToplam = 1m });
         Assert.Equal("3F2504E0-4F89-11D3-9A0C-0305E82C3301", (await svc.GetAsync(id))!.Ettn);
-        await Assert.ThrowsAsync<ValidationException>(() => svc.CreateManualAsync(new GelenEFaturaInput
+        await Assert.ThrowsAsync<ValidationException>(() => svc.CreateManualAsync(new IncomingEInvoiceInput
         { Ettn = lower.ToUpperInvariant(), GonderenVkn = "1234567890", GonderenUnvan = "X", NetTutar = 1m, KdvTutar = 0m, GenelToplam = 1m }));
     }
 

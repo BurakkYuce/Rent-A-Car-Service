@@ -22,8 +22,8 @@ public sealed class TestIdentity : ITenantContext, ICurrentUser
 
     /// <summary>Kullanıcı-bazlı izin istisnaları (2026-08-17). Varsayılan boş — istisna testleri
     /// claim'e yazılmış hâli taklit etmek için doldurur (web'de login claim'inden gelir).</summary>
-    public IReadOnlyCollection<string> EkIzinler { get; set; } = [];
-    public IReadOnlyCollection<string> YasakIzinler { get; set; } = [];
+    public IReadOnlyCollection<string> ExtraPermissions { get; set; } = [];
+    public IReadOnlyCollection<string> DeniedPermissions { get; set; } = [];
 }
 
 /// <summary>Test parola özetleyici (gerçek kripto gerekmez; sadece tutar/doğrular).</summary>

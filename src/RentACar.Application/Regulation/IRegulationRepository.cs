@@ -64,7 +64,7 @@ public interface IRegulationRepository
     Task PostInsurancePaymentAsync(Guid policyId, decimal endorsementPremium, IReadOnlyList<AccountLedgerEntry> entries, CancellationToken ct = default);
 
     /// <summary>Birleşik vade kaynakları: sigorta(Bitiş) + ödenmemiş MTV(Vade) + muayene(Bitiş).</summary>
-    Task<IReadOnlyList<VadeSource>> GetDueSourcesAsync(CancellationToken ct = default);
+    Task<IReadOnlyList<DueSource>> GetDueSourcesAsync(CancellationToken ct = default);
 
     // ---- FAZ-15 zeyil (poliçe eki) — BİLGİ/GEÇMİŞ; hiçbir defter kaydı üretmez ----
 

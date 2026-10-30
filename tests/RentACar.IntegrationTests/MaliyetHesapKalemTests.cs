@@ -17,7 +17,7 @@ namespace RentACar.IntegrationTests;
 public sealed class MaliyetHesapKalemTests
 {
     /// <summary>Yalnız kalem alanlarını sınamak için taban: 1.000.000 alış, %30 kalıntı, finansmansız.</summary>
-    private static MaliyetHesapInput Base(int durationMonths = 36) => new()
+    private static CostCalculationParameters Base(int durationMonths = 36) => new()
     {
         AlisBedeli = 1_000_000m,
         ResidualYuzde = 0.30m,
@@ -155,7 +155,7 @@ public sealed class MaliyetHesapKalemTests
         //   teklif net                                   = 2.756.400
         //   teklif aylık   = 2.756.400 / 36              =    76.566,67
         //   teklif KDV'li  = 2.756.400 × 1,20            = 3.307.680
-        var s = CostCalculationService.Calculate(new MaliyetHesapInput
+        var s = CostCalculationService.Calculate(new CostCalculationParameters
         {
             AlisBedeli = 1_000_000m, ResidualYuzde = 0.30m, SureAy = 36,
             FaizOran = 0.40m, KkdfOran = 0.15m, BsmvOran = 0.15m, DamgaOran = 0.001m,
@@ -201,7 +201,7 @@ public sealed class MaliyetHesapKalemTests
 
         // Rotatif reddi, DİĞER doğrulamalardan ÖNCE gelir: alış bedeli geçersiz olsa bile
         // kullanıcı "rotatif yok" cevabını alır (giriş noktası guard'ı).
-        var corrupt = new MaliyetHesapInput { AlisBedeli = 0m, KrediHesaplamaSekli = LoanCalculationMethod.Rotatif };
+        var corrupt = new CostCalculationParameters { AlisBedeli = 0m, KrediHesaplamaSekli = LoanCalculationMethod.Rotatif };
         Assert.Equal(CostCalculationService.RevolvingRejectMessage,
             Assert.Throws<ValidationException>(() => CostCalculationService.Calculate(corrupt)).Message);
     }

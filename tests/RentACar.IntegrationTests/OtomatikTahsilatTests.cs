@@ -173,16 +173,16 @@ public sealed class OtomatikTahsilatTests(PostgresFixture fx)
 
         // Sözleşme no filtresi: yalnız o kiranın dönemleri.
         var no = all.First(a => a.RentalId == k1).SozlesmeNo;
-        var tek = await svc.CandidatesAsync(new OtomatikTahsilatFiltre { SozlesmeNo = no });
+        var tek = await svc.CandidatesAsync(new PeriodAutoCollectionFilter { SozlesmeNo = no });
         Assert.Equal(2, tek.Count);
         Assert.All(tek, a => Assert.Equal(k1, a.RentalId));
 
         // Vade aralığı: hiçbir dönemin bitmediği gelecek pencere → boş.
-        Assert.Empty(await svc.CandidatesAsync(new OtomatikTahsilatFiltre
+        Assert.Empty(await svc.CandidatesAsync(new PeriodAutoCollectionFilter
         { VadeMin = DateTimeOffset.UtcNow.AddDays(1) }));
 
         // Yalnız bakiyeli: henüz fatura kesilmediği için cari bakiye 0 → hiçbiri.
-        Assert.Empty(await svc.CandidatesAsync(new OtomatikTahsilatFiltre { SadeceBakiyeli = true }));
+        Assert.Empty(await svc.CandidatesAsync(new PeriodAutoCollectionFilter { SadeceBakiyeli = true }));
     }
 
     [Fact]

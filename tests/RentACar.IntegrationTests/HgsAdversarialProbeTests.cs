@@ -878,7 +878,7 @@ public sealed class HgsAdversarialProbeTests(PostgresFixture fx)
             await Assert.ThrowsAsync<NoPermissionException>(() => Svc(op).ConfirmAsync([id]));
         using (var other = host.ScopeFor(w.Tenant, role: UserRole.Operator, assignedBranch: "SubeA"))
         {
-            other.ServiceProvider.GetRequiredService<TestIdentity>().EkIzinler = ["FinanceWrite"];
+            other.ServiceProvider.GetRequiredService<TestIdentity>().ExtraPermissions = ["FinanceWrite"];
             await Assert.ThrowsAsync<NoPermissionException>(() => Svc(other).ConfirmAsync([id]));
         }
         using var check = host.ScopeFor(w.Tenant);

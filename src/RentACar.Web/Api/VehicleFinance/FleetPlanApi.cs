@@ -58,7 +58,7 @@ public static class FleetPlanApi
     private static async Task<Results<Ok<FiloPlanDto>, ProblemHttpResult>> Detail(Guid id, FleetPlanService svc, CancellationToken ct)
         => await DtoAsync(id, svc, ct) is { } d ? TypedResults.Ok(d) : NotFoundProblem();
 
-    private static FiloPlanInput Input(FiloPlanIstegi i)
+    private static FleetPlanInput Input(FiloPlanIstegi i)
     {
         VehicleFinanceShared.Text(i.AracGrupAdi, 64, "aracGrupAdi");
         VehicleFinanceShared.Text(i.Sipp, 16, "sipp");
@@ -66,7 +66,7 @@ public static class FleetPlanApi
         VehicleFinanceShared.Text(i.Aciklama, 512, "aciklama");
         if (i.HedefAdet is < 0 or > 100_000)
             throw new ValidationException("Hedef adet 0 ile 100.000 arasında olmalıdır.", "hedefAdet");
-        return new FiloPlanInput
+        return new FleetPlanInput
         {
             AracGrupAdi = i.AracGrupAdi, Sipp = i.Sipp, Donem = i.Donem, HedefAdet = i.HedefAdet, Aciklama = i.Aciklama,
         };

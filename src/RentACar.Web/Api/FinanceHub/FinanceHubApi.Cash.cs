@@ -84,7 +84,7 @@ public static partial class FinanceHubApi
     {
         FinanceOpsApi.Text(ara, 100, "ara");
         var (min, max) = F5Shared.DayRange(bas, bit);
-        var rows = await cash.ListCashTransfersAsync(new KasaVirmanFilter
+        var rows = await cash.ListCashTransfersAsync(new CashTransferFilter
         {
             Bas = min, Bit = max, HesapId = hesapId, Ara = F5Shared.Nz(ara), EnFazla = Math.Clamp(limit ?? 50, 1, 500),
         }, ct);

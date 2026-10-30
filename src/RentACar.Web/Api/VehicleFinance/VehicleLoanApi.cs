@@ -65,7 +65,7 @@ public static partial class VehicleLoanApi
         CancellationToken ct)
     {
         var (min, max) = F5Shared.DayRange(start, bit);
-        var list = await svc.SearchAsync(new AracKrediFilter
+        var list = await svc.SearchAsync(new VehicleLoanFilter
         {
             CariId = customerId, Plaka = F5Shared.Nz(plate), DosyaNo = F5Shared.Nz(fileNo),
             Durum = F5Shared.EnumAdi<LoanStatus>(status, "durum"), Bas = min, Bit = max,

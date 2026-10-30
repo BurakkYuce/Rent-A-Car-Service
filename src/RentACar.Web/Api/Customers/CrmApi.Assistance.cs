@@ -64,7 +64,7 @@ public static partial class CrmApi
         RentalLimits.Text(f.Ara, 100, "ara", "Arama metni");
         RentalLimits.Text(f.Plaka, 32, "plaka", "Plaka");
         var (min, max) = F5Shared.DayRange(f.TarihBas, f.TarihBit);
-        var items = await requests.SearchAsync(new AssistansFilter
+        var items = await requests.SearchAsync(new AssistanceRequestFilter
         {
             Plaka = F5Shared.Nz(f.Plaka), TarihMin = min, TarihMax = max, Ara = F5Shared.Nz(f.Ara), Kapandi = f.Kapandi,
             YedekLastikMi = f.YedekLastik, HareketEdemiyor = f.HareketEdemiyor,
@@ -114,7 +114,7 @@ public static partial class CrmApi
         return new AssistanceCardDto((await AssistanceRowsAsync(dbf, [a], ct))[0], version);
     }
 
-    private static async Task<AssistansInput> AssistanceInputAsync(
+    private static async Task<AssistanceRequestInput> AssistanceInputAsync(
         AssistanceRequest r, ICurrentUser user, RentalService rentals, ILocationRepository locations, CancellationToken ct)
     {
         RentalLimits.Text(r.Plaka, 32, "plaka", "Plaka");
@@ -127,7 +127,7 @@ public static partial class CrmApi
             throw new ValidationException("Plaka en fazla 16 karakter olabilir.", "plaka");
         var rentalId = r.RentalId == Guid.Empty ? null : r.RentalId;
         // Hedef kapsamı (kira var mı, kapsamda mı, şubesiz oluşturma) servis katmanında: CrmScopeGuard (r317 M1).
-        return new AssistansInput
+        return new AssistanceRequestInput
         {
             RentalId = rentalId, Plaka = r.Plaka, AdSoyad = r.AdSoyad, CepTel = r.CepTel, Zaman = F5Shared.Utc(r.Zaman),
             Mesaj = r.Mesaj, Sebep = r.Sebep, YedekLastikMi = r.YedekLastikMi, AracHareketMi = r.AracHareketMi,
@@ -166,13 +166,13 @@ public static partial class CrmApi
     /// <summary>
     /// KVKK: anonim müşteriye bağlı talepte ad/telefon yanıtta <c>null</c> döner; tam PUT bu <c>null</c>'ı geri
     /// gönderince kayıtlı değer silinmemeli ya da servis onu anonim müşterinin kartından yeniden doldurmamalı.
-    /// Sözleşme (#295b, TC/ehliyet ile aynı): <c>""</c> = temizle (<see cref="AssistansInput.ClearContactName"/>);
+    /// Sözleşme (#295b, TC/ehliyet ile aynı): <c>""</c> = temizle (<see cref="AssistanceRequestInput.ClearContactName"/>);
     /// <c>null</c> = dokunma — YALNIZ kira değişmediyse saklı değer korunur (temizlenmişse temiz kalır).
     /// Kira değiştiyse ya da kaldırıldıysa saklı değer TAŞINMAZ: gizli değer yalnız bağlı kiranın müşterisi anonim olduğu
     /// için gizliydi; yeni bağla (ya da bağsız) düz görünür ve ManageUsers kapısı atlanırdı. O durumda <c>null</c> alanı
     /// boşaltır; servis yalnız YENİ kiranın görünür müşterisinden doldurabilir (anonim müşteriden asla).
     /// </summary>
-    private static void KeepStoredContact(AssistansTalep current, AssistansInput input)
+    private static void KeepStoredContact(AssistansTalep current, AssistanceRequestInput input)
     {
         var requested = input.RentalId == Guid.Empty ? null : input.RentalId;
         if (requested != current.RentalId) return;

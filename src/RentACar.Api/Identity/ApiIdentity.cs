@@ -55,9 +55,9 @@ public sealed class ApiIdentity(IHttpContextAccessor accessor) : ITenantContext,
 
     // İstisnalar JWT'den okunur — okunmasaydı API, web'de kısılmış kullanıcıya yan kapı olurdu
     // (servis guard'ı ICurrentUser'dan besleniyor; boş dönen varsayılan yasakları görmezdi).
-    public IReadOnlyCollection<string> EkIzinler
+    public IReadOnlyCollection<string> ExtraPermissions
         => User.FindAll(ApiClaims.PermissionExtra).Select(c => c.Value).ToArray();
 
-    public IReadOnlyCollection<string> YasakIzinler
+    public IReadOnlyCollection<string> DeniedPermissions
         => User.FindAll(ApiClaims.PermissionDenied).Select(c => c.Value).ToArray();
 }

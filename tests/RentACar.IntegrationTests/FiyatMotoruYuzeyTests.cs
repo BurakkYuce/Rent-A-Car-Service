@@ -91,7 +91,7 @@ public sealed class FiyatMotoruYuzeyTests(PostgresFixture fx)
         // (b) Doluluk kuralı + ŞUBE DOLU ama SadeceKendiSubeleri KAPALI → şube alanı motorda
         //     OKUNMAZ; çarpan eskisi gibi uygulanır: %84 ≥ %80 → 1150/gün, 5750.
         await sp.GetRequiredService<BranchService>().CreateAsync(new BranchInput { Kod = "MRK", Ad = "Merkez" });
-        await sp.GetRequiredService<OccupancyPriceRuleService>().CreateAsync(new DolulukFiyatKuralInput
+        await sp.GetRequiredService<OccupancyPriceRuleService>().CreateAsync(new OccupancyPriceRuleInput
         { Kod = "D80", Ad = "Doluluk 80", EsikYuzde = 80, CarpanYuzde = 15m, Sube = "Merkez" });
 
         var q1 = await GetQuote(sp);                    // teklifte şube YOK
@@ -121,7 +121,7 @@ public sealed class FiyatMotoruYuzeyTests(PostgresFixture fx)
         using var scope = host.ScopeFor(Guid.NewGuid());
         var sp = scope.ServiceProvider;
         await SeedFleetAsync(sp);
-        await sp.GetRequiredService<OccupancyPriceRuleService>().CreateAsync(new DolulukFiyatKuralInput
+        await sp.GetRequiredService<OccupancyPriceRuleService>().CreateAsync(new OccupancyPriceRuleInput
         { Kod = "D80", Ad = "Doluluk 80", EsikYuzde = 80, CarpanYuzde = 15m });
         var rules = sp.GetRequiredService<RentalRuleService>();
         var id = await rules.CreateAsync(new RentalRuleInput
@@ -157,7 +157,7 @@ public sealed class FiyatMotoruYuzeyTests(PostgresFixture fx)
         await SeedFleetAsync(sp);
         await sp.GetRequiredService<BranchService>().CreateAsync(new BranchInput { Kod = "MRK", Ad = "Merkez" });
         await sp.GetRequiredService<BranchService>().CreateAsync(new BranchInput { Kod = "IZM", Ad = "Izmir" });
-        await sp.GetRequiredService<OccupancyPriceRuleService>().CreateAsync(new DolulukFiyatKuralInput
+        await sp.GetRequiredService<OccupancyPriceRuleService>().CreateAsync(new OccupancyPriceRuleInput
         {
             Kod = "D80M", Ad = "Merkez Doluluk", EsikYuzde = 80, CarpanYuzde = 15m,
             Sube = "Merkez", SadeceKendiSubeleri = true
@@ -188,7 +188,7 @@ public sealed class FiyatMotoruYuzeyTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
         var svc = scope.ServiceProvider.GetRequiredService<OccupancyPriceRuleService>();
-        await Assert.ThrowsAsync<ValidationException>(() => svc.CreateAsync(new DolulukFiyatKuralInput
+        await Assert.ThrowsAsync<ValidationException>(() => svc.CreateAsync(new OccupancyPriceRuleInput
         { Kod = "X", Ad = "X", EsikYuzde = 80, CarpanYuzde = 10m, SadeceKendiSubeleri = true }));
     }
 
@@ -210,7 +210,7 @@ public sealed class FiyatMotoruYuzeyTests(PostgresFixture fx)
         await SeedFleetAsync(sp);
         var svc = sp.GetRequiredService<OccupancyPriceRuleService>();
 
-        var ids = await svc.BulkCreateAsync(new DolulukTopluInput
+        var ids = await svc.BulkCreateAsync(new OccupancyBulkInput
         {
             KodOnEk = "yaz-eko", AdOnEk = "Yaz Doluluk", AracGrupKod = "EKO",
             Kademeler = [new(60, 5m), new(80, 20m), new(95, 40m)]
@@ -240,13 +240,13 @@ public sealed class FiyatMotoruYuzeyTests(PostgresFixture fx)
         using var scope = host.ScopeFor(Guid.NewGuid());
         var svc = scope.ServiceProvider.GetRequiredService<OccupancyPriceRuleService>();
 
-        await Assert.ThrowsAsync<ValidationException>(() => svc.BulkCreateAsync(new DolulukTopluInput
+        await Assert.ThrowsAsync<ValidationException>(() => svc.BulkCreateAsync(new OccupancyBulkInput
         {
             KodOnEk = "A", AdOnEk = "A", Kademeler = [new(60, 5m), new(80, 20m), new(95, 70m)]
         }));
         Assert.Empty(await svc.ListAsync());
 
-        await Assert.ThrowsAsync<ValidationException>(() => svc.BulkCreateAsync(new DolulukTopluInput
+        await Assert.ThrowsAsync<ValidationException>(() => svc.BulkCreateAsync(new OccupancyBulkInput
         {
             KodOnEk = "B", AdOnEk = "B", Kademeler = [new(60, 5m), new(60, 20m)]
         }));
@@ -429,7 +429,7 @@ public sealed class FiyatMotoruYuzeyTests(PostgresFixture fx)
         using var scope = host.ScopeFor(Guid.NewGuid());
         var sp = scope.ServiceProvider;
         await SeedFleetAsync(sp);
-        await sp.GetRequiredService<BrokerBanService>().CreateAsync(new BrokerYasakInput
+        await sp.GetRequiredService<BrokerBanService>().CreateAsync(new BrokerBanInput
         { Kod = "Y1", Ad = "EKO kapalı", Kaynak = "Acenta A", AracGrupKod = "EKO", TumSatisKapali = true });
 
         var bans = await sp.GetRequiredService<BrokerBanService>().ListActiveAsync();
@@ -453,7 +453,7 @@ public sealed class FiyatMotoruYuzeyTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid(), Guid.NewGuid(), "muh", UserRole.Muhasebe);
         var svc = scope.ServiceProvider.GetRequiredService<OccupancyPriceRuleService>();
-        await Assert.ThrowsAsync<NoPermissionException>(() => svc.BulkCreateAsync(new DolulukTopluInput
+        await Assert.ThrowsAsync<NoPermissionException>(() => svc.BulkCreateAsync(new OccupancyBulkInput
         { KodOnEk = "X", AdOnEk = "X", Kademeler = [new(80, 10m)] }));
     }
 
@@ -470,7 +470,7 @@ public sealed class FiyatMotoruYuzeyTests(PostgresFixture fx)
             await s1.ServiceProvider.GetRequiredService<BranchService>()
                 .CreateAsync(new BranchInput { Kod = "MRK", Ad = "Merkez" });
             await s1.ServiceProvider.GetRequiredService<OccupancyPriceRuleService>()
-                .CreateAsync(new DolulukFiyatKuralInput
+                .CreateAsync(new OccupancyPriceRuleInput
                 {
                     Kod = "D80", Ad = "T1", EsikYuzde = 80, CarpanYuzde = 10m,
                     Sube = "Merkez", SadeceKendiSubeleri = true
@@ -485,7 +485,7 @@ public sealed class FiyatMotoruYuzeyTests(PostgresFixture fx)
 
         // Aynı kodlar t2'de serbestçe açılabilir (izolasyon gerçek, benzersizlik tenant içi).
         await s2.ServiceProvider.GetRequiredService<OccupancyPriceRuleService>()
-            .CreateAsync(new DolulukFiyatKuralInput { Kod = "D80", Ad = "T2", EsikYuzde = 80, CarpanYuzde = 10m });
+            .CreateAsync(new OccupancyPriceRuleInput { Kod = "D80", Ad = "T2", EsikYuzde = 80, CarpanYuzde = 10m });
         await s2.ServiceProvider.GetRequiredService<RentalRuleService>()
             .CreateAsync(new RentalRuleInput { Kod = "K1", Ad = "T2" });
         Assert.Single(await s2.ServiceProvider.GetRequiredService<OccupancyPriceRuleService>().ListAsync());

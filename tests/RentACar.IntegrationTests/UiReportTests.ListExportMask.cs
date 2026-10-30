@@ -54,7 +54,7 @@ public sealed partial class UiReportTests
                 BasTar = new DateTimeOffset(today.AddDays(10).ToDateTime(new TimeOnly(9, 0)), TimeSpan.Zero),
                 BitTar = new DateTimeOffset(today.AddDays(12).ToDateTime(new TimeOnly(9, 0)), TimeSpan.Zero),
             });
-            await sp.GetRequiredService<LegalCaseService>().CreateAsync(new HukukDosyaInput
+            await sp.GetRequiredService<LegalCaseService>().CreateAsync(new LegalCaseInput
             { DosyaNo = "2026/KVKK", CariId = e.CustomerB, Tutar = 100m });
         }
 

@@ -35,7 +35,7 @@ public static partial class SystemDefinitionsApi
         g.MapGet("", async (int? sayfa, int? boyut, string? sirala, string? ara, bool? aktif, string? sube, string? gorevTanimi,
             PersonnelService s, CancellationToken ct) =>
         {
-            var rows = await s.SearchAsync(new PersonelFilter { Ara = ara, Aktif = aktif, Sube = sube, GorevTanimi = gorevTanimi }, ct);
+            var rows = await s.SearchAsync(new PersonnelFilter { Ara = ara, Aktif = aktif, Sube = sube, GorevTanimi = gorevTanimi }, ct);
             var items = rows.Select(p => new PersonnelListItem(p.Id, p.Kod, p.Ad, p.Soyad, p.Sube, p.GorevTanimi, p.CepTel,
                 p.MailAdresi, p.IseGiris, p.IseCikis, p.Aktif)).ToList();
             return TypedResults.Ok(F5Shared.Paginate(items, PersonnelSort, sayfa, boyut, sirala));
@@ -45,7 +45,7 @@ public static partial class SystemDefinitionsApi
         g.MapPost("", async Task<Results<Created<PersonnelDto>, ProblemHttpResult>> (PersonnelRequest i, PersonnelService s, CancellationToken ct) =>
         {
             PersonnelLimits(i);
-            var id = await s.CreateAsync(PersonnelInput(i), ct);
+            var id = await s.CreateAsync(ToPersonnelInput(i), ct);
             return await PersonnelAsync(id, s, ct) is { } d ? TypedResults.Created($"{UiApiExtensions.V1}/personel/{id}", d) : SystemApiCommon.NotFound();
         }).MapFields(PersonnelRules);
         g.MapPut("/{id:guid}", async Task<Results<Ok<PersonnelDto>, ProblemHttpResult>> (Guid id, PersonnelRequest i, PersonnelService s, CancellationToken ct) =>
@@ -53,7 +53,7 @@ public static partial class SystemDefinitionsApi
             if (await s.GetDetailAsync(id, ct) is null) return SystemApiCommon.NotFound();
             SystemApiCommon.RequireVersion(i.Surum);
             PersonnelLimits(i);
-            if (!await s.UpdateAsync(id, PersonnelInput(i), i.Surum, ct)) return SystemApiCommon.NotFound();
+            if (!await s.UpdateAsync(id, ToPersonnelInput(i), i.Surum, ct)) return SystemApiCommon.NotFound();
             return await PersonnelAsync(id, s, ct) is { } d ? TypedResults.Ok(d) : SystemApiCommon.NotFound();
         }).MapFields(PersonnelRules);
         g.MapDelete("/{id:guid}", async Task<Results<NoContent, ProblemHttpResult>> (Guid id, PersonnelService s, CancellationToken ct)
@@ -97,7 +97,7 @@ public static partial class SystemDefinitionsApi
         Text(i.RacTabletNo, 32, "racTabletNo", "Tablet no");
     }
 
-    private static PersonelInput PersonnelInput(PersonnelRequest i) => new()
+    private static PersonnelInput ToPersonnelInput(PersonnelRequest i) => new()
     {
         // F11.2d yazma-yalnız kuralı: null = koru, "" (boş metin) = sil, dolu = yeni değer.
         // YALNIZ tam boş metin siler; boşluktan oluşan değer (" ", "\t", NBSP) PersonnelLimits'te 400 alır (#308 M1).

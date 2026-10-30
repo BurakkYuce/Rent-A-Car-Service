@@ -257,7 +257,7 @@ public sealed class KiraOlusturmaAtomikTests(PostgresFixture fx)
         var (host, tenant, rid, _, _, drop) = await LockSeedAsync("34 KL 03");
         using var _h = host;
         var total = await ConvertWhileLockedAsync(host, tenant, rid, (sp, _) => sp.GetRequiredService<DropDefinitionService>()
-            .UpdateAsync(drop, new DropTanimInput { Lokasyon = "IZMIR", Sube = "ISTANBUL", Ucret = 500m }));
+            .UpdateAsync(drop, new DropDefinitionInput { Lokasyon = "IZMIR", Sube = "ISTANBUL", Ucret = 500m }));
         Assert.Equal(3960m, total); // 3000 + 500 net → 600 + 360
     }
 
@@ -372,7 +372,7 @@ public sealed class KiraOlusturmaAtomikTests(PostgresFixture fx)
         using var s = host.ScopeFor(tenant);
         var sp = s.ServiceProvider;
         var group = await sp.GetRequiredService<VehicleGroupService>().CreateAsync(GroupInput(100m));
-        var drop = await sp.GetRequiredService<DropDefinitionService>().CreateAsync(new DropTanimInput { Lokasyon = "IZMIR", Sube = "ISTANBUL", Ucret = 400m });
+        var drop = await sp.GetRequiredService<DropDefinitionService>().CreateAsync(new DropDefinitionInput { Lokasyon = "IZMIR", Sube = "ISTANBUL", Ucret = 400m });
         var customer = await sp.GetRequiredService<CustomerService>().CreateAsync(new CustomerInput
         { Tip = CustomerType.Bireysel, Ad = "Genc", Soyad = "KL", DogumTarihi = Start.AddYears(-22) });
         var vehicle = await sp.GetRequiredService<VehicleService>().CreateAsync(new VehicleInput { Plaka = plate, Grup = "EKO" });

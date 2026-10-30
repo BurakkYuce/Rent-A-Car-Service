@@ -306,7 +306,7 @@ public sealed class RegulationRepository(IDbContextFactory<AppDbContext> factory
         return true;
     }
 
-    public async Task<IReadOnlyList<VadeSource>> GetDueSourcesAsync(CancellationToken ct = default)
+    public async Task<IReadOnlyList<DueSource>> GetDueSourcesAsync(CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
         // Tek doğruluk kaynağı (denetim O12a): bildirim job'ı da AYNI birleşimi kullanır → sessizce ayrışamaz.

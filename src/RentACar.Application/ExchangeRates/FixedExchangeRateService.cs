@@ -24,7 +24,7 @@ public sealed class FixedExchangeRateService(IPinnedRateRepository repository, I
     public Task<SabitKur?> GetAsync(Guid id, CancellationToken ct = default) => _repo.FindAsync(id, ct);
 
     /// <summary>Kod-başına tek sabit kur: varsa günceller, yoksa oluşturur.</summary>
-    public async Task<Guid> UpsertAsync(SabitKurInput input, CancellationToken ct = default)
+    public async Task<Guid> UpsertAsync(FixedExchangeRateInput input, CancellationToken ct = default)
     {
         PermissionGuard.Require(_user, Permission.FinanceWrite);
         var code = ExchangeRateService.NormalizeCode(input.Kod);
@@ -96,7 +96,7 @@ public sealed class FixedExchangeRateService(IPinnedRateRepository repository, I
     /// <summary>F8.1a — YENİ sabit kur (<c>/api/ui</c>). Kod zaten tanımlıysa 400 (<c>kod</c>): mevcut satır
     /// sürümle (<see cref="UpdateAsync"/>) güncellenir — upsert burada bayat formun başka oturumun kurunu
     /// sessizce ezmesine yol açardı.</summary>
-    public async Task<Guid> CreateAsync(SabitKurInput input, CancellationToken ct = default)
+    public async Task<Guid> CreateAsync(FixedExchangeRateInput input, CancellationToken ct = default)
     {
         PermissionGuard.Require(_user, Permission.FinanceWrite);
         var (code, start, bit) = Validate(input.Kod, input);
@@ -109,7 +109,7 @@ public sealed class FixedExchangeRateService(IPinnedRateRepository repository, I
 
     /// <summary>F8.1a — tam değiştirme (kur, pencere, aktiflik; kod DEĞİŞMEZ). <paramref name="expectedVersion"/>
     /// kilit altında karşılaştırılır; farklıysa 409 <c>cakisma</c>. Satır yoksa false.</summary>
-    public async Task<bool> UpdateAsync(Guid id, SabitKurInput input, string expectedVersion, CancellationToken ct = default)
+    public async Task<bool> UpdateAsync(Guid id, FixedExchangeRateInput input, string expectedVersion, CancellationToken ct = default)
     {
         PermissionGuard.Require(_user, Permission.FinanceWrite);
         var existing = await _repo.FindAsync(id, ct);
@@ -125,7 +125,7 @@ public sealed class FixedExchangeRateService(IPinnedRateRepository repository, I
     }
 
     /// <summary><see cref="UpsertAsync"/> ile AYNI kurallar (kod, pozitif kur, gün-granülü pencere).</summary>
-    private static (string Kod, DateTimeOffset? Bas, DateTimeOffset? Bit) Validate(string? rawCode, SabitKurInput input)
+    private static (string Kod, DateTimeOffset? Bas, DateTimeOffset? Bit) Validate(string? rawCode, FixedExchangeRateInput input)
     {
         var code = ExchangeRateService.NormalizeCode(rawCode);
         if (code.Length is < 2 or > 3) throw new ValidationException("Döviz kodu 2-3 harf olmalı.", "kod");

@@ -351,7 +351,7 @@ public sealed class ListExportCatalogTests
     public void Vadeler_birlesik_plaka_resolver_ile_projeksiyon()
     {
         var vid = Guid.NewGuid();
-        var item = new VadeItem(vid, "Kasko", new DateTimeOffset(2026, 3, 1, 0, 0, 0, TimeSpan.Zero), 25, DueBucket.OtuzGun);
+        var item = new DueItem(vid, "Kasko", new DateTimeOffset(2026, 3, 1, 0, 0, 0, TimeSpan.Zero), 25, DueBucket.OtuzGun);
         var t = ListExportCatalog.Dues([item], plate: id => id == vid ? "06VD100" : null);
 
         Assert.Equal(5, t.Headers.Count);
@@ -397,7 +397,7 @@ public sealed class ListExportCatalogTests
             // Öğle UTC: yerel gün her makine saat diliminde 2026-03-01 kalır (test TZ'den bağımsız).
             Tarih = new DateTimeOffset(2026, 3, 1, 12, 0, 0, TimeSpan.Zero), Aciklama = "İcra takibi"
         };
-        var t = ListExportCatalog.LegalCases([new HukukDosyaSatirDto(h, "Ali Veli", "0555 000 11 22")], CustomerPrivacy.None);
+        var t = ListExportCatalog.LegalCases([new LegalCaseRowDto(h, "Ali Veli", "0555 000 11 22")], CustomerPrivacy.None);
 
         Assert.Equal(18, t.Headers.Count);
         Assert.Equal("Dosya No", t.Headers[0]);

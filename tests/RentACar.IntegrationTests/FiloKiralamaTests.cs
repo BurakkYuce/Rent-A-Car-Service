@@ -32,7 +32,7 @@ public sealed class FiloKiralamaTests(PostgresFixture fx)
         var (cust, veh) = await Seed(sp, "34 FK 01");
         var svc = sp.GetRequiredService<FleetRentalService>();
 
-        var id = await svc.CreateAsync(new FiloKiralamaInput
+        var id = await svc.CreateAsync(new FleetRentalInput
         { MusteriId = cust, VehicleId = veh, SureAy = 12, AylikUcret = 1000m, KdvOrani = 0.20m });
 
         var k = await svc.GetAsync(id);
@@ -56,7 +56,7 @@ public sealed class FiloKiralamaTests(PostgresFixture fx)
         var sp = scope.ServiceProvider;
         var (cust, veh) = await Seed(sp, "34 FK 02");
         await Assert.ThrowsAsync<RentACar.Application.Common.ValidationException>(() =>
-            sp.GetRequiredService<FleetRentalService>().CreateAsync(new FiloKiralamaInput
+            sp.GetRequiredService<FleetRentalService>().CreateAsync(new FleetRentalInput
             { MusteriId = cust, VehicleId = veh, SureAy = 0, AylikUcret = 1000m }));
     }
 
@@ -69,7 +69,7 @@ public sealed class FiloKiralamaTests(PostgresFixture fx)
         {
             var (cust, veh) = await Seed(a.ServiceProvider, "34 FK 03");
             await a.ServiceProvider.GetRequiredService<FleetRentalService>()
-                .CreateAsync(new FiloKiralamaInput { MusteriId = cust, VehicleId = veh, SureAy = 6, AylikUcret = 500m });
+                .CreateAsync(new FleetRentalInput { MusteriId = cust, VehicleId = veh, SureAy = 6, AylikUcret = 500m });
         }
         using var b = host.ScopeFor(Guid.NewGuid());
         var list = await b.ServiceProvider.GetRequiredService<FleetRentalService>().ListAsync();

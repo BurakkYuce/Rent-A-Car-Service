@@ -5,7 +5,7 @@ using RentACar.Application.Common;
 namespace RentACar.Infrastructure.Persistence;
 
 /// <summary>
-/// Liste sözleşmesinin (F1.3) EF Core uygulaması: filtrelenmiş sorgu + <see cref="ListeIstegi"/> +
+/// Liste sözleşmesinin (F1.3) EF Core uygulaması: filtrelenmiş sorgu + <see cref="ListRequest"/> +
 /// <see cref="SortFieldMap{T}"/> → <see cref="Sayfa{T}"/>. Infrastructure'da yaşar çünkü
 /// <c>CountAsync</c>/<c>ToListAsync</c> EF'e bağlıdır; Application EF'e bağımlı değildir (sözleşme
 /// tipleri ve beyaz liste orada, sağlayıcıdan bağımsız).
@@ -13,7 +13,7 @@ namespace RentACar.Infrastructure.Persistence;
 /// <para>Sıra: (1) filtreli sorguda <c>COUNT</c> (sıralamasız — gereksiz ORDER BY yok),
 /// (2) beyaz liste sıralaması + eşitlik bozucu, (3) <c>OFFSET/LIMIT</c>. Atlanacak kayıt toplamı
 /// aşıyorsa ikinci sorgu HİÇ atılmaz (boş sayfa) — bu aynı zamanda çok büyük sayfa numarasında
-/// <c>int</c> taşmasını da engeller (<see cref="ListeIstegi.Atla"/> <c>long</c>).</para>
+/// <c>int</c> taşmasını da engeller (<see cref="ListRequest.Atla"/> <c>long</c>).</para>
 ///
 /// <para>İki sorgu aynı anlık görüntüde değildir: arada eklenen/silinen satır <c>Toplam</c> ile
 /// <c>Kayitlar</c> arasında ±1 fark yaratabilir — liste ekranı için kabul edilebilir, para toplamı
@@ -23,7 +23,7 @@ public static class Paging
 {
     /// <summary>Entity'lerin kendisini sayfalar.</summary>
     public static Task<Sayfa<T>> PaginateAsync<T>(
-        this IQueryable<T> query, ListeIstegi request, SortFieldMap<T> map, CancellationToken ct = default)
+        this IQueryable<T> query, ListRequest request, SortFieldMap<T> map, CancellationToken ct = default)
         => query.PaginateAsync(request, map, x => x, ct);
 
     /// <summary>
@@ -32,7 +32,7 @@ public static class Paging
     /// göre de sıralanabilir.
     /// </summary>
     public static async Task<Sayfa<TSonuc>> PaginateAsync<T, TSonuc>(
-        this IQueryable<T> query, ListeIstegi request, SortFieldMap<T> map,
+        this IQueryable<T> query, ListRequest request, SortFieldMap<T> map,
         Expression<Func<T, TSonuc>> picker, CancellationToken ct = default)
     {
         ArgumentNullException.ThrowIfNull(query);

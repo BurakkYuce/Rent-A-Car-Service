@@ -161,7 +161,7 @@ internal static class F5Shared
     /// </summary>
     public static Sayfa<T> Paginate<T>(IReadOnlyList<T> rows, SortFieldMap<T> map, int? page, int? size, string? sort)
     {
-        var request = new ListeIstegi(page ?? 1, size ?? 50, sort);
+        var request = new ListRequest(page ?? 1, size ?? 50, sort);
         IEnumerable<T> sorted = request.Sirala is null ? rows : map.Apply(rows.AsQueryable(), request.Sirala);
         var records = request.Atla >= rows.Count ? [] : sorted.Skip((int)request.Atla).Take(request.Boyut).ToList();
         return new Sayfa<T>(records, rows.Count, request.Sayfa, request.Boyut);

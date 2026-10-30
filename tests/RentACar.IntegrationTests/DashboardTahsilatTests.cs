@@ -187,7 +187,7 @@ public sealed class DashboardTahsilatTests(PostgresFixture fx)
         using var scope = host.ScopeFor(Guid.NewGuid());
         var sp = scope.ServiceProvider;
         var cash = sp.GetRequiredService<CashService>();
-        await sp.GetRequiredService<FixedExchangeRateService>().UpsertAsync(new SabitKurInput { Kod = "EUR", Kur = 40m, Aktif = true });
+        await sp.GetRequiredService<FixedExchangeRateService>().UpsertAsync(new FixedExchangeRateInput { Kod = "EUR", Kur = 40m, Aktif = true });
         var account = await SeedCustomerAsync(scope, "EuroKira");
         var rentalId = await SeedRentalAsync(scope, account, grandTotal: 100m, collection: 0m, currency: "EURO");
 

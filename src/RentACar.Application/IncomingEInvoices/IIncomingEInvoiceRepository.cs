@@ -5,7 +5,7 @@ namespace RentACar.Application.IncomingEInvoices;
 public interface IIncomingEInvoiceRepository
 {
     /// <summary>Filtreli liste (FAZ-55). <paramref name="filter"/> null → tüm kayıtlar.</summary>
-    Task<IReadOnlyList<GelenEFatura>> ListAsync(GelenEFaturaFilter? filter, CancellationToken ct = default);
+    Task<IReadOnlyList<GelenEFatura>> ListAsync(IncomingEInvoiceFilter? filter, CancellationToken ct = default);
     Task<GelenEFatura?> FindAsync(Guid id, CancellationToken ct = default);
     Task<bool> EttnExistsAsync(string ettn, CancellationToken ct = default);
     Task CreateAsync(GelenEFatura row, CancellationToken ct = default);

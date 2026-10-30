@@ -10,8 +10,8 @@ public sealed class StaffShiftRepository(IDbContextFactory<AppDbContext> factory
 {
     private readonly IDbContextFactory<AppDbContext> _factory = factory;
 
-    public async Task<IReadOnlyList<VardiyaSatir>> SearchAsync(
-        DateOnly start, DateOnly bit, VardiyaFilter filter,
+    public async Task<IReadOnlyList<StaffShiftRow>> SearchAsync(
+        DateOnly start, DateOnly bit, StaffShiftFilter filter,
         BranchScope.BranchFilter scope, CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
@@ -41,7 +41,7 @@ public sealed class StaffShiftRepository(IDbContextFactory<AppDbContext> factory
             .ThenBy(x => x.V.Tarih).ThenBy(x => x.V.BaslangicSaat)
             .ToListAsync(ct);
 
-        return rows.Select(x => new VardiyaSatir(x.V, $"{x.Ad} {x.Soyad}".Trim(), x.KadroSube)).ToList();
+        return rows.Select(x => new StaffShiftRow(x.V, $"{x.Ad} {x.Soyad}".Trim(), x.KadroSube)).ToList();
     }
 
     public async Task<IReadOnlyList<PersonelVardiya>> ListForOverlapAsync(

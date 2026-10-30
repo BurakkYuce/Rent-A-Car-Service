@@ -105,11 +105,11 @@ public sealed class ServisTanimOneriTests(PostgresFixture fx)
         var svc = sp.GetRequiredService<ServiceDefinitionService>();
 
         // Kombinasyonu OLMAYAN eski tanım hiçbir öneriyi susturmamalı.
-        await svc.CreateAsync(new ServisTanimInput { Kod = "ESKI", AracTipi = "Ekonomik", BakimKm = 15000 });
+        await svc.CreateAsync(new ServiceDefinitionInput { Kod = "ESKI", AracTipi = "Ekonomik", BakimKm = 15000 });
         Assert.Equal(2, (await svc.SuggestionAsync()).Count);
 
         // Kombinasyona bağlı tanım YALNIZ o kombinasyonu düşürür.
-        await svc.CreateAsync(new ServisTanimInput
+        await svc.CreateAsync(new ServiceDefinitionInput
         {
             Kod = "RENCLIO", AracTipi = "Ekonomik", BakimKm = 15000,
             Marka = "renault", Tip = "CLIO", Yakit = "benzin", Vites = "manuel"   // harf duyarsız eşleşme
@@ -138,7 +138,7 @@ public sealed class ServisTanimOneriTests(PostgresFixture fx)
 
         // Önerilen kodlar gerçekten kabul edilebilir olmalı (unique index'e takılmamalı).
         foreach (var o in suggestion)
-            await svc.CreateAsync(new ServisTanimInput
+            await svc.CreateAsync(new ServiceDefinitionInput
             {
                 Kod = o.OnerilenKod, AracTipi = o.Kombinasyon.Etiket, BakimKm = 15000,
                 Marka = o.Kombinasyon.Marka, Tip = o.Kombinasyon.Tip,
@@ -155,7 +155,7 @@ public sealed class ServisTanimOneriTests(PostgresFixture fx)
         using var s = host.ScopeFor(Guid.NewGuid());
         var svc = s.ServiceProvider.GetRequiredService<ServiceDefinitionService>();
 
-        var id = await svc.CreateAsync(new ServisTanimInput
+        var id = await svc.CreateAsync(new ServiceDefinitionInput
         {
             Kod = "k1", AracTipi = " Ekonomik ", BakimKm = 15000,
             Marka = " BMW ", Tip = " 320i ", Yakit = " Benzin ", Vites = " Otomatik "
@@ -168,7 +168,7 @@ public sealed class ServisTanimOneriTests(PostgresFixture fx)
         Assert.Equal("Otomatik", t.Vites);
 
         // KM güncellemesi kombinasyonu SIFIRLAMAMALI (form hepsini geri gönderiyor).
-        await svc.UpdateAsync(id, new ServisTanimInput
+        await svc.UpdateAsync(id, new ServiceDefinitionInput
         {
             Kod = "K1", AracTipi = "Ekonomik", BakimKm = 20000, Aktif = true,
             Marka = "BMW", Tip = "320i", Yakit = "Benzin", Vites = "Otomatik"

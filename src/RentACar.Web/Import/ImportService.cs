@@ -471,7 +471,7 @@ public sealed class ImportService(VehicleService vehicles, CustomerService custo
                 }, ct);
                 added++;
             }
-            catch (DuplicatePlakaException) { skipped++; }
+            catch (DuplicatePlateException) { skipped++; }
             catch (ValidationException ex) { errors.Add(new ImportError(plate, ex.Message)); }
         }
         return Result(added, skipped, errors);
@@ -529,7 +529,7 @@ public sealed class ImportService(VehicleService vehicles, CustomerService custo
                 }, ct);
                 added++;
             }
-            catch (DuplicateCariException) { skipped++; }
+            catch (DuplicateCustomerException) { skipped++; }
             catch (ValidationException ex) { errors.Add(new ImportError(label, ex.Message)); }
         }
         return Result(added, skipped, errors);

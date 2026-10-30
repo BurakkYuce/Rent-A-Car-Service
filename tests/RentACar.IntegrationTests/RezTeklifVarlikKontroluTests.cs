@@ -168,7 +168,7 @@ public sealed class RezTeklifVarlikKontroluTests(PostgresFixture fx)
         var svc = scope.ServiceProvider.GetRequiredService<FleetRentalService>();
         var (mm, vv, alan, message) = Select(status, m, v, ym, yv);
 
-        var ex = await Assert.ThrowsAsync<ValidationException>(() => svc.CreateAsync(new FiloKiralamaInput
+        var ex = await Assert.ThrowsAsync<ValidationException>(() => svc.CreateAsync(new FleetRentalInput
         {
             MusteriId = mm, VehicleId = vv, BasTar = Start, SureAy = 12, AylikUcret = 1000m
         }));

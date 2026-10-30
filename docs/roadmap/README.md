@@ -126,7 +126,7 @@ Rent-A-Car-Service/
     Spa/Cutover.cs                    eski Blazor adresleri → /app (301), giriş/hata hedefleri (F13; Components/ silindi)
   src/RentACar.Frontend/              Angular çalışma alanı (package.json, AGENTS.md, e2e/)
   src/RentACar.Application/Common/
-    ValidationException.cs (+Alan), YetkiYokException.cs, MukerrerIslemException.cs, ListeIstegi.cs, Sayfa.cs
+    ValidationException.cs (+Alan), YetkiYokException.cs, MukerrerIslemException.cs, ListRequest.cs, Sayfa.cs
   docs/KARARLAR.md · docs/roadmap/ (README + F0..F13.md + DEGISIKLIKLER.md) · docs/api/ui-v1.json
 ```
 

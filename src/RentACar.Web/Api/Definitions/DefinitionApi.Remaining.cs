@@ -128,6 +128,6 @@ public static partial class DefinitionApi
         Gizle = b.Gizle, SadeceMusteriOdeme = b.SadeceMusteriOdeme,
     };
 
-    private static HesapKoduInput AccountCodeInputOf(AccountCodeRequest b)
+    private static AccountCodeInput AccountCodeInputOf(AccountCodeRequest b)
         => new() { Kod = b.Kod ?? "", Ad = b.Ad ?? "", Aciklama = F(b.Aciklama), Aktif = b.Aktif };
 }

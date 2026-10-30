@@ -257,7 +257,7 @@ public sealed class Faz30AdversarialKilitTests(PostgresFixture fx)
         using var scope = host.ScopeFor(Guid.NewGuid());
         var sp = scope.ServiceProvider;
         await sp.GetRequiredService<FixedExchangeRateService>()
-            .UpsertAsync(new SabitKurInput { Kod = "EUR", Kur = 40m, Aktif = true });
+            .UpsertAsync(new FixedExchangeRateInput { Kod = "EUR", Kur = 40m, Aktif = true });
 
         await RentalAsync(sp, "34 PB 08");                    // TRY 9000
         await RentalAsync(sp, "34 PB 09", currency: "EUR");      // EUR 9000

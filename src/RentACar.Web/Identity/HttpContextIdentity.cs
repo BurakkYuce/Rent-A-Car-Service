@@ -55,9 +55,9 @@ public sealed class HttpContextIdentity(IHttpContextAccessor accessor) : ITenant
         => Guid.TryParse(User.FindFirst(IdentityClaims.AssignedBranchId)?.Value, out var g) ? g
          : accessor.HttpContext?.Items.TryGetValue(AssignedBranchResolutionMiddleware.ItemKey, out var v) == true ? v as Guid? : null;
 
-    public IReadOnlyCollection<string> EkIzinler
+    public IReadOnlyCollection<string> ExtraPermissions
         => User.FindAll(IdentityClaims.PermissionExtra).Select(c => c.Value).ToArray();
 
-    public IReadOnlyCollection<string> YasakIzinler
+    public IReadOnlyCollection<string> DeniedPermissions
         => User.FindAll(IdentityClaims.PermissionDenied).Select(c => c.Value).ToArray();
 }

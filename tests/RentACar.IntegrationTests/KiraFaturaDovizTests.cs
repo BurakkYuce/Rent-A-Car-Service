@@ -38,7 +38,7 @@ public sealed class KiraFaturaDovizTests(PostgresFixture fx)
         var fixedValue = scope.ServiceProvider.GetRequiredService<FixedExchangeRateService>();
 
         // Firma EUR'yu 40 TL sabitler (deterministik — TCMB'ye bağımlı olma; override çözümlenir).
-        await fixedValue.UpsertAsync(new SabitKurInput { Kod = "EUR", Kur = 40m, Aktif = true });
+        await fixedValue.UpsertAsync(new FixedExchangeRateInput { Kod = "EUR", Kur = 40m, Aktif = true });
 
         var account = await TestCustomer.NewAsync(scope.ServiceProvider);
         var rentalId = await rentals.CreateDirectAsync(Rental(account, await TestVehicle.NewAsync(scope.ServiceProvider), "EURO")); // form değeri "EURO"

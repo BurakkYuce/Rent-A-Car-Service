@@ -81,7 +81,7 @@ internal static partial class CatalogApi
 
     // ------------------------------------------------------------------ tarife grupları
 
-    private static TarifeGrubuInput RateGroupInput(RateGroupRequest r) => new()
+    private static TariffGroupInput RateGroupInput(RateGroupRequest r) => new()
     { Kod = r.Kod ?? "", Ad = r.Ad ?? "", Oran = r.Oran ?? 0m, KullaniciAdi = r.KullaniciAdi, Sifre = r.Sifre, Aktif = r.Aktif };
 
     private static readonly CatalogSpec<TariffGroupService, TarifeGrubu, RateGroupRequest, RateGroupDto> RateGroups = new()
@@ -147,7 +147,7 @@ internal static partial class CatalogApi
 
     // ------------------------------------------------------------------ ek hizmetler
 
-    private static EkHizmetTanimInput ExtraInput(ExtraServiceRequest r) => new()
+    private static AddOnDefinitionInput ExtraInput(ExtraServiceRequest r) => new()
     {
         Kod = r.Kod ?? "", Ad = r.Ad ?? "", BirimUcret = r.BirimUcret ?? 0m, KdvOrani = r.KdvOrani ?? 0.20m,
         Aciklama = r.Aciklama, MaxGun = r.MaxGun, Aktif = r.Aktif,

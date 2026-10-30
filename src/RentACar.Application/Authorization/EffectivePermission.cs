@@ -17,7 +17,7 @@ namespace RentACar.Application.Authorization;
 public static class EffectivePermission
 {
     public static bool Has(ICurrentUser user, Permission permission)
-        => Has(user.Role, permission, user.EkIzinler, user.YasakIzinler);
+        => Has(user.Role, permission, user.ExtraPermissions, user.DeniedPermissions);
 
     /// <summary>Claim-düzeyi karar (web policy'leri ham claim listeleriyle çağırır).</summary>
     public static bool Has(

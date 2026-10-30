@@ -118,7 +118,7 @@ public sealed class PublicBookingRequestService(
         {
             try
             {
-                await notification.GonderAsync(new Notifications.MesajIstegi(
+                await notification.GonderAsync(new Notifications.MessageRequest(
                     Tur: MessageType.TalepAlindi,
                     Kanal: MessageChannel.Eposta,
                     Alici: request.Email!,

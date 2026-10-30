@@ -33,9 +33,9 @@ public sealed class CustomerNotificationService(
 
     /// <summary>
     /// F11.1b — şablonu sürüm karşılaştırmasıyla kaydeder (tam değiştirme PUT'u). Doğrulama
-    /// <see cref="SaveTemplateAsync(MesajSablonInput, CancellationToken)"/> ile AYNI.
+    /// <see cref="SaveTemplateAsync(MessageTemplateInput, CancellationToken)"/> ile AYNI.
     /// </summary>
-    public async Task SaveTemplateAsync(MesajSablonInput input, string? expectedVersion, CancellationToken ct = default)
+    public async Task SaveTemplateAsync(MessageTemplateInput input, string? expectedVersion, CancellationToken ct = default)
     {
         PermissionGuard.Require(currentUser, Permission.ManageUsers);
         ValidateTemplate(input);
@@ -45,7 +45,7 @@ public sealed class CustomerNotificationService(
     private IMessageTemplateVersionStore Versions => versionStore
         ?? throw new InvalidOperationException("IMessageTemplateVersionStore kayıtlı değil.");
 
-    private static void ValidateTemplate(MesajSablonInput input)
+    private static void ValidateTemplate(MessageTemplateInput input)
     {
         if (string.IsNullOrWhiteSpace(input.Govde))
             throw new ValidationException("Mesaj gövdesi boş olamaz.");
@@ -60,21 +60,21 @@ public sealed class CustomerNotificationService(
 
     // ---- Şablon yönetimi (ayarlar sınıfı → ManageUsers) ----
 
-    public async Task<IReadOnlyList<MesajSablonRow>> ListTemplatesAsync(CancellationToken ct = default)
+    public async Task<IReadOnlyList<MessageTemplateRow>> ListTemplatesAsync(CancellationToken ct = default)
     {
         PermissionGuard.Require(currentUser, Permission.ManageUsers);
         return await repository.ListTemplatesAsync(ct);
     }
 
-    public async Task SaveTemplateAsync(MesajSablonInput input, CancellationToken ct = default)
+    public async Task SaveTemplateAsync(MessageTemplateInput input, CancellationToken ct = default)
     {
         PermissionGuard.Require(currentUser, Permission.ManageUsers);
         ValidateTemplate(input);
         await repository.UpsertTemplateAsync(input, ct);
     }
 
-    public async Task<IReadOnlyList<GidenMesajRow>> OutgoingListAsync(
-        GidenMesajFilter? filter = null, CancellationToken ct = default)
+    public async Task<IReadOnlyList<OutgoingMessageRow>> OutgoingListAsync(
+        OutgoingMessageFilter? filter = null, CancellationToken ct = default)
     {
         PermissionGuard.Require(currentUser, Permission.ViewReports);
         return await repository.ListMessagesAsync(filter, ct);
@@ -87,10 +87,10 @@ public sealed class CustomerNotificationService(
     /// izni — KVKK/İYS gereği ÇAĞIRAN tarafından çözülür (müşteri kaydından okunur) ve izin yoksa
     /// mesaj hiç oluşturulmaz.
     /// </summary>
-    public async Task<MesajSonuc> GonderAsync(MesajIstegi request, bool hasPermission, CancellationToken ct = default)
+    public async Task<MessageResult> GonderAsync(MessageRequest request, bool hasPermission, CancellationToken ct = default)
     {
         if (string.IsNullOrWhiteSpace(request.Alici))
-            return new MesajSonuc(OutgoingMessageStatus.Basarisiz, "Alıcı adresi/numarası boş.");
+            return new MessageResult(OutgoingMessageStatus.Basarisiz, "Alıcı adresi/numarası boş.");
         if (string.IsNullOrWhiteSpace(request.Anahtar))
             throw new ValidationException("Bildirim idempotency anahtarı boş olamaz.");
 
@@ -100,7 +100,7 @@ public sealed class CustomerNotificationService(
         {
             if (existing.Durum is OutgoingMessageStatus.Gonderildi or OutgoingMessageStatus.IzinYok
                 || existing.DenemeSayisi >= MaxAttempts)
-                return new MesajSonuc(existing.Durum, existing.Hata);
+                return new MessageResult(existing.Durum, existing.Hata);
             return await TryAsync(existing, ct);
         }
 
@@ -112,7 +112,7 @@ public sealed class CustomerNotificationService(
             withoutConsent.Durum = OutgoingMessageStatus.IzinYok;
             withoutConsent.Hata = "Müşteri bu kanaldan iletişim izni vermemiş (KVKK/İYS).";
             await repository.AddMessageAsync(withoutConsent, ct);
-            return new MesajSonuc(OutgoingMessageStatus.IzinYok, withoutConsent.Hata);
+            return new MessageResult(OutgoingMessageStatus.IzinYok, withoutConsent.Hata);
         }
 
         var template = await repository.FindTemplateAsync(request.Tur, request.Kanal, ct);
@@ -132,14 +132,14 @@ public sealed class CustomerNotificationService(
             // Gövde boş kalır — şablon yazıldığında yeniden deneme onu DegerlerJson'dan üretir.
             newItem.Govde = newItem.Hata;
             await repository.AddMessageAsync(newItem, ct);
-            return new MesajSonuc(OutgoingMessageStatus.Kuyrukta, newItem.Hata);
+            return new MessageResult(OutgoingMessageStatus.Kuyrukta, newItem.Hata);
         }
 
         if (!await repository.AddMessageAsync(newItem, ct))
         {
             // Yarış: başka bir çağrı aynı anahtarı yazdı → onun sonucunu döndür, ikinci mesaj GÖNDERME.
             var racing = await repository.FindMessageAsync(request.Anahtar, ct);
-            return new MesajSonuc(racing?.Durum ?? OutgoingMessageStatus.Kuyrukta, racing?.Hata);
+            return new MessageResult(racing?.Durum ?? OutgoingMessageStatus.Kuyrukta, racing?.Hata);
         }
 
         return await TryAsync(newItem, ct);
@@ -149,7 +149,7 @@ public sealed class CustomerNotificationService(
     /// Kuyruktaki bir kaydı (yeniden) göndermeyi dener ve sonucu kalıcılaştırır.
     /// Şablon eksikse gövde de eksiktir → önce şablon çözülür.
     /// </summary>
-    public async Task<MesajSonuc> TryAsync(GidenMesaj message, CancellationToken ct = default)
+    public async Task<MessageResult> TryAsync(GidenMesaj message, CancellationToken ct = default)
     {
         var type = Enum.TryParse<MessageType>(message.Tur, out var t) ? t : (MessageType?)null;
         if (type is null)
@@ -159,7 +159,7 @@ public sealed class CustomerNotificationService(
                 m.Durum = OutgoingMessageStatus.Basarisiz;
                 m.Hata = $"Bilinmeyen mesaj türü: {message.Tur}";
             }, ct);
-            return new MesajSonuc(OutgoingMessageStatus.Basarisiz, $"Bilinmeyen mesaj türü: {message.Tur}");
+            return new MessageResult(OutgoingMessageStatus.Basarisiz, $"Bilinmeyen mesaj türü: {message.Tur}");
         }
 
         var template = await repository.FindTemplateAsync(type.Value, message.Kanal, ct);
@@ -167,7 +167,7 @@ public sealed class CustomerNotificationService(
         {
             var error = $"'{message.Tur}' türü için {message.Kanal} şablonu " + (template is null ? "tanımlı değil." : "kapalı.");
             await repository.UpdateMessageAsync(message.Id, m => m.Hata = error, ct);
-            return new MesajSonuc(OutgoingMessageStatus.Kuyrukta, error);
+            return new MessageResult(OutgoingMessageStatus.Kuyrukta, error);
         }
 
         // Gövde ve konu HER denemede şablondan yeniden üretilir. Şablon olay anında yoktu ve
@@ -186,7 +186,7 @@ public sealed class CustomerNotificationService(
                 m.Durum = OutgoingMessageStatus.Basarisiz;
                 m.Hata = info;
             }, ct);
-            return new MesajSonuc(OutgoingMessageStatus.Basarisiz, info);
+            return new MessageResult(OutgoingMessageStatus.Basarisiz, info);
         }
         message.Konu = subject;
         message.Govde = body;
@@ -212,7 +212,7 @@ public sealed class CustomerNotificationService(
             if (ok) m.GonderimUtc = DateTimeOffset.UtcNow;
         }, ct);
 
-        return new MesajSonuc(status, ok ? null : errorText);
+        return new MessageResult(status, ok ? null : errorText);
     }
 
     private static IReadOnlyDictionary<string, string?> ResolveValues(string? json)
@@ -238,7 +238,7 @@ public sealed class CustomerNotificationService(
         return (result.Ok, result.Hata);
     }
 
-    private static GidenMesaj Record(MesajIstegi request, string? subject, string body) => new()
+    private static GidenMesaj Record(MessageRequest request, string? subject, string body) => new()
     {
         DegerlerJson = System.Text.Json.JsonSerializer.Serialize(request.Degerler),
         Anahtar = request.Anahtar,

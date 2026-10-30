@@ -168,7 +168,7 @@ public sealed class BlazorTimeShiftTests(PostgresFixture fx)
         var sp = scope.ServiceProvider;
 
         var zaman = TestZaman.DaysLater(-1, 10);
-        var assist = await sp.GetRequiredService<AssistanceRequestService>().CreateAsync(new AssistansInput { Mesaj = "Lastik", Zaman = zaman });
+        var assist = await sp.GetRequiredService<AssistanceRequestService>().CreateAsync(new AssistanceRequestInput { Mesaj = "Lastik", Zaman = zaman });
         var invoiceDate = TestZaman.DaysLater(-2, 10);
         var invoice = await sp.GetRequiredService<InvoiceService>().CreateManualAsync(new ManualInvoiceInput
         { CariId = await TestCustomer.NewAsync(sp, "Fatura"), NetTutar = 100m, KdvOrani = 0.20m, Tarih = invoiceDate });
