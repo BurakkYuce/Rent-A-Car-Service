@@ -194,19 +194,41 @@ public sealed class FeeLineService(
             => t.Aktif && t.Ucret is > 0m ? t.Ucret : null;
     }
 
-    /// <summary>Kayıt yolu: sözleşmeye sistem ücret satırlarını ekler (kira create + rez→kira dönüşümü
-    /// SONRASI çağrılır). İDEMPOTENT — mevcut sistem-tanımlı satır tekrar eklenmez.</summary>
+    /// <summary>Sözleşmenin (kayıtlı ya da HENÜZ kaydedilmemiş) beklenen sistem ücret satırları — kayıt yollarının tek hesabı.</summary>
+    private async Task<IReadOnlyList<SistemUcretSatiri>> ContractRowsAsync(RentalContract c, CancellationToken ct)
+    {
+        var group = await ResolveGroupAsync(c.VehicleId, ct);
+        var birth = group is null ? null : (await customers.FindAsync(c.MusteriId, ct))?.DogumTarihi;
+        var drop = await ResolveDropFeeAsync(c.CikisOfisi, c.DonusOfisi, c.DropUcreti, c.Gun, ct);
+        // kayıt yolunda notlar sessiz (önizleme aynı notları gösterir)
+        return CalculatePure(group, c.Gun, c.BasTar, birth, c.IkinciSurucuId is not null, c.Doviz, [], drop);
+    }
+
+    /// <summary>
+    /// Kira OLUŞTURMA yolu (doğrudan kira + rez→kira): yeni sözleşmenin sistem ücret satırlarını YAZMADAN üretir;
+    /// kira deposu bunları kira satırıyla AYNI transaction'da ekler (yarım kira — ücretsiz kira — kalmaz). Kalem
+    /// matematiği <see cref="RentalAddOnService.Line"/> (elle eklenen kalemle aynı); KDV oranı sistem tanımından.
+    /// Sistem tanımı (SYS-*) yoksa kendi işleminde yaratılır — ana veri, kira geri alınsa da zararsız kalır.
+    /// </summary>
+    public async Task<IReadOnlyList<RentalAddOn>> BuildContractFeesAsync(RentalContract c, CancellationToken ct = default)
+    {
+        var lines = new List<RentalAddOn>();
+        foreach (var s in await ContractRowsAsync(c, ct))
+        {
+            var definition = await GetOrCreateDefinitionAsync(s.TanimKod, s.Ad, ct);
+            lines.Add(RentalAddOnService.Line(c.Id, definition, s.Gun, s.BirimNet, definition.KdvOrani));
+        }
+        return lines;
+    }
+
+    /// <summary>Senkron yolu: AÇIK kiraya eksik sistem ücret satırlarını ekler (kira deposunun kilit + toplam
+    /// yeniden-hesap yolundan). İDEMPOTENT — mevcut sistem-tanımlı satır tekrar eklenmez.</summary>
     public async Task ApplyContractFeesAsync(Guid rentalId, CancellationToken ct = default)
     {
         var c = await bookings.FindRentalAsync(rentalId, ct);
         if (c is null) return;
 
-        var group = await ResolveGroupAsync(c.VehicleId, ct);
-        var birth = group is null ? null : (await customers.FindAsync(c.MusteriId, ct))?.DogumTarihi;
-        var drop = await ResolveDropFeeAsync(c.CikisOfisi, c.DonusOfisi, c.DropUcreti, c.Gun, ct);
-
-        var notes = new List<string>(); // kayıt yolunda notlar sessiz (önizleme aynı notları gösterir)
-        var rows = CalculatePure(group, c.Gun, c.BasTar, birth, c.IkinciSurucuId is not null, c.Doviz, notes, drop);
+        var rows = await ContractRowsAsync(c, ct);
         if (rows.Count == 0) return;
 
         var existing = await addOns.ListAsync(rentalId, ct);
@@ -230,11 +252,7 @@ public sealed class FeeLineService(
         if (c is null || c.Durum != Domain.Enums.RentalStatus.Kirada) return;
         if (await addOnRepo.IsRentalInvoicedAsync(rentalId, ct)) return;
 
-        var group = await ResolveGroupAsync(c.VehicleId, ct);
-        var birth = group is null ? null : (await customers.FindAsync(c.MusteriId, ct))?.DogumTarihi;
-        var drop = await ResolveDropFeeAsync(c.CikisOfisi, c.DonusOfisi, c.DropUcreti, c.Gun, ct);
-        var notes = new List<string>();
-        var expected = CalculatePure(group, c.Gun, c.BasTar, birth, c.IkinciSurucuId is not null, c.Doviz, notes, drop);
+        var expected = await ContractRowsAsync(c, ct);
 
         var sysDefinitions = (await definitions.ListAsync(ct))
             .Where(t => t.Kod.StartsWith("SYS-", StringComparison.OrdinalIgnoreCase))

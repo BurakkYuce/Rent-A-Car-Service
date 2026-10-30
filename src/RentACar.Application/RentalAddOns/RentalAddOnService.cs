@@ -59,22 +59,34 @@ public sealed class RentalAddOnService(
         if (!system && definition.Kod.StartsWith("SYS-", StringComparison.OrdinalIgnoreCase))
             throw new ValidationException("Sistem ücret kalemi manuel eklenemez (otomatik hesaplanır).");
 
-        var unitNet = unitNetOverride ?? definition.BirimUcret;
-        var rate = vatRateOverride ?? definition.KdvOrani;
-        if (unitNet < 0) throw new ValidationException("Birim ücret negatif olamaz.");
-        if (rate is < 0m or > 1m) throw new ValidationException("KDV oranı 0 ile 1 arasında olmalıdır.");
+        // FAZ-78: satan personel. Sistem kalemlerinde (SYS-*) daima boş — onları kimse satmaz.
+        var addOn = Line(rentalId, definition, quantity, unitNetOverride ?? definition.BirimUcret,
+            vatRateOverride ?? definition.KdvOrani, system ? null : staffId, system ? null : operationKey);
 
         if (await _repository.IsRentalInvoicedAsync(rentalId, ct))
             throw new ValidationException("Faturalanmış kiraya ek hizmet eklenemez.");
 
-        // NET → KDV/brüt (kuruş tutarlı). Net = round(birim × miktar, 2).
+        await _repository.AddAsync(addOn, ct);
+        return addOn.Id;
+    }
+
+    /// <summary>
+    /// Kalem matematiği TEK yerde: tanım snapshot + NET = round(birim × miktar, 2) → KDV/brüt (kuruş tutarlı).
+    /// Kira oluşturma (FeeLineService.BuildContractFeesAsync — kira ile AYNI transaction) de bunu kullanır.
+    /// </summary>
+    public static RentalAddOn Line(
+        Guid rentalId, EkHizmetTanim definition, decimal quantity, decimal unitNet, decimal rate,
+        Guid? staffId = null, Guid? operationKey = null)
+    {
+        if (unitNet < 0) throw new ValidationException("Birim ücret negatif olamaz.");
+        if (rate is < 0m or > 1m) throw new ValidationException("KDV oranı 0 ile 1 arasında olmalıdır.");
+
         var net = Math.Round(unitNet * quantity, 2, MidpointRounding.AwayFromZero);
         var (vat, gross) = VatMath.FromNet(net, rate);
-
-        var addOn = new RentalAddOn
+        return new RentalAddOn
         {
             RentalId = rentalId,
-            EkHizmetTanimId = addOnDefinitionId,
+            EkHizmetTanimId = definition.Id,
             Ad = definition.Ad,
             Miktar = quantity,
             BirimNetFiyat = unitNet,
@@ -82,12 +94,9 @@ public sealed class RentalAddOnService(
             NetTutar = net,
             KdvTutar = vat,
             Toplam = gross,
-            // FAZ-78: satan personel. Sistem kalemlerinde (SYS-*) daima boş — onları kimse satmaz.
-            PersonelId = system ? null : staffId,
-            IslemAnahtari = system ? null : operationKey
+            PersonelId = staffId,
+            IslemAnahtari = operationKey
         };
-        await _repository.AddAsync(addOn, ct);
-        return addOn.Id;
     }
 
     /// <summary>

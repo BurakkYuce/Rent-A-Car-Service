@@ -195,7 +195,17 @@ public sealed class InvoicePeriodPlanService(
         return result;
     }
 
-    /// <summary>Planı kurar/yeniler (create + uzatma sonrası çağrılır). Uygun değilse mevcut Planlandi
+    /// <summary>Sözleşmenin TAM dönem planı (saf; uygun değilse ya da iptalse boş). Kira oluşturma yolu bunu kira
+    /// satırıyla AYNI transaction'da yazar (plansız uzun kira kalmaz); <see cref="EnsurePlanAsync"/> de aynı listeden.</summary>
+    public static IReadOnlyList<FaturaDonemi> BuildPlan(RentalContract c)
+    {
+        if (!IsEligible(c) || c.Durum == RentalStatus.Iptal) return [];
+        return PeriodRanges(c.BasTar, c.BitTar)
+            .Select((r, i) => new FaturaDonemi { RentalId = c.Id, DonemSira = i + 1, DonemBas = r.Bas, DonemBit = r.Bit })
+            .ToList();
+    }
+
+    /// <summary>Planı yeniler (uzatma sonrası çağrılır). Uygun değilse mevcut Planlandi
     /// satırlarını temizler (Kesildi/Atlandi kalır). İDEMPOTENT.</summary>
     public async Task EnsurePlanAsync(Guid rentalId, CancellationToken ct = default)
     {
@@ -207,21 +217,7 @@ public sealed class InvoicePeriodPlanService(
             .Where(d => d.Durum != InvoicePeriodStatus.Planlandi)
             .Select(d => d.DonemSira).ToHashSet();
 
-        var newPlans = new List<FaturaDonemi>();
-        if (IsEligible(c) && c.Durum != RentalStatus.Iptal)
-        {
-            var ranges = PeriodRanges(c.BasTar, c.BitTar);
-            for (var i = 0; i < ranges.Count; i++)
-            {
-                var order = i + 1;
-                if (preservedSequences.Contains(order)) continue; // Kesildi/Atlandi — dokunma
-                newPlans.Add(new FaturaDonemi
-                {
-                    RentalId = rentalId, DonemSira = order,
-                    DonemBas = ranges[i].Bas, DonemBit = ranges[i].Bit
-                });
-            }
-        }
+        var newPlans = BuildPlan(c).Where(d => !preservedSequences.Contains(d.DonemSira)).ToList(); // Kesildi/Atlandi — dokunma
         await repository.ReplacePlannedAsync(rentalId, newPlans, ct);
     }
 

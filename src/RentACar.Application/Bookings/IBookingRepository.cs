@@ -33,8 +33,10 @@ public interface IBookingRepository
     /// <summary>Kira listesi: filtre + müşteri/araç/fatura-durumu birleşimi (salt-okunur projeksiyon).</summary>
     Task<IReadOnlyList<RentalRow>> SearchRentalRowsAsync(RentalFilter filter, CancellationToken ct = default);
     Task<RentalContract?> FindRentalAsync(Guid id, CancellationToken ct = default);
-    /// <summary>SozlesmeNo'yu boşluksuz tahsis edip ekler; çakışmada AvailabilityConflictException.</summary>
-    Task CreateRentalAsync(RentalContract contract, CancellationToken ct = default);
+    /// <summary>SozlesmeNo'yu boşluksuz tahsis edip kirayı + <paramref name="lines"/> (sistem ücret satırları, dönem
+    /// planı) TEK transaction'da ekler; GenelToplam/Bakiye kalemlerle birlikte yazılır. Herhangi bir parça
+    /// patlarsa hiçbiri kalmaz. Çakışmada AvailabilityConflictException.</summary>
+    Task CreateRentalAsync(RentalContract contract, NewRentalLines lines, CancellationToken ct = default);
     /// <summary>F4.1 adversarial M2: satır <c>FOR UPDATE</c> ile kilitlenip kilit ALTINDA okunur (aynı TX).</summary>
     Task<bool> UpdateRentalAsync(Guid id, Action<RentalContract> apply, CancellationToken ct = default);
     /// <summary>
@@ -75,11 +77,16 @@ public interface IBookingRepository
 
     /// <summary>
     /// Tasfiye: rezervasyondan kira sözleşmesi üretir (TEK transaction): rental ekle
-    /// (no tahsis + exclusion), rezervasyonu KirayaCevrildi + link. Yeni kira Id döner.
+    /// (no tahsis + exclusion) + <paramref name="buildLines"/> (kilit ALTINDA kurulan kiradan; ücret satırları + dönem
+    /// planı), rezervasyonu KirayaCevrildi + link. Yeni kira Id döner.
     /// </summary>
     Task<Guid> ConvertToRentalAsync(
-        Guid reservationId, Func<Reservation, RentalContract> buildRental, CancellationToken ct = default);
+        Guid reservationId, Func<Reservation, RentalContract> buildRental,
+        Func<RentalContract, CancellationToken, Task<NewRentalLines>> buildLines, CancellationToken ct = default);
 }
+
+/// <summary>Yeni kirayla AYNI transaction'da yazılan alt satırlar (DEVIR §6: kira oluşturma atomik).</summary>
+public sealed record NewRentalLines(IReadOnlyList<RentalAddOn> AddOns, IReadOnlyList<FaturaDonemi> Periods);
 
 /// <summary>Kira satır + fatura kilidi ALTINDA okunmuş bağlam (F4.1 adversarial M2/M3).</summary>
 /// <param name="EkHizmetToplam">Kiranın ek hizmet kalemlerinin brüt toplamı (commit edilmiş son hâl).</param>
