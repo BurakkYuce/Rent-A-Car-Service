@@ -35,6 +35,12 @@ public sealed class EDocumentRepository(IDbContextFactory<AppDbContext> factory)
         return await used.AnyAsync(ct);
     }
 
+    public async Task<bool> SeriesUsedByInvoicesAsync(string series, CancellationToken ct = default)
+    {
+        await using var db = await factory.CreateDbContextAsync(ct);
+        return await db.Invoices.AsNoTracking().AnyAsync(i => i.No.StartsWith(series), ct);
+    }
+
     public Task<EDocumentStatus> QueueAsync(Guid invoiceId, DateTimeOffset now, CancellationToken ct = default)
         => PgRetry.RunAsync(async () =>
         {

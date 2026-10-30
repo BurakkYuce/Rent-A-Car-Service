@@ -227,4 +227,7 @@ public interface IEDocumentRepository
     /// <summary>Bu seriyle <paramref name="kind"/> DIŞINDA bir türde GİB belge numarası verilmiş mi (seri takası koruması).
     /// <paramref name="kind"/> null → herhangi bir türde (iç fatura serisi için).</summary>
     Task<bool> SeriesUsedByOtherKindAsync(string series, EDocumentKind? kind, CancellationToken ct = default);
+
+    /// <summary>Bu seriyle daha önce İÇ fatura numarası (<c>Invoices.No</c> öneki) verilmiş mi (#410 L8).</summary>
+    Task<bool> SeriesUsedByInvoicesAsync(string series, CancellationToken ct = default);
 }

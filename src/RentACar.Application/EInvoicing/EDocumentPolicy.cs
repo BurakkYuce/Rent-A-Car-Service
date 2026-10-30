@@ -145,10 +145,18 @@ public static class EDocumentPolicy
     /// <item><b>İki nokta:</b> saat ("15.10.2026 08:30:15") tarihle birleşip 11 hane sayılırdı.</item>
     /// <item><b>4+ karakterlik ayraç</b> (" -- "): üst sınır 3; genişletmek tarih/tutar dizilerini birleştirirdi.</item>
     /// </list>
-    /// Bilinen sır (çözülmüş TCKN) verilirse aynı ayraç kuralıyla ayrıca maskelenir; asıl savunma entegratör mesajına
+    /// Bilinen sır (çözülmüş TCKN) verilirse geniş ayraç sınıfıyla (<see cref="KnownSecretSeparator"/>; virgül ve iki
+    /// nokta dahil) ayrıca maskelenir; asıl savunma entegratör mesajına
     /// kişisel veri koymamaktır (port sözleşmesi).
     /// </summary>
     private const string DigitSeparator = @"[\s./_\-–—]{0,3}";
+
+    /// <summary>
+    /// Bilinen sırrın (çözülmüş TCKN) haneleri arasında harf/rakam OLMAYAN her karakter — virgül, iki nokta, parantez,
+    /// artı dahil — en çok 3 tane (#410 L9). Yalnız o sırrın tam rakam dizisi eşlendiği için tutar/tarih/saat metninde
+    /// yanlış pozitif üretmez; genel 11 hane kuralının dar sınıfı (<see cref="DigitSeparator"/>) bu yüzden değişmez.
+    /// </summary>
+    private const string KnownSecretSeparator = @"[^\p{L}\p{N}]{0,3}";
 
     private static readonly Regex FormatChars = new(@"\p{Cf}", RegexOptions.CultureInvariant);
 
@@ -171,7 +179,7 @@ public static class EDocumentPolicy
             if (string.IsNullOrWhiteSpace(secret) || secret.Length < 4) continue;
             s = s.Replace(secret, new string('*', secret.Length), StringComparison.Ordinal);
             if (secret.All(char.IsAsciiDigit))
-                s = Regex.Replace(s, string.Join(DigitSeparator, secret.Select(c => c.ToString())),
+                s = Regex.Replace(s, string.Join(KnownSecretSeparator, secret.Select(c => c.ToString())),
                     new string('*', secret.Length), RegexOptions.CultureInvariant);
         }
         s = ElevenDigits.Replace(s, "***********");
