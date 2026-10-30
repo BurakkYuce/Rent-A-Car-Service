@@ -279,7 +279,7 @@ export class PanelCollectionForm implements OnInit {
     if (!this.submission.gonderiliyor()) this.extraErrors.set([]);
     this.submission.gonder(
       this.form,
-      () => {
+      (key) => {
         // M-C / 5. tur: belirsiz denemeler gönderimden ÖNCE, ANAHTAR üzerinden (kira listesiyle ortak kayıt).
         this.lastSubmission = this.attempt.start(info.anahtar, {
           tutar: amount,
@@ -293,8 +293,9 @@ export class PanelCollectionForm implements OnInit {
             { tutar: amount ?? '', hesap: value.hesap ?? 'Kasa', hesapId: value.hesapId },
             this.t('panel.tahsilat.aciklama', { plaka: this.plaka() }),
           ),
-          // Sessiz: genel "Mükerrer işlem" toast'u yerine sunucunun detail'ı (bkz. `hataIsle`).
-          { context: requestContext({ sessiz: true }) },
+          // Sessiz: genel "Mükerrer işlem" toast'u yerine sunucunun detail'ı (bkz. `hataIsle`). Başlıktaki anahtar
+          // gövdedekinin aynısı (kira listesi gibi); interceptor onu denemenin kimliğine bağlar (#417 L2).
+          { islemAnahtari: key, context: requestContext({ sessiz: true }) },
         );
       },
       {

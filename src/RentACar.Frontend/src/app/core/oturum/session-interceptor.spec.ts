@@ -428,6 +428,105 @@ describe('oturumInterceptor (kod bazlı)', () => {
     expect(toast.toasts()).toEqual([]);
     expect(banner.bant()).toBeNull();
   });
+
+  describe('#417 X-Beklenen-Oturum (anahtarın bağlı olduğu kimlik)', () => {
+    // Kimlikler elle yazılır (kiracı|kullanıcı) — biçim üretim kodundan TÜRETİLMEZ.
+    const IDENTITY_A = 't-1|u-1';
+    const IDENTITY_B = 't-1|u-2';
+    const BEN_B: Ben = {
+      ...BEN,
+      kullanici: { id: 'u-2', kullaniciAdi: 'mehmet', adSoyad: 'Mehmet Kaya' },
+    };
+    const KEY = 'anahtar-0123456789abcdef';
+    const header = (r: { request: { headers: { get(n: string): string | null } } }) =>
+      r.request.headers.get('X-Beklenen-Oturum');
+
+    async function switchTo(ben: Ben): Promise<void> {
+      const loading = TestBed.inject(SessionService).yukle();
+      const request = http.expectOne('/api/ui/v1/oturum/ben');
+      expect(header(request)).toBeNull();
+      request.flush(ben);
+      await loading;
+    }
+
+    it('L1: anahtarlı yazma ilk kimliği taşır; başka sekmede kullanıcı değişse de AYNI anahtarın tekrarı ilk kimlikle gider (409, bant/toast yok); yeni anahtar yeni kimlikle', async () => {
+      await logIn();
+      const first = firstValueFrom(api.post(RECORD, { tutar: '500.00' }, { islemAnahtari: KEY }));
+      const sent = http.expectOne(RECORD);
+      expect(header(sent)).toBe(IDENTITY_A);
+      sent.error(new ProgressEvent('error')); // sonucu bilinmiyor
+      await expect(first).rejects.toMatchObject({ kod: 'ag' });
+      toast.clear();
+
+      await switchTo(BEN_B); // öteki sekmede B girdi; bu sekme ben'i tazeledi
+
+      const retry = firstValueFrom(api.post(RECORD, { tutar: '500.00' }, { islemAnahtari: KEY }));
+      const repeated = http.expectOne(RECORD);
+      expect(header(repeated)).toBe(IDENTITY_A);
+      const { govde, secenek } = problem('oturum_degisti', 409);
+      repeated.flush(govde, secenek);
+      await expect(retry).rejects.toMatchObject({ kod: 'oturum_degisti', status: 409 });
+      expect(toast.toasts()).toEqual([]);
+      expect(banner.bant()).toBeNull();
+
+      // Aynı anahtar bağını korur (yeni kimliğe kaymaz); YENİ anahtar güncel kimliğe bağlanır.
+      void firstValueFrom(api.put(RECORD, {}, { islemAnahtari: KEY }));
+      expect(header(http.expectOne(RECORD))).toBe(IDENTITY_A);
+      void firstValueFrom(api.post(RECORD, {}, { islemAnahtari: 'anahtar-yeni-0123456789' }));
+      expect(header(http.expectOne(RECORD))).toBe(IDENTITY_B);
+    });
+
+    it('çağıranın verdiği beklenenOturum (para çekirdeği) ezilmez; oturum yokken başlık eklenmez ve anahtar bağlanmaz', async () => {
+      void firstValueFrom(api.post(RECORD, {}, { islemAnahtari: KEY }));
+      expect(header(http.expectOne(RECORD))).toBeNull();
+
+      await logIn();
+      void firstValueFrom(
+        api.post(RECORD, {}, { islemAnahtari: 'para-anahtari-0123456789', beklenenOturum: 'x|y' }),
+      );
+      expect(header(http.expectOne(RECORD))).toBe('x|y');
+      // Oturumsuz gönderilen anahtar bağlanmamıştı: şimdi güncel kimliğe bağlanır.
+      void firstValueFrom(api.post(RECORD, {}, { islemAnahtari: KEY }));
+      expect(header(http.expectOne(RECORD))).toBe(IDENTITY_A);
+    });
+
+    it('I3: GET, oturum uçları (xsrf/giris/cikis/ben), platform ve anahtarsız yazmalar başlığı ASLA almaz', async () => {
+      const session = TestBed.inject(SessionService);
+      const login = session.login({ firma: 'pilot', kullanici: 'ayse', sifre: 'x' });
+      const xsrf = http.expectOne('/api/ui/v1/oturum/xsrf');
+      expect(header(xsrf)).toBeNull();
+      xsrf.flush({});
+      const giris = await wait('/api/ui/v1/oturum/giris');
+      expect(header(giris)).toBeNull();
+      giris.flush(BEN);
+      await login;
+      expect(session.loggedIn()).toBe(true);
+
+      void firstValueFrom(api.get('/api/ui/v1/menu', { islemAnahtari: KEY }));
+      expect(header(http.expectOne((r) => r.url === '/api/ui/v1/menu'))).toBeNull();
+      for (const path of [
+        '/api/ui/v1/oturum/giris',
+        '/api/ui/v1/oturum/cikis',
+        '/api/ui/v1/platform/kiracilar',
+      ] as const) {
+        void firstValueFrom(api.post(path, {}, { islemAnahtari: KEY }));
+        expect(header(http.expectOne(path))).toBeNull();
+      }
+      void firstValueFrom(api.post(RECORD, {}));
+      expect(header(http.expectOne(RECORD))).toBeNull();
+      await switchTo(BEN); // ben GET'i de başlıksız (switchTo denetler)
+    });
+
+    it('çıkışta (clear) bağlar silinir: aynı sekmede sonra giren kullanıcının anahtarı kendi kimliğine bağlanır', async () => {
+      await logIn();
+      void firstValueFrom(api.post(RECORD, {}, { islemAnahtari: KEY }));
+      expect(header(http.expectOne(RECORD))).toBe(IDENTITY_A);
+      TestBed.inject(SessionService).clear();
+      await switchTo(BEN_B);
+      void firstValueFrom(api.post(RECORD, {}, { islemAnahtari: KEY }));
+      expect(header(http.expectOne(RECORD))).toBe(IDENTITY_B);
+    });
+  });
 });
 
 describe('genelGosterilir (form üstünde ikinci kez gösterilmeyecek kodlar)', () => {

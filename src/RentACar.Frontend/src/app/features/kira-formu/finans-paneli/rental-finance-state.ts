@@ -368,7 +368,8 @@ export class RentalFinanceState {
   // ─── işlemler ──────────────────────────────────────────────────────────────────────────────
 
   /**
-   * Kira tahsilatı (E01). Anahtar = detaydaki deterministik `tahsilatAnahtar` (satır kopyası); başlık YOK.
+   * Kira tahsilatı (E01). Anahtar = detaydaki deterministik `tahsilatAnahtar` (satır kopyası); `Idempotency-Key` başlığı
+   * aynı değeri taşır (sunucuda gövdedeki önceliklidir) — #417 L2: `X-Beklenen-Oturum` denemenin kimliğiyle gider.
    * 409 `mukerrer`: otomatik yeniden gönderim YOK; kayıt yeniden yüklenir (yeni anahtar tazelenen detaydan), ön-doldurma
    * kapanır. Toast'u interceptor değil `tahsilatMukerrerBildir` gösterir (sınıf, isteğin TEKRAR olup olmadığına bağlı):
    * - `zatenKaydedildi` (HIGH-1, kaybolan yanıttan sonraki birebir tekrar): form temizlenir.
@@ -401,6 +402,8 @@ export class RentalFinanceState {
           `${FINANCE}/tahsilat`,
           collectionBody(copy, tf.hesap, value),
           {
+            // Gövdedeki anahtarın aynısı (kira listesi gibi); interceptor onu denemenin kimliğine bağlar (#417 L2).
+            islemAnahtari: copy.anahtar,
             context: requestContext({
               mukerrerdeYenile: () => this.yenile(),
               mukerrerCagiranGosterir: true,

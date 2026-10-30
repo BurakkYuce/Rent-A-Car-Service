@@ -251,12 +251,13 @@ test('Tahsil Et: sunucu anahtarı aynen gider, gönderim kilitli, 2xx sonrası p
   await logIn(page);
   const panel = await fakePanel(page, () => ozet(true));
   const bodies: unknown[] = [];
-  const headers: (string | undefined)[] = [];
+  const headers: (string | undefined)[][] = [];
   let release: () => void = () => undefined;
   const wait = new Promise<void>((r) => (release = r));
   await page.route('**/api/ui/v1/finans/tahsilat', async (route) => {
     bodies.push(route.request().postDataJSON());
-    headers.push(route.request().headers()['idempotency-key']);
+    const h = route.request().headers();
+    headers.push([h['idempotency-key'], h['x-beklenen-oturum']]);
     await wait;
     return route.fulfill({ json: { id: 'islem-1' } });
   });
@@ -292,7 +293,8 @@ test('Tahsil Et: sunucu anahtarı aynen gider, gönderim kilitli, 2xx sonrası p
       tahsilatAnahtar: KEY,
     },
   ]);
-  expect(headers).toEqual([undefined]);
+  // #417 L2: başlık sunucunun anahtarı (istemci üretmez) + denemenin kimliği (oturumdaki kiracı|kullanıcı).
+  expect(headers).toEqual([[KEY, `${BEN.kiraci.id}|${BEN.kullanici.id}`]]);
   expect(errors).toEqual([]);
 });
 

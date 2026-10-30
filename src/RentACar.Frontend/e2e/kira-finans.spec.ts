@@ -344,7 +344,7 @@ async function sekme(page: Page, name: string): Promise<void> {
 
 const collections = (k: readonly Kayit[]) => k.filter((x) => x.yol.endsWith('/finans/tahsilat'));
 
-test('tahsilat: "1.500,50" → 1500.50, anahtar detaydan ve başlıksız; ikinci meşru tahsilat YENİ anahtarla', async ({
+test('tahsilat: "1.500,50" → 1500.50, anahtar detaydan (gövde = başlık); ikinci meşru tahsilat YENİ anahtarla', async ({
   page,
 }) => {
   const errors = collectErrors(page);
@@ -385,7 +385,9 @@ test('tahsilat: "1.500,50" → 1500.50, anahtar detaydan ve başlıksız; ikinci
   });
   expect(Number(a?.govde['tutar'])).toBe(1500.5);
   expect('kur' in (a?.govde ?? {})).toBe(false); // TRY'de kur gönderilmez
-  expect(a?.anahtar).toBeUndefined(); // deterministik anahtar varken başlık yok
+  // #417 L2: başlık gövdedeki deterministik anahtarın AYNISI (istemci anahtarı üretilmez).
+  expect(a?.anahtar).toBe(K1);
+  expect(b?.anahtar).toBe(K2);
   expect(b?.govde).toMatchObject({ tahsilatAnahtar: K2, tutar: '1099.50' });
   expect(errors).toEqual([]);
 });

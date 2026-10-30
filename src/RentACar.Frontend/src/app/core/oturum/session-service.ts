@@ -11,7 +11,7 @@ import { translationFunction } from '@core/i18n/ceviri';
 import { THEME_KEY, TemaServisi } from '@core/tema/tema-servisi';
 
 import { requestContext } from './request-context';
-import { contextOfSession, type OturumBaglami } from './oturum-baglami';
+import { contextOfSession, identityOfContext, type OturumBaglami } from './oturum-baglami';
 import type { Ben, LoginCredentials, Permission } from './oturum-tipleri';
 
 /** Oturum uçları kendi hatalarını çağırana verir: diyalog ya da genel toast/bant yok. Her istekte taze bağlam. */
@@ -48,6 +48,8 @@ export class SessionService {
   private readonly deger = signal<Ben | null>(null);
   private readonly cleaners = new Set<() => void>();
   private initialLoadPromise: Promise<Ben | null> | null = null;
+  /** `Idempotency-Key` → anahtarın İLK gönderildiği andaki kimlik ({@link expectedIdentityFor}). */
+  private readonly keyIdentities = new Map<string, string>();
 
   /** Oturumdaki kullanıcı; oturum yoksa `null`. */
   readonly ben = this.deger.asReadonly();
@@ -72,6 +74,24 @@ export class SessionService {
   hasPermissions(permissions: readonly Permission[]): boolean {
     const set = this.permissionSet();
     return permissions.every((permission) => set.has(permission));
+  }
+
+  /**
+   * #417 L1/L2: bir işlem anahtarının (`Idempotency-Key`) bağlı olduğu kimlik (`kiraciId|kullaniciId`, biçim tek
+   * kaynaktan: `identityOfContext`). Anahtar ilk kez sorulduğunda o anki kimliğe BAĞLANIR; aynı anahtarın sonraki her
+   * gönderimi (tekrar, yeniden girişten sonraki tekrar) bu kimliği taşır. Sunucu anahtarı kiracı|kullanıcı|anahtar'dan
+   * türettiği için, başka sekmede başka kullanıcıyla girildikten sonra başlıksız tekrar YENİ işlem sayılır ve ikinci kez
+   * yazılırdı; başlıkla 409 `oturum_degisti` döner. Bağ kimlik değişince SİLİNMEZ (silinseydi tekrar yeni kimliğe
+   * bağlanıp yazılırdı); yalnız çıkışta (`clear`) temizlenir. Oturum yoksa `null` (başlık gönderilmez, bağlanmaz).
+   */
+  expectedIdentityFor(key: string): string | null {
+    const bound = this.keyIdentities.get(key);
+    if (bound !== undefined) return bound;
+    const current = this.context()?.anahtar;
+    if (current === undefined) return null;
+    const identity = identityOfContext(current);
+    this.keyIdentities.set(key, identity);
+    return identity;
   }
 
   /**
@@ -163,6 +183,7 @@ export class SessionService {
       }
     }
     this.deger.set(null);
+    this.keyIdentities.clear();
     this.initialLoadPromise = Promise.resolve(null);
     this.tema.applyTenantColors(null);
     this.toast.clear();

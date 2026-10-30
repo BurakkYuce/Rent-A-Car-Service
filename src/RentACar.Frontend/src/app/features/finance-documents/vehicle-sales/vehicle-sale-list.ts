@@ -11,7 +11,7 @@ import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angula
 import { TranslocoPipe } from '@jsverse/transloco';
 
 import { type UnsavedChangesOwner, pageLeaveGuard } from '@core/form/kaydedilmemis-degisiklik';
-import { PendingMoneyAttempts } from '@core/form/money-attempts';
+import { PAGE_MONEY_ATTEMPTS, PendingMoneyAttempts } from '@core/form/money-attempts';
 import { translationFunction } from '@core/i18n/ceviri';
 import { SessionService } from '@core/oturum/session-service';
 import { FetchPolicy } from '@core/veri/fetch-policy';
@@ -66,7 +66,7 @@ type SaleStatus = (typeof SALE_STATUSES)[number];
     TableCell,
     DatePicker,
   ],
-  providers: [FetchPolicy, SaleStore, BranchNames, CustomerLabels, PendingMoneyAttempts],
+  providers: [FetchPolicy, SaleStore, BranchNames, CustomerLabels, PAGE_MONEY_ATTEMPTS],
   templateUrl: './vehicle-sale-list.html',
   styleUrl: '../finance-documents.scss',
 })

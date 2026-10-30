@@ -1,10 +1,11 @@
-import { DestroyRef, Signal, inject, signal } from '@angular/core';
+import { DestroyRef, Injector, Signal, inject, runInInjectionContext, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import type { AbstractControl } from '@angular/forms';
 import type { Observable } from 'rxjs';
 import { toApiError, type ApiHatasi } from '@core/api/api-hatasi';
 import { SubmitLock } from '@core/form/submit-lock';
 import { clearServerErrors, applyServerErrors } from '@core/form/sunucu-hatalari';
+import { translationFunction } from '@core/i18n/ceviri';
 import { genelGosterilir } from '@core/oturum/session-interceptor';
 
 export interface GonderimSecenekleri<T> {
@@ -59,6 +60,8 @@ export interface FormSubmission {
  */
 export function formSubmission(lockEntry: SubmitLock = new SubmitLock()): FormSubmission {
   const destroyRef = inject(DestroyRef);
+  // Çeviri yalnız gerektiğinde (çeviri sağlayıcısı olmayan testlerde form kurulumu bozulmasın).
+  const injector = inject(Injector);
   const generalErrors = signal<readonly string[]>([]);
   let confirming = false;
   let destroyed = false;
@@ -114,8 +117,13 @@ export function formSubmission(lockEntry: SubmitLock = new SubmitLock()): FormSu
         error: (raw: unknown) => {
           const error = toApiError(raw);
           const unmatched = applyServerErrors(form, error.alanlar, option.esleme);
+          // #417 L1: anahtar başka kimliğe bağlı (başka sekmede başka kullanıcı) → yazılmadı; değerler ve anahtar korunur.
+          if (error.kod === 'oturum_degisti')
+            generalErrors.set([
+              runInInjectionContext(injector, translationFunction)('form.oturumUyusmadi'),
+            ]);
           // Bant/toast'ta gösterilen (yetki_yok, alansız cakisma, 5xx…) forma ikinci kez yazılmaz (F3.3).
-          if (error.alanlar === undefined && !genelGosterilir(error))
+          else if (error.alanlar === undefined && !genelGosterilir(error))
             generalErrors.set([error.detay]);
           else if (unmatched.length > 0) generalErrors.set(unmatched);
           if (error.alanlar !== undefined) option.gecersiz?.();

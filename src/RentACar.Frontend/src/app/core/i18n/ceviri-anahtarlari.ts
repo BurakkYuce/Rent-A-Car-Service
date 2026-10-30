@@ -2527,6 +2527,7 @@ export type CeviriAnahtari =
   | 'form.hata.tarihSirasi'
   | 'form.hata.zorunlu'
   | 'form.kaydedilmemis.onay'
+  | 'form.oturumUyusmadi'
   | 'form.secim.ara'
   | 'form.secim.enAzHarf'
   | 'form.secim.hata'

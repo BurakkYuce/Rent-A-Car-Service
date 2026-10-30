@@ -308,7 +308,8 @@ describe('PanelSayfasi', () => {
         aciklama: 'Hızlı tahsilat (pano) — 34 ABC 123',
         tahsilatAnahtar: KEY,
       });
-      expect(request.request.headers.has('Idempotency-Key')).toBe(false);
+      // Başlık sunucunun anahtarının AYNISI (istemci üretmez); #417 L2: interceptor onu denemenin kimliğine bağlar.
+      expect(request.request.headers.get('Idempotency-Key')).toBe(KEY);
       expect(
         s.kok.querySelector<HTMLButtonElement>('rc-panel-tahsilat-formu button[type=submit]')
           ?.disabled,
