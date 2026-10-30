@@ -27,6 +27,17 @@ import { CollectPanel } from './collect-panel';
 const COLLECT_ENDPOINT = '/api/ui/v1/finans/tahsilat';
 const ACCOUNTS_ENDPOINT = '/api/ui/v1/finans/hesaplar';
 const KEY = '3f8d2c1a-9b7e-5d4c-8a21-0f6e5d4c3b2a';
+/** Kabukta olduğu gibi oturum yüklü: anahtarlı yazma kimliksiz gönderilmez (adv-422 L1). */
+const SESSION_USER: Ben = {
+  kullanici: { id: 'kullanici-a', kullaniciAdi: 'kullanici-a', adSoyad: 'kullanici-a' },
+  kiraci: { id: 'kiraci-1', kod: 'pilot', ad: 'Pilot' },
+  rol: 'Muhasebe',
+  izinler: ['FinanceWrite'],
+  subeKapsami: { tumSubeler: true, subeId: null, subeAd: null },
+  moduller: { webSitesi: false },
+  renkler: {},
+  pilot: true,
+};
 
 const ROW: RentalListRow = {
   id: '11111111-1111-4111-8111-111111111111',
@@ -123,6 +134,9 @@ describe('TahsilPaneli (PARA)', () => {
     await firstValueFrom(TestBed.inject(TranslocoService).load('tr'));
     http = TestBed.inject(HttpTestingController);
     toast = TestBed.inject(ToastService);
+    const loading = TestBed.inject(SessionService).yukle();
+    http.expectOne('/api/ui/v1/oturum/ben').flush(SESSION_USER);
+    await loading;
   });
 
   afterEach(() => {
