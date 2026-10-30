@@ -45,8 +45,12 @@ var appConn = builder.Configuration.GetConnectionString("Default")
     ?? throw new InvalidOperationException("ConnectionStrings:Default eksik.");
 
 // JSON: enum'lar string olarak (durum/yakıt vb.).
+// Gelen tarihler UTC'ye (Npgsql timestamptz ofsetli değeri reddeder; sorgu tarafı ReportsApi'de UtcDates.Filter).
 builder.Services.ConfigureHttpJsonOptions(o =>
-    o.SerializerOptions.Converters.Add(new JsonStringEnumConverter()));
+{
+    o.SerializerOptions.Converters.Add(new JsonStringEnumConverter());
+    o.SerializerOptions.Converters.Add(new UtcDates.JsonConverter());
+});
 
 // Uygulama + altyapı (LoginService + IPasswordHasher<User> AddInfrastructure'da kayıtlı).
 // PII blind-index anahtarı (KVKK/F2): Development DIŞINDA her ortamda ZORUNLU (Staging dahil —
