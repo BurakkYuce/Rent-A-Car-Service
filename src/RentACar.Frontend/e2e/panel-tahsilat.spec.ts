@@ -186,7 +186,7 @@ test('F3: fazla ondalık YUVARLANMAZ — "1,555" alan hatası, istek gitmez', as
   expect(liste).toHaveLength(0);
 });
 
-test('Enter + tık + çift tık: TEK istek; Idempotency-Key başlığı yok, gövde anahtarı sunucununki', async ({
+test('Enter + tık + çift tık: TEK istek; gövde ve Idempotency-Key anahtarı sunucununki', async ({
   page,
 }) => {
   await fake(page, [A]);
@@ -204,7 +204,7 @@ test('Enter + tık + çift tık: TEK istek; Idempotency-Key başlığı yok, gö
   birak();
   await expect(page.getByRole('status').filter({ hasText: 'Tahsilat kaydedildi' })).toBeVisible();
   expect(liste).toHaveLength(1);
-  expect(liste[0]?.anahtar).toBeUndefined();
+  expect(liste[0]?.anahtar).toBe(KEY_A); // #417 L2: istemci anahtarı üretilmez, başlık sunucununki
   expect(liste[0]?.govde['tahsilatAnahtar']).toBe(KEY_A);
   expect(liste[0]?.govde['tutar']).toBe('100.00');
 });
