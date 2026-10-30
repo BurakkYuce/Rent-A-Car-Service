@@ -11,8 +11,22 @@ import { ToastService } from '@core/geri-bildirim/toast-service';
 import { provideTranslation } from '@core/i18n/ceviri';
 import { sessionInterceptor } from '@core/oturum/session-interceptor';
 import { ReloginService } from '@core/oturum/relogin-service';
+import { SessionService } from '@core/oturum/session-service';
+import type { Ben } from '@core/oturum/oturum-tipleri';
 
 import { PanelPage } from './panel-page';
+
+/** Kabukta olduğu gibi oturum yüklü: anahtarlı yazma kimliksiz gönderilmez (adv-422 L1). */
+const SESSION_USER: Ben = {
+  kullanici: { id: 'kullanici-a', kullaniciAdi: 'kullanici-a', adSoyad: 'kullanici-a' },
+  kiraci: { id: 'kiraci-1', kod: 'pilot', ad: 'Pilot' },
+  rol: 'Operator',
+  izinler: [], // hızlı işlem bağlantıları izne bağlı; bu dosyanın testleri onları izinsiz kurgular
+  subeKapsami: { tumSubeler: true, subeId: null, subeAd: null },
+  moduller: { webSitesi: false },
+  renkler: {},
+  pilot: true,
+};
 
 const SUMMARY = '/api/ui/v1/panel/ozet';
 const COLLECTION = '/api/ui/v1/finans/tahsilat';
@@ -101,6 +115,9 @@ describe('PanelSayfasi', () => {
     });
     await firstValueFrom(TestBed.inject(TranslocoService).load('tr'));
     http = TestBed.inject(HttpTestingController);
+    const loading = TestBed.inject(SessionService).yukle();
+    http.expectOne('/api/ui/v1/oturum/ben').flush(SESSION_USER);
+    await loading;
   });
 
   afterEach(() => http.verify());

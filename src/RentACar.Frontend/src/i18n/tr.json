@@ -56,7 +56,8 @@
     },
     "cikis": "Çıkış yap",
     "pilotDegil": "Yeni arayüz bu firmada henüz açık değil. Mevcut ekranları kullanmaya devam edebilirsiniz.",
-    "yetkisizSayfa": "Bu sayfayı görüntüleme yetkiniz yok."
+    "yetkisizSayfa": "Bu sayfayı görüntüleme yetkiniz yok.",
+    "kimlikYok": "Oturum doğrulanamadı; işlem gönderilmedi. Formdaki bilgiler korunuyor. Sayfayı yenileyip giriş yaptıktan sonra yeniden deneyin."
   },
   "geriBildirim": {
     "bildirimler": "Bildirimler",

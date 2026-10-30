@@ -3379,6 +3379,7 @@ export type CeviriAnahtari =
   | 'oturum.giris.sifre'
   | 'oturum.giris.tanitim'
   | 'oturum.giris.zorunlu'
+  | 'oturum.kimlikYok'
   | 'oturum.pilotDegil'
   | 'oturum.yenidenGiris.aciklama'
   | 'oturum.yenidenGiris.baslik'

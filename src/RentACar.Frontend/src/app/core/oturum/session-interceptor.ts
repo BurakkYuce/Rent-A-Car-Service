@@ -48,11 +48,26 @@ function isExemptPath(url: string): boolean {
   return NO_EXPECTED_SESSION_SEGMENTS.has(url.slice(API_ROOT.length + 1).split(/[/?#]/)[0] ?? '');
 }
 
+/** Başlığı interceptor mı koyar: yazma, çağıran kendisi vermemiş, oturum/platform ucu değil. */
+function needsExpectedSession(request: HttpRequest<unknown>): boolean {
+  return (
+    !SAFE_METHODS.has(request.method) &&
+    !request.headers.has(EXPECTED_SESSION_HEADER) &&
+    !isExemptPath(request.url)
+  );
+}
+
+/** Anahtarlı yazma: başlık anahtarın BAĞLI olduğu kimlikten gelir — kimlik bilinmeden gönderilemez. */
+function needsKeyIdentity(request: HttpRequest<unknown>): boolean {
+  return needsExpectedSession(request) && request.headers.has(IDEMPOTENCY_HEADER);
+}
+
 /**
  * `X-Beklenen-Oturum`: yazma isteğinin hangi kimlik adına yazılması beklendiği. Çağıran başlığı kendisi verdiyse (para
  * çekirdeği `beklenenOturum`) dokunulmaz; GET ve oturum/platform uçlarına ASLA eklenmez.
  * - `Idempotency-Key` taşıyan yazma (#417 L1/L2): anahtarın BAĞLI olduğu kimlik (`expectedIdentityFor`) — tekrar,
- *   anahtarın ilk gönderildiği kullanıcı adına gider. Dönen `key`, sonucun bağa bildirilmesi içindir.
+ *   anahtarın ilk gönderildiği kullanıcı adına gider. Dönen `key`, sonucun bağa bildirilmesi içindir. Kimlik
+ *   bilinmeden (`ben` yok) anahtarlı yazma hiç gönderilmez (interceptor gövdesindeki adv-422 L1 kapısı).
  * - Anahtarsız yazma (adv-419 L3: iade, ters kayıt, kiraya çevirme, teslim/dönüş, dönem kapat…): sekmenin O AN bildiği
  *   kimlik (`ben`). Başka sekmede başka kullanıcıyla girildiyse bayat sekmenin tıkı yeni kullanıcı adına yazılmaz,
  *   409 `oturum_degisti` döner. `ben` yoksa başlık yok (oturumu sunucu denetler).
@@ -61,12 +76,7 @@ function withExpectedSession(
   request: HttpRequest<unknown>,
   session: SessionService,
 ): { request: HttpRequest<unknown>; key: string | null } {
-  if (
-    SAFE_METHODS.has(request.method) ||
-    request.headers.has(EXPECTED_SESSION_HEADER) ||
-    isExemptPath(request.url)
-  )
-    return { request, key: null };
+  if (!needsExpectedSession(request)) return { request, key: null };
   const key = request.headers.get(IDEMPOTENCY_HEADER);
   const ben = session.ben();
   const identity =
@@ -234,18 +244,41 @@ export const sessionInterceptor: HttpInterceptorFn = (request, next) => {
     return throwError(() => error);
   };
 
-  const prepared = withExpectedSession(request, session);
-  const key = prepared.key;
-  const result = gonder(prepared.request);
-  return key === null
-    ? result
-    : result.pipe(
-        tap({
-          error: (error: unknown) => {
-            if (isDefinitiveRejection(error)) session.keyAttemptRejected(key);
-          },
-        }),
-      );
+  const send = (): Observable<HttpEvent<unknown>> => {
+    const prepared = withExpectedSession(request, session);
+    const key = prepared.key;
+    const result = gonder(prepared.request);
+    return key === null
+      ? result
+      : result.pipe(
+          tap({
+            error: (error: unknown) => {
+              if (isDefinitiveRejection(error)) session.keyAttemptRejected(key);
+            },
+          }),
+        );
+  };
+
+  // adv-422 L1 (adv-419 L2): anahtarlı yazma kimliksiz GİTMEZ. Bağsız giden deneme sayaca giremez; yazılıp yanıtı
+  // kaybolursa sonraki kesin red bağı düşürüp anahtarı başka kullanıcı adına yazdırabilirdi. Önce oturumun ilk yüklemesi
+  // beklenir; oturum yine yoksa istek sunucuya hiç gitmeden `oturum_yok` ile reddedilir (form verisi çağıranda kalır).
+  if (needsKeyIdentity(request) && session.ben() === null)
+    return from(session.initialLoad()).pipe(
+      switchMap(() =>
+        session.ben() === null
+          ? throwError(
+              () =>
+                new HttpErrorResponse({
+                  status: 401,
+                  statusText: 'Unauthorized',
+                  url: request.url,
+                  error: { status: 401, kod: 'oturum_yok', detail: t('oturum.kimlikYok') },
+                }),
+            )
+          : send(),
+      ),
+    );
+  return send();
 };
 
 /**

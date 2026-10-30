@@ -210,6 +210,7 @@ describe('oturumInterceptor (kod bazlı)', () => {
   });
 
   it('mukerrer → yeni anahtarla TEKRAR GÖNDERİLMEZ; kayıt yenileme çağrılır + bilgi toast’u', async () => {
+    await logIn(); // anahtarlı yazma oturum kimliği olmadan gönderilmez (adv-422 L1)
     const refresh = vi.fn();
     const result = firstValueFrom(
       api.post(
@@ -241,6 +242,7 @@ describe('oturumInterceptor (kod bazlı)', () => {
   });
 
   it('mukerrer + mukerrerBasligi → sunucu detayı UYARI toast’u o başlıkla (“mükerrer kaydedildi” izlenimi yok); tekrar yok', async () => {
+    await logIn();
     const refresh = vi.fn();
     const result = firstValueFrom(
       api.post(
@@ -476,18 +478,63 @@ describe('oturumInterceptor (kod bazlı)', () => {
       expect(header(http.expectOne(RECORD))).toBe(IDENTITY_B);
     });
 
-    it('çağıranın verdiği beklenenOturum (para çekirdeği) ezilmez; oturum yokken başlık eklenmez ve anahtar bağlanmaz', async () => {
-      void firstValueFrom(api.post(RECORD, {}, { islemAnahtari: KEY }));
-      expect(header(http.expectOne(RECORD))).toBeNull();
+    it('çağıranın verdiği beklenenOturum (para çekirdeği) ezilmez ve oturum beklemeden aynen gider', async () => {
+      void firstValueFrom(
+        api.post(RECORD, {}, { islemAnahtari: 'para-anahtari-0123456789', beklenenOturum: 'x|y' }),
+      );
+      expect(header(http.expectOne(RECORD))).toBe('x|y'); // ben GET'i tetiklenmedi (verify yakalar)
 
       await logIn();
       void firstValueFrom(
         api.post(RECORD, {}, { islemAnahtari: 'para-anahtari-0123456789', beklenenOturum: 'x|y' }),
       );
       expect(header(http.expectOne(RECORD))).toBe('x|y');
-      // Oturumsuz gönderilen anahtar bağlanmamıştı: şimdi güncel kimliğe bağlanır.
-      void firstValueFrom(api.post(RECORD, {}, { islemAnahtari: KEY }));
-      expect(header(http.expectOne(RECORD))).toBe(IDENTITY_A);
+    });
+
+    it('adv-422 L1: oturum yokken anahtarlı yazma GÖNDERİLMEZ — oturum_yok (istemcide, diyalog yok); anahtar bağlanmaz', async () => {
+      const attempt = firstValueFrom(api.post(RECORD, { tutar: '500.00' }, { islemAnahtari: KEY }));
+      // Önce oturumun ilk yüklemesi beklenir; sunucu oturum yok der.
+      const { govde, secenek } = problem('oturum_yok', 401);
+      (await wait('/api/ui/v1/oturum/ben')).flush(govde, secenek);
+      await expect(attempt).rejects.toMatchObject({
+        kod: 'oturum_yok',
+        status: 401,
+        detay: TestBed.inject(TranslocoService).translate('oturum.kimlikYok'),
+      });
+      http.expectNone(RECORD);
+      expect(relogin.request).not.toHaveBeenCalled();
+
+      // Çıkış yapılmış sekmede de (ilk yükleme bitmiş, ben yok) istek gitmez, ben yeniden sorulmaz.
+      TestBed.inject(SessionService).clear();
+      await expect(
+        firstValueFrom(api.post(RECORD, {}, { islemAnahtari: KEY })),
+      ).rejects.toMatchObject({ kod: 'oturum_yok' });
+      http.expectNone(RECORD);
+      http.expectNone('/api/ui/v1/oturum/ben');
+
+      // Probe sırası (adv-422): bağsız deneme hiç gitmediği için sonradan A'ya bağlanan ilk deneme gerçekten İLK; onun
+      // kesin reddi bağı düşürebilir ve B adına yazım ikinci yazım olamaz.
+      await switchTo(BEN);
+      const first = firstValueFrom(api.post(RECORD, { tutar: '500.00' }, { islemAnahtari: KEY }));
+      const sent = http.expectOne(RECORD);
+      expect(header(sent)).toBe(IDENTITY_A);
+      sent.flush(problem('dogrulama', 400).govde, problem('dogrulama', 400).secenek);
+      await expect(first).rejects.toMatchObject({ kod: 'dogrulama' });
+    });
+
+    it('adv-422 L1: ilk yükleme sürerken anahtarlı yazma bekler, ben gelince o kimliğe bağlanıp gider; anahtarsız yazma beklemez', async () => {
+      const attempt = firstValueFrom(api.post(RECORD, {}, { islemAnahtari: KEY }));
+      const benRequest = await wait('/api/ui/v1/oturum/ben');
+      http.expectNone(RECORD); // ben gelmeden gitmez
+
+      void firstValueFrom(api.post('/api/ui/v1/vitrin/anahtarsiz', {}));
+      expect(header(http.expectOne('/api/ui/v1/vitrin/anahtarsiz'))).toBeNull();
+
+      benRequest.flush(BEN);
+      const sent = await wait(RECORD);
+      expect(header(sent)).toBe(IDENTITY_A);
+      sent.flush({ id: 'x' });
+      await expect(attempt).resolves.toEqual({ id: 'x' });
     });
 
     it('I3: GET, oturum uçları (xsrf/giris/cikis/ben) ve platform — anahtarlı da anahtarsız da — başlığı ASLA almaz', async () => {
