@@ -1,7 +1,7 @@
 using Microsoft.Extensions.DependencyInjection;
 using RentACar.Application.Bookings;
 using RentACar.Application.Common;
-using RentACar.Application.FiloKiralamalar;
+using RentACar.Application.FleetRentals;
 using RentACar.IntegrationTests.Infrastructure;
 
 namespace RentACar.IntegrationTests;

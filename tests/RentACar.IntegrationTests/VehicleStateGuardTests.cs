@@ -1,6 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
-using RentACar.Application.Baflar;
+using RentACar.Application.Bafs;
 using RentACar.Application.Bookings;
 using RentACar.Application.Common;
 using RentACar.Application.Customers;

@@ -9,7 +9,7 @@ using RentACar.Domain.Enums;
 using RentACar.Infrastructure.Persistence;
 using RentACar.IntegrationTests.Infrastructure;
 using RentACar.Web.Api;
-using RentACar.Web.Api.Kira;
+using RentACar.Web.Api.Rentals;
 
 namespace RentACar.IntegrationTests;
 

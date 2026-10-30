@@ -1,4 +1,4 @@
-using RentACar.Application.SiteIcerik;
+using RentACar.Application.SiteContent;
 using Microsoft.Extensions.DependencyInjection;
 using RentACar.IntegrationTests.Infrastructure;
 

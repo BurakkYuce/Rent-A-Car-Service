@@ -1,6 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Npgsql;
-using RentACar.Application.AracSiparisleri;
+using RentACar.Application.VehicleOrders;
 using RentACar.Application.Common;
 using RentACar.Domain.Entities;
 using RentACar.Domain.Enums;

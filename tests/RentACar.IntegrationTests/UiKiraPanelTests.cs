@@ -17,7 +17,7 @@ using RentACar.Domain.Enums;
 using RentACar.Infrastructure.Persistence;
 using RentACar.IntegrationTests.Infrastructure;
 using RentACar.Web.Api;
-using RentACar.Web.Api.Kira;
+using RentACar.Web.Api.Rentals;
 using RentACar.Web.Identity;
 
 namespace RentACar.IntegrationTests;
@@ -1225,15 +1225,15 @@ public sealed class UiKiraPanelTests(WebFixture fx)
         using (var host = new TestHost(fx.Pg.AppConnectionString))
         {
             using var sc = host.ScopeFor(o.TenantId, Guid.NewGuid(), "op", UserRole.Operator, "SubeA");
-            var svc = sc.ServiceProvider.GetRequiredService<RentACar.Application.EkHizmetler.AddOnDefinitionService>();
+            var svc = sc.ServiceProvider.GetRequiredService<RentACar.Application.AddOnDefinitions.AddOnDefinitionService>();
             var t = (await svc.GetAsync(definitionId))!;
-            RentACar.Application.EkHizmetler.EkHizmetTanimInput Input(string code) =>
+            RentACar.Application.AddOnDefinitions.EkHizmetTanimInput Input(string code) =>
                 new() { Kod = code, Ad = t.Ad, BirimUcret = t.BirimUcret, KdvOrani = t.KdvOrani, Aktif = t.Aktif };
             await Assert.ThrowsAsync<ValidationException>(() => svc.UpdateAsync(definitionId, Input("DROPX")));   // kod değişmez
             await Assert.ThrowsAsync<NoPermissionException>(() => svc.DeleteAsync(definitionId));                  // operatör silemez (güvenlik F3)
             using (var adminScope = host.ScopeFor(o.TenantId, Guid.NewGuid(), "ad", UserRole.Admin))
                 await Assert.ThrowsAsync<ValidationException>(() => adminScope.ServiceProvider
-                    .GetRequiredService<RentACar.Application.EkHizmetler.AddOnDefinitionService>().DeleteAsync(definitionId)); // SYS silinmez
+                    .GetRequiredService<RentACar.Application.AddOnDefinitions.AddOnDefinitionService>().DeleteAsync(definitionId)); // SYS silinmez
             Assert.True(await svc.UpdateAsync(definitionId, Input(t.Kod)));                                        // aynı kodla düzenleme serbest
             await Assert.ThrowsAsync<ValidationException>(() => svc.UpdateAsync(o.EkHizmetId, new()          // normal → SYS- olmaz
             { Kod = "SYS-GPS", Ad = "Navigasyon", BirimUcret = 50m, KdvOrani = 0.20m, Aktif = true }));

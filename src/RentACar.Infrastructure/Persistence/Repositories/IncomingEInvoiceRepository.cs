@@ -1,7 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Npgsql;
 using RentACar.Application.Common;
-using RentACar.Application.GelenEFaturalar;
+using RentACar.Application.IncomingEInvoices;
 using RentACar.Domain.Entities;
 
 namespace RentACar.Infrastructure.Persistence.Repositories;

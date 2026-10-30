@@ -2,7 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using RentACar.Application.Bookings;
 using RentACar.Application.Customers;
-using RentACar.Application.EkHizmetler;
+using RentACar.Application.AddOnDefinitions;
 using RentACar.Application.RentalAddOns;
 using RentACar.Application.Reporting;
 using RentACar.Application.Vehicles;

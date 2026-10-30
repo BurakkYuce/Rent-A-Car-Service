@@ -2,7 +2,7 @@ using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 using RentACar.Application.Common;
 using RentACar.Domain.Entities;
-using RentACar.Web.Api.Rezervasyon;
+using RentACar.Web.Api.Reservations;
 using RentACar.Web.Platform;
 
 namespace RentACar.Web.Api.Platform;

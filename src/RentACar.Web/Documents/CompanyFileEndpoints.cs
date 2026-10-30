@@ -1,5 +1,5 @@
 using Microsoft.Net.Http.Headers;
-using RentACar.Application.FirmaDokumanlar;
+using RentACar.Application.CompanyFiles;
 
 namespace RentACar.Web.Documents;
 

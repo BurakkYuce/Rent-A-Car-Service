@@ -1,7 +1,7 @@
 using Microsoft.Extensions.DependencyInjection;
 using RentACar.Application.Bookings;
 using RentACar.Application.Common;
-using RentACar.Application.Kur;
+using RentACar.Application.ExchangeRates;
 using RentACar.Application.RateMatrices;
 using RentACar.Application.VehicleGroups;
 using RentACar.Application.Vehicles;

@@ -1,7 +1,7 @@
 using RentACar.Application.Authorization;
 using RentACar.Application.Bookings;
 using RentACar.Application.Common;
-using RentACar.Application.Kur;
+using RentACar.Application.ExchangeRates;
 using RentACar.Application.Periods;
 using RentACar.Domain.Common;
 using RentACar.Domain.Entities;
@@ -24,7 +24,7 @@ public sealed class InvoiceService(
     IPeriodLockGuard periodLock,
     ExchangeRateService exchangeRate,
     VatDefault vatDefault,
-    RentACar.Application.FaturaDonemleri.IInvoicePeriodRepository invoicePeriods)
+    RentACar.Application.InvoicePeriods.IInvoicePeriodRepository invoicePeriods)
 {
     private readonly ICurrentUser _currentUser = currentUser;
     private readonly IPeriodLockGuard _lock = periodLock;
@@ -296,7 +296,7 @@ public sealed class InvoiceService(
         // canlı Tutar + yenilenen plan günleriyle kalan-yöntemi kaymayı emer).
         var gunler = periods
             .Select(d => Math.Max(1, (d.DonemBit.UtcDateTime.Date - d.DonemBas.UtcDateTime.Date).Days)).ToList();
-        var accruals = RentACar.Application.FaturaDonemleri.InvoicePeriodPlanService.ProRataAccrual(rental.Tutar, gunler);
+        var accruals = RentACar.Application.InvoicePeriods.InvoicePeriodPlanService.ProRataAccrual(rental.Tutar, gunler);
         var cumulative = periods.Select((d, i) => (d.DonemSira, T: accruals[i]))
             .Where(x => x.DonemSira <= periodSequence).Sum(x => x.T);
 

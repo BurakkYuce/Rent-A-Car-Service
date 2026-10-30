@@ -1,5 +1,5 @@
 using Microsoft.Extensions.DependencyInjection;
-using RentACar.Application.BelgeSablon;
+using RentACar.Application.DocumentTemplates;
 using RentACar.Application.Common;
 using RentACar.Domain.Enums;
 using RentACar.IntegrationTests.Infrastructure;

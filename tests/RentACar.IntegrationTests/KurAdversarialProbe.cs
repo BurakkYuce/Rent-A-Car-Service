@@ -3,11 +3,11 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Npgsql;
 using RentACar.Application.Common;
-using RentACar.Application.Kur;
+using RentACar.Application.ExchangeRates;
 using RentACar.Domain.Entities;
 using RentACar.IntegrationTests.Infrastructure;
 using RentACar.Infrastructure.Persistence;
-using RentACar.Web.Kur;
+using RentACar.Web.ExchangeRates;
 
 namespace RentACar.IntegrationTests;
 

@@ -378,7 +378,7 @@ public sealed class ReservationService(
         await _feeLines.EnsureSystemDefinitionsAsync(Build(reservation), ct);
         return await _repository.ConvertToRentalAsync(id, Build,
             (rental, fees) => new NewRentalLines(FeeLineService.LinesFor(rental, fees),
-                FaturaDonemleri.InvoicePeriodPlanService.BuildPlan(rental)),
+                InvoicePeriods.InvoicePeriodPlanService.BuildPlan(rental)),
             ct);
     }
 

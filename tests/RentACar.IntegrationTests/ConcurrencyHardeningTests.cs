@@ -1,6 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
-using RentACar.Application.AracKredileri;
+using RentACar.Application.VehicleLoans;
 using RentACar.Application.ServiceRecords;
 using RentACar.Application.Vehicles;
 using RentACar.Domain.Entities;

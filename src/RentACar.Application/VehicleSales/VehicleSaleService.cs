@@ -16,12 +16,12 @@ namespace RentACar.Application.VehicleSales;
 /// </summary>
 public sealed class VehicleSaleService(
     IVehicleSaleRepository repository, ICurrentUser currentUser, IPeriodLockGuard periodLock,
-    RentACar.Application.Kur.ExchangeRateResolver exchangeRateResolver)
+    RentACar.Application.ExchangeRates.ExchangeRateResolver exchangeRateResolver)
 {
     private readonly IVehicleSaleRepository _repository = repository;
     private readonly ICurrentUser _currentUser = currentUser;
     private readonly IPeriodLockGuard _lock = periodLock;
-    private readonly RentACar.Application.Kur.ExchangeRateResolver _exchangeRateResolver = exchangeRateResolver;
+    private readonly RentACar.Application.ExchangeRates.ExchangeRateResolver _exchangeRateResolver = exchangeRateResolver;
 
     public Task<IReadOnlyList<VehicleSale>> ListAsync(CancellationToken ct = default)
         => _repository.ListAsync(ct);
@@ -73,7 +73,7 @@ public sealed class VehicleSaleService(
             GenelToplam = gross,
             // #279 N1 sınıfı (gider düzeltmesiyle aynı): "TL" ham yazılınca kur TRY=1 çözülürken defter "TL"
             // dövizinde kalıyordu (cari bakiyesi döviz bazında ayrışır). Saklanabilir ISO koda indirgenir.
-            Currency = RentACar.Application.Kur.ExchangeRateService.NormalizeCodeStrict(input.Doviz),
+            Currency = RentACar.Application.ExchangeRates.ExchangeRateService.NormalizeCodeStrict(input.Doviz),
             Kur = resolvedRate,
             Aciklama = input.Aciklama,
             HedefFiyat = input.HedefFiyat,

@@ -34,8 +34,8 @@ public sealed class RentalQuoteEngine(
     RentalRuleService rentalRules,
     VehicleGroupService vehicleGroups,
     CoverageProductService coverageProducts,
-    DolulukFiyat.IOccupancyPriceRuleRepository occupancyRules,
-    DolulukFiyat.IOccupancyProvider occupancy)
+    OccupancyPricing.IOccupancyPriceRuleRepository occupancyRules,
+    OccupancyPricing.IOccupancyProvider occupancy)
 {
     private readonly RateMatrixService _rateMatrices = rateMatrices;
     private readonly RentalRuleService _rentalRules = rentalRules;

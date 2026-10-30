@@ -1,7 +1,7 @@
 using Microsoft.Extensions.DependencyInjection;
-using RentACar.Application.BelgeSablon;
+using RentACar.Application.DocumentTemplates;
 using RentACar.Application.Common;
-using RentACar.Application.EkHizmetler;
+using RentACar.Application.AddOnDefinitions;
 using RentACar.Domain.Enums;
 using RentACar.IntegrationTests.Infrastructure;
 

@@ -2,7 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using RentACar.Application.Bookings;
 using RentACar.Application.Customers;
-using RentACar.Application.DolulukFiyat;
+using RentACar.Application.OccupancyPricing;
 using RentACar.Application.Pricing;
 using RentACar.Application.RateMatrices;
 using RentACar.Application.VehicleGroups;

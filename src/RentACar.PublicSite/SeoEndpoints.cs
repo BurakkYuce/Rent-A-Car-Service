@@ -21,7 +21,7 @@ public static class SeoEndpoints
             Results.Text(RobotsText(await showcase.GetCanonicalRootAsync(ct)), "text/plain; charset=utf-8"));
 
         app.MapGet("/sitemap.xml", async (FleetShowcaseService showcase, BlogService blog,
-            RentACar.Application.SiteIcerik.SiteContentService content, CancellationToken ct) =>
+            RentACar.Application.SiteContent.SiteContentService content, CancellationToken ct) =>
         {
             var host = await showcase.GetCanonicalHostAsync(ct);
             if (host is null) return Results.NotFound(); // site hiç yayında değil
@@ -70,7 +70,7 @@ public static class SeoEndpoints
         // Host `GetCanonicalHostAsync`'ten: robots/sitemap ile AYNI kural (bkz. sınıf özeti) —
         // ajanın alıntıladığı adres, sayfalardaki `canonical` etiketiyle çelişmemeli.
         app.MapGet("/llms.txt", async (FleetShowcaseService showcase, BlogService blog,
-            BranchService branchService, RentACar.Application.SiteIcerik.SiteContentService content,
+            BranchService branchService, RentACar.Application.SiteContent.SiteContentService content,
             CancellationToken ct) =>
         {
             var host = await showcase.GetCanonicalHostAsync(ct);

@@ -23,12 +23,12 @@ namespace RentACar.Application.ServiceRecords;
 /// </summary>
 public sealed class ServiceRecordService(
     IServiceRecordRepository repository, ICurrentUser currentUser, IPeriodLockGuard periodLock,
-    RentACar.Application.Kur.ExchangeRateResolver exchangeRateResolver, IRowVersionStore? rowVersions = null)
+    RentACar.Application.ExchangeRates.ExchangeRateResolver exchangeRateResolver, IRowVersionStore? rowVersions = null)
 {
     private readonly IServiceRecordRepository _repository = repository;
     private readonly ICurrentUser _currentUser = currentUser;
     private readonly IPeriodLockGuard _lock = periodLock;
-    private readonly RentACar.Application.Kur.ExchangeRateResolver _exchangeRateResolver = exchangeRateResolver;
+    private readonly RentACar.Application.ExchangeRates.ExchangeRateResolver _exchangeRateResolver = exchangeRateResolver;
 
     public Task<IReadOnlyList<ServiceRecord>> ListAsync(CancellationToken ct = default)
         => _repository.ListAsync(ct);

@@ -2,7 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage;
 using Npgsql;
 using RentACar.Application.Common;
-using RentACar.Application.Kur;
+using RentACar.Application.ExchangeRates;
 using RentACar.Domain.Entities;
 
 namespace RentACar.Infrastructure.Persistence.Repositories;

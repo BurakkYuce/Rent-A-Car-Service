@@ -1,7 +1,7 @@
 using System.IO.Compression;
 using System.Text;
 using RentACar.Application.Common;
-using RentACar.Web.Api.Sistem;
+using RentACar.Web.Api.SystemAdmin;
 using RentACar.Web.Import;
 
 namespace RentACar.IntegrationTests;

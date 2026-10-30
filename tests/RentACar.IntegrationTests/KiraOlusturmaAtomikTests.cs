@@ -4,7 +4,7 @@ using Npgsql;
 using RentACar.Application.Bookings;
 using RentACar.Application.Common;
 using RentACar.Application.Customers;
-using RentACar.Application.DropTanimlari;
+using RentACar.Application.DropDefinitions;
 using RentACar.Application.RentalAddOns;
 using RentACar.Application.VehicleGroups;
 using RentACar.Application.Vehicles;

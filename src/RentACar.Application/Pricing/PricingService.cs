@@ -29,9 +29,9 @@ namespace RentACar.Application.Pricing;
 public sealed class PricingService(
     IVehicleRepository vehicles, RentalQuoteEngine quoteEngine, RateCardService rateCards,
     Customers.ICustomerRepository customers, ReservationSources.IReservationSourceRepository sources,
-    Finance.VatDefault vatDefault, Kur.ExchangeRateResolver exchangeRates)
+    Finance.VatDefault vatDefault, ExchangeRates.ExchangeRateResolver exchangeRates)
 {
-    private readonly Kur.ExchangeRateResolver _exchangeRates = exchangeRates;
+    private readonly ExchangeRates.ExchangeRateResolver _exchangeRates = exchangeRates;
     private readonly IVehicleRepository _vehicles = vehicles;
     private readonly RentalQuoteEngine _quoteEngine = quoteEngine;
     private readonly RateCardService _rateCards = rateCards;
@@ -206,8 +206,8 @@ public sealed class PricingService(
     private async Task<CurrencyConversion> TariffToBookingAsync(
         string? tariffCurrency, string? bookingCurrency, DateTimeOffset date, CancellationToken ct)
     {
-        var from = Kur.ExchangeRateService.NormalizeCode(tariffCurrency);
-        var to = Kur.ExchangeRateService.NormalizeCode(bookingCurrency);
+        var from = ExchangeRates.ExchangeRateService.NormalizeCode(tariffCurrency);
+        var to = ExchangeRates.ExchangeRateService.NormalizeCode(bookingCurrency);
         if (from == to) return CurrencyConversion.Identity;
         try
         {

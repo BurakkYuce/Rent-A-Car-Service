@@ -4,7 +4,7 @@ using RentACar.Domain.Entities;
 using RentACar.Domain.Enums;
 using RentACar.Infrastructure.Persistence;
 using RentACar.IntegrationTests.Infrastructure;
-using RentACar.Web.Api.Sistem;
+using RentACar.Web.Api.SystemAdmin;
 
 namespace RentACar.IntegrationTests;
 

@@ -1,7 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Npgsql;
 using RentACar.Application.Common;
-using RentACar.Application.DisHizmetler;
+using RentACar.Application.OutsourcedServices;
 using RentACar.Domain.Entities;
 using RentACar.Domain.Enums;
 

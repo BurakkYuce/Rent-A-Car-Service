@@ -1,7 +1,7 @@
 using Microsoft.AspNetCore.Http.HttpResults;
 using RentACar.Application.Authorization;
 using RentACar.Application.Common;
-using RentACar.Web.Api.Rezervasyon;
+using RentACar.Web.Api.Reservations;
 using RentACar.Web.Identity;
 
 namespace RentACar.Web.Api.ServiceInsurance;
@@ -85,7 +85,7 @@ internal static class CatalogCrud
             HttpContext http, CancellationToken ct) =>
         {
             if (await s.Get(svc, id, ct) is not { } existing) return ServiceInsuranceShared.NotFound(s.NotFoundText);
-            var version = AracFinans.VehicleFinanceShared.Version(body.Surum);
+            var version = VehicleFinance.VehicleFinanceShared.Version(body.Surum);
             s.Validate(body, existing);
             if (!await s.Update(svc, id, body, existing, version, http, ct)) return ServiceInsuranceShared.NotFound(s.NotFoundText);
             return await DetailAsync(s, svc, id, ct) is { } d ? TypedResults.Ok(d) : ServiceInsuranceShared.NotFound(s.NotFoundText);

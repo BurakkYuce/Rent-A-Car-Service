@@ -1,5 +1,5 @@
 using Microsoft.Extensions.DependencyInjection;
-using RentACar.Application.Baflar;
+using RentACar.Application.Bafs;
 using RentACar.Domain.Enums;
 using RentACar.IntegrationTests.Infrastructure;
 

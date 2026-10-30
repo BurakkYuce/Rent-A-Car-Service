@@ -1,0 +1,211 @@
+using Microsoft.AspNetCore.Http.HttpResults;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+using RentACar.Application.Authorization;
+using RentACar.Application.Common;
+using RentACar.Application.TenantSettings;
+using RentACar.Infrastructure.Persistence;
+using RentACar.Web.Api.Rentals;
+using RentACar.Web.Identity;
+
+namespace RentACar.Web.Api.SystemAdmin;
+
+/// <summary>
+/// F11.1b — <c>/ayarlar</c> (Blazor <c>Ayarlar.razor</c> + <c>TenantSettingsEndpoints</c> paritesi). Tümü
+/// <see cref="Permission.ManageUsers"/> (grup kapısı + servis guard + "ayarlar" ekran kapısı).
+/// <list type="bullet">
+/// <item><b>SIR alanları</b> (e-Fatura şifresi, SMS/POS API anahtarı, SMTP şifresi) HİÇBİR yanıtta dönmez; yalnız
+/// <c>*Tanimli</c> bayrağı (ham cipher'ın varlığından — çözülemeyen cipher da "tanımlı" sayılır). Yazmada boş gelirse
+/// mevcut korunur (servis kuralı).</item>
+/// <item><b>PUT tam değiştirme:</b> satır varsa <c>surum</c> zorunlu; karşılaştırma satır kilidi altında
+/// (<see cref="ITenantSettingsVersionStore"/>), uyuşmazlık 409 <c>cakisma</c>.</item>
+/// <item><b>Test gönderimleri</b> üretimdeki kod yolunu kullanır; yapılandırma yoksa ya da teslim doğrulanamadıysa
+/// başarı DÖNMEZ (dürüst stub kuralı).</item>
+/// </list>
+/// </summary>
+public static partial class SystemAdminApi
+{
+    /// <summary>Logo yükleme isteği üst sınırı: 1 MB logo + multipart payı.</summary>
+    private const long LogoRequestLimit = 1_200_000;
+
+    private const int SecretMaxLength = 256;
+
+    private static void MapSettings(RouteGroupBuilder v1)
+    {
+        var g = v1.MapGroup("/ayarlar").WithTags(SystemApiCommon.Tag).RequirePermission(Permission.ManageUsers);
+
+        g.MapGet("", async (HttpContext http, CancellationToken ct) => TypedResults.Ok(await BuildSettingsAsync(http.RequestServices, ct)));
+
+        g.MapPut("", async Task<Ok<SettingsDto>> (SettingsRequest i, HttpContext http, TenantSettingsService svc,
+            IDbContextFactory<AppDbContext> f, CancellationToken ct) =>
+        {
+            if (await svc.VersionAsync(ct) is not null) SystemApiCommon.RequireVersion(i.Surum);
+            ValidateSettings(i);
+            if (i.VarsayilanGrupId is { } group)
+            {
+                await using var db = await f.CreateDbContextAsync(ct);
+                if (!await db.VehicleGroups.AsNoTracking().AnyAsync(x => x.Id == group, ct))
+                    throw new ValidationException("Varsayılan araç grubu bulunamadı.", "varsayilanGrupId");
+            }
+            await svc.SaveAsync(ToModel(i), SystemApiCommon.Clean(i.Surum), ct);
+            return TypedResults.Ok(await BuildSettingsAsync(http.RequestServices, ct));
+        }).MapFields(SettingsRules);
+
+        // ---- PDF logosu
+        g.MapGet("/logo", async Task<Results<FileContentHttpResult, ProblemHttpResult>> (HttpContext http, TenantSettingsService svc, CancellationToken ct) =>
+        {
+            var m = await svc.GetAsync(ct);
+            if (m.LogoBytes is not { Length: > 0 } logo) return SystemApiCommon.NotFound("Logo yüklü değil.");
+            http.Response.Headers.XContentTypeOptions = "nosniff";
+            var type = ImageValidation.Detect(logo) == ImageKind.Jpeg ? "image/jpeg" : "image/png";
+            return TypedResults.File(logo, type);
+        }).Produces(StatusCodes.Status200OK, typeof(byte[]), "image/png", "image/jpeg").ProducesProblem(StatusCodes.Status404NotFound);
+
+        g.MapPost("/logo", async Task<Ok<LogoDto>> (IFormFile? dosya, TenantSettingsService svc, CancellationToken ct) =>
+        {
+            if (dosya is null || dosya.Length == 0) throw new ValidationException("Logo dosyası seçilmedi.", "dosya");
+            if (dosya.Length > LogoValidationRules.MaxBytes) throw new ValidationException("Logo en fazla 1 MB olabilir.", "dosya");
+            using var ms = new MemoryStream();
+            await dosya.CopyToAsync(ms, ct);
+            var bytes = ms.ToArray();
+            // Tür İÇERİKTEN (magic bytes) — istemcinin Content-Type'ına ve uzantısına güvenilmez. Servis aynı kuralı
+            // ikinci kez uygular (derinlik).
+            if (LogoValidationRules.Reject(bytes) is { } err) throw new ValidationException(err, "dosya");
+            await svc.SetLogoAsync(bytes, ct);
+            var size = PngSize.Read(bytes);
+            return TypedResults.Ok(new LogoDto(true, size?.Genislik, size?.Yukseklik, bytes.Length));
+        }).DisableAntiforgery().WithMetadata(new RequestSizeLimitAttribute(LogoRequestLimit)).MapFields(LogoRules);
+
+        g.MapDelete("/logo", async Task<NoContent> (TenantSettingsService svc, CancellationToken ct) =>
+        {
+            await svc.SetLogoAsync(null, ct);
+            return TypedResults.NoContent();
+        });
+
+        // ---- web sitesi alan adları
+        g.MapPost("/web-sitesi-ac", async Task<Ok<SettingsDto>> (HttpContext http, TenantSettingsService svc, CancellationToken ct) =>
+        {
+            await svc.OpenPublicSiteAsync(ct);
+            return TypedResults.Ok(await BuildSettingsAsync(http.RequestServices, ct));
+        });
+
+        g.MapPost("/domainler", async Task<Ok<SettingsDto>> (DomainAddRequest i, HttpContext http, TenantSettingsService svc, CancellationToken ct) =>
+        {
+            await svc.AddCustomDomainAsync(NormalizeCustomHost(i.Host), ct);
+            return TypedResults.Ok(await BuildSettingsAsync(http.RequestServices, ct));
+        }).MapFields(DomainRules).RequireRateLimiting(SendTestRatePolicy); // M6: ekleme de hız sınırlı
+
+        // F11.1b güvenlik M6 — DNS TXT sahiplik doğrulaması (ancak bundan sonra alan adı etkinleşir).
+        g.MapPost("/domainler/dogrula", async Task<Ok<SettingsDto>> (DomainAddRequest i, HttpContext http, TenantSettingsService svc, CancellationToken ct) =>
+        {
+            // Etkinleşmediyse (arada başka kiracı doğruladı / kayıt değişti) başarı DÖNMEZ.
+            if (!await svc.VerifyCustomDomainAsync(NormalizeCustomHost(i.Host), ct))
+                throw new ValidationException("Alan adı etkinleştirilemedi; alan adını yeniden ekleyip doğrulayın.", "host");
+            return TypedResults.Ok(await BuildSettingsAsync(http.RequestServices, ct));
+        }).MapFields(DomainRules).RequireRateLimiting(SendTestRatePolicy);
+
+        MapSendTests(g);
+    }
+
+    /// <summary>Sürüm alanlardan ÖNCE okunur: arada yazım olursa istemci eski sürümü alır ve PUT'u 409 olur (güvenli yön).</summary>
+    private static async Task<SettingsDto> BuildSettingsAsync(IServiceProvider sp, CancellationToken ct)
+    {
+        var svc = sp.GetRequiredService<TenantSettingsService>();
+        var version = await svc.VersionAsync(ct);
+        var m = await svc.GetAsync(ct);
+        var raw = await sp.GetRequiredService<ITenantSettingsRepository>().GetAsync(ct);
+        var wa = await svc.ListWhatsAppDispatchesAsync(7, ct);
+        var cfg = sp.GetRequiredService<IConfiguration>();
+        var catalog = sp.GetRequiredService<Application.EInvoicing.EInvoiceIntegratorCatalog>();
+        var einvoice = Application.EInvoicing.EInvoiceConnection.Resolve(
+            raw, catalog, sp.GetRequiredService<Application.Common.ISecretProtector>());
+        return new SettingsDto
+        {
+            FirmaUnvan = m.FirmaUnvan, FirmaVergiDairesi = m.FirmaVergiDairesi, FirmaVergiNo = m.FirmaVergiNo,
+            FirmaAdres = m.FirmaAdres, FirmaTel = m.FirmaTel, FirmaEmail = m.FirmaEmail, FirmaMobilTel = m.FirmaMobilTel,
+            FirmaMarka = m.FirmaMarka, FirmaIl = m.FirmaIl, FirmaIlce = m.FirmaIlce,
+            EFaturaKullanici = m.EFaturaKullanici, EFaturaSifreTanimli = !string.IsNullOrEmpty(raw?.EFaturaSifreEnc),
+            EFaturaEntegrator = m.EFaturaEntegrator, EFaturaGondericiEtiket = m.EFaturaGondericiEtiket,
+            EFaturaPostaKutusuEtiket = m.EFaturaPostaKutusuEtiket, EFaturaCanliOrtam = m.EFaturaCanliOrtam,
+            EFaturaSenaryo = m.EFaturaSenaryo,
+            EFaturaBagli = einvoice.Ready,
+            EFaturaDurumMesaji = einvoice.Gap is { } gap ? Application.EInvoicing.EInvoiceReadiness.NotConnected(gap) : null,
+            EFaturaEntegratorSecenekleri = catalog.All.Select(i => new EInvoiceIntegratorOptionDto(i.Key, i.Ad)).ToList(),
+            SmsBaslik = m.SmsBaslik, SmsApiKeyTanimli = !string.IsNullOrEmpty(raw?.SmsApiKeyEnc),
+            PosMerchantId = m.PosMerchantId, PosApiKeyTanimli = !string.IsNullOrEmpty(raw?.PosApiKeyEnc),
+            LogoUrl = m.LogoUrl, LogoVar = m.LogoBytes is { Length: > 0 },
+            VarsayilanDoviz = m.VarsayilanDoviz, VarsayilanKdvOrani = m.VarsayilanKdvOrani, VarsayilanGrupId = m.VarsayilanGrupId,
+            VarsayilanFiyatTuru = m.VarsayilanFiyatTuru, VarsayilanYakitSeviyesi = m.VarsayilanYakitSeviyesi,
+            DropMesafeYokIseSifir = m.DropMesafeYokIseSifir, SaatFarkiToleransDk = m.SaatFarkiToleransDk,
+            IadeIslemSaatSiniri = m.IadeIslemSaatSiniri, KurElleGirisKilitli = m.KurElleGirisKilitli,
+            RenkGecikenler = m.RenkGecikenler, RenkBugunDonecekler = m.RenkBugunDonecekler, RenkBugunCikacaklar = m.RenkBugunCikacaklar,
+            RenkOpsiyonlu = m.RenkOpsiyonlu, RenkLimitBakiye = m.RenkLimitBakiye, RenkAlacakli = m.RenkAlacakli,
+            RenkRezAtananPlaka = m.RenkRezAtananPlaka, RenkKiralanmayan = m.RenkKiralanmayan,
+            SiteVurguRengi = m.SiteVurguRengi, SiteTemasi = m.SiteTemasi, SitePaleti = m.SitePaleti,
+            SitePaletSecenekleri = SitePaletteCatalog,
+            DonemselFaturalamaJob = m.DonemselFaturalamaJob, DonemselOtomatikTahsilat = m.DonemselOtomatikTahsilat,
+            MinKiraGun = m.MinKiraGun, MaxKiraGun = m.MaxKiraGun, RezOnayZorunlu = m.RezOnayZorunlu,
+            SmtpHost = m.SmtpHost, SmtpPort = m.SmtpPort, SmtpKullanici = m.SmtpKullanici,
+            SmtpSifreTanimli = !string.IsNullOrEmpty(raw?.SmtpSifreEnc), SmtpSsl = m.SmtpSsl,
+            SmtpGonderenAdres = m.SmtpGonderenAdres, SmtpGonderenAd = m.SmtpGonderenAd,
+            FaturaSeriKodu = m.FaturaSeriKodu, EFaturaSeriKodu = m.EFaturaSeriKodu, EArsivSeriKodu = m.EArsivSeriKodu,
+            WhatsAppNumarasi = m.WhatsAppNumarasi, WhatsAppGunlukOzet = m.WhatsAppGunlukOzet,
+            WebSitesiAcik = m.PublicSiteEnabled, WebSitesiAdresi = m.PublicSiteHost,
+            Domainler = m.CustomDomains.Select(d => new DomainDto(d.Host, d.Kind, d.Durum, d.DogrulamaKaydi, d.DogrulamaDegeri)).ToList(),
+            TwilioTanimli = !string.IsNullOrWhiteSpace(cfg["Twilio:AccountSid"]),
+            WhatsAppGonderimleri = wa.Select(x => new WhatsAppDeliveryDto(x.Gun, x.Tur, x.Alici, x.Basarili, x.HataMesaji,
+                x.OlusturmaTarihi.ToUniversalTime())).ToList(),
+            SiteDepozitoTutari = m.SiteDepozitoTutari, SiteDepozitoAciklama = m.SiteDepozitoAciklama,
+            SiteGunlukKmSiniri = m.SiteGunlukKmSiniri, SiteKmSinirsiz = m.SiteKmSinirsiz,
+            SiteMinYas = m.SiteMinYas, SiteMinEhliyetYili = m.SiteMinEhliyetYili,
+            SiteSigortaOzeti = m.SiteSigortaOzeti, SiteIptalKosulu = m.SiteIptalKosulu,
+            SiteGooglePuani = m.SiteGooglePuani, SiteGoogleYorumSayisi = m.SiteGoogleYorumSayisi,
+            SiteGoogleProfilUrl = m.SiteGoogleProfilUrl, SiteGooglePuanTarihi = m.SiteGooglePuanTarihiUtc,
+            SiteKurulusYili = m.SiteKurulusYili,
+            Surum = version,
+        };
+    }
+
+    /// <summary>Palet seti kataloğu (<see cref="SitePaletteKeys"/>) — sabit, uygulama ömrünce bir kez kurulur.</summary>
+    private static readonly IReadOnlyList<SiteThemePalettesDto> SitePaletteCatalog =
+    [
+        .. SiteThemeKeys.All.Select(theme => new SiteThemePalettesDto(theme,
+            [.. SitePaletteKeys.For(theme).Select(p => new SitePaletteOptionDto(p.Key, p.Name, p.Background, p.Ink, p.Primary,
+                p.Accent, p.NightBackground))])),
+    ];
+
+    private static TenantSettingsModel ToModel(SettingsRequest i) => new()
+    {
+        FirmaUnvan = i.FirmaUnvan, FirmaVergiDairesi = i.FirmaVergiDairesi, FirmaVergiNo = i.FirmaVergiNo,
+        FirmaAdres = i.FirmaAdres, FirmaTel = i.FirmaTel, FirmaEmail = i.FirmaEmail, FirmaMobilTel = i.FirmaMobilTel,
+        FirmaMarka = i.FirmaMarka, FirmaIl = i.FirmaIl, FirmaIlce = i.FirmaIlce,
+        EFaturaKullanici = i.EFaturaKullanici, EFaturaSifre = i.EFaturaSifre,
+        EFaturaEntegrator = i.EFaturaEntegrator, EFaturaGondericiEtiket = i.EFaturaGondericiEtiket,
+        EFaturaPostaKutusuEtiket = i.EFaturaPostaKutusuEtiket, EFaturaCanliOrtam = i.EFaturaCanliOrtam,
+        EFaturaSenaryo = i.EFaturaSenaryo,
+        SmsBaslik = i.SmsBaslik, SmsApiKey = i.SmsApiKey, PosMerchantId = i.PosMerchantId, PosApiKey = i.PosApiKey,
+        EFaturaSifreTemizle = i.EFaturaSifreTemizle, SmsApiKeyTemizle = i.SmsApiKeyTemizle,
+        PosApiKeyTemizle = i.PosApiKeyTemizle, SmtpSifreTemizle = i.SmtpSifreTemizle,
+        LogoUrl = i.LogoUrl, VarsayilanDoviz = i.VarsayilanDoviz, VarsayilanKdvOrani = i.VarsayilanKdvOrani,
+        VarsayilanGrupId = i.VarsayilanGrupId, VarsayilanFiyatTuru = i.VarsayilanFiyatTuru,
+        VarsayilanYakitSeviyesi = i.VarsayilanYakitSeviyesi, DropMesafeYokIseSifir = i.DropMesafeYokIseSifir,
+        SaatFarkiToleransDk = i.SaatFarkiToleransDk, IadeIslemSaatSiniri = i.IadeIslemSaatSiniri,
+        KurElleGirisKilitli = i.KurElleGirisKilitli,
+        RenkGecikenler = i.RenkGecikenler, RenkBugunDonecekler = i.RenkBugunDonecekler, RenkBugunCikacaklar = i.RenkBugunCikacaklar,
+        RenkOpsiyonlu = i.RenkOpsiyonlu, RenkLimitBakiye = i.RenkLimitBakiye, RenkAlacakli = i.RenkAlacakli,
+        RenkRezAtananPlaka = i.RenkRezAtananPlaka, RenkKiralanmayan = i.RenkKiralanmayan,
+        SiteVurguRengi = i.SiteVurguRengi, SiteTemasi = i.SiteTemasi, SitePaleti = i.SitePaleti,
+        DonemselFaturalamaJob = i.DonemselFaturalamaJob, DonemselOtomatikTahsilat = i.DonemselOtomatikTahsilat,
+        MinKiraGun = i.MinKiraGun, MaxKiraGun = i.MaxKiraGun, RezOnayZorunlu = i.RezOnayZorunlu,
+        SmtpHost = i.SmtpHost, SmtpPort = i.SmtpPort, SmtpKullanici = i.SmtpKullanici, SmtpSifre = i.SmtpSifre,
+        SmtpSsl = i.SmtpSsl, SmtpGonderenAdres = i.SmtpGonderenAdres, SmtpGonderenAd = i.SmtpGonderenAd,
+        FaturaSeriKodu = i.FaturaSeriKodu, EFaturaSeriKodu = i.EFaturaSeriKodu, EArsivSeriKodu = i.EArsivSeriKodu,
+        WhatsAppNumarasi = i.WhatsAppNumarasi, WhatsAppGunlukOzet = i.WhatsAppGunlukOzet,
+        SiteDepozitoTutari = i.SiteDepozitoTutari, SiteDepozitoAciklama = i.SiteDepozitoAciklama,
+        SiteGunlukKmSiniri = i.SiteGunlukKmSiniri, SiteKmSinirsiz = i.SiteKmSinirsiz,
+        SiteMinYas = i.SiteMinYas, SiteMinEhliyetYili = i.SiteMinEhliyetYili,
+        SiteSigortaOzeti = i.SiteSigortaOzeti, SiteIptalKosulu = i.SiteIptalKosulu,
+        SiteGooglePuani = i.SiteGooglePuani, SiteGoogleYorumSayisi = i.SiteGoogleYorumSayisi,
+        SiteGoogleProfilUrl = i.SiteGoogleProfilUrl, SiteKurulusYili = i.SiteKurulusYili,
+    };
+}

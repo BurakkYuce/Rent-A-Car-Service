@@ -8,7 +8,7 @@ using RentACar.Application.Bookings;
 using RentACar.Application.Customers;
 using RentACar.Application.Finance;
 using RentACar.Application.FinancialAccounts;
-using RentACar.Application.Kur;
+using RentACar.Application.ExchangeRates;
 using RentACar.Application.Vehicles;
 using RentACar.Domain.Entities;
 using RentACar.Domain.Enums;

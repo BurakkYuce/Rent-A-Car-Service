@@ -3,7 +3,7 @@ using Microsoft.Extensions.DependencyInjection;
 using RentACar.Application.Common;
 using RentACar.Application.Customers;
 using RentACar.Application.Search;
-using RentACar.Application.Secim;
+using RentACar.Application.Selection;
 using RentACar.Domain.Entities;
 using RentACar.Domain.Enums;
 using RentACar.Infrastructure.Persistence;

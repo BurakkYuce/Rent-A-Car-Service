@@ -1,6 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using RentACar.Application.Finance;
-using RentACar.Application.GelenEFaturalar;
+using RentACar.Application.IncomingEInvoices;
 using RentACar.Application.Reporting;
 using RentACar.Domain.Entities;
 using RentACar.Domain.Enums;

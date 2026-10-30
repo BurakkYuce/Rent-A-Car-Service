@@ -1,5 +1,5 @@
 using Microsoft.Extensions.DependencyInjection;
-using RentACar.Application.DropTanimlari;
+using RentACar.Application.DropDefinitions;
 using RentACar.IntegrationTests.Infrastructure;
 
 namespace RentACar.IntegrationTests;

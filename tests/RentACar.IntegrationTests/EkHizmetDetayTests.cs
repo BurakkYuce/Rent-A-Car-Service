@@ -1,7 +1,7 @@
 using Microsoft.Extensions.DependencyInjection;
 using RentACar.Application.Bookings;
 using RentACar.Application.Customers;
-using RentACar.Application.EkHizmetler;
+using RentACar.Application.AddOnDefinitions;
 using RentACar.Application.Finance;
 using RentACar.Application.Personnel;
 using RentACar.Application.RentalAddOns;

@@ -1,4 +1,4 @@
-using RentACar.Application.EkHizmetler;
+using RentACar.Application.AddOnDefinitions;
 using RentACar.Domain.Entities;
 
 namespace RentACar.Api.Dtos;

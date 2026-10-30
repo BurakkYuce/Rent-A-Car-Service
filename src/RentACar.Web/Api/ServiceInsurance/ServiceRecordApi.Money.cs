@@ -5,7 +5,7 @@ using RentACar.Application.ServiceRecords;
 using RentACar.Domain.Common;
 using RentACar.Domain.Entities;
 using RentACar.Infrastructure.Persistence;
-using RentACar.Web.Api.AracFinans;
+using RentACar.Web.Api.VehicleFinance;
 using RentACar.Web.Common;
 using S = RentACar.Web.Api.ServiceInsurance.ServiceInsuranceShared;
 

@@ -1,13 +1,13 @@
 using RentACar.Application.Authorization;
 using RentACar.Application.Common;
 using RentACar.Application.CoverageProducts;
-using RentACar.Application.EkHizmetler;
+using RentACar.Application.AddOnDefinitions;
 using RentACar.Application.Pricing;
-using RentACar.Application.TarifeGruplari;
+using RentACar.Application.TariffGroups;
 using RentACar.Domain.Entities;
 using RentACar.Domain.Enums;
-using RentACar.Web.Api.AracFinans;
-using RentACar.Web.Api.Rezervasyon;
+using RentACar.Web.Api.VehicleFinance;
+using RentACar.Web.Api.Reservations;
 using S = RentACar.Web.Api.ServiceInsurance.ServiceInsuranceShared;
 
 namespace RentACar.Web.Api.ServiceInsurance;

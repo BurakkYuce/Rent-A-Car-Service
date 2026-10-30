@@ -1,5 +1,5 @@
 using Microsoft.Extensions.DependencyInjection;
-using RentACar.Application.BrokerYasaklari;
+using RentACar.Application.BrokerBans;
 using RentACar.Application.Common;
 using RentACar.Application.Pricing;
 using RentACar.Application.RateMatrices;

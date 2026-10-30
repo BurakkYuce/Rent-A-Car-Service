@@ -115,7 +115,7 @@ input.IslemAnahtari = IdempotencyBasligi.Anahtar(ctx);
 
 ### `/api/ui/v1/finans/*` uç eşlemesi (F4.4 — sabit panel; F8 yeniden kullanır)
 
-Kilit: `tests/RentACar.IntegrationTests/UiFinansApiTests.cs` + `UiFinansAdversarialTests.cs`. Uç kodu: `Web/Api/Finans/FinanceOpsApi.cs`.
+Kilit: `tests/RentACar.IntegrationTests/UiFinansApiTests.cs` + `UiFinansAdversarialTests.cs`. Uç kodu: `Web/Api/Finance/FinanceOpsApi.cs`.
 
 | Uç | Satır | Anahtar | İkinci gönderim |
 |---|---|---|---|
@@ -200,7 +200,7 @@ Servis düzeyinde (Blazor da kapsanır):
 
 ### `/api/ui/v1/finans/*` uç eşlemesi (F8.1a — finans ekranları, 1. yarı)
 
-Kilit: `tests/RentACar.IntegrationTests/UiFinanceHubApiTests*.cs`. Uç kodu: `Web/Api/FinansHub/`. Envanter satırları
+Kilit: `tests/RentACar.IntegrationTests/UiFinanceHubApiTests*.cs`. Uç kodu: `Web/Api/FinanceHub/`. Envanter satırları
 DEĞİŞMEDİ; uçlar mevcut servisleri çağırır. Uç katmanı ekleri: tutar ≤ 4 ondalık (kuruşa yazan kalemlerde ≤ 2), kur ≤ 6
 ondalık, `numeric(19,4)` sınırı, metin kolon uzunlukları, gövdedeki var olmayan/başka kiracının cari kimliği 400
 (`errors[alan]`), yoldaki cari 404.
@@ -224,7 +224,7 @@ kuru belirler: tam değiştirme zorunlu `surum` (xmin) ile, uyuşmazlık 409 `ca
 
 ### `/api/ui/v1` araç finans uç eşlemesi (F6.1b)
 
-Kilit: `tests/RentACar.IntegrationTests/UiAracFinansTests*.cs`. Uç kodu: `Web/Api/AracFinans/`.
+Kilit: `tests/RentACar.IntegrationTests/UiAracFinansTests*.cs`. Uç kodu: `Web/Api/VehicleFinance/`.
 
 | Uç | Satır | Anahtar | İkinci gönderim |
 |---|---|---|---|
@@ -257,7 +257,7 @@ kur ≠ 1 red, döviz poliçede boş kur `ExchangeRateResolver`, `(prim + zeyil)
 
 ### `/api/ui/v1` finans belge uç eşlemesi (F8.1b)
 
-Kilit: `tests/RentACar.IntegrationTests/UiFinanceDocumentTests*.cs`. Uç kodu: `Web/Api/FinansBelge/`.
+Kilit: `tests/RentACar.IntegrationTests/UiFinanceDocumentTests*.cs`. Uç kodu: `Web/Api/FinanceDocuments/`.
 Sıra (DEVIR §5): kapsam (başka şube 403, başka kiracı 404) → anahtarla yazılmış kayıt (409 `mukerrer` +
 `mevcut{…, ayniIcerik}`) → tarih/dönem kilidi → servis. Ceza ödemesinde envanter LOW-1 bu uçta kapalıdır.
 

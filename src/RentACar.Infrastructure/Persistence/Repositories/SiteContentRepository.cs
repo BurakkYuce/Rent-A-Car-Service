@@ -1,5 +1,5 @@
 using Microsoft.EntityFrameworkCore;
-using RentACar.Application.SiteIcerik;
+using RentACar.Application.SiteContent;
 using RentACar.Domain.Entities;
 
 namespace RentACar.Infrastructure.Persistence.Repositories;

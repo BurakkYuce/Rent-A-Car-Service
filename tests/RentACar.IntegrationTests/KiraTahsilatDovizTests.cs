@@ -2,7 +2,7 @@ using Microsoft.Extensions.DependencyInjection;
 using RentACar.Application.Bookings;
 using RentACar.Application.Common;
 using RentACar.Application.Finance;
-using RentACar.Application.Kur;
+using RentACar.Application.ExchangeRates;
 using RentACar.Application.Vehicles;
 using RentACar.Domain.Enums;
 using RentACar.IntegrationTests.Infrastructure;
@@ -40,7 +40,7 @@ public sealed class KiraTahsilatDovizTests(PostgresFixture fx)
         var sp = scope.ServiceProvider;
         // Kod NormalizeKod ile ISO'ya indirgenir (EURO→EUR, DOLAR→USD, TL/boş→TRY) — hangi döviz
         // etiketiyle çağrılırsa çağrılsın doğru koda sabit kur yazılsın diye. TRY baz para, kur istemez.
-        var isoCode = RentACar.Application.Kur.ExchangeRateService.NormalizeCode(currency);
+        var isoCode = RentACar.Application.ExchangeRates.ExchangeRateService.NormalizeCode(currency);
         if (isoCode != "TRY" && isoCode.Length == 3)
             await sp.GetRequiredService<FixedExchangeRateService>()
                 .UpsertAsync(new SabitKurInput { Kod = isoCode, Kur = 40m });

@@ -1,6 +1,6 @@
 using Microsoft.Extensions.DependencyInjection;
-using RentACar.Application.HesapKodlari;
-using RentACar.Application.ServisTanimlari;
+using RentACar.Application.AccountCodes;
+using RentACar.Application.ServiceDefinitions;
 using RentACar.IntegrationTests.Infrastructure;
 
 namespace RentACar.IntegrationTests;

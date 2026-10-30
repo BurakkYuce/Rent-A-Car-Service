@@ -1,13 +1,13 @@
-using RentACar.Application.AracKredileri;
-using RentACar.Application.AracSiparisleri;
+using RentACar.Application.VehicleLoans;
+using RentACar.Application.VehicleOrders;
 using RentACar.Application.Authorization;
-using RentACar.Application.Baflar;
+using RentACar.Application.Bafs;
 using RentACar.Application.Bookings;
 using RentACar.Application.Common;
 using RentACar.Application.Customers;
-using RentACar.Application.DropTanimlari;
+using RentACar.Application.DropDefinitions;
 using RentACar.Application.Expenses;
-using RentACar.Application.FiloKiralamalar;
+using RentACar.Application.FleetRentals;
 using RentACar.Application.Finance;
 using RentACar.Application.Legal;
 using RentACar.Application.Locations;
@@ -18,7 +18,7 @@ using RentACar.Application.VehicleSales;
 using RentACar.Application.Vehicles;
 using RentACar.Domain.Entities;
 using RentACar.Domain.Enums;
-using RentACar.Web.Api.Kira;
+using RentACar.Web.Api.Rentals;
 using RentACar.Web.Identity;
 
 namespace RentACar.Web.Reports;

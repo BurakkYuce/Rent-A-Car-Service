@@ -1,8 +1,8 @@
 using RentACar.Application.Authorization;
 using RentACar.Application.Common;
-using RentACar.Application.EkHizmetler;
+using RentACar.Application.AddOnDefinitions;
 using RentACar.Application.Finance;
-using RentACar.Application.Kur;
+using RentACar.Application.ExchangeRates;
 using RentACar.Application.Pricing;
 using RentACar.Domain.Common;
 

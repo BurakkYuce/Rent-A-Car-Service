@@ -1,6 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
-using RentACar.Application.Baflar;
+using RentACar.Application.Bafs;
 using RentACar.Application.Common;
 using RentACar.Application.Reporting;
 using RentACar.Application.VehicleSales;
@@ -400,7 +400,7 @@ public sealed class SatisBafDerinlikTests(PostgresFixture fx)
         Assert.NotNull(await sp.GetRequiredService<VehicleService>().ListAsync());
         Assert.NotNull(await sp.GetRequiredService<RentACar.Application.Customers.CustomerService>().ListAsync());
         Assert.NotNull(await sp.GetRequiredService<RentACar.Application.Branches.BranchService>().ListActiveAsync());
-        Assert.NotNull(await sp.GetRequiredService<RentACar.Application.AracKredileri.VehicleLoanService>().ListAsync());
+        Assert.NotNull(await sp.GetRequiredService<RentACar.Application.VehicleLoans.VehicleLoanService>().ListAsync());
         Assert.NotNull(await sp.GetRequiredService<RentACar.Application.Regulation.RegulationService>().ListInsuranceAsync());
     }
 

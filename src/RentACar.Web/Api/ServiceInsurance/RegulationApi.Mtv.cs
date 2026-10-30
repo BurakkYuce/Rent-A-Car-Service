@@ -6,7 +6,7 @@ using RentACar.Application.Regulation;
 using RentACar.Domain.Common;
 using RentACar.Domain.Entities;
 using RentACar.Infrastructure.Persistence;
-using RentACar.Web.Api.Rezervasyon;
+using RentACar.Web.Api.Reservations;
 using RentACar.Web.Common;
 using RentACar.Web.Identity;
 using S = RentACar.Web.Api.ServiceInsurance.ServiceInsuranceShared;

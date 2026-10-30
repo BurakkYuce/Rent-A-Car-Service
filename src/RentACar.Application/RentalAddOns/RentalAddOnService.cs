@@ -1,6 +1,6 @@
 using RentACar.Application.Authorization;
 using RentACar.Application.Common;
-using RentACar.Application.EkHizmetler;
+using RentACar.Application.AddOnDefinitions;
 using RentACar.Application.Finance;
 using RentACar.Domain.Common;
 using RentACar.Domain.Entities;

@@ -5,7 +5,7 @@ using RentACar.Application.Common;
 using RentACar.Application.Customers;
 using RentACar.Application.Expenses;
 using RentACar.Application.Finance;
-using RentACar.Application.Kur;
+using RentACar.Application.ExchangeRates;
 using RentACar.Application.TenantSettings;
 using RentACar.Domain.Enums;
 using RentACar.Infrastructure.Persistence;

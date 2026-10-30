@@ -180,7 +180,7 @@ public sealed class SurucuUcretleriTests(PostgresFixture fx)
         { MusteriId = young, VehicleId = v, BasTar = Start, BitTar = Start.AddDays(3), GunlukUcret = 1000m });
 
         // Sistem tanımı artık mevcut (create yarattı) — manuel/matris yolundan EKLENEMEZ (çift ücret çiti).
-        var sysDefinition = (await sp.GetRequiredService<RentACar.Application.EkHizmetler.AddOnDefinitionService>()
+        var sysDefinition = (await sp.GetRequiredService<RentACar.Application.AddOnDefinitions.AddOnDefinitionService>()
             .ListAsync()).Single(t => t.Kod == FeeLineService.YoungDriverCode);
         var ex = await Assert.ThrowsAsync<RentACar.Application.Common.ValidationException>(
             () => sp.GetRequiredService<RentalAddOnService>().AddAsync(id, sysDefinition.Id, 1m));

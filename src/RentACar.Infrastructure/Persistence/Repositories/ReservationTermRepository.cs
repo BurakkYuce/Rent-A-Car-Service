@@ -1,5 +1,5 @@
 using Microsoft.EntityFrameworkCore;
-using RentACar.Application.RezSartlar;
+using RentACar.Application.ReservationTerms;
 using RentACar.Domain.Entities;
 
 namespace RentACar.Infrastructure.Persistence.Repositories;

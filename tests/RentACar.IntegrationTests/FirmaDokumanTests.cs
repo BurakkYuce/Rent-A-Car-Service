@@ -1,7 +1,7 @@
 using Microsoft.Extensions.DependencyInjection;
 using Npgsql;
 using RentACar.Application.Common;
-using RentACar.Application.FirmaDokumanlar;
+using RentACar.Application.CompanyFiles;
 using RentACar.Domain.Enums;
 using RentACar.IntegrationTests.Infrastructure;
 

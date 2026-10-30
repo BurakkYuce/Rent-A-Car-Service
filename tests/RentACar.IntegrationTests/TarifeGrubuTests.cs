@@ -2,7 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using RentACar.Application.Common;
 using RentACar.Application.Pricing;
-using RentACar.Application.TarifeGruplari;
+using RentACar.Application.TariffGroups;
 using RentACar.Domain.Enums;
 using RentACar.Infrastructure.Persistence;
 using RentACar.IntegrationTests.Infrastructure;

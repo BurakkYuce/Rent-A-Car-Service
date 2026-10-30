@@ -12,7 +12,7 @@ namespace RentACar.Application.Pricing;
 /// </summary>
 public sealed class RateCardService(
     IRateCardRepository repository, ICurrentUser currentUser,
-    RentACar.Application.TarifeGruplari.ITariffGroupRepository tariffGroups,
+    RentACar.Application.TariffGroups.ITariffGroupRepository tariffGroups,
     IRowVersionStore? rowVersions = null)
 {
     private readonly IRateCardRepository _repository = repository;

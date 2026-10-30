@@ -11,7 +11,7 @@ using RentACar.Application.Reporting;
 using RentACar.Domain.Common;
 using RentACar.Domain.Enums;
 using RentACar.Infrastructure.Persistence;
-using RentACar.Web.Api.Kira;
+using RentACar.Web.Api.Rentals;
 using RentACar.Web.Identity;
 
 namespace RentACar.Web.Api.Panel;

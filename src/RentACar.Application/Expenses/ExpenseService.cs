@@ -14,12 +14,12 @@ namespace RentACar.Application.Expenses;
 /// Nakit/Banka → Kasa/Banka azalır; AçıkHesap → tedarikçi cari'ye borçlanılır (Alacak).
 /// </summary>
 public sealed class ExpenseService(IExpenseRepository repository, ICurrentUser currentUser, IPeriodLockGuard periodLock,
-    RentACar.Application.Kur.ExchangeRateResolver exchangeRateResolver, RentACar.Application.FinancialAccounts.AccountResolver accountResolver)
+    RentACar.Application.ExchangeRates.ExchangeRateResolver exchangeRateResolver, RentACar.Application.FinancialAccounts.AccountResolver accountResolver)
 {
     private readonly IExpenseRepository _repository = repository;
     private readonly ICurrentUser _currentUser = currentUser;
     private readonly IPeriodLockGuard _lock = periodLock;
-    private readonly RentACar.Application.Kur.ExchangeRateResolver _exchangeRateResolver = exchangeRateResolver;
+    private readonly RentACar.Application.ExchangeRates.ExchangeRateResolver _exchangeRateResolver = exchangeRateResolver;
     private readonly RentACar.Application.FinancialAccounts.AccountResolver _accountResolver = accountResolver;
 
     /// <summary>
@@ -79,7 +79,7 @@ public sealed class ExpenseService(IExpenseRepository repository, ICurrentUser c
             }
             else
             {
-                var exchangeRateKey = (RentACar.Application.Kur.ExchangeRateService.NormalizeCode(input.Doviz), input.Tarih?.UtcDateTime.Date);
+                var exchangeRateKey = (RentACar.Application.ExchangeRates.ExchangeRateService.NormalizeCode(input.Doviz), input.Tarih?.UtcDateTime.Date);
                 if (!exchangeRateCache.TryGetValue(exchangeRateKey, out resolvedRate))
                     exchangeRateCache[exchangeRateKey] = resolvedRate = await _exchangeRateResolver.ResolveAsync(input.Doviz, null, input.Tarih, ct);
             }
@@ -191,7 +191,7 @@ public sealed class ExpenseService(IExpenseRepository repository, ICurrentUser c
         // #279 inceleme N1: ham etiket ("TL", "EURO") deftere olduğu gibi yazılıyordu — kur TRY=1 çözülürken
         // belge/defter "TL" dövizinde kalıyor, cari/kasa bakiyeleri döviz bazında AYRIŞIYORDU. CashService ile
         // aynı kural: saklanabilir ISO koda indirgenir; tanınmayan/uzun etiket 400 (22001 → 500 olmasın).
-        var currency = RentACar.Application.Kur.ExchangeRateService.NormalizeCodeStrict(input.Doviz);
+        var currency = RentACar.Application.ExchangeRates.ExchangeRateService.NormalizeCodeStrict(input.Doviz);
 
         var counterAccount = input.OdemeYontemi == PaymentMethod.AcikHesap
             ? LedgerAccountType.Cari

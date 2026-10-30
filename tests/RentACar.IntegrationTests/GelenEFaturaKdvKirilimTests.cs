@@ -3,7 +3,7 @@ using Microsoft.Extensions.DependencyInjection;
 using RentACar.Application.Common;
 using RentACar.Application.Expenses;
 using RentACar.Application.Finance;
-using RentACar.Application.GelenEFaturalar;
+using RentACar.Application.IncomingEInvoices;
 using RentACar.Application.Reporting;
 using RentACar.Domain.Entities;
 using RentACar.Domain.Enums;

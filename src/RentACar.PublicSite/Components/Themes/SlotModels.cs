@@ -1,6 +1,6 @@
 using RentACar.Application.Common;
 using RentACar.Application.Fleet;
-using RentACar.Application.SiteIcerik;
+using RentACar.Application.SiteContent;
 using RentACar.Domain.Entities;
 
 namespace RentACar.PublicSite.Components.Themes;

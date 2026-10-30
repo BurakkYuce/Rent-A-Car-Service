@@ -1,6 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Npgsql;
-using RentACar.Application.BrokerYasaklari;
+using RentACar.Application.BrokerBans;
 using RentACar.Application.Common;
 using RentACar.Domain.Entities;
 

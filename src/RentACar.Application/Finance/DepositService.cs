@@ -16,14 +16,14 @@ namespace RentACar.Application.Finance;
 /// </summary>
 public sealed class DepositService(
     ILedgerPoster ledger, ICashRepository repository, ICurrentUser currentUser, IPeriodLockGuard periodLock,
-    RentACar.Application.Kur.ExchangeRateResolver exchangeRateResolver, RentACar.Application.FinancialAccounts.AccountResolver accountResolver,
+    RentACar.Application.ExchangeRates.ExchangeRateResolver exchangeRateResolver, RentACar.Application.FinancialAccounts.AccountResolver accountResolver,
     RentACar.Application.Customers.ICustomerRepository customers)
 {
     private readonly ILedgerPoster _ledger = ledger;
     private readonly ICashRepository _repository = repository;
     private readonly ICurrentUser _currentUser = currentUser;
     private readonly IPeriodLockGuard _lock = periodLock;
-    private readonly RentACar.Application.Kur.ExchangeRateResolver _exchangeRateResolver = exchangeRateResolver;
+    private readonly RentACar.Application.ExchangeRates.ExchangeRateResolver _exchangeRateResolver = exchangeRateResolver;
     private readonly RentACar.Application.FinancialAccounts.AccountResolver _accountResolver = accountResolver;
     private readonly RentACar.Application.Customers.ICustomerRepository _customers = customers;
 
@@ -50,7 +50,7 @@ public sealed class DepositService(
         await CustomerExistsAsync(customerId, ct);
         // F4.4a adversarial L1: hesap-döviz çiti tahsilattaki gibi (FAZ-50 M4) — USD depozito TRY hesaba yazılmaz.
         return await PostAsync(customerId, amount, account, currency, exchangeRate, date, operationKey, "DepozitoAl", "Depozito al",
-            debit: account, debitRef: await _accountResolver.ResolveAsync(accountId, account, ct, RentACar.Application.Kur.ExchangeRateService.NormalizeCode(currency)),
+            debit: account, debitRef: await _accountResolver.ResolveAsync(accountId, account, ct, RentACar.Application.ExchangeRates.ExchangeRateService.NormalizeCode(currency)),
             credit: LedgerAccountType.Depozito, creditRef: customerId, shouldCheck: false, ct);
     }
 
@@ -64,7 +64,7 @@ public sealed class DepositService(
         await CustomerExistsAsync(customerId, ct);
         return await PostAsync(customerId, amount, account, currency, exchangeRate, date, operationKey, "DepozitoIade", "Depozito iade",
             debit: LedgerAccountType.Depozito, debitRef: customerId,
-            credit: account, creditRef: await _accountResolver.ResolveAsync(accountId, account, ct, RentACar.Application.Kur.ExchangeRateService.NormalizeCode(currency)),
+            credit: account, creditRef: await _accountResolver.ResolveAsync(accountId, account, ct, RentACar.Application.ExchangeRates.ExchangeRateService.NormalizeCode(currency)),
             shouldCheck: true, ct);
     }
 
@@ -93,7 +93,7 @@ public sealed class DepositService(
         await CustomerExistsAsync(customerId, ct);
 
         var resolvedRate = await _exchangeRateResolver.ResolveAsync(currency, exchangeRate, date, ct); // 1.1 sözleşmesi
-        var money = new Money(amount, RentACar.Application.Kur.ExchangeRateService.NormalizeCodeStrict(currency), resolvedRate);
+        var money = new Money(amount, RentACar.Application.ExchangeRates.ExchangeRateService.NormalizeCodeStrict(currency), resolvedRate);
         // Bakiye kontrolü repo tx'inde, kilidin arkasında (TOCTOU çiti — tek otorite).
 
         var entryDate = date ?? DateTimeOffset.UtcNow;
@@ -138,7 +138,7 @@ public sealed class DepositService(
 
         // Kur çözümü (1.1): açık kur (>0) aynen; boş → TRY=1 / döviz KurService (yoksa net red — sessiz 1 YOK).
         var resolvedRate = await _exchangeRateResolver.ResolveAsync(currency, exchangeRate, date, ct);
-        var money = new Money(amount, RentACar.Application.Kur.ExchangeRateService.NormalizeCodeStrict(currency), resolvedRate);
+        var money = new Money(amount, RentACar.Application.ExchangeRates.ExchangeRateService.NormalizeCodeStrict(currency), resolvedRate);
         // Bakiye kontrolü repo tx'inde, kilidin arkasında (TOCTOU çiti — adversarial 1.2:
         // eşzamanlı iki iade/irat pre-check'i birlikte geçip tutulanı aşabiliyordu).
 

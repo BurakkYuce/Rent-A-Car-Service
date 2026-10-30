@@ -1,4 +1,4 @@
-using RentACar.Web.Api.Rapor;
+using RentACar.Web.Api.Reports;
 
 namespace RentACar.Web.Reports;
 

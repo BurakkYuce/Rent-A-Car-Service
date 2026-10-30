@@ -1,7 +1,7 @@
 using QuestPDF.Fluent;
 using QuestPDF.Helpers;
 using QuestPDF.Infrastructure;
-using RentACar.Application.BelgeSablon;
+using RentACar.Application.DocumentTemplates;
 using RentACar.Domain.Entities;
 
 namespace RentACar.Web.Reports;
@@ -41,7 +41,7 @@ public sealed class PdfExportService
                 p.Size(PageSizes.A4);
                 p.Margin(24);
                 p.DefaultTextStyle(t => t.FontSize(8).FontColor("#111827"));
-                var pb = string.Equals(RentACar.Application.Kur.ExchangeRateService.NormalizeCode(s.Doviz), "TRY",
+                var pb = string.Equals(RentACar.Application.ExchangeRates.ExchangeRateService.NormalizeCode(s.Doviz), "TRY",
                     StringComparison.OrdinalIgnoreCase) ? "TL" : (s.Doviz ?? "TL");
                 string DT(DateTimeOffset? d) => d is { } x ? x.LocalDateTime.ToString("dd.MM.yyyy") : "";
                 string Sa(DateTimeOffset? d) => d is { } x ? x.LocalDateTime.ToString("HH:mm") : "";

@@ -4,22 +4,22 @@ using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Http.HttpResults;
 using RentACar.Application.TenantSettings;
 using RentACar.Domain.Common;
-using RentACar.Web.Api.Arac;
-using RentACar.Web.Api.Finans;
-using RentACar.Web.Api.FinansBelge;
-using RentACar.Web.Api.FinansHub;
-using RentACar.Web.Api.IstemciHata;
-using RentACar.Web.Api.Kira;
+using RentACar.Web.Api.Vehicles;
+using RentACar.Web.Api.Finance;
+using RentACar.Web.Api.FinanceDocuments;
+using RentACar.Web.Api.FinanceHub;
+using RentACar.Web.Api.ClientErrors;
+using RentACar.Web.Api.Rentals;
 using RentACar.Web.Api.Menu;
-using RentACar.Web.Api.Oturum;
+using RentACar.Web.Api.Session;
 using RentACar.Web.Api.Panel;
 using RentACar.Web.Api.Platform;
-using RentACar.Web.Api.Rapor;
-using RentACar.Web.Api.Rezervasyon;
-using RentACar.Web.Api.Secim;
-using RentACar.Web.Api.Sistem;
-using RentACar.Web.Api.TabloDuzenleri;
-using RentACar.Web.Api.Tanim;
+using RentACar.Web.Api.Reports;
+using RentACar.Web.Api.Reservations;
+using RentACar.Web.Api.Selection;
+using RentACar.Web.Api.SystemAdmin;
+using RentACar.Web.Api.TableLayouts;
+using RentACar.Web.Api.Definitions;
 using RentACar.Web.Identity;
 
 namespace RentACar.Web.Api;
@@ -216,7 +216,7 @@ public static class UiApiExtensions
         v1.MapClientErrorApi(); // F3.3
         v1.MapTableLayoutApi(); // F3.5
         v1.MapRentalApi();        // F4.1
-        Kira.KabisApi.MapKabisApi(v1); // KABİS iç akışı — kira bildirim durumu, bildirilemeyenler, ayarlar
+        Rentals.KabisApi.MapKabisApi(v1); // KABİS iç akışı — kira bildirim durumu, bildirilemeyenler, ayarlar
         v1.MapPanelApi();       // F4.1
         v1.MapReservationApi(); // F5.1
         v1.MapQuotationApi();      // F5.1
@@ -232,13 +232,13 @@ public static class UiApiExtensions
         v1.MapExpenseUiApi();         // F8.1b — giderler
         v1.MapIncomingInvoiceUiApi(); // F8.1b — gelen e-fatura
         v1.MapVehicleSaleUiApi();     // F8.1b — araç satışları
-        AracFinans.VehicleFinanceEndpoints.Map(v1); // F6.1b — kredi, müşteri taksit, sipariş, BAF, hasar, filo plan
+        VehicleFinance.VehicleFinanceEndpoints.Map(v1); // F6.1b — kredi, müşteri taksit, sipariş, BAF, hasar, filo plan
         v1.MapSystemApi();       // F11.1b — sistem ayarları, kullanıcı/yetki, denetim, web sitesi, tanımlar (2. yarı)
         ServiceInsurance.ServiceInsuranceEndpoints.Map(v1); // F9.1 — servis, sigorta/MTV/muayene, vade, fiyat & tarife
         v1.MapReportApi();       // F10.1 — raporlar (yalnız okur)
-        Rapor.ShiftApi.MapShiftApi(v1); // F10.3 — personel çalışma (vardiya) yazma uçları
+        Reports.ShiftApi.MapShiftApi(v1); // F10.3 — personel çalışma (vardiya) yazma uçları
         v1.MapPlatformApi();     // F12.1 — platform konsolu (ayrı yetki alanı: PlatformAdmin policy)
-        Cari.CrmApi.Map(v1);     // F7.1 — cariler + CRM (anket, şikayet, assistans, hukuk, analiz)
+        Customers.CrmApi.Map(v1);     // F7.1 — cariler + CRM (anket, şikayet, assistans, hukuk, analiz)
         v1.MapDefinitionApi();        // F11.1a — F11 tanımları (ilk yarı), genel tanım CRUD deseni
         foreach (var record in app.Services.GetServices<IUiApiEndpointRegistration>())
             record.Map(v1);

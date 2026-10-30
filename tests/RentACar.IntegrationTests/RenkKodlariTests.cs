@@ -136,7 +136,7 @@ public sealed class RenkKodlariTests(PostgresFixture fx)
         var d = new DirectoryInfo(AppContext.BaseDirectory);
         while (d is not null && !File.Exists(Path.Combine(d.FullName, "RentACar.slnx"))) d = d.Parent;
         Assert.NotNull(d);
-        var session = File.ReadAllText(Path.Combine(d!.FullName, "src/RentACar.Web/Api/Oturum/SessionApi.cs"));
+        var session = File.ReadAllText(Path.Combine(d!.FullName, "src/RentACar.Web/Api/Session/SessionApi.cs"));
 
         Assert.Contains("^#[0-9a-fA-F]{6}$", session, StringComparison.Ordinal);
     }

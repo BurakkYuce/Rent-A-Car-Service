@@ -1,5 +1,5 @@
 using Microsoft.EntityFrameworkCore;
-using RentACar.Application.MusteriTaksitleri;
+using RentACar.Application.CustomerInstallments;
 using RentACar.Domain.Entities;
 
 namespace RentACar.Infrastructure.Persistence.Repositories;

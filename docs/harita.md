@@ -27,7 +27,7 @@ kalıcı kararlar için `docs/KARARLAR.md`, son durum için `docs/roadmap/DEVIR.
 | Yetki matrisi, rol → izin | `Application/Authorization/RolePermissions.cs`, `PermissionGuard.cs`, `AdminRoleGuard.cs` |
 | Şube kapsamı (operatör yalnız kendi şubesi) | `Application/Authorization/BranchScope.cs` |
 | Uç izinleri, Admin rol kapısı | `Web/Identity/AuthExtensions.cs`; çit testleri `UcIzinKapsamaTests`, `DeletePermissionFenceTests` |
-| Oturum, giriş, güvenlik damgası | `Web/Identity/`, `Web/Api/Oturum/` |
+| Oturum, giriş, güvenlik damgası | `Web/Identity/`, `Web/Api/Session/` |
 | Defter (çift taraflı), dengeli küme | `Infrastructure/Persistence/Repositories/LedgerPoster.cs`, `LedgerSet.cs`, `Domain/Entities/AccountLedgerEntry.cs` |
 | Fatura, iade, KDV | `Application/Finance/InvoiceService.cs`, `VatMath.cs`, `Infrastructure/.../InvoiceRepository.cs` |
 | e-Fatura / e-Arşiv (kuyruk, UBL, durum) | `Application/EInvoicing/`, `Infrastructure/Persistence/EDocumentDispatcher.cs`, `EDocumentQueue.cs`; açık işler PR #394 yorumu |
@@ -35,16 +35,16 @@ kalıcı kararlar için `docs/KARARLAR.md`, son durum için `docs/roadmap/DEVIR.
 | Belge numarası, boşluksuz sıra | `Infrastructure/Persistence/DocumentNoGenerator.cs`, `SequenceAllocator.cs`, `Domain/Common/DocumentNo*.cs` |
 | Kira hesabı, dönüş, uzatma | `Application/Bookings/RentalService.cs`, `RentalCalculationService.cs`, `ReturnMath.cs`, `BookingMath.cs` |
 | Rezervasyon, teklif, takvim | `Application/Bookings/ReservationService.cs`, `QuotationService.cs`, `CalendarService.cs` |
-| Fiyat motoru, kampanya, doluluk çarpanı | `Application/Pricing/PricingService.cs`, `Application/DolulukFiyat/`, `Application/RentalRules/` |
-| Kur (TCMB, sabit kur) | `Application/Kur/ExchangeRateResolver.cs`, `Web/Jobs/TcmbExchangeRateJob.cs` |
-| Dönemsel faturalama | `Application/FaturaDonemleri/`, `Infrastructure/Persistence/PeriodInvoiceGenerator.cs` |
+| Fiyat motoru, kampanya, doluluk çarpanı | `Application/Pricing/PricingService.cs`, `Application/OccupancyPricing/`, `Application/RentalRules/` |
+| Kur (TCMB, sabit kur) | `Application/ExchangeRates/ExchangeRateResolver.cs`, `Web/Jobs/TcmbExchangeRateJob.cs` |
+| Dönemsel faturalama | `Application/InvoicePeriods/`, `Infrastructure/Persistence/PeriodInvoiceGenerator.cs` |
 | HGS içe aktarma ve yansıtma | `Application/Hgs/`; canlıda önce `docs/ops/blazor-saat-kaymasi.md` §5 |
 | KABİS kuyruğu | `Application/Kabis/`, `Infrastructure/Persistence/KabisNotificationGenerator.cs`, `Web/Jobs/KabisRetryJob.cs` |
 | Dış entegrasyon portları (SMS, POS, e-posta, stub'lar) | `Application/Integrations/`, `Infrastructure/Integrations/StubAdapters.cs` (dürüst stub kuralı) |
 | Müşteri bildirimleri, şablonlar | `Application/Notifications/`, `Infrastructure/Persistence/CustomerNotificationGenerator.cs` |
 | Arka plan işleri | `Web/Jobs/` + `Infrastructure/Persistence/*Generator.cs` (üretici = `RunAsync(db, tenant, now)`) |
 | Müşteri PII (TC şifreli, blind-index) | `Infrastructure/.../CustomerRepository.cs`, `Application/Common/IPiiHasher.cs`, `ISecretProtector.cs` |
-| Raporlar | `Application/Reporting/`, `Web/Api/Rapor/`, `Infrastructure/Persistence/SharedQueries.cs` |
+| Raporlar | `Application/Reporting/`, `Web/Api/Reports/`, `Infrastructure/Persistence/SharedQueries.cs` |
 | Menü (rol → görünen ekran) | `Web/Api/Menu/MenuRegistry.cs` |
 | Bir ekranın SPA kodu | `Frontend/src/app/features/<modül>/`, rota `sayfalar.ts`, çeviri `src/i18n/bloklar/<blok>.json` |
 | SPA çekirdeği (API istemcisi, form, oturum) | `Frontend/src/app/core/`, `src/app/shared/` |

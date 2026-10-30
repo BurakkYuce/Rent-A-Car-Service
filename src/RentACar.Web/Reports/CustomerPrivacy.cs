@@ -2,7 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using RentACar.Application.Customers;
 using RentACar.Domain.Entities;
 using RentACar.Infrastructure.Persistence;
-using RentACar.Web.Api.Cari;
+using RentACar.Web.Api.Customers;
 
 namespace RentACar.Web.Reports;
 

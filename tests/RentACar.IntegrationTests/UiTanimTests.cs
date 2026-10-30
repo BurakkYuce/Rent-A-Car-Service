@@ -12,7 +12,7 @@ using RentACar.IntegrationTests.Infrastructure;
 namespace RentACar.IntegrationTests;
 
 /// <summary>
-/// F11.1a — generic definition endpoints (<c>Api/Tanim/</c>) on the REAL Web pipeline (cookie + CSRF + pilot,
+/// F11.1a — generic definition endpoints (<c>Api/Definitions/</c>) on the REAL Web pipeline (cookie + CSRF + pilot,
 /// <c>racar_app</c>). INDEPENDENT ORACLE: every expected value (normalized code, row count, order) is written from
 /// the hand-built scenario, never computed by the service. Users get random passwords at run time.
 /// </summary>
