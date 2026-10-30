@@ -161,4 +161,41 @@ public sealed partial class UiFinanceHubApiTests
         await IdOf(await CollectAsync(adminIdentity));
         Assert.Equal(1, await CashCountAsync(e));
     }
+
+    /// <summary>
+    /// adv-419 L3: ANAHTARSIZ yazma (kasa işlemi ters kaydı). SPA bayat sekmenin bildiği kimliği (<c>ben</c>) başlığa koyar.
+    /// Muhasebeci 200 borç + 80 tahsilat yazdı; başka sekmede admin girdi (ortak çerez admininki); bayat sekmedeki "ters
+    /// kayıt" tıkı muhasebecinin kimliğiyle gider → 409, ters kayıt yazılmaz. Admin kendi kimliğiyle gönderince yazılır.
+    /// Oracle elle: 200 − 80 = 120; ters kayıttan sonra 200; kasa satırı 1 → 2.
+    /// </summary>
+    [Fact]
+    public async Task Expected_session_header_on_keyless_reverse_is_not_written_for_other_user()
+    {
+        var e = await SetupAsync();
+        var c = fx.Web.Client();
+        var (accountantSession, accountant) = await LoginOnAsync(c, e, Who.Accountant);
+        await IdOf(await AdjustAsync(accountantSession, e.CustomerA, 200m, NewKey(), accountant));
+        var collection = await IdOf(await PostAsync(accountantSession, "/api/ui/v1/finans/tahsilat",
+            new { cariId = e.CustomerA, tutar = 80m, hesap = "Kasa" }, NewKey()));
+        Assert.Equal(120m, await BalanceAsync(e, e.CustomerA));
+
+        var (admin, adminIdentity) = await LoginOnAsync(c, e, Who.Admin);
+
+        Task<HttpResponseMessage> ReverseAsync(string expected)
+        {
+            var req = new HttpRequestMessage(HttpMethod.Post, V1 + $"/kasa/islemler/{collection}/ters");
+            req.Headers.Add("X-XSRF-TOKEN", admin.Xsrf);
+            req.Headers.Add(ExpectedSessionHeader, expected); // Idempotency-Key YOK
+            return admin.C.SendAsync(req);
+        }
+
+        await Problem(await ReverseAsync(accountant), HttpStatusCode.Conflict, "oturum_degisti");
+        Assert.Equal(120m, await BalanceAsync(e, e.CustomerA));
+        Assert.Equal(1, await CashCountAsync(e));
+
+        await IdOf(await ReverseAsync(adminIdentity));
+        Assert.Equal(200m, await BalanceAsync(e, e.CustomerA));
+        Assert.Equal(2, await CashCountAsync(e));
+        await AllLedgerBalancedAsync(e);
+    }
 }

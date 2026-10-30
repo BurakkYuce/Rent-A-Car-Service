@@ -282,8 +282,9 @@ public static class UiApiExtensions
     /// (<c>kiraciId|kullaniciId</c>) taşır. Başlık VARSA ve oturumdaki kiracı + kullanıcıyla birebir eşleşmiyorsa
     /// (başka sekmede başka kullanıcı/kiracıyla giriş; biçimsiz ya da çoklu değer de dahil) uç ÇALIŞMADAN 409
     /// <c>oturum_degisti</c> döner — SPA'nın tekrar öncesi <c>ben</c> doğrulaması ile POST arasındaki TOCTOU'yu kapatır
-    /// (CSRF belirteci de ortak çerezdeki yeni kimliğe aittir, onu durdurmaz). Başlık yoksa davranış değişmez (harici
-    /// istemci, başlıksız ekranlar). Şube karşılaştırılmaz: sunucunun idempotency anahtarı şube içermez.
+    /// (CSRF belirteci de ortak çerezdeki yeni kimliğe aittir, onu durdurmaz). Anahtarsız yazmalarda SPA sekmenin o an
+    /// bildiği kimliği (<c>ben</c>) gönderir: bayat sekmeden başka kullanıcı adına yazılmaz (adv-419 L3). Başlık yoksa
+    /// davranış değişmez (harici istemci). Şube karşılaştırılmaz: sunucunun idempotency anahtarı şube içermez.
     /// </summary>
     private static ValueTask<object?> ExpectedSessionFilter(EndpointFilterInvocationContext c, EndpointFilterDelegate next)
     {
@@ -291,7 +292,7 @@ public static class UiApiExtensions
         if (http.Request.Headers.TryGetValue(ExpectedSessionHeader, out var expected)
             && !SameSession(http.User, expected.ToString()))
             return ValueTask.FromResult<object?>(UiError.Problem(UiError.SessionChanged,
-                "Bu işlem başka bir oturumda başlatılmıştı; tarayıcıdaki oturum değişmiş. İşlem yazılmadı. Sayfayı yenileyip yeniden deneyin."));
+                "Bu sayfa ya da işlem başka bir oturumda açılmıştı; tarayıcıdaki oturum değişmiş (başka sekmede başka kullanıcıyla giriş yapılmış olabilir). İşlem yazılmadı. Sayfayı yenileyip yeniden deneyin."));
         return next(c);
     }
 

@@ -124,12 +124,23 @@ describe('ApiIstemcisi', () => {
     '/api/ui/v1/musteri?q=1',
     '/api/ui/v1/musteri#x',
     '/api/ui/v1/../login',
+    // adv-419 I1: kodlanmış nokta segmentleri (tarayıcı `..` sayar)
+    '/api/ui/v1/oturum/%2e%2e/finans/bakiye-duzeltme',
+    '/api/ui/v1/oturum/%2E%2E/finans',
+    '/api/ui/v1/oturum/.%2e/finans',
+    '/api/ui/v1/oturum/%2e./finans',
+    '/api/ui/v1/a/%2e/b',
     '/api/ui/v1/a//b',
     '/api/ui/v1/a\\b',
     'api/ui/v1/x',
   ])('geçersiz yol "%s" eşzamanlı reddedilir, istek gitmez', (path) => {
     expect(() => api.get(path as ApiPath)).toThrow(TypeError);
     http.expectNone(() => true);
+  });
+
+  it('nokta içeren ama nokta segmenti olmayan yol geçer (%2e yalnız segmentin tamamıysa reddedilir)', () => {
+    api.get('/api/ui/v1/belgeler/rapor%2epdf').subscribe();
+    http.expectOne('/api/ui/v1/belgeler/rapor%2epdf').flush({});
   });
 
   it('uzun ömürlü abonelikten çıkınca istek iptal edilir', () => {

@@ -8,7 +8,7 @@ import {
   HttpXsrfTokenExtractor,
 } from '@angular/common/http';
 import { inject } from '@angular/core';
-import { catchError, from, Observable, switchMap, throwError } from 'rxjs';
+import { catchError, from, Observable, switchMap, tap, throwError } from 'rxjs';
 
 import { type ApiHatasiBilgisi, toApiError } from '@core/api/api-hatasi';
 import {
@@ -31,39 +31,60 @@ import {
   XSRF_REFRESHED,
   NO_RELOGIN,
 } from './request-context';
+import { identityOfSession } from './oturum-baglami';
 import { SessionService } from './session-service';
 import { ReloginService } from './relogin-service';
 
 const SAFE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS', 'TRACE']);
 
 /**
- * `X-Beklenen-Oturum` HİÇ eklenmeyen yollar (#417 I3): oturum uçları (giriş/çıkış/`ben`/xsrf — sunucu filtresi bunlara da
- * uygulanır; başlık girişi ve yeniden girişi kırardı) ve platform konsolu (kiracı kimliği yok, kendi oturumu).
+ * `X-Beklenen-Oturum` HİÇ eklenmeyen ilk yol SEGMENTLERİ (#417 I3): oturum uçları (giriş/çıkış/`ben`/xsrf — sunucu
+ * filtresi bunlara da uygulanır; başlık girişi ve yeniden girişi kırardı) ve platform konsolu (kiracı kimliği yok, kendi
+ * oturumu). Önek değil segment eşleşmesi (adv-419 (5)): `platformx/...` muaf DEĞİL.
  */
-const NO_EXPECTED_SESSION_PREFIXES = [`${API_ROOT}/oturum/`, `${API_ROOT}/platform/`];
+const NO_EXPECTED_SESSION_SEGMENTS = new Set(['oturum', 'platform']);
+
+function isExemptPath(url: string): boolean {
+  return NO_EXPECTED_SESSION_SEGMENTS.has(url.slice(API_ROOT.length + 1).split(/[/?#]/)[0] ?? '');
+}
 
 /**
- * #417 L1/L2: `Idempotency-Key` taşıyan yazma isteği, anahtarın bağlı olduğu kimlikle (`expectedIdentityFor`)
- * `X-Beklenen-Oturum` başlığını alır — gönderim kilidi/`formSubmission`, deterministik tahsilat ve anahtarlı her form
- * tek yerden. Çağıran başlığı kendisi verdiyse (para çekirdeği `beklenenOturum`) dokunulmaz. GET ve oturum/platform
- * uçlarına ASLA eklenmez.
+ * `X-Beklenen-Oturum`: yazma isteğinin hangi kimlik adına yazılması beklendiği. Çağıran başlığı kendisi verdiyse (para
+ * çekirdeği `beklenenOturum`) dokunulmaz; GET ve oturum/platform uçlarına ASLA eklenmez.
+ * - `Idempotency-Key` taşıyan yazma (#417 L1/L2): anahtarın BAĞLI olduğu kimlik (`expectedIdentityFor`) — tekrar,
+ *   anahtarın ilk gönderildiği kullanıcı adına gider. Dönen `key`, sonucun bağa bildirilmesi içindir.
+ * - Anahtarsız yazma (adv-419 L3: iade, ters kayıt, kiraya çevirme, teslim/dönüş, dönem kapat…): sekmenin O AN bildiği
+ *   kimlik (`ben`). Başka sekmede başka kullanıcıyla girildiyse bayat sekmenin tıkı yeni kullanıcı adına yazılmaz,
+ *   409 `oturum_degisti` döner. `ben` yoksa başlık yok (oturumu sunucu denetler).
  */
 function withExpectedSession(
   request: HttpRequest<unknown>,
   session: SessionService,
-): HttpRequest<unknown> {
-  const key = request.headers.get(IDEMPOTENCY_HEADER);
+): { request: HttpRequest<unknown>; key: string | null } {
   if (
-    key === null ||
     SAFE_METHODS.has(request.method) ||
     request.headers.has(EXPECTED_SESSION_HEADER) ||
-    NO_EXPECTED_SESSION_PREFIXES.some((prefix) => request.url.startsWith(prefix))
+    isExemptPath(request.url)
   )
-    return request;
-  const identity = session.expectedIdentityFor(key);
+    return { request, key: null };
+  const key = request.headers.get(IDEMPOTENCY_HEADER);
+  const ben = session.ben();
+  const identity =
+    key !== null ? session.expectedIdentityFor(key) : ben ? identityOfSession(ben) : null;
   return identity === null
-    ? request
-    : request.clone({ setHeaders: { [EXPECTED_SESSION_HEADER]: identity } });
+    ? { request, key: null }
+    : { request: request.clone({ setHeaders: { [EXPECTED_SESSION_HEADER]: identity } }), key };
+}
+
+/**
+ * adv-419 L1: deneme KESİN reddedildi mi (sunucu işledi, yazmadı)? 4xx; `mukerrer` (anahtar zaten yazılmış) ve
+ * `oturum_degisti` (bağ kuralının kendisi) hariç. 2xx, 5xx, ağ hatası ve iptal kesin red değildir.
+ */
+function isDefinitiveRejection(error: unknown): boolean {
+  if (!(error instanceof HttpErrorResponse) || error.status < 400 || error.status >= 500)
+    return false;
+  const { kod } = toApiError(error);
+  return kod !== 'mukerrer' && kod !== 'oturum_degisti';
 }
 
 /**
@@ -213,7 +234,18 @@ export const sessionInterceptor: HttpInterceptorFn = (request, next) => {
     return throwError(() => error);
   };
 
-  return gonder(withExpectedSession(request, session));
+  const prepared = withExpectedSession(request, session);
+  const key = prepared.key;
+  const result = gonder(prepared.request);
+  return key === null
+    ? result
+    : result.pipe(
+        tap({
+          error: (error: unknown) => {
+            if (isDefinitiveRejection(error)) session.keyAttemptRejected(key);
+          },
+        }),
+      );
 };
 
 /**

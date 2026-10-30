@@ -47,8 +47,9 @@ export interface IstekSecenekleri {
   /**
    * `X-Beklenen-Oturum` başlığı (`kiraciId|kullaniciId`). Verilirse sunucu oturumdaki kimlik farklıysa YAZMADAN 409
    * `oturum_degisti` döner — başka sekmede başka kullanıcıyla giriş, eski kullanıcının para denemesini yeni oturumla
-   * yazdıramaz (#320 L2). Para çekirdeği (`MoneySubmission`) denemenin kimliğiyle doldurur. Verilmezse `islemAnahtari`'lı
-   * yazma isteğine `oturumInterceptor` anahtarın bağlı olduğu kimliği ekler (#417 L1/L2; GET ve oturum uçlarına asla).
+   * yazdıramaz (#320 L2). Para çekirdeği (`MoneySubmission`) denemenin kimliğiyle doldurur. Verilmezse `oturumInterceptor`
+   * ekler: `islemAnahtari`'lı yazmaya anahtarın bağlı olduğu kimliği (#417 L1/L2), anahtarsız yazmaya sekmenin o anki
+   * `ben` kimliğini (adv-419 L3); GET, oturum ve platform uçlarına asla.
    */
   readonly beklenenOturum?: string;
   /** F3.3 interceptor'larına istek başına bayrak taşımak için. */
@@ -140,6 +141,9 @@ function checkPath(path: string): void {
     !path
       .slice(API_ROOT.length + 1)
       .split('/')
+      // adv-419 I1: tarayıcı `%2e` / `%2e%2e` / `.%2e` segmentini (harf büyüklüğü fark etmez) `.` / `..` sayıp yolu
+      // normalize eder — `oturum/%2e%2e/finans/...` muaf `oturum/` önekiyle başka uca gider.
+      .map((segment) => segment.replace(/%2e/gi, '.'))
       .some((segment) => segment === '' || segment === '.' || segment === '..');
   if (!valid) {
     throw new TypeError(

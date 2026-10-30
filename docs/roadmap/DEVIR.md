@@ -157,7 +157,9 @@ olabilir). Açık PR yoksa "Sırada" listesinin ilk maddesi.
     gönderir (anahtar ilk görüldüğü kimliğe bağlanır, yalnız çıkışta temizlenir); sunucu `ExpectedSessionFilter`
     uyuşmazlıkta 409 `oturum_degisti`, yazma yok. #320 L2 TOCTOU, #331 L1 (sekmeler arası `ben` yeniden denemesi),
     #318 L2 notu ve aynı tarayıcıda kullanıcı değişince rastgele anahtarlı formun ikinci kayıt yazması kapandı.
-    Başlık GET'e, `oturum/*`'a, `/api/ui/v1/platform/*`'a ve anahtarsız yazmaya eklenmez (Vitest çiti).
+    Başlık GET'e, `oturum/*`'a ve `/api/ui/v1/platform/*`'a eklenmez (Vitest çiti). Anahtarsız yazmalar (ters kayıt,
+    iade, teslim/dönüş…) sekmenin o anki `ben` kimliğini taşır; anahtar bağı her denemesi kesin 4xx alınca düşer
+    (adv-419 L1/L3, `fix/anahtarsiz-yazma-oturum-basligi`).
   - #418 harici API (`/api/v1`) ofsetli tarih (`+03:00`) 500 yerine UTC'ye çevrilir; bozuk tarih 400.
 
 ### ⏳ Açık PR

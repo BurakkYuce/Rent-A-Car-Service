@@ -48,8 +48,11 @@ export class SessionService {
   private readonly deger = signal<Ben | null>(null);
   private readonly cleaners = new Set<() => void>();
   private initialLoadPromise: Promise<Ben | null> | null = null;
-  /** `Idempotency-Key` → anahtarın İLK gönderildiği andaki kimlik ({@link expectedIdentityFor}). */
-  private readonly keyIdentities = new Map<string, string>();
+  /**
+   * `Idempotency-Key` → anahtarın İLK gönderildiği andaki kimlik + kesin reddi görülmemiş deneme sayısı
+   * ({@link expectedIdentityFor}, {@link keyAttemptRejected}).
+   */
+  private readonly keyIdentities = new Map<string, { identity: string; open: number }>();
 
   /** Oturumdaki kullanıcı; oturum yoksa `null`. */
   readonly ben = this.deger.asReadonly();
@@ -82,16 +85,31 @@ export class SessionService {
    * gönderimi (tekrar, yeniden girişten sonraki tekrar) bu kimliği taşır. Sunucu anahtarı kiracı|kullanıcı|anahtar'dan
    * türettiği için, başka sekmede başka kullanıcıyla girildikten sonra başlıksız tekrar YENİ işlem sayılır ve ikinci kez
    * yazılırdı; başlıkla 409 `oturum_degisti` döner. Bağ kimlik değişince SİLİNMEZ (silinseydi tekrar yeni kimliğe
-   * bağlanıp yazılırdı); yalnız çıkışta (`clear`) temizlenir. Oturum yoksa `null` (başlık gönderilmez, bağlanmaz).
+   * bağlanıp yazılırdı); çıkışta (`clear`) ya da anahtarın HER denemesi kesin reddedilince ({@link keyAttemptRejected})
+   * düşer. Oturum yoksa `null` (başlık gönderilmez, bağlanmaz). Her çağrı bir deneme sayılır (açık deneme +1).
    */
   expectedIdentityFor(key: string): string | null {
+    let bound = this.keyIdentities.get(key);
+    if (bound === undefined) {
+      const current = this.context()?.anahtar;
+      if (current === undefined) return null;
+      bound = { identity: identityOfContext(current), open: 0 };
+      this.keyIdentities.set(key, bound);
+    }
+    bound.open++;
+    return bound.identity;
+  }
+
+  /**
+   * adv-419 L1: anahtarın bir denemesi KESİN reddedildi (4xx; `mukerrer`/`oturum_degisti` hariç — sunucu işledi, yazmadı).
+   * Anahtarın açık denemesi kalmadıysa bağ düşer: o anahtarla A adına hiçbir şey yazılmadığı KESİN, bu yüzden aynı formu
+   * sonra B'nin göndermesi ilk yazımdır (A'nın anahtarı B'yi sayfa yenilenene kadar kilitlemez). Başarılı, belirsiz
+   * (5xx/ağ) ya da yanıtı hiç görülmeyen (iptal) deneme açık kalır → bağ ömür boyu kalır; o anahtarın başka kullanıcı
+   * adına yeniden yazılması (anahtar kullanıcı başına türetilir) yine 409'a düşer.
+   */
+  keyAttemptRejected(key: string): void {
     const bound = this.keyIdentities.get(key);
-    if (bound !== undefined) return bound;
-    const current = this.context()?.anahtar;
-    if (current === undefined) return null;
-    const identity = identityOfContext(current);
-    this.keyIdentities.set(key, identity);
-    return identity;
+    if (bound !== undefined && --bound.open <= 0) this.keyIdentities.delete(key);
   }
 
   /**
