@@ -219,6 +219,27 @@ describe('KiraFinansDurumu — tahsilat (deterministik anahtar)', () => {
     ]);
   });
 
+  it('#318 L2: Nakit yazılınca KİRLİ Kart formuna "diğer formun tahsilatı yazıldı" notu; davranış aynı, Kart gönderiminde not kalkar', async () => {
+    const { f, detayVer } = await exchangeRate(() => of({ id: 'c1' }));
+    detayVer(detay(tahsilat(K1)));
+    f.kart.form.controls.tutar.setValue('600.00');
+    f.kart.form.markAsDirty();
+    f.nakit.form.controls.tutar.setValue('700.00');
+    f.doCollection(f.nakit);
+    expect(f.otherCollectedFor()).toBe('Banka');
+    detayVer(detay(tahsilat(K2, 1900)));
+    f.doCollection(f.kart);
+    expect(f.otherCollectedFor()).toBeNull();
+  });
+
+  it('#318 L2: öteki form temizse not YOK', async () => {
+    const { f, detayVer } = await exchangeRate(() => of({ id: 'c1' }));
+    detayVer(detay(tahsilat(K1)));
+    f.nakit.form.controls.tutar.setValue('700.00');
+    f.doCollection(f.nakit);
+    expect(f.otherCollectedFor()).toBeNull();
+  });
+
   it('#318 L1: tahsilat sonrası tazeleme hata verdi → "Yeniden yükle" (yenile → sayfa), başarılı okumada düğmeler açılır', async () => {
     const { f, cagrilar, detayVer, degisti } = await exchangeRate(() => of({ id: 'c1' }));
     detayVer(detay(tahsilat(K1)));

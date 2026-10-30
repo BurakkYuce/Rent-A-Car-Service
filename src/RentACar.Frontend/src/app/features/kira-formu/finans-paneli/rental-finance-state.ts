@@ -193,6 +193,12 @@ export class RentalFinanceState {
   readonly collectionLoadFailed = computed(
     () => this._detailError() && this.isCollectionRefreshing(),
   );
+  private readonly _otherCollected = signal<AccountType | null>(null);
+  /**
+   * #318 L2 (yalnız bilgi): bir formun tahsilatı yazıldığında öteki form KİRLİYDİ — onun hesabı. O formun tutarı
+   * gönderilirse (tasarım gereği) yeni anahtarla İKİNCİ tahsilat olur; formda bunu söyleyen not gösterilir.
+   */
+  readonly otherCollectedFor = this._otherCollected.asReadonly();
   readonly paymentForm = new FormGroup({
     tutar: amountControl(),
     hesapId: optionControl(),
@@ -377,6 +383,7 @@ export class RentalFinanceState {
    */
   doCollection(tf: TahsilatFormu): void {
     if (!tf.kopya.canSubmit() || this.isCollectionBusy()) return;
+    this._otherCollected.set(null);
     let g: TahsilatGonderimi | null = null;
     tf.gonderim.gonder(
       tf.form,
@@ -406,6 +413,8 @@ export class RentalFinanceState {
         basarili: () => {
           if (g) tf.deneme.successful(g);
           tf.kopya.settled();
+          const other = tf === this.nakit ? this.kart : this.nakit;
+          if (other.form.dirty) this._otherCollected.set(other.hesap);
           this.tamam('kiraFinans.bildirim.tahsilat');
         },
         hata: (h) => {

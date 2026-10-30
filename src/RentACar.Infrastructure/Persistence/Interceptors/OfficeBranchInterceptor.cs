@@ -9,8 +9,8 @@ namespace RentACar.Infrastructure.Persistence.Interceptors;
 /// <summary>
 /// Ofis→şube FK denormalizasyonu (FAZ 5-C4; BranchFkInterceptor deseninin ofis karşılığı):
 /// kaydedilen <see cref="IOfficeScoped"/> belgelerin CikisOfisi metnini tenant Location master'ından
-/// çözüp (lower/trim eşleşme; aynı adda Kod sırası deterministik) Location.SubeId'yi OfisSubeFk'ya
-/// yazar. Location eşleşmez ya da Location.SubeId null → null (salt-metin davranış — kilitlenme yok).
+/// çözüp (<see cref="OfficeNameKey.Generate"/> anahtarı; aynı anahtarlı ofisler farklı şubedeyse BELİRSİZ → null)
+/// Location.SubeId'yi OfisSubeFk'ya yazar. Location eşleşmez ya da Location.SubeId null → null (salt-metin davranış).
 /// Metin doğruluk-kaynağı; FK daima türev. Stateless → singleton; audit'ten ÖNCE koşar.
 /// </summary>
 public sealed class OfficeBranchInterceptor : SaveChangesInterceptor

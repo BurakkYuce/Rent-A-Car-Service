@@ -31,6 +31,10 @@ public static class UiError
     /// token). SPA davranışı: <c>GET /api/ui/v1/oturum/xsrf</c> ile token yenile, isteği BİR kez tekrarla.
     /// Ayrı kod çünkü <c>dogrulama</c> form hatası gösterir, <c>yetki_yok</c> uyarı bandı açar — ikisi de yanlış.</summary>
     public const string XsrfInvalid = "xsrf_gecersiz";
+    /// <summary>#320 L2: istek <c>X-Beklenen-Oturum</c> (kiracı|kullanıcı) taşıyor ve oturumdaki kimlik farklı —
+    /// ortak çerez başka sekmede başka kullanıcıya/kiracıya geçmiş. Uç ÇALIŞMAZ, hiçbir şey yazılmaz. Ayrı kod çünkü
+    /// <c>cakisma</c> formu açıp yeni anahtar üretir; para denemesi ise korunmalı (sonucu bilinmeyen deneme olabilir).</summary>
+    public const string SessionChanged = "oturum_degisti";
 
     /// <summary>Kod tablosu: her <c>kod</c>'un HTTP durumu ve kısa Türkçe başlığı.</summary>
     public static readonly IReadOnlyDictionary<string, (int Status, string Baslik)> Table =
@@ -45,6 +49,7 @@ public static class UiError
             [TenantClosed] = (StatusCodes.Status401Unauthorized, "Firma hesabı kapalı"),
             [TooManyRequests] = (StatusCodes.Status429TooManyRequests, "Çok fazla istek"),
             [XsrfInvalid] = (StatusCodes.Status400BadRequest, "Güvenlik belirteci geçersiz"),
+            [SessionChanged] = (StatusCodes.Status409Conflict, "Oturum değişti"),
         };
 
     /// <summary>

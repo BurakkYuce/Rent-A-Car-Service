@@ -83,10 +83,17 @@ public sealed class TenantSettingsService(
         {
             var series = Trim(r.Value)?.ToUpperInvariant() ?? (r.Kind == RentACar.Domain.Enums.EDocumentKind.EFatura
                 ? EInvoicing.EDocumentPolicy.EInvoiceSeriesDefault : EInvoicing.EDocumentPolicy.EArchiveSeriesDefault);
-            if (DocumentNo.IsSeriesValid(series) && await edocuments.SeriesUsedByOtherKindAsync(series, r.Kind, ct))
+            if (!DocumentNo.IsSeriesValid(series)) continue;
+            if (await edocuments.SeriesUsedByOtherKindAsync(series, r.Kind, ct))
                 throw new ValidationException(
                     $"{r.Label} seri kodu {series} daha önce {r.Other} belgelerinde kullanıldı; GİB e-Arşiv ve e-Fatura için " +
                     "farklı seri ister. Başka bir kod seçin.", r.Field);
+            // #410 L8: seri geçmişte İÇ fatura numarası vermişse (eski FaturaSeriKodu) GİB numarası aynı uzaya düşer →
+            // mükerrer belge no (e-Arşiv kılavuzu v1.18 §6). Ters yön (iç seri → GİB'de kullanılmış seri) yukarıda.
+            if (await edocuments.SeriesUsedByInvoicesAsync(series, ct))
+                throw new ValidationException(
+                    $"{r.Label} seri kodu {series} daha önce iç fatura numaralarında kullanıldı; aynı seri iki numara " +
+                    "uzayında mükerrer belge numarası üretir. Başka bir kod seçin.", r.Field);
         }
     }
 

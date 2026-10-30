@@ -110,6 +110,7 @@ describe('apiHatasinaCevir', () => {
     [401, 'kiraci_kapali', 'Firma hesabı kapalı.'],
     [429, 'cok_istek', 'Çok fazla istek.'],
     [400, 'xsrf_gecersiz', 'Güvenlik belirteci (X-XSRF-TOKEN) eksik.'],
+    [409, 'oturum_degisti', 'Tarayıcıdaki oturum değişmiş. İşlem yazılmadı.'],
   ];
 
   it.each(codeTable)('%i %s → kod aynen, alanlar yok', (status, code, detail) => {
@@ -120,7 +121,7 @@ describe('apiHatasinaCevir', () => {
     expect(error.alanlar).toBeUndefined();
   });
 
-  it('kod birliği backend kod tablosuyla birebir (dokuz kod)', () => {
+  it('kod birliği backend kod tablosuyla birebir (on kod)', () => {
     expect([...SERVER_ERROR_CODES].sort()).toEqual(
       [
         'cakisma',
@@ -128,6 +129,7 @@ describe('apiHatasinaCevir', () => {
         'dogrulama',
         'kiraci_kapali',
         'mukerrer',
+        'oturum_degisti',
         'oturum_yok',
         'pilot_degil',
         'xsrf_gecersiz',

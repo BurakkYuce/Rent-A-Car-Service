@@ -71,6 +71,14 @@ describe('ApiIstemcisi', () => {
     const request = http.expectOne('/api/ui/v1/kasa/tahsilat');
     expect(request.request.headers.get('Idempotency-Key')).toBe('anahtar-0123456789abcdef');
     expect(request.request.body).toEqual({ tutar: 1 });
+    expect(request.request.headers.has('X-Beklenen-Oturum')).toBe(false);
+    request.flush({});
+  });
+
+  it('beklenenOturum → X-Beklenen-Oturum başlığı (#320 L2)', () => {
+    api.post('/api/ui/v1/kasa/tahsilat', { tutar: 1 }, { beklenenOturum: 't-1|u-1' }).subscribe();
+    const request = http.expectOne('/api/ui/v1/kasa/tahsilat');
+    expect(request.request.headers.get('X-Beklenen-Oturum')).toBe('t-1|u-1');
     request.flush({});
   });
 

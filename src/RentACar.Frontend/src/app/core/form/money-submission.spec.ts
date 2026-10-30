@@ -698,3 +698,69 @@ describe('MoneySubmission — tekrar öncesi oturum doğrulaması (r316 M-new, L
     expect(calls[1]?.body).toEqual({ tutar: '300.00' });
   });
 });
+
+describe('MoneySubmission — beklenen oturum başlığı (#320 L2)', () => {
+  const freeze = async () => {
+    const m = mount({ scope: () => 'virman' });
+    m.submission.restore(m.form);
+    m.form.controls.tutar.setValue('300.00');
+    await m.run();
+    calls[0]?.reply.error(networkError());
+    return m;
+  };
+
+  it('ilk gönderim ve tekrar denemenin KİMLİĞİNİ (kiracı|kullanıcı; şube hariç) taşır', async () => {
+    const m = await freeze();
+    expect(calls[0]?.options?.beklenenOturum).toBe('firma|kullanici-a');
+    session.set({ anahtar: 'firma|kullanici-a|s-2' }); // yalnız şube değişti: aynı kimlik
+    TestBed.tick();
+    await m.run();
+    expect(calls[1]?.options?.beklenenOturum).toBe('firma|kullanici-a');
+  });
+
+  it('TOCTOU: ben doğrulaması geçti ama sunucu 409 oturum_degisti → deneme DONMUŞ korunur, aynı anahtar; ben tazelenir', async () => {
+    const m = await freeze();
+    await m.run(); // ben = kullanici-a (geçti), POST arada değişen çerezle gitti
+    calls[1]?.reply.error(problem(409, 'oturum_degisti'));
+    expect(m.submission.frozen()?.key).toBe('k-1');
+    expect(m.form.disabled).toBe(true);
+    expect(m.form.controls.tutar.value).toBe('300.00');
+    expect(m.submission.notice()?.message).toBe('paraIslemi.oturumUyusmadi');
+    expect(TestBed.inject(PendingMoneyAttempts).get('virman')?.key).toBe('k-1');
+    expect(TestBed.inject(SessionService).yukle).toHaveBeenCalledTimes(1);
+    expect(m.hooks.rejected).not.toHaveBeenCalled();
+    // Aynı kimlikte kalındı: tekrar AYNI anahtar + gövdeyle.
+    await m.run();
+    expect(calls[2]?.options?.islemAnahtari).toBe('k-1');
+    expect(calls[2]?.body).toEqual({ tutar: '300.00' });
+  });
+
+  it('409 oturum_degisti sonrası ben başka kullanıcıya döner: kimlik kuralı denemeyi bırakır ve açıklar, GÖNDERİLMEZ', async () => {
+    const m = await freeze();
+    await m.run();
+    calls[1]?.reply.error(problem(409, 'oturum_degisti'));
+    session.set({ anahtar: 'firma|kullanici-b|*' }); // yukle'nin sonucu
+    TestBed.tick();
+    expect(m.submission.frozen()).toBeNull();
+    expect(m.submission.notice()?.message).toBe('paraIslemi.oturumDegisti');
+    expect(TestBed.inject(PendingMoneyAttempts).count()).toBe(0);
+    expect(calls).toHaveLength(2);
+  });
+
+  it('YENİ işlemin 409 oturum_degisti yanıtı: anahtar yenilenmez, form donar (yeni anahtarla ikinci işlem yolu yok)', async () => {
+    const m = mount({ scope: () => 'yeni' });
+    await m.run();
+    calls[0]?.reply.error(problem(409, 'oturum_degisti'));
+    expect(m.submission.frozen()?.key).toBe('k-1');
+    expect(m.submission.currentKey).toBe('k-1');
+    expect(m.form.disabled).toBe(true);
+    expect(m.submission.notice()?.message).toBe('paraIslemi.oturumUyusmadi');
+  });
+
+  it('bağlamsız deneme (oturum bilgisi yok) başlık taşımaz', async () => {
+    session.set(null);
+    const m = mount();
+    await m.run();
+    expect(calls[0]?.options?.beklenenOturum).toBeUndefined();
+  });
+});

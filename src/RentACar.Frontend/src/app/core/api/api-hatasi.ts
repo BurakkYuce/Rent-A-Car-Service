@@ -16,6 +16,8 @@ export const SERVER_ERROR_CODES = [
   'kiraci_kapali',
   'cok_istek',
   'xsrf_gecersiz',
+  // #320 L2: `X-Beklenen-Oturum` oturumla uyuşmadı (409, yazılmadı) — yalnız para çekirdeği ele alır.
+  'oturum_degisti',
 ] as const;
 
 export type ServerErrorCode = (typeof SERVER_ERROR_CODES)[number];

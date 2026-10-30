@@ -1,3 +1,4 @@
+import { DOCUMENT } from '@angular/common';
 import {
   DestroyRef,
   Injectable,
@@ -135,10 +136,26 @@ export class PendingMoneyAttempts {
       channel.onmessage = (e: MessageEvent<unknown>) => this.received(e.data);
       this.channel = channel;
       inject(DestroyRef, { optional: true })?.onDestroy(() => channel.close());
+      // #331 L1: başarısız yeniden okuma sekmeye dönülünce (odak/görünürlük) ya da bağlantı gelince tekrarlanır.
+      const doc = inject(DOCUMENT);
+      const view = doc.defaultView;
+      const retry = () => {
+        if (this.refreshPending && doc.visibilityState !== 'hidden') void this.refresh();
+      };
+      view?.addEventListener('focus', retry);
+      view?.addEventListener('online', retry);
+      doc.addEventListener('visibilitychange', retry);
+      inject(DestroyRef, { optional: true })?.onDestroy(() => {
+        view?.removeEventListener('focus', retry);
+        view?.removeEventListener('online', retry);
+        doc.removeEventListener('visibilitychange', retry);
+      });
     }
   }
 
   private channel: BroadcastChannel | null = null;
+  /** Öteki sekmenin duyurusundan sonraki `ben` okuması ağ/5xx ile başarısız oldu; yeniden denenmeli. */
+  private refreshPending = false;
 
   private broadcast(context: string | null): void {
     try {
@@ -161,7 +178,19 @@ export class PendingMoneyAttempts {
     if (m['tur'] !== 'baglam') return;
     const other = typeof m['anahtar'] === 'string' ? m['anahtar'] : null;
     if (other === fullContext(this.session)) return;
-    void this.session?.yukle?.();
+    void this.refresh();
+  }
+
+  /**
+   * `ben` sunucudan yeniden okunur. #331 L1: ağ/5xx'te `yukle` oturumu KAPATMAZ (`ben` korunur, `null` döner); bu sekme
+   * bayat kimlikte kalmasın diye bir sonraki odak/görünürlük/çevrimiçi olayında tekrar denenir. Zamanlayıcı yok: arka
+   * planda tekrarlayan hata toast'u üretmez. Oturum gerçekten kapandıysa (`loggedIn` false) tekrar yok. Bu arada
+   * gönderilen para isteği zaten `X-Beklenen-Oturum` ile sunucuda korunur (#320 L2).
+   */
+  private async refresh(): Promise<void> {
+    this.refreshPending = false;
+    const ben = await this.session?.yukle?.();
+    if (ben === null && this.session?.loggedIn?.()) this.refreshPending = true;
   }
 
   /** Bu kapsamın denemesi — yalnız GÜNCEL oturum bağlamında yazılmışsa. */

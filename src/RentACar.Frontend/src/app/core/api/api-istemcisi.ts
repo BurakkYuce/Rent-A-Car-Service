@@ -26,6 +26,8 @@ export type ApiPath = `${typeof API_ROOT}/${string}`;
 export const XSRF_COOKIE = 'XSRF-TOKEN';
 export const XSRF_HEADER = 'X-XSRF-TOKEN';
 export const IDEMPOTENCY_HEADER = 'Idempotency-Key';
+/** #320 L2 (`UiApiExtensions.ExpectedSessionHeader`): isteğin yazılması beklenen kimlik `kiraciId|kullaniciId`. */
+export const EXPECTED_SESSION_HEADER = 'X-Beklenen-Oturum';
 
 type QueryValue = string | number | boolean;
 
@@ -42,6 +44,12 @@ export interface IstekSecenekleri {
    * üretimi/yenilenmesi (her 2xx'ten sonra) F3.6 gönderim kilidinde.
    */
   readonly islemAnahtari?: string;
+  /**
+   * `X-Beklenen-Oturum` başlığı (`kiraciId|kullaniciId`). Verilirse sunucu oturumdaki kimlik farklıysa YAZMADAN 409
+   * `oturum_degisti` döner — başka sekmede başka kullanıcıyla giriş, eski kullanıcının para denemesini yeni oturumla
+   * yazdıramaz (#320 L2). Para çekirdeği (`MoneySubmission`) denemenin kimliğiyle doldurur.
+   */
+  readonly beklenenOturum?: string;
   /** F3.3 interceptor'larına istek başına bayrak taşımak için. */
   readonly context?: HttpContext;
 }
@@ -92,6 +100,9 @@ export class ApiIstemcisi {
     let headers = new HttpHeaders();
     if (option?.islemAnahtari !== undefined) {
       headers = headers.set(IDEMPOTENCY_HEADER, option.islemAnahtari);
+    }
+    if (option?.beklenenOturum !== undefined) {
+      headers = headers.set(EXPECTED_SESSION_HEADER, option.beklenenOturum);
     }
     return this.http
       .request<T>(method, path, {
