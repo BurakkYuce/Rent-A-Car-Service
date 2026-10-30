@@ -153,6 +153,7 @@ public sealed class LocationRepository(IDbContextFactory<AppDbContext> factory) 
             .Where(l => excludeId == null || l.Id != excludeId)
             .Select(l => l.Ad).ToListAsync(ct);
         if (names.Any(a => OfficeNameKey.Generate(a) == key))
-            throw new ValidationException($"Ofis adı '{(name ?? "").Trim()}' zaten kullanılıyor (büyük/küçük harf ve boşluk farkı sayılmaz).");
+            throw new ValidationException(
+                $"Ofis adı '{(name ?? "").Trim()}' zaten kullanılıyor (büyük/küçük harf ve boşluk farkı sayılmaz).", "ad");
     }
 }
