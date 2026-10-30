@@ -301,8 +301,8 @@ public sealed class ReservationService(
     }
 
     /// <summary>Tasfiye: rezervasyonu kira sözleşmesine çevirir. Yeni kira Id döner.
-    /// FAZ 3.A3a: dönüşüm sonrası sistem ücret satırları uygulanır (ApplyContractFeesAsync
-    /// İDEMPOTENT — adversarial gündemi "rez→kira çift ücret" bu yüzden imkânsız).</summary>
+    /// FAZ 3.A3a: sistem ücret satırları dönüşümle AYNI transaction'da yazılır; rezervasyon kilit altında tek kez
+    /// çevrilebildiği için "rez→kira çift ücret" imkânsız (ikinci çevirme kilitte reddedilir, hiçbir şey yazmaz).</summary>
     public async Task<Guid> ConvertToRentalAsync(Guid id, CancellationToken ct = default)
     {
         PermissionGuard.Require(_currentUser, Permission.OperationsWrite); // adversarial M4
@@ -324,7 +324,7 @@ public sealed class ReservationService(
             source: await _sourceRule.ResolveAsync(reservation.Kaynak, ct),
             kmUnlimited: reservation.KmSinirsiz);
 
-        var rentalId = await _repository.ConvertToRentalAsync(id, res => new RentalContract
+        RentalContract Build(Reservation res) => new()
         {
             Durum = RentalStatus.Kirada,
             ReservationId = res.Id,
@@ -368,9 +368,17 @@ public sealed class ReservationService(
             GeldigiBirim = res.GeldigiBirim,
             OnayKodu = res.OnayKodu,
             ProjeAdi = res.ProjeAdi
-        }, ct);
-        await _feeLines.ApplyContractFeesAsync(rentalId, ct);
-        return rentalId;
+        };
+
+        // DEVIR §6: ücret satırları + dönem planı dönüşümle AYNI transaction'da (doğrudan kirayla aynı yol). Önceden
+        // ücret ayrı adımdı (patlarsa rezervasyon çevrilmiş, kira ücretsiz kalıyordu) ve dönüşen kiraya plan HİÇ
+        // kurulmuyordu (uzatmaya kadar dönem paneli boş). Ücret girdileri kilitten ÖNCE okunur (#416 L1: kilit +
+        // transaction bağlantısı tutulurken ek bağlantı açılmaz); kilit altında yalnız saf hesap kalır ve kilit
+        // altında okunan rezervasyon ön okumadan farklıysa LinesFor 409 cakisma verir (eski girdiyle ücret yazılmaz).
+        var fees = await _feeLines.PrepareContractFeesAsync(Build(reservation), ct);
+        return await _repository.ConvertToRentalAsync(id, Build,
+            rental => new NewRentalLines(fees.LinesFor(rental), FaturaDonemleri.InvoicePeriodPlanService.BuildPlan(rental)),
+            ct);
     }
 
     private async Task<bool> Transition(

@@ -310,17 +310,16 @@ public sealed class BookingRepository(IDbContextFactory<AppDbContext> factory) :
         return rows.ToList();
     }
 
-    public async Task CreateRentalAsync(RentalContract contract, CancellationToken ct = default)
+    public async Task CreateRentalAsync(RentalContract contract, NewRentalLines lines, CancellationToken ct = default)
     {
         await PgRetry.RunAsync(async () => // P0-5: deadlock/serialization çakışmasında baştan dene
         {
             await using var db = await _factory.CreateDbContextAsync(ct);
             await using var tx = await db.Database.BeginTransactionAsync(ct);
             contract.SozlesmeNo = await DocumentNoGenerator.GenerateAsync(db, db.TenantId, DocumentNoType.KiraSozlesmesi, ct);
-            db.Rentals.Add(contract);
             try
             {
-                await db.SaveChangesAsync(ct);
+                await AddRentalWithLinesAsync(db, contract, lines, ct);
                 await tx.CommitAsync(ct);
             }
             catch (DbUpdateException ex) when (IsExclusionViolation(ex))
@@ -451,7 +450,8 @@ public sealed class BookingRepository(IDbContextFactory<AppDbContext> factory) :
     }
 
     public async Task<Guid> ConvertToRentalAsync(
-        Guid reservationId, Func<Reservation, RentalContract> buildRental, CancellationToken ct = default)
+        Guid reservationId, Func<Reservation, RentalContract> buildRental,
+        Func<RentalContract, NewRentalLines> buildLines, CancellationToken ct = default)
     {
         return await PgRetry.RunAsync(async () => // P0-5: deadlock/serialization çakışmasında baştan dene
         {
@@ -469,8 +469,9 @@ public sealed class BookingRepository(IDbContextFactory<AppDbContext> factory) :
                     $"Rezervasyon bu sırada başka bir oturumda '{reservation.Durum}' durumuna geçti; kiraya çevrilmedi.");
 
             var rental = buildRental(reservation);
+            // Alt satırlar kilit ALTINDA okunan rezervasyondan kurulan kiradan — SAF (ek bağlantı yok, #416 L1).
+            var lines = buildLines(rental);
             rental.SozlesmeNo = await DocumentNoGenerator.GenerateAsync(db, db.TenantId, DocumentNoType.KiraSozlesmesi, ct);
-            db.Rentals.Add(rental);
 
             reservation.Durum = ReservationStatus.KirayaCevrildi;
             reservation.RentalContractId = rental.Id;
@@ -478,7 +479,8 @@ public sealed class BookingRepository(IDbContextFactory<AppDbContext> factory) :
 
             try
             {
-                await db.SaveChangesAsync(ct); // rental insert + reservation update + audit, atomik
+                // rental insert + ücret satırları + dönem planı + reservation update + audit, atomik
+                await AddRentalWithLinesAsync(db, rental, lines, ct);
                 await tx.CommitAsync(ct);
             }
             catch (DbUpdateException ex) when (IsExclusionViolation(ex))
@@ -489,6 +491,25 @@ public sealed class BookingRepository(IDbContextFactory<AppDbContext> factory) :
 
             return rental.Id;
         }, ct);
+    }
+
+    /// <summary>
+    /// Kira + alt satırları (DEVIR §6) çağıranın transaction'ında TEK SaveChanges ile yazar: toplamlar kalemlerle
+    /// birlikte (RentalTotals — ek hizmet deposuyla aynı formül); kalemler kira grafına (EkHizmetler) bağlanır, EF
+    /// kirayı FK sırasıyla önce ekler. PgRetry yeniden denemesi AYNI nesnelerle gelir (doğrudan kira): navigasyon her
+    /// denemede baştan atanır, böylece önceki denemenin EF fixup'ı (kalemleri EkHizmetler'e eklemesi) ikinci bir
+    /// INSERT üretemez (#416 M1: 40P01 sonrası 23505 PK_RentalAddOns → 500). Dönem satırlarının navigasyonu yok;
+    /// her denemede taze context'e Added olarak girerler.
+    /// </summary>
+    private static async Task AddRentalWithLinesAsync(AppDbContext db, RentalContract rental, NewRentalLines lines, CancellationToken ct)
+    {
+        if (lines.AddOns.Any(a => a.RentalId != rental.Id) || lines.Periods.Any(p => p.RentalId != rental.Id))
+            throw new InvalidOperationException("Alt satır başka bir kiraya ait.");
+        RentalTotals.Recompute(rental, lines.AddOns.Sum(a => a.Toplam));
+        rental.EkHizmetler = [.. lines.AddOns];
+        db.Rentals.Add(rental);
+        db.FaturaDonemleri.AddRange(lines.Periods);
+        await db.SaveChangesAsync(ct);
     }
 
     private static bool IsExclusionViolation(DbUpdateException ex)
