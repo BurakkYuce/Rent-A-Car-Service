@@ -1,7 +1,7 @@
 import { Injectable, inject } from '@angular/core';
 
 import { ApiIstemcisi, type QueryParameters } from '@core/api/api-client';
-import { requestContext } from '@core/oturum/request-context';
+import { requestContext } from '@core/session/request-context';
 import { TemelStore } from '@core/data/base-store';
 
 import type { CalendarOptions, CalendarResponse } from './calendar-model';

@@ -57,7 +57,7 @@ import { QUOTATION_LIST, QuotationListStore, quotationColumns } from './quotatio
   ],
   providers: [FetchPolicy, QuotationListStore, QuotationActions],
   templateUrl: './quotation-list.html',
-  styleUrl: '../../rezervasyonlar/rezervasyon-listesi/reservation-list.scss',
+  styleUrl: '../../reservations/reservation-list/reservation-list.scss',
 })
 export class QuotationList {
   protected readonly store = inject(QuotationListStore);

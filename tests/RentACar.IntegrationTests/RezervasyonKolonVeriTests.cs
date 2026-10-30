@@ -92,7 +92,7 @@ public sealed class RezervasyonKolonVeriTests(PostgresFixture fx)
         Assert.NotNull(d);
         // F13.1a: Blazor ReservationList.razor silindi; aynı kolonlar ve süzgeç yeni arayüzün rezervasyon listesinde
         // (kolon kataloğu + liste süzgeç şeması). Cep Tel = cepTel, Teslim = bitTar, Alış Şube = cikisOfisi.
-        var app = Path.Combine(d!.FullName, "src/RentACar.Frontend/src/app/features/rezervasyonlar/rezervasyon-listesi");
+        var app = Path.Combine(d!.FullName, "src/RentACar.Frontend/src/app/features/reservations/reservation-list");
         var columns = File.ReadAllText(Path.Combine(app, "reservation-columns.ts"));
         foreach (var expected in new[] { "cepTel", "bitTar", "cikisOfisi", "kaynak" })
             Assert.Matches($@"kod: '{expected}'", columns);

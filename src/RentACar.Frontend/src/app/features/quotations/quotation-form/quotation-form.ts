@@ -14,18 +14,18 @@ import { ApiIstemcisi } from '@core/api/api-client';
 import { type UnsavedChangesOwner, pageLeaveGuard } from '@core/form/unsaved-changes';
 import { ToastService } from '@core/feedback/toast-service';
 import { translationFunction } from '@core/i18n/translation';
-import { requestContext } from '@core/oturum/request-context';
+import { requestContext } from '@core/session/request-context';
 import { TemelStore } from '@core/data/base-store';
 import { serverSelectionSource } from '@shared/form/search-selection/selection-source';
 import { formSubmission } from '@shared/form/form-submission';
 
-import { RF_SHARED } from '../../rezervasyonlar/common';
+import { RF_SHARED } from '../../reservations/common';
 import {
   RESERVATION_ROOT,
   optionList,
   defaultDates,
   type ReservationFormOptions,
-} from '../../rezervasyonlar/reservation-model';
+} from '../../reservations/reservation-model';
 import type { DayText } from '@core/form/date-input';
 import {
   QUOTATION_ROOT,
@@ -47,7 +47,7 @@ import {
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [...RF_SHARED, RouterLink],
   templateUrl: './quotation-form.html',
-  styleUrl: '../../rezervasyonlar/reservation-form/reservation-form.scss',
+  styleUrl: '../../reservations/reservation-form/reservation-form.scss',
 })
 export class QuotationFormPage implements UnsavedChangesOwner {
   private readonly api = inject(ApiIstemcisi);

@@ -5,8 +5,8 @@ import { firstValueFrom } from 'rxjs';
 import { toApiError } from '@core/api/api-error';
 import { ApiIstemcisi } from '@core/api/api-client';
 import type { CeviriAnahtari } from '@core/i18n/translation-keys';
-import { requestContext } from '@core/oturum/request-context';
-import { SessionService } from '@core/oturum/session-service';
+import { requestContext } from '@core/session/request-context';
+import { SessionService } from '@core/session/session-service';
 
 import { PLATFORM_API, type PlatformSession } from './platform-model';
 

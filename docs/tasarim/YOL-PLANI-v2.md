@@ -234,7 +234,7 @@ Giriş → Panel · Kira listesi (Kirada) · Kira formu (finans paneli açık) �
 390, açık ve koyu; PR-C sonrası ek: kenar çubuğu daraltılmış, komut paleti açık, sekme şeridi 10/10.
 
 ## 18. Göç reçetesi (PR-P'den — D-ajanları bunu kopyalar)
-Pilot: `features/kiralar/kira-listesi` (liste kalıbı) ve `features/rental-form` (form kalıbı). Davranış/iş mantığı
+Pilot: `features/rentals/rental-list` (liste kalıbı) ve `features/rental-form` (form kalıbı). Davranış/iş mantığı
 DEĞİŞMEZ; yalnız şablon + stil. Hedef: feature SCSS'te stil denetimi bulgusu 0 (`node scripts/stil-denetimi.mjs --ayrinti`).
 
 | Önce (yerel) | Sonra (global / paylaşılan) |

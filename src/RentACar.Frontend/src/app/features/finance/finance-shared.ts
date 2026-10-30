@@ -17,7 +17,7 @@ import { ApiIstemcisi } from '@core/api/api-client';
 import { formatMoney, sayiBicimle } from '@core/format/format';
 import { ConfirmService } from '@core/feedback/confirm-service';
 import { translationFunction } from '@core/i18n/translation';
-import { requestContext } from '@core/oturum/request-context';
+import { requestContext } from '@core/session/request-context';
 import { TemelStore } from '@core/data/base-store';
 import { CURRENCIES, CHANNELS } from '@features/rental-form/finance-panel/finance-model';
 import { FORMAT_PIPES } from '@shared/format/format-pipe';

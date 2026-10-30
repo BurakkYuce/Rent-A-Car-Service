@@ -2,7 +2,7 @@ import { inject, Injectable } from '@angular/core';
 
 import { ApiIstemcisi } from '@core/api/api-client';
 import type { MenuResponse } from '@core/api/ui-types';
-import { requestContext } from '@core/oturum/request-context';
+import { requestContext } from '@core/session/request-context';
 import { TemelStore } from '@core/data/base-store';
 
 /**

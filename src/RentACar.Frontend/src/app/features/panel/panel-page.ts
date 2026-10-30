@@ -15,7 +15,7 @@ import { TranslocoPipe } from '@jsverse/transloco';
 import type { PanelReturnRow, PanelSummaryResponse } from '@core/api/ui-types';
 import { SubmitLock } from '@core/form/submit-lock';
 import { translationFunction } from '@core/i18n/translation';
-import { SessionService } from '@core/oturum/session-service';
+import { SessionService } from '@core/session/session-service';
 import { tabContext } from '@core/tabs/tab-state';
 import { FetchPolicy } from '@core/data/fetch-policy';
 import { FORMAT_PIPES } from '@shared/format/format-pipe';

@@ -17,7 +17,7 @@ import type { Schema } from '@core/api/ui-types';
 import { pageLeaveGuard } from '@core/form/unsaved-changes';
 import { ToastService } from '@core/feedback/toast-service';
 import { translationFunction } from '@core/i18n/translation';
-import { genelGosterilir } from '@core/oturum/session-interceptor';
+import { genelGosterilir } from '@core/session/session-interceptor';
 import { TemelStore } from '@core/data/base-store';
 import { Alan } from '@shared/form/field/field';
 import { formSubmission } from '@shared/form/form-submission';

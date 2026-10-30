@@ -3,7 +3,7 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 
 import { ApiIstemcisi } from '@core/api/api-client';
 import { translationFunction } from '@core/i18n/translation';
-import { requestContext } from '@core/oturum/request-context';
+import { requestContext } from '@core/session/request-context';
 import type { SecimSecenegi } from '@shared/form/search-selection/selection-source';
 
 type Kind = 'musteri' | 'arac';

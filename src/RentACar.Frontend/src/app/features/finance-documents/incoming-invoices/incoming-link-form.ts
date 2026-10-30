@@ -17,7 +17,7 @@ import { ApiIstemcisi } from '@core/api/api-client';
 import { ToastService } from '@core/feedback/toast-service';
 import { WarningBannerService } from '@core/feedback/warning-banner-service';
 import { translationFunction } from '@core/i18n/translation';
-import { genelGosterilir } from '@core/oturum/session-interceptor';
+import { genelGosterilir } from '@core/session/session-interceptor';
 import { mergeServerValues } from '@features/planning-shared/form-helpers';
 import { Alan } from '@shared/form/field/field';
 import { SearchSelection } from '@shared/form/search-selection/search-selection';

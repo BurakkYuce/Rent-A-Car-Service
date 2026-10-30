@@ -8,11 +8,11 @@ import { ConfirmService } from '@core/feedback/confirm-service';
 import { ToastService } from '@core/feedback/toast-service';
 import { translationFunction } from '@core/i18n/translation';
 import type { CeviriAnahtari } from '@core/i18n/translation-keys';
-import { requestContext } from '@core/oturum/request-context';
-import { genelGosterilir } from '@core/oturum/session-interceptor';
-import { SessionService } from '@core/oturum/session-service';
-import type { Ben } from '@core/oturum/session-types';
-import { ReloginService } from '@core/oturum/relogin-service';
+import { requestContext } from '@core/session/request-context';
+import { genelGosterilir } from '@core/session/session-interceptor';
+import { SessionService } from '@core/session/session-service';
+import type { Ben } from '@core/session/session-types';
+import { ReloginService } from '@core/session/relogin-service';
 
 import { newOperationKey } from './submit-lock';
 import {

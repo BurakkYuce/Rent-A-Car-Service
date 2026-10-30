@@ -8,8 +8,8 @@ import { firstValueFrom } from 'rxjs';
 
 import { provideApiClient } from '@core/api/api-client';
 import { provideTranslation } from '@core/i18n/translation';
-import { sessionInterceptor } from '@core/oturum/session-interceptor';
-import { ReloginService } from '@core/oturum/relogin-service';
+import { sessionInterceptor } from '@core/session/session-interceptor';
+import { ReloginService } from '@core/session/relogin-service';
 
 import { ReportPage } from './report-page';
 

@@ -1,5 +1,5 @@
 import type { Schema } from '@core/api/ui-types';
-import type { Permission } from '@core/oturum/session-types';
+import type { Permission } from '@core/session/session-types';
 import { listDefinition } from '@core/data/list-query';
 
 /**

@@ -18,7 +18,7 @@ import { pageLeaveGuard } from '@core/form/unsaved-changes';
 import { ConfirmService } from '@core/feedback/confirm-service';
 import { ToastService } from '@core/feedback/toast-service';
 import { translationFunction } from '@core/i18n/translation';
-import { SessionService } from '@core/oturum/session-service';
+import { SessionService } from '@core/session/session-service';
 import { TemelStore } from '@core/data/base-store';
 import { DatePipe } from '@shared/format/format-pipe';
 import { Alan } from '@shared/form/field/field';

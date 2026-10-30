@@ -3,7 +3,7 @@ import { TestBed } from '@angular/core/testing';
 
 import { ActivatedRoute } from '@angular/router';
 
-import { SESSION_CONTEXT, OturumBaglami } from '@core/oturum/session-context';
+import { SESSION_CONTEXT, OturumBaglami } from '@core/session/session-context';
 import { TabState } from '@core/tabs/tab-state';
 import { FetchPolicy, FetchReason } from './fetch-policy';
 

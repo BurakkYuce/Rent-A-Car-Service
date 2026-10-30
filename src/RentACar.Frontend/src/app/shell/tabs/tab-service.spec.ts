@@ -18,7 +18,7 @@ import { firstValueFrom } from 'rxjs';
 import { unsavedChangesGuard, CONFIRM_PROMPT } from '@core/form/unsaved-changes';
 import { ToastService } from '@core/feedback/toast-service';
 import { provideTranslation } from '@core/i18n/translation';
-import { SessionService } from '@core/oturum/session-service';
+import { SessionService } from '@core/session/session-service';
 import { TabRouteStrategy } from '@core/tabs/tab-strategy';
 
 import { tabLimitGuard } from './tab-limit';

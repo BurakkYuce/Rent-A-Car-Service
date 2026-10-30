@@ -22,9 +22,9 @@ import { ConfirmService } from '@core/feedback/confirm-service';
 import { ToastService } from '@core/feedback/toast-service';
 import { translationFunction } from '@core/i18n/translation';
 import type { CeviriAnahtari } from '@core/i18n/translation-keys';
-import { DUGME_IZINLERI, type ButtonName } from '@core/oturum/dugme-izinleri';
-import { genelGosterilir } from '@core/oturum/session-interceptor';
-import { SessionService } from '@core/oturum/session-service';
+import { DUGME_IZINLERI, type ButtonName } from '@core/session/button-permissions';
+import { genelGosterilir } from '@core/session/session-interceptor';
+import { SessionService } from '@core/session/session-service';
 import { sayiBicimle } from '@core/format/format';
 import { bugun, formatDay } from '@core/form/date-input';
 import { ShellCounters, type KabukSayaclariDegeri } from '@core/counters/shell-counters';
@@ -133,8 +133,8 @@ const jsonEqual = (a: QueryParameters, b: QueryParameters) =>
     DatePicker,
   ],
   providers: [FetchPolicy, RentalListStore],
-  templateUrl: './kira-listesi.html',
-  styleUrl: './kira-listesi.scss',
+  templateUrl: './rental-list.html',
+  styleUrl: './rental-list.scss',
 })
 export class RentalList {
   protected readonly store = inject(RentalListStore);

@@ -11,7 +11,7 @@ import { Router, RouterLink } from '@angular/router';
 import { TranslocoPipe } from '@jsverse/transloco';
 
 import { translationFunction } from '@core/i18n/translation';
-import { SessionService } from '@core/oturum/session-service';
+import { SessionService } from '@core/session/session-service';
 import { FetchPolicy } from '@core/data/fetch-policy';
 import { listQueryUrlSync } from '@core/data/list-query-url';
 import { Alan } from '@shared/form/field/field';

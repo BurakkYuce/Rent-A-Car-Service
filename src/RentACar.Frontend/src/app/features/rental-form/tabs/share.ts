@@ -16,7 +16,7 @@ import { SubmitLock } from '@core/form/submit-lock';
 import { ConfirmService } from '@core/feedback/confirm-service';
 import { ToastService } from '@core/feedback/toast-service';
 import { translationFunction } from '@core/i18n/translation';
-import { genelGosterilir } from '@core/oturum/session-interceptor';
+import { genelGosterilir } from '@core/session/session-interceptor';
 import { FORMAT_PIPES } from '@shared/format/format-pipe';
 import { RentalFormState } from '../rental-form-state';
 

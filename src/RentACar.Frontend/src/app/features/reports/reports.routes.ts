@@ -1,7 +1,7 @@
 import type { Route, Routes } from '@angular/router';
 
 import { withTranslationBlock } from '@core/i18n/translation-block';
-import { permissionGuard } from '@core/oturum/session-guard';
+import { permissionGuard } from '@core/session/session-guard';
 import { anyPermissionGuard } from '@features/vehicles/vehicle-guards';
 
 /**

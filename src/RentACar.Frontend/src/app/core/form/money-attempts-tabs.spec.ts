@@ -6,8 +6,8 @@ import {
 } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 
-import type { OturumBaglami } from '../oturum/session-context';
-import { SessionService } from '../oturum/session-service';
+import type { OturumBaglami } from '../session/session-context';
+import { SessionService } from '../session/session-service';
 import {
   MONEY_SESSION_CHANNEL,
   type MoneyAttempt,

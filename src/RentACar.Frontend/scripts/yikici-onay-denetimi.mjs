@@ -58,7 +58,7 @@ const TANIM_CRUD = {
 };
 const EXCEPTIONS = new Map([
   [
-    'src/app/core/oturum/dugme-izinleri.ts:DUGME_IZINLERI',
+    'src/app/core/session/button-permissions.ts:DUGME_IZINLERI',
     { neden: 'Düğme izin haritasının belge metni (uç adı); HTTP çağrısı değil.' },
   ],
   ['src/app/shared/form/definition-crud/definition-source.ts:restDefinitionSource', TANIM_CRUD],

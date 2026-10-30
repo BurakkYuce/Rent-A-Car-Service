@@ -14,15 +14,15 @@ import type { Sayfa } from '@core/api/page';
 import type { RentalListRow } from '@core/api/ui-types';
 import { ToastService } from '@core/feedback/toast-service';
 import { provideTranslation } from '@core/i18n/translation';
-import { sessionInterceptor } from '@core/oturum/session-interceptor';
-import { SessionService } from '@core/oturum/session-service';
-import type { Ben } from '@core/oturum/session-types';
-import { ReloginService } from '@core/oturum/relogin-service';
+import { sessionInterceptor } from '@core/session/session-interceptor';
+import { SessionService } from '@core/session/session-service';
+import type { Ben } from '@core/session/session-types';
+import { ReloginService } from '@core/session/relogin-service';
 import { parseQuery } from '@core/data/list-query';
 import { provideTurkishLocale } from '@core/locale/tr-locale';
 import { InMemoryTableLayoutStore, TableLayoutStore } from '@shared/table/table-layout-store';
 
-import { RentalList } from './kira-listesi';
+import { RentalList } from './rental-list';
 import { RENTAL_LIST, summaryParameters } from './rental-list.store';
 
 const LISTE = '/api/ui/v1/kiralar';

@@ -8,8 +8,12 @@ import { SERVER_ERROR } from '@core/form/server-errors';
 import { ConfirmService } from '@core/feedback/confirm-service';
 import { ToastService } from '@core/feedback/toast-service';
 import { provideTranslation } from '@core/i18n/translation';
-import { DUPLICATE_CALLER_SHOWS, REFRESH_ON_DUPLICATE, SILENT } from '@core/oturum/request-context';
-import { SessionService } from '@core/oturum/session-service';
+import {
+  DUPLICATE_CALLER_SHOWS,
+  REFRESH_ON_DUPLICATE,
+  SILENT,
+} from '@core/session/request-context';
+import { SessionService } from '@core/session/session-service';
 import type { RentalDetailResponse, RentalContract } from '../rental-types';
 import type { CollectionInfo } from './finance-types';
 import { RentalFinanceState } from './rental-finance-state';

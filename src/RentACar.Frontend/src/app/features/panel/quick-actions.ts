@@ -3,7 +3,7 @@ import { RouterLink } from '@angular/router';
 import { TranslocoPipe } from '@jsverse/transloco';
 
 import type { CeviriAnahtari } from '@core/i18n/translation-keys';
-import type { Permission } from '@core/oturum/session-types';
+import type { Permission } from '@core/session/session-types';
 import { Icon } from '@shared/icon/icon';
 import type { IkonAdi } from '@shared/icon/icon-registry';
 

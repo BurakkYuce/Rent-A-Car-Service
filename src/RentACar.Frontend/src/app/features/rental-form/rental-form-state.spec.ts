@@ -8,7 +8,7 @@ import { ApiIstemcisi, type IstekSecenekleri } from '@core/api/api-client';
 import { ConfirmService } from '@core/feedback/confirm-service';
 import { ToastService } from '@core/feedback/toast-service';
 import { provideTranslation } from '@core/i18n/translation';
-import { SessionService } from '@core/oturum/session-service';
+import { SessionService } from '@core/session/session-service';
 import { RentalFormState } from './rental-form-state';
 
 const VEHICLE_ID = '0b0e7c1a-3333-4aaa-8bbb-000000000003';

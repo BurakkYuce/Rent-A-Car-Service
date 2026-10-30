@@ -7,7 +7,7 @@ import { firstValueFrom } from 'rxjs';
 
 import { provideTranslation } from '@core/i18n/translation';
 
-import { HOME_REDIRECT } from '../../sayfalar';
+import { HOME_REDIRECT } from '../../pages';
 import { NOT_FOUND_ROUTE } from '../shell.routes';
 import { NotFoundPage } from './not-found-page';
 

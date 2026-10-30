@@ -12,8 +12,8 @@ import { TranslocoPipe } from '@jsverse/transloco';
 
 import { ApiIstemcisi } from '@core/api/api-client';
 import type { SelectionItem, Schema } from '@core/api/ui-types';
-import { requestContext } from '@core/oturum/request-context';
-import { SessionService } from '@core/oturum/session-service';
+import { requestContext } from '@core/session/request-context';
+import { SessionService } from '@core/session/session-service';
 import { textValue } from '@features/planning-shared/form-helpers';
 import { MoneyPipe, NumberPipe } from '@shared/format/format-pipe';
 import { Alan } from '@shared/form/field/field';

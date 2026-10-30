@@ -10,7 +10,7 @@
 
 | Sayfa (Blazor → SPA) | Alan | Sütun | Süzgeç | Eylem | İzin | Sonuç |
 |---|---|---|---|---|---|---|
-| `/rezervasyonlar` → `features/rezervasyonlar` | 25/25 (+km/yakıt, açıklama) | 16/16 | 5/5 | Onayla, Kiraya çevir, Düzenle, İptal, Excel/CSV/PDF | OperationsWrite; iptal OperationsDelete (sunucu `yetkiler`) | **eklendi:** Opsiyonlu rengi |
+| `/rezervasyonlar` → `features/reservations` | 25/25 (+km/yakıt, açıklama) | 16/16 | 5/5 | Onayla, Kiraya çevir, Düzenle, İptal, Excel/CSV/PDF | OperationsWrite; iptal OperationsDelete (sunucu `yetkiler`) | **eklendi:** Opsiyonlu rengi |
 | `/teklifler` → `features/quotations` | 9/9 | 8/8 (tarih 2 sütun) | + durum | Gönder, Kabul → Rezervasyon (onaylı), Reddet (onaylı) | OperationsWrite | tam |
 | `/takvim` → `features/calendar` | — | ızgara (K/R, hafta sonu, kira öncelikli) | ay, plaka/marka, grup, şube | ay gezinmesi süzgeci korur, Temizle | OperationsWrite | **eklendi:** rota izni |
 | `/musaitlik` → `features/availability` | 11 girdi | 25/25 | pencere + grup/şube/kaynak/döviz/plaka | Kirala (`?varac&vfrom&vto&vgrup`), broker notu | OperationsWrite | **eklendi:** rota izni |
@@ -23,7 +23,7 @@
    `/filo-kiralama` `[Authorize(Policy = "izin:OperationsWrite")]` taşıyor, uç grupları da OperationsWrite
    istiyor; SPA'daki altı planlama rotasında (`takvim`, `musaitlik`, `rez-sartlari`, `filo-kiralama`,
    `filo-kiralama/yeni`, `filo-kiralama/:id`) `canMatch` guard'ı YOKTU. Muhasebe rolü sayfayı açıp API
-   403'üyle boş/hatalı ekran görüyordu. Düzeltme: `sayfalar.ts`'te `izinGuard('OperationsWrite')` (rezervasyon
+   403'üyle boş/hatalı ekran görüyordu. Düzeltme: `pages.ts`'te `izinGuard('OperationsWrite')` (rezervasyon
    ve teklif rotalarıyla aynı). Çit: `src/app/f5-route-permissions.spec.ts` — beklenen 12 rota ELLE yazılı
    (razor `@attribute`'larından), rota tablosundan türetilmez. Gerçek backend'de Muhasebe kullanıcısıyla da
    doğrulandı (uyarı bandı + ana sayfa). Veri güvenliği değişmedi (uçlar zaten 403 veriyordu); yalnız UX paritesi.

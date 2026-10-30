@@ -4,10 +4,10 @@ import { TranslocoService } from '@jsverse/transloco';
 import { firstValueFrom } from 'rxjs';
 
 import { provideTranslation } from '@core/i18n/translation';
-import { SessionService } from '@core/oturum/session-service';
-import type { Permission } from '@core/oturum/session-types';
+import { SessionService } from '@core/session/session-service';
+import type { Permission } from '@core/session/session-types';
 
-import { PAGES } from './sayfalar';
+import { PAGES } from './pages';
 
 /**
  * F6.2a parite çiti — araç sayfalarının izni. Beklenen tablo ELLE yazıldı (uçların izinleri, #278:

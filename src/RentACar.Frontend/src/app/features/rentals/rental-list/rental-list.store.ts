@@ -3,7 +3,7 @@ import { Injectable, inject } from '@angular/core';
 import { ApiIstemcisi, type QueryParameters } from '@core/api/api-client';
 import type { Sayfa } from '@core/api/page';
 import type { RentalFilterOptions, RentalListSummary, RentalListRow } from '@core/api/ui-types';
-import { requestContext } from '@core/oturum/request-context';
+import { requestContext } from '@core/session/request-context';
 import { listDefinition } from '@core/data/list-query';
 import { TemelStore } from '@core/data/base-store';
 

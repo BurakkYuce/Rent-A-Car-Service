@@ -3,8 +3,8 @@ import { ChangeDetectionStrategy, Component, DestroyRef, inject } from '@angular
 import { Router } from '@angular/router';
 import { TranslocoPipe } from '@jsverse/transloco';
 
-import type { Ben } from '@core/oturum/session-types';
-import type { YenidenGirisVerisi } from '@core/oturum/relogin-service';
+import type { Ben } from '@core/session/session-types';
+import type { YenidenGirisVerisi } from '@core/session/relogin-service';
 import { LoginForm } from '@shared/login-form/login-form';
 import { Icon } from '@shared/icon/icon';
 

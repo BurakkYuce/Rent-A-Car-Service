@@ -13,7 +13,7 @@ import { TranslocoPipe } from '@jsverse/transloco';
 import { type UnsavedChangesOwner, pageLeaveGuard } from '@core/form/unsaved-changes';
 import { PAGE_MONEY_ATTEMPTS, PendingMoneyAttempts } from '@core/form/money-attempts';
 import { translationFunction } from '@core/i18n/translation';
-import { SessionService } from '@core/oturum/session-service';
+import { SessionService } from '@core/session/session-service';
 import { FetchPolicy } from '@core/data/fetch-policy';
 import { listQueryUrlSync } from '@core/data/list-query-url';
 import { CustomerLabels } from '@features/vehicle-finance/labels';

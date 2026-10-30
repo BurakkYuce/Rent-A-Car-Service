@@ -12,9 +12,9 @@ import { NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angula
 import { TranslocoPipe } from '@jsverse/transloco';
 
 import type { CeviriAnahtari } from '@core/i18n/translation-keys';
-import { loginErrorMessage } from '@core/oturum/login-error';
-import { SessionService } from '@core/oturum/session-service';
-import type { Ben } from '@core/oturum/session-types';
+import { loginErrorMessage } from '@core/session/login-error';
+import { SessionService } from '@core/session/session-service';
+import type { Ben } from '@core/session/session-types';
 
 /**
  * Firma + kullanıcı + parola formu. Giriş sayfası ve yerinde yeniden giriş diyaloğu aynı formu kullanır.

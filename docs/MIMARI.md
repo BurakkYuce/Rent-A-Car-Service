@@ -365,7 +365,7 @@ güvenlik açığı bırakan kısımlardır.
 6. Servis (doğrulama + yetki guard'ı + iş kuralı)
 7. DI kaydı (iki tarafta)
 8. Web: `/api/ui/v1` ucu (`Api/<Modül>/`, izin metadatası, OpenAPI anlık görüntüsü) + SPA ekranı
-   (`src/RentACar.Frontend`, rota `sayfalar.ts`, menü `Api/Menu/MenuKaydi.cs`)
+   (`src/RentACar.Frontend`, rota `pages.ts`, menü `Api/Menu/MenuKaydi.cs`)
 9. Test: CRUD + benzersizlik + **kiracı izolasyonu (`racar_app` ile)** + yetki
 
 ---

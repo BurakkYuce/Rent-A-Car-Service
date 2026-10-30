@@ -102,23 +102,23 @@ detay, alanlar? }`. `features/**` içinde `HttpClient` içe aktarımı lint'le y
   `listeSorgusuUrlSenkronu(tanim)`. URL tek doğruluk kaynağı; bozuk parametre varsayılana düşer,
   `boyut` 1..200, `sirala` beyaz listeden. Yazarken `{ yaziyor: true }` (replaceUrl).
 - Katlanır filtre: `<rc-katlanir-filtre>` (`@shared/collapsible-filter`); kap stilsiz, aç/kapa düğmesi `rc-dugme`.
-- İlk gerçek liste ekranı: `features/kiralar/kira-listesi` (F4.2) — `listeTanimi` + URL senkronu + üç
+- İlk gerçek liste ekranı: `features/rentals/rental-list` (F4.2) — `listeTanimi` + URL senkronu + üç
   `FetchPolicy` bağı (liste, özet, öneriler) + `TahsilatAnahtar`'lı "Tahsil Et" (`collect-panel.ts`). Yeni liste
   ekranı bu kablolamayı örnek alır.
 
 ## Oturum ve geri bildirim (F3.3)
 
-- **Oturum:** `OturumServisi` (`@core/oturum/session-service`) — `ben()` (üretilen `BenYaniti`), `girisYapildi()`,
+- **Oturum:** `OturumServisi` (`@core/session/session-service`) — `ben()` (üretilen `BenYaniti`), `girisYapildi()`,
   `izinVar('FinanceWrite')`, `baglam()` (= `OTURUM_BAGLAMI`), `girisYap`, `cikisYap` (tam temizlik: kayıtlı
   temizleyiciler + `rc.*` localStorage/sessionStorage, `rc.tema` hariç), `temizlikKaydet(fn)` (sekmeler, önbellekler
   çıkışta silinsin diye buraya kaydolur). Rotalar: `canMatch: [oturumGuard]` ya da `[izinGuard('FinanceWrite')]`
-  (`@core/oturum/session-guard`); `/giris` `misafirGuard`. Dönüş adresi yalnız uygulama içi (`guvenliDonusAdresi`).
+  (`@core/session/session-guard`); `/giris` `misafirGuard`. Dönüş adresi yalnız uygulama içi (`guvenliDonusAdresi`).
 - **Hatalar `kod`'a göre** (`oturumInterceptor`, `provideApiIstemcisi(oturumInterceptor)`): `oturum_yok` → yerinde
   yeniden giriş diyaloğu + AYNI isteğin taze XSRF ile tekrarı (sayfadan gidilmez); `xsrf_gecersiz` → belirteç
   yenilenip BİR kez tekrar; `yetki_yok`/`pilot_degil`/alansız `cakisma` → uyarı bandı; `mukerrer` → tekrar YOK,
   `MUKERRERDE_YENILE` çağrılır + bilgi toast'u; `cok_istek` → uyarı toast'u; 5xx/ağ → hata toast'u;
   `kiraci_kapali` → giriş sayfası. İstek bayrakları: `istekBaglami({ sessiz, yenidenGirisYok, mukerrerdeYenile })`
-  (`@core/oturum/request-context`) → `ApiIstemcisi` `context`.
+  (`@core/session/request-context`) → `ApiIstemcisi` `context`.
 - **Form hatası:** F3.6 `formGonderimi` alanları kontrollere yazar; interceptor'ın sayfa düzeyinde gösterdiği
   kodlar (`genelGosterilir`: `yetki_yok`, `pilot_degil`, `mukerrer`, `cok_istek`, 5xx, ağ, `kiraci_kapali`) forma ikinci kez yazılmaz. `ONAY_ISTEMI` (kaydedilmemiş değişiklik) = CDK onay diyaloğu
   (`cdkOnayIstemi`). Form değerlerine hiçbir dalda dokunulmaz.
@@ -224,7 +224,7 @@ detay, alanlar? }`. `features/**` içinde `HttpClient` içe aktarımı lint'le y
 ## Kabuk ve sekmeli çalışma alanı (F3.2)
 
 - **Rotalar:** `/giris` kabuk DIŞINDA; geri kalan her şey `canMatch: [oturumGuard]` olan kabuk rotasının
-  (`shell/shell.routes.ts`, tembel) çocuğu. **Sayfa eklemek = `src/app/sayfalar.ts`'e satır:** `title`
+  (`shell/shell.routes.ts`, tembel) çocuğu. **Sayfa eklemek = `src/app/pages.ts`'e satır:** `title`
   zorunlu (`'<Ad> — RentACar'` → belge başlığı + sekme etiketi), `loadComponent`, kirli form varsa
   `canDeactivate: [kaydedilmemisDegisiklikGuard]`, izin varsa `canMatch: [izinGuard(...)]`. Kayıt sayfası
   yol parametresi olarak YALNIZ `:id` kullanır (`kiralar/:id`); başka parametreli sayfa yenilemede geri gelmez.
@@ -273,7 +273,7 @@ detay, alanlar? }`. `features/**` içinde `HttpClient` içe aktarımı lint'le y
 ## Vitrin ve kontroller (F3.7)
 
 - **Vitrin** `/app/vitrin` (dizin) → `tokenlar`, `primitifler`, `form`, `tanim`, `tablo`, `geri-bildirim`, `kabuk`.
-  Yeni çekirdek parçası = vitrinde sayfa + `sayfalar.ts` satırı + dizine bağlantı + `e2e/showcase-pages.ts`
+  Yeni çekirdek parçası = vitrinde sayfa + `pages.ts` satırı + dizine bağlantı + `e2e/showcase-pages.ts`
   satırı. Liste uygulamadan türetilmez; `e2e/showcase.spec.ts` dizinin bu listeyle birebir olduğunu denetler.
 - **Her vitrin sayfası (CI `e2e` işi):** açık + koyu temada axe ciddi/kritik 0 ve konsol hatası yok; 320/390/768
   (dokunmatik öykünme) ve 1440 px'te gövde yatay taşması 0 (`scripts/mobil-tasma.mjs`'in SPA karşılığı, suçlu

@@ -5,7 +5,7 @@ import { TranslocoPipe } from '@jsverse/transloco';
 import { ApiIstemcisi } from '@core/api/api-client';
 import { pageLeaveGuard } from '@core/form/unsaved-changes';
 import { ToastService } from '@core/feedback/toast-service';
-import { SessionService } from '@core/oturum/session-service';
+import { SessionService } from '@core/session/session-service';
 import { translationFunction } from '@core/i18n/translation';
 import { Alan } from '@shared/form/field/field';
 import { formSubmission } from '@shared/form/form-submission';

@@ -10,7 +10,7 @@ namespace RentACar.IntegrationTests;
 /// <summary>
 /// F4.6 — <c>UcIzinKapsamaTests</c>'in (Blazor: "dar izin isteyen ucun düğmesi o izinle kapılı") yeni arayüz
 /// karşılığı. SPA düğmeleri görünürlüğü <c>ben.izinler</c>'den, izin adlarını TEK dosyadan alır:
-/// <c>src/RentACar.Frontend/src/app/core/oturum/dugme-izinleri.ts</c> (<c>DUGME_IZINLERI</c>). Bu test her girişin
+/// <c>src/RentACar.Frontend/src/app/core/session/button-permissions.ts</c> (<c>DUGME_IZINLERI</c>). Bu test her girişin
 /// ucunu GERÇEK uç tablosunda (EndpointDataSource) bulur ve 6 iznin 64 kombinasyonunun HER BİRİNDE
 /// "düğme görünür ⇔ uç izin verir" eşitliğini doğrular (kullanıcı-bazlı ek/yasak istisnaları dahil — rol
 /// matrisine bakılmaz). Kaynak: <c>IzinMetadata</c> (hepsi VE) + <c>IzinlerdenBiriMetadata</c> (biri yeter).
@@ -34,7 +34,7 @@ public sealed class UiDugmeIzinTests(WebFixture fx)
     private static List<Dugme> Map()
     {
         var text = File.ReadAllText(Path.Combine(RepoRoot(),
-            "src/RentACar.Frontend/src/app/core/oturum/dugme-izinleri.ts"));
+            "src/RentACar.Frontend/src/app/core/session/button-permissions.ts"));
         var body = text[text.IndexOf("export const DUGME_IZINLERI", StringComparison.Ordinal)..];
         var entries = Regex.Matches(body,
             @"(?<ad>\w+):\s*\{\s*izinler:\s*\[(?<izinler>[^\]]*)\],\s*uc:\s*'(?<yontem>[A-Z]+) (?<rota>[^']+)',?\s*\}");
@@ -71,7 +71,7 @@ public sealed class UiDugmeIzinTests(WebFixture fx)
 
         // Kira listesi izni elle yazmaz: her izin kapısı DUGME_IZINLERI'nden gelir.
         var list = File.ReadAllText(Path.Combine(RepoRoot(),
-            "src/RentACar.Frontend/src/app/features/kiralar/kira-listesi/kira-listesi.ts"));
+            "src/RentACar.Frontend/src/app/features/rentals/rental-list/rental-list.ts"));
         Assert.DoesNotContain("izinVar('", list, StringComparison.Ordinal);
         Assert.Contains("DUGME_IZINLERI", list, StringComparison.Ordinal);
     }

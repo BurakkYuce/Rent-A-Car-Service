@@ -38,7 +38,7 @@ import { toApiError } from '@core/api/api-error';
 import { SubmitLock } from '@core/form/submit-lock';
 import { SERVER_ERROR } from '@core/form/server-errors';
 import { translationFunction } from '@core/i18n/translation';
-import { SessionService } from '@core/oturum/session-service';
+import { SessionService } from '@core/session/session-service';
 import { TemelStore } from '@core/data/base-store';
 import { Icon } from '../../icon/icon';
 import { Alan } from '../field/field';

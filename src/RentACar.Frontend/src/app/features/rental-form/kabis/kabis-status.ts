@@ -18,9 +18,9 @@ import { ConfirmService } from '@core/feedback/confirm-service';
 import { ToastService } from '@core/feedback/toast-service';
 import type { CeviriAnahtari } from '@core/i18n/translation-keys';
 import { translationFunction } from '@core/i18n/translation';
-import { DUGME_IZINLERI } from '@core/oturum/dugme-izinleri';
-import { SessionService } from '@core/oturum/session-service';
-import { genelGosterilir } from '@core/oturum/session-interceptor';
+import { DUGME_IZINLERI } from '@core/session/button-permissions';
+import { SessionService } from '@core/session/session-service';
+import { genelGosterilir } from '@core/session/session-interceptor';
 import { FORMAT_PIPES } from '@shared/format/format-pipe';
 import { RentalFormState } from '../rental-form-state';
 import {

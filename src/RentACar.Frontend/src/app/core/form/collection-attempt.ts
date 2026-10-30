@@ -3,7 +3,7 @@ import type { ApiHatasi, CurrentOperation } from '../api/api-error';
 import { formatMoney } from '../format/format';
 import type { ToastService } from '../feedback/toast-service';
 import type { CeviriAnahtari } from '../i18n/translation-keys';
-import { SessionService } from '../oturum/session-service';
+import { SessionService } from '../session/session-service';
 
 /**
  * Deterministik anahtarlı tahsilat (`tahsilatAnahtar`, E01) için 409 `mukerrer` sınıfları. Sunucuda bir anahtarla

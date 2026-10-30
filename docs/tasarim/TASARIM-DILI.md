@@ -108,6 +108,6 @@ olarak sayar. Gerekçesiz işaret geçmez.
 
 - Tam spesifikasyon, token değerleri, kabuk: `YOL-PLANI-v2.md` (§2 token, §5 kabuk, §6 bileşen, §17 kod gerçeği).
 - Göç reçetesi (önce/sonra tablosu + örnek şablon): `YOL-PLANI-v2.md` §18.
-- Canlı örnekler: `/app/vitrin` (bileşen ve token vitrinleri); göçmüş ekranlar `features/kiralar`, `features/panel`,
+- Canlı örnekler: `/app/vitrin` (bileşen ve token vitrinleri); göçmüş ekranlar `features/rentals`, `features/panel`,
   `features/vehicles`, `features/finance`, `features/reports`.
 - Frontend genel kuralları (i18n, biçim, test): `src/RentACar.Frontend/AGENTS.md`.
