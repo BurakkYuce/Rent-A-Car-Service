@@ -21,6 +21,11 @@ public sealed class ConcurrentModificationException(string message) : Validation
     /// <summary>F5.1 adversarial H1 — zaten kabul edilmiş teklife ikinci kabul (eşzamanlı ya da yanıtı kaybolan
     /// tekrar): 409 <c>cakisma</c>, ikinci rezervasyon AÇILMAZ; SPA teklifi yeniden yükler (ilk kabulün rezervasyonu
     /// detayda görünür).</summary>
+    /// <summary>#421 L1 — kira oluşturmada kilit altında gereken SYS ücret tanımı yok (ana veri ön adımdan sonra değişti):
+    /// formda yüklenecek bir şey yok, kullanıcı yalnız yeniden dener (ön adım tanımı yaratır).</summary>
+    public const string FeeDefinitionsMessage =
+        "Ücret tanımları bu sırada değişti; işlem yazılmadı, tekrar deneyin.";
+
     public const string QuotationAcceptMessage =
         "Teklif zaten kabul edildi ve rezervasyona çevrildi; ikinci rezervasyon açılmadı.";
 }

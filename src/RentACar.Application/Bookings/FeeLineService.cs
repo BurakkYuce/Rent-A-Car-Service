@@ -246,7 +246,7 @@ public sealed class FeeLineService(
         return rows.Select(s =>
         {
             var definition = data.Definitions.FirstOrDefault(x => string.Equals(x.Kod, s.TanimKod, StringComparison.OrdinalIgnoreCase))
-                ?? throw new Common.ConcurrentModificationException(Common.ConcurrentModificationException.RecordMessage);
+                ?? throw new Common.ConcurrentModificationException(Common.ConcurrentModificationException.FeeDefinitionsMessage);
             return RentalAddOnService.Line(c.Id, definition, s.Gun, s.BirimNet, definition.KdvOrani);
         }).ToList();
     }

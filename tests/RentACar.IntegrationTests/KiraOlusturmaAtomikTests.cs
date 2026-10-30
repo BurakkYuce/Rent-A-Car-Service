@@ -224,7 +224,8 @@ public sealed class KiraOlusturmaAtomikTests(PostgresFixture fx)
         Assert.Equal(definition.Id, line.EkHizmetTanimId);
         Assert.Equal(330m, line.Toplam); // 100 × 3 = 300 net + tanımın %10'u
 
-        Assert.Throws<ConcurrentModificationException>(() => FeeLineService.LinesFor(rental, Data()));
+        var ex = Assert.Throws<ConcurrentModificationException>(() => FeeLineService.LinesFor(rental, Data()));
+        Assert.Equal("Ücret tanımları bu sırada değişti; işlem yazılmadı, tekrar deneyin.", ex.Message); // genel "güncel hâli yüklendi" değil
     }
 
     // ---- #416 L2: ücret ana verisi kilit ALTINDA, transaction'ın kendi bağlantısından okunur ----
