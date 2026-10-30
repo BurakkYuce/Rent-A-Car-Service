@@ -522,7 +522,9 @@
       "yuklenemedi": "Kira yüklenemedi; tahsilat için güncel kayıt gerekli.",
       "yenidenYukle": "Yeniden yükle",
       "bakiyeYok": "Kalan bakiye yok ({{kalan}}); bu tutar ön/fazla tahsilat olarak yazılır.",
-      "kalaniAsiyor": "Tutar kalan bakiyeyi ({{kalan}}) aşıyor; fark fazla tahsilat olarak yazılır."
+      "kalaniAsiyor": "Tutar kalan bakiyeyi ({{kalan}}) aşıyor; fark fazla tahsilat olarak yazılır.",
+      "digerNakitYazildi": "Nakit tahsilatı yazıldı. Bu formdaki tutar gönderilirse AYRI, ikinci bir tahsilat olarak yazılır.",
+      "digerKartYazildi": "Kart/havale tahsilatı yazıldı. Bu formdaki tutar gönderilirse AYRI, ikinci bir tahsilat olarak yazılır."
     },
     "odeme": {
       "baslik": "Giden havale (Banka)",

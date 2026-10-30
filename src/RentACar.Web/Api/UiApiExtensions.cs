@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using Microsoft.AspNetCore.Antiforgery;
 using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Http.HttpResults;
@@ -19,6 +20,7 @@ using RentACar.Web.Api.Secim;
 using RentACar.Web.Api.Sistem;
 using RentACar.Web.Api.TabloDuzenleri;
 using RentACar.Web.Api.Tanim;
+using RentACar.Web.Identity;
 
 namespace RentACar.Web.Api;
 
@@ -44,6 +46,8 @@ public static class UiApiExtensions
     public const string V1 = "/api/ui/v1";
     public const string XsrfCookie = "XSRF-TOKEN";
     public const string XsrfHeader = "X-XSRF-TOKEN";
+    /// <summary>#320 L2: isteğin yazılması beklenen oturum kimliği (<c>kiraciId|kullaniciId</c>); bkz. ExpectedSessionFilter.</summary>
+    public const string ExpectedSessionHeader = "X-Beklenen-Oturum";
     public const string OpenApiDocument = "ui-v1";
 
     /// <summary>İstek yeni arayüz API'sine mi (boru hattı adımları buna göre JSON döner).</summary>
@@ -200,7 +204,8 @@ public static class UiApiExtensions
             .RequireAuthorization()                 // varsayılan: oturum şart; anonim uçlar AllowAnonymous der
             .WithMetadata(new UiApiGrubuMetadata())
             .AddEndpointFilter(ErrorFilter)        // en dış: aşağıdakilerin de istisnası ProblemDetails olur
-            .AddEndpointFilter(XsrfFilter);
+            .AddEndpointFilter(XsrfFilter)
+            .AddEndpointFilter(ExpectedSessionFilter);
         // F13.1b: pilot kapısı (PilotFilter, 403 pilot_degil) kaldırıldı — Blazor söküldü, yeni arayüz herkes için.
         // TenantSettings.YeniArayuzPilot kolonu DropYeniArayuzPilot migration'ıyla düştü.
 
@@ -270,6 +275,38 @@ public static class UiApiExtensions
                     "Güvenlik belirteci geçersiz ya da oturumla eşleşmiyor; belirteci yenileyip tekrar deneyin.");
         }
         return await next(c);
+    }
+
+    /// <summary>
+    /// #320 L2: SPA'nın para gönderimi, denemenin bağlı olduğu kimliği <see cref="ExpectedSessionHeader"/>'da
+    /// (<c>kiraciId|kullaniciId</c>) taşır. Başlık VARSA ve oturumdaki kiracı + kullanıcıyla birebir eşleşmiyorsa
+    /// (başka sekmede başka kullanıcı/kiracıyla giriş; biçimsiz ya da çoklu değer de dahil) uç ÇALIŞMADAN 409
+    /// <c>oturum_degisti</c> döner — SPA'nın tekrar öncesi <c>ben</c> doğrulaması ile POST arasındaki TOCTOU'yu kapatır
+    /// (CSRF belirteci de ortak çerezdeki yeni kimliğe aittir, onu durdurmaz). Başlık yoksa davranış değişmez (harici
+    /// istemci, başlıksız ekranlar). Şube karşılaştırılmaz: sunucunun idempotency anahtarı şube içermez.
+    /// </summary>
+    private static ValueTask<object?> ExpectedSessionFilter(EndpointFilterInvocationContext c, EndpointFilterDelegate next)
+    {
+        var http = c.HttpContext;
+        if (http.Request.Headers.TryGetValue(ExpectedSessionHeader, out var expected)
+            && !SameSession(http.User, expected.ToString()))
+            return ValueTask.FromResult<object?>(UiError.Problem(UiError.SessionChanged,
+                "Bu işlem başka bir oturumda başlatılmıştı; tarayıcıdaki oturum değişmiş. İşlem yazılmadı."));
+        return next(c);
+    }
+
+    /// <summary>Beklenen <c>kiraciId|kullaniciId</c> oturumdaki kimlikle aynı mı (Guid karşılaştırması; büyük/küçük harf
+    /// ve biçim farkı önemsiz, eksik claim → farklı).</summary>
+    internal static bool SameSession(ClaimsPrincipal user, string expected)
+    {
+        var parts = expected.Split('|');
+        return parts.Length == 2
+               && Guid.TryParse(parts[0], out var tenantId)
+               && Guid.TryParse(parts[1], out var userId)
+               && Guid.TryParse(user.FindFirst(IdentityClaims.TenantId)?.Value, out var currentTenant)
+               && Guid.TryParse(user.FindFirst(IdentityClaims.UserId)?.Value, out var currentUser)
+               && tenantId == currentTenant
+               && userId == currentUser;
     }
 
     /// <summary>

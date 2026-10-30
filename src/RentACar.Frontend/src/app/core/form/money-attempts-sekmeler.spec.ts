@@ -21,9 +21,10 @@ const KADIKOY = 't1|u1|sube-kadikoy';
 const OTHER_USER = 't1|u2|sube-merkez';
 
 /** Bir "sekme": kendi enjektörü ve kendi oturum sahtesi; kanal Node'un gerçek `BroadcastChannel`'ı. */
-function sekme(channelName: string, first: string) {
+function sekme(channelName: string, first: string, loggedIn = false) {
   const context: WritableSignal<OturumBaglami | null> = signal({ anahtar: first });
-  const load = vi.fn(async () => null);
+  // Varsayılan `yukle` sonucu null = ağ/5xx (`ben` korunur); `loggedIn` true ise oturum açık sayılır.
+  const load = vi.fn(async (): Promise<unknown> => null);
   const enj = createEnvironmentInjector(
     [
       PendingMoneyAttempts,
@@ -33,6 +34,7 @@ function sekme(channelName: string, first: string) {
         useValue: {
           registerCleanup: () => () => undefined,
           context: () => context(),
+          loggedIn: () => loggedIn,
           yukle: load,
         },
       },
@@ -70,8 +72,8 @@ describe('PendingMoneyAttempts — sekmeler arası şube değişimi', () => {
     channelName = `rc-oturum-baglami-test-${crypto.randomUUID()}`;
   });
   const open: ReturnType<typeof sekme>[] = [];
-  const openItem = (first: string) => {
-    const s = sekme(channelName, first);
+  const openItem = (first: string, loggedIn = false) => {
+    const s = sekme(channelName, first, loggedIn);
     open.push(s);
     TestBed.tick();
     return s;
@@ -136,5 +138,38 @@ describe('PendingMoneyAttempts — sekmeler arası şube değişimi', () => {
 
     await wait(() => expect(b.yukle).toHaveBeenCalledTimes(1));
     expect(a.kayit.count()).toBe(0);
+  });
+
+  it('#331 L1: yeniden okuma ağ/5xx ile başarısızsa sonraki odak/çevrimiçi olayında yeniden denenir; başarıdan sonra durur', async () => {
+    const a = openItem(HEAD_OFFICE, true);
+    const b = openItem(HEAD_OFFICE, true);
+
+    a.degistir(OTHER_USER);
+    await wait(() => expect(b.yukle).toHaveBeenCalledTimes(1)); // null döndü: ağ/5xx, oturum açık
+    await sus();
+
+    window.dispatchEvent(new Event('focus'));
+    await wait(() => expect(b.yukle).toHaveBeenCalledTimes(2));
+    expect(a.yukle).not.toHaveBeenCalled(); // A'nın bekleyen okuması yok
+    await sus();
+
+    b.yukle.mockResolvedValue({}); // bu kez sunucu yanıt verdi
+    window.dispatchEvent(new Event('online'));
+    await wait(() => expect(b.yukle).toHaveBeenCalledTimes(3));
+    await sus();
+    window.dispatchEvent(new Event('focus'));
+    await sus();
+    expect(b.yukle).toHaveBeenCalledTimes(3);
+  });
+
+  it('#331 L1: oturum kapandıysa (loggedIn false) yeniden deneme YOK', async () => {
+    const a = openItem(HEAD_OFFICE);
+    const b = openItem(HEAD_OFFICE);
+    a.degistir(OTHER_USER);
+    await wait(() => expect(b.yukle).toHaveBeenCalledTimes(1));
+    await sus();
+    window.dispatchEvent(new Event('focus'));
+    await sus();
+    expect(b.yukle).toHaveBeenCalledTimes(1);
   });
 });

@@ -57,6 +57,7 @@ public sealed class UiHataTests
             ["dogrulama"] = 400, ["yetki_yok"] = 403, ["pilot_degil"] = 403, ["cakisma"] = 409,
             ["mukerrer"] = 409, ["oturum_yok"] = 401, ["kiraci_kapali"] = 401, ["cok_istek"] = 429,
             ["xsrf_gecersiz"] = 400, // F1.2 eki: CSRF reddi (SPA token yenileyip tekrarlar)
+            ["oturum_degisti"] = 409, // #320 L2: beklenen oturum başlığı oturumla uyuşmuyor (yazılmadı)
         };
         Assert.Equal(expected.Count, UiError.Table.Count);
         foreach (var (code, status) in expected)
