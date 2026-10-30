@@ -695,4 +695,73 @@ public sealed class EDocumentLowFindingsTests(PostgresFixture fx)
         Assert.Equal($"KFA{year}000000001", (await DocAsync(c, e1)).BelgeNo);
         Assert.Equal($"KAR{year}000000001", (await DocAsync(c, a1)).BelgeNo);
     }
+
+    /// <summary>#410 L8: iç fatura numarası vermiş eski fatura serisi (ABC) sonradan e-Fatura / e-Arşiv serisi yapılamaz —
+    /// "ABC" + yıl + sıra iki numara uzayında mükerrer belge no üretirdi (GİB e-Arşiv kılavuzu v1.18 §6). Alan hatası,
+    /// ayar değişmez; kullanılmamış seri serbest.</summary>
+    [Fact]
+    public async Task L8_series_that_issued_internal_invoice_numbers_cannot_become_a_gib_series()
+    {
+        using var c = New();
+        using (var s = c.Scope())
+        {
+            var first = Settings("S" + Guid.NewGuid().ToString("N"), true);
+            first.FaturaSeriKodu = "ABC";
+            await s.ServiceProvider.GetRequiredService<TenantSettingsService>().SaveAsync(first);
+        }
+        var inv = await InvoiceAsync(c, await IndividualAsync(c));
+        var no = await DbAsync(c, db => db.Invoices.AsNoTracking().Where(i => i.Id == inv).Select(i => i.No).SingleAsync());
+        Assert.Equal(("ABC", 16), (no[..3], no.Length));
+
+        using var scope = c.Scope();
+        var settings = scope.ServiceProvider.GetRequiredService<TenantSettingsService>();
+        TenantSettingsModel Next(string? eFatura, string? eArsiv)
+        {
+            var m = Settings(null, true, eFatura, eArsiv);
+            m.FaturaSeriKodu = "RNT"; // iç seri değişti; ABC artık yalnız geçmiş faturalarda
+            return m;
+        }
+        var toEInvoice = await Assert.ThrowsAsync<ValidationException>(() => settings.SaveAsync(Next("ABC", null)));
+        Assert.Equal("eFaturaSeriKodu", toEInvoice.Alan);
+        Assert.Equal("e-Fatura seri kodu ABC daha önce iç fatura numaralarında kullanıldı; aynı seri iki numara uzayında " +
+                     "mükerrer belge numarası üretir. Başka bir kod seçin.", toEInvoice.Message);
+        var toArchive = await Assert.ThrowsAsync<ValidationException>(() => settings.SaveAsync(Next(null, "ABC")));
+        Assert.Equal("eArsivSeriKodu", toArchive.Alan);
+        Assert.StartsWith("e-Arşiv seri kodu ABC daha önce iç fatura numaralarında kullanıldı", toArchive.Message, StringComparison.Ordinal);
+        var saved = await settings.GetAsync();
+        Assert.Equal(("ABC", (string?)null, (string?)null), (saved.FaturaSeriKodu, saved.EFaturaSeriKodu, saved.EArsivSeriKodu));
+
+        await settings.SaveAsync(Next("ABD", "ABE")); // önek benzer ama kullanılmamış seriler serbest
+        saved = await settings.GetAsync();
+        Assert.Equal(("RNT", "ABD", "ABE"), (saved.FaturaSeriKodu, saved.EFaturaSeriKodu, saved.EArsivSeriKodu));
+    }
+
+    /// <summary>#410 L9: bilinen sır (çözülmüş TCKN) yolu harf/rakam olmayan her ayracı (en çok 3) tanır — virgül, iki
+    /// nokta, parantez, artı. Genel 11 hane kuralı bunları bilinçli tanımaz (tutar/saat); sır verilince maskelenir.</summary>
+    [Theory]
+    [InlineData(",")]
+    [InlineData(":")]
+    [InlineData(", ")]
+    [InlineData(") (")]
+    [InlineData(" + ")]
+    [InlineData("*")]
+    [InlineData("#")]
+    public void L9_known_secret_with_any_non_alphanumeric_separator_is_masked(string sep)
+    {
+        var t = TestNationalId.New();
+        var grouped = string.Join(sep, t[..3], t[3..6], t[6..9], t[9..]);
+        Assert.Equal("Alıcı *********** bulunamadı", EDocumentPolicy.Sanitize($"Alıcı {grouped} bulunamadı", t));
+    }
+
+    /// <summary>#410 L9: geniş ayraç yalnız sırrın TAM rakam dizisinde işler — sır verilmiş olsa da tutar/tarih/saat
+    /// metni ve 4+ karakterlik ayraç olduğu gibi kalır.</summary>
+    [Fact]
+    public void L9_wide_separator_does_not_mask_unrelated_numbers()
+    {
+        var t = TestNationalId.New();
+        const string text = "Tarih 15.10.2026 08:30:15, tutar 200,00 / 1.250,00 + 3,5 TL";
+        Assert.Equal(text, EDocumentPolicy.Sanitize(text, t));
+        var fourSep = string.Join(" -- ", t[..3], t[3..6], t[6..9], t[9..]); // üst sınır 3 (kabul edilmiş risk)
+        Assert.Equal($"Alıcı {fourSep}", EDocumentPolicy.Sanitize($"Alıcı {fourSep}", t));
+    }
 }
