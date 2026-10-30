@@ -12,9 +12,9 @@ import {
   FULL_PAGE_NAVIGATION,
 } from '@core/form/unsaved-changes';
 import { provideTranslation } from '@core/i18n/translation';
-import { SESSION_CONTEXT } from '@core/oturum/session-context';
-import { SessionService } from '@core/oturum/session-service';
-import type { Ben } from '@core/oturum/session-types';
+import { SESSION_CONTEXT } from '@core/session/session-context';
+import { SessionService } from '@core/session/session-service';
+import type { Ben } from '@core/session/session-types';
 import { MenuRefresh } from '@core/counters/menu-refresh';
 import { ShellCounters } from '@core/counters/shell-counters';
 import { TabRouteStrategy } from '@core/tabs/tab-strategy';

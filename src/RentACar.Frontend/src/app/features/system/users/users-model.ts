@@ -1,5 +1,5 @@
 import type { Schema } from '@core/api/ui-types';
-import { PERMISSIONS, type Permission } from '@core/oturum/session-types';
+import { PERMISSIONS, type Permission } from '@core/session/session-types';
 
 export type UserDto = Schema<'UserDto'>;
 export type PermissionExceptionDto = Schema<'PermissionExceptionDto'>;

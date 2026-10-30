@@ -5,7 +5,7 @@ import { TranslocoPipe } from '@jsverse/transloco';
 
 import { FULL_PAGE_NAVIGATION } from '@core/form/unsaved-changes';
 import type { CeviriAnahtari } from '@core/i18n/translation-keys';
-import { postLoginTarget } from '@core/oturum/login-error';
+import { postLoginTarget } from '@core/session/login-error';
 import { LoginForm } from '@shared/login-form/login-form';
 
 /** `?neden=` → giriş sayfasındaki bilgi mesajı (interceptor ve çıkış bunu yazar). */

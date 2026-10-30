@@ -4,7 +4,7 @@ import { map, type Observable } from 'rxjs';
 import { ApiIstemcisi, type QueryParameters } from '@core/api/api-client';
 import type { Sayfa } from '@core/api/page';
 import type { SelectionEndpointItem } from '@core/api/ui-types';
-import { requestContext } from '@core/oturum/request-context';
+import { requestContext } from '@core/session/request-context';
 import { TemelStore } from '@core/data/base-store';
 
 import {

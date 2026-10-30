@@ -66,7 +66,7 @@ Kullanıcı **C# kodunu incelemez**. Doğruluk şuradan gelir:
 6. `XService` (Application) — doğrulama + guard + iş kuralı.
 7. DI: `Application/DependencyInjection.cs` (`AddScoped<XService>`) + `Infrastructure/DependencyInjection.cs` (`AddScoped<IXRepository, XRepository>`).
 8. Web (API): `src/RentACar.Web/Api/<Modül>/XApi.cs` — `/api/ui/v1` grubuna uçlar (`UiApiExtensions.MapUiApi` ya da `IUiApiEndpointRegistration`); her uçta `RequirePermission`/`IzinMetadata` ya da `IzinMuaf`; alt kayıtta üst kaydın şube kapsamı, kapsam kontrolü durum kontrolünden ÖNCE; alan hataları `errors[alan]`; uç sınırları (`numeric(19,4)`, varchar); tam değiştirme PUT'unda `surum` + 409 `cakisma`. Sonra `RACAR_OPENAPI_GUNCELLE=1` ile `UiApiOpenApiTests` ve frontend'de `npm run tipler`.
-9. SPA ekranı: `src/RentACar.Frontend/src/app/features/<modül>/` (çekirdek bileşenler, form seti, `TemelStore`; kurallar `src/RentACar.Frontend/AGENTS.md`), rota `sayfalar.ts` (tembel parça), çeviri kendi i18n bloğunda (`npm run i18n:tipler`), menü `Api/Menu/MenuRegistry.cs`. Yıkıcı çağrı onaylı olmalı (`npm run yikici`, lint zincirinde).
+9. SPA ekranı: `src/RentACar.Frontend/src/app/features/<modül>/` (çekirdek bileşenler, form seti, `TemelStore`; kurallar `src/RentACar.Frontend/AGENTS.md`), rota `pages.ts` (tembel parça), çeviri kendi i18n bloğunda (`npm run i18n:tipler`), menü `Api/Menu/MenuRegistry.cs`. Yıkıcı çağrı onaylı olmalı (`npm run yikici`, lint zincirinde).
 10. Test: `tests/…/XTests.cs` — bağımsız oracle (CRUD + benzersizlik + **tenant izolasyon** `racar_app` ile + yetki: başka şube 403, başka kiracı 404) + SPA Vitest/e2e.
 
 ## 6. Mevcut durum (2026-10-29, PR #405 itibarıyla; ayrıntılı kontrol listesi `docs/roadmap/DEVIR.md` §1)

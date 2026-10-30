@@ -7,7 +7,7 @@ import type { Schema } from '@core/api/ui-types';
 import { pageLeaveGuard } from '@core/form/unsaved-changes';
 import type { CeviriAnahtari } from '@core/i18n/translation-keys';
 import { translationFunction } from '@core/i18n/translation';
-import { SessionService } from '@core/oturum/session-service';
+import { SessionService } from '@core/session/session-service';
 import { DefinitionCrud } from '@shared/form/definition-crud/definition-crud';
 import {
   type TanimAlani,

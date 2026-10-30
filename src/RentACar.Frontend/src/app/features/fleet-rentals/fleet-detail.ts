@@ -21,7 +21,7 @@ import { ConfirmService } from '@core/feedback/confirm-service';
 import { ToastService } from '@core/feedback/toast-service';
 import { WarningBannerService } from '@core/feedback/warning-banner-service';
 import { translationFunction } from '@core/i18n/translation';
-import { genelGosterilir } from '@core/oturum/session-interceptor';
+import { genelGosterilir } from '@core/session/session-interceptor';
 import { tabContext } from '@core/tabs/tab-state';
 import { FetchPolicy } from '@core/data/fetch-policy';
 import { formSubmission } from '@shared/form/form-submission';

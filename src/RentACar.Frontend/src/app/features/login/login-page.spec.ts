@@ -8,8 +8,8 @@ import { firstValueFrom } from 'rxjs';
 import { toApiError } from '@core/api/api-error';
 import { FULL_PAGE_NAVIGATION } from '@core/form/unsaved-changes';
 import { provideTranslation } from '@core/i18n/translation';
-import { SessionService } from '@core/oturum/session-service';
-import type { Ben, LoginCredentials } from '@core/oturum/session-types';
+import { SessionService } from '@core/session/session-service';
+import type { Ben, LoginCredentials } from '@core/session/session-types';
 
 import { LoginPage } from './login-page';
 

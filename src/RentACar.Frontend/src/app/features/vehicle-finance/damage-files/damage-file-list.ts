@@ -18,7 +18,7 @@ import { ApiIstemcisi } from '@core/api/api-client';
 import { type UnsavedChangesOwner, pageLeaveGuard } from '@core/form/unsaved-changes';
 import { ToastService } from '@core/feedback/toast-service';
 import { translationFunction } from '@core/i18n/translation';
-import { genelGosterilir } from '@core/oturum/session-interceptor';
+import { genelGosterilir } from '@core/session/session-interceptor';
 import { FetchPolicy } from '@core/data/fetch-policy';
 import { listQueryUrlSync } from '@core/data/list-query-url';
 import { textValue } from '@features/planning-shared/form-helpers';

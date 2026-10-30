@@ -17,8 +17,8 @@ import {
   contextOfSession,
   identityOfContext,
   identityOfSession,
-} from '@core/oturum/session-context';
-import { SessionService } from '@core/oturum/session-service';
+} from '@core/session/session-context';
+import { SessionService } from '@core/session/session-service';
 
 import type { MoneyContent, MoneyNotice } from './money-notice';
 
@@ -47,7 +47,7 @@ export interface MoneyAttempt<TBody = unknown> {
 }
 
 /**
- * Bağlam anahtarı ve kimlik — TEK kaynak `@core/oturum/session-context` (`OturumServisi.baglam` de onu kullanır).
+ * Bağlam anahtarı ve kimlik — TEK kaynak `@core/session/session-context` (`OturumServisi.baglam` de onu kullanır).
  * Burada yalnız yeniden dışa aktarılır; kendi biçimini tanımlamaz.
  */
 export { contextOfSession, identityOfContext, identityOfSession };

@@ -18,7 +18,7 @@ import { ApiIstemcisi } from '@core/api/api-client';
 import { ConfirmService } from '@core/feedback/confirm-service';
 import { ToastService } from '@core/feedback/toast-service';
 import { translationFunction } from '@core/i18n/translation';
-import { genelGosterilir } from '@core/oturum/session-interceptor';
+import { genelGosterilir } from '@core/session/session-interceptor';
 import type { StoreState } from '@core/data/base-store';
 import { Icon } from '@shared/icon/icon';
 

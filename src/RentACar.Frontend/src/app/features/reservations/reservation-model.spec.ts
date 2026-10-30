@@ -1,6 +1,6 @@
 import { parseQuery } from '@core/data/list-query';
 
-import { RESERVATION_LIST, exportParams } from './rezervasyon-listesi/reservation-list.store';
+import { RESERVATION_LIST, exportParams } from './reservation-list/reservation-list.store';
 import {
   valuesFromDetail,
   createReservationForm,

@@ -16,9 +16,9 @@ import { toApiError } from '@core/api/api-error';
 import { ApiIstemcisi, type IstekSecenekleri } from '@core/api/api-client';
 import { ConfirmService } from '@core/feedback/confirm-service';
 import { ToastService } from '@core/feedback/toast-service';
-import { DUPLICATE_CALLER_SHOWS } from '@core/oturum/request-context';
-import { SessionService } from '@core/oturum/session-service';
-import { ReloginService } from '@core/oturum/relogin-service';
+import { DUPLICATE_CALLER_SHOWS } from '@core/session/request-context';
+import { SessionService } from '@core/session/session-service';
+import { ReloginService } from '@core/session/relogin-service';
 
 import { MONEY_SESSION_CHANNEL, PendingMoneyAttempts } from './money-attempts';
 import {

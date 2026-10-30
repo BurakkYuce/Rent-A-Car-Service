@@ -4,10 +4,10 @@ import { TranslocoService } from '@jsverse/transloco';
 import { firstValueFrom } from 'rxjs';
 
 import { provideTranslation } from '@core/i18n/translation';
-import { SessionService } from '@core/oturum/session-service';
-import type { Permission } from '@core/oturum/session-types';
+import { SessionService } from '@core/session/session-service';
+import type { Permission } from '@core/session/session-types';
 
-import { PAGES } from './sayfalar';
+import { PAGES } from './pages';
 
 /**
  * F8.2b parite çiti — finans belge sayfalarının izni. Beklenen tablo ELLE yazıldı (uç izinleri, #286): fatura okuma

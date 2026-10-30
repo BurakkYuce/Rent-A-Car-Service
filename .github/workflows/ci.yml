@@ -150,7 +150,7 @@ jobs:
       - name: Bağımlılıklar
         run: npm ci
 
-      # docs/api/ui-v1.json (.NET testi canlı OpenAPI'yle kilitler) → src/app/core/api/uretilen/ui-v1.ts.
+      # docs/api/ui-v1.json (.NET testi canlı OpenAPI'yle kilitler) → src/app/core/api/generated/ui-v1.ts.
       # Yeniden üretilen dosya commit'lenenden farklıysa KIRMIZI: API değişti ama tipler güncellenmedi.
       - name: API tip kayması (openapi-typescript)
         run: npm run tipler:kontrol

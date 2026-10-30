@@ -1,12 +1,12 @@
 import type { Routes } from '@angular/router';
 
-import { guestGuard, sessionGuard } from '@core/oturum/session-guard';
+import { guestGuard, sessionGuard } from '@core/session/session-guard';
 
 /**
  * Uygulama rotaları (`/app/` altında). Giriş sayfası kabuk DIŞINDA; geri kalan her şey oturum ister
  * (`oturumGuard` kabuk rotasında — vitrinler dahil, FetchPolicy oturum bağlamı olmadan yüklemez) ve
  * kabuğun (menü, üst çubuk, sekmeler) içinde açılır. Kabuk ve sayfalar tembel parça: ilk pakette yalnız
- * rota iskeleti ve sekme stratejisi var. Sayfa eklemek için `sayfalar.ts`.
+ * rota iskeleti ve sekme stratejisi var. Sayfa eklemek için `pages.ts`.
  */
 export const routes: Routes = [
   {

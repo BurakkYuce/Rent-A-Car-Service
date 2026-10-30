@@ -1,6 +1,6 @@
 import { Injectable, Injector, Signal, effect, inject, signal, untracked } from '@angular/core';
 
-import { SESSION_CONTEXT } from '@core/oturum/session-context';
+import { SESSION_CONTEXT } from '@core/session/session-context';
 import { tabContext } from '@core/tabs/tab-state';
 
 /**

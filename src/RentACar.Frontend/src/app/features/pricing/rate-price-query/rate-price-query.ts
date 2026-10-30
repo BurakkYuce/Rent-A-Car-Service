@@ -9,7 +9,7 @@ import { ApiIstemcisi } from '@core/api/api-client';
 import type { Schema } from '@core/api/ui-types';
 import { clearServerErrors, applyServerErrors } from '@core/form/server-errors';
 import { type DayText, bugun } from '@core/form/date-input';
-import { requestContext } from '@core/oturum/request-context';
+import { requestContext } from '@core/session/request-context';
 import { textValue } from '@features/planning-shared/form-helpers';
 import { MoneyPipe } from '@shared/format/format-pipe';
 import { Alan } from '@shared/form/field/field';

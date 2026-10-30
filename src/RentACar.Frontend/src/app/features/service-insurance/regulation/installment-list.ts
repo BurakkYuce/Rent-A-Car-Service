@@ -17,7 +17,7 @@ import { type UnsavedChangesOwner, pageLeaveGuard } from '@core/form/unsaved-cha
 import type { DayText } from '@core/form/date-input';
 import { ToastService } from '@core/feedback/toast-service';
 import { translationFunction } from '@core/i18n/translation';
-import { SessionService } from '@core/oturum/session-service';
+import { SessionService } from '@core/session/session-service';
 import type { Sayfa } from '@core/api/page';
 import { FetchPolicy } from '@core/data/fetch-policy';
 import type { TemelStore } from '@core/data/base-store';

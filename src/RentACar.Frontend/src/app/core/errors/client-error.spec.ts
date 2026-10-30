@@ -4,7 +4,7 @@ import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 
 import { provideApiClient } from '@core/api/api-client';
-import { SessionService } from '@core/oturum/session-service';
+import { SessionService } from '@core/session/session-service';
 import { ChunkErrorService } from '@core/version/chunk-error';
 import { VersionService } from '@core/version/version-service';
 

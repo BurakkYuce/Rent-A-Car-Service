@@ -5,8 +5,8 @@ import { ErrorHandler, inject, Injectable, Injector } from '@angular/core';
 import { ApiHatasi } from '@core/api/api-error';
 import { ApiIstemcisi } from '@core/api/api-client';
 import type { ClientErrorRequest } from '@core/api/ui-types';
-import { requestContext } from '@core/oturum/request-context';
-import { SessionService } from '@core/oturum/session-service';
+import { requestContext } from '@core/session/request-context';
+import { SessionService } from '@core/session/session-service';
 import { ChunkErrorService, isChunkLoadError } from '@core/version/chunk-error';
 import { VersionService } from '@core/version/version-service';
 

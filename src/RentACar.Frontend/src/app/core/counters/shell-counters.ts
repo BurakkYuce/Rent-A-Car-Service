@@ -1,6 +1,6 @@
 import { computed, inject, Injectable, signal } from '@angular/core';
 
-import { SESSION_CONTEXT } from '@core/oturum/session-context';
+import { SESSION_CONTEXT } from '@core/session/session-context';
 
 /** Kira kayıtlı görünümlerinin sayaçları (Yol v2 §5.1, §9 alt kümesi). */
 export interface KabukSayaclariDegeri {

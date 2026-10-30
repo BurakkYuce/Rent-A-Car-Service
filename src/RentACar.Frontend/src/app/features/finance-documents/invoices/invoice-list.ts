@@ -21,8 +21,8 @@ import { type UnsavedChangesOwner, pageLeaveGuard } from '@core/form/unsaved-cha
 import { ConfirmService } from '@core/feedback/confirm-service';
 import { ToastService } from '@core/feedback/toast-service';
 import { translationFunction } from '@core/i18n/translation';
-import { genelGosterilir } from '@core/oturum/session-interceptor';
-import { SessionService } from '@core/oturum/session-service';
+import { genelGosterilir } from '@core/session/session-interceptor';
+import { SessionService } from '@core/session/session-service';
 import { FetchPolicy } from '@core/data/fetch-policy';
 import { listQueryUrlSync } from '@core/data/list-query-url';
 import { CustomerLabels } from '@features/vehicle-finance/labels';

@@ -5,7 +5,7 @@ import { NavigationEnd, Router, type Routes } from '@angular/router';
 import { isDirtyComponent, CONFIRM_PROMPT, leaveMessage } from '@core/form/unsaved-changes';
 import { ToastService } from '@core/feedback/toast-service';
 import { translationFunction } from '@core/i18n/translation';
-import { SessionService } from '@core/oturum/session-service';
+import { SessionService } from '@core/session/session-service';
 import {
   generateKey,
   SHELL_MARKER,
@@ -17,7 +17,7 @@ import {
 import { TabState } from '@core/tabs/tab-state';
 import { TabRouteStrategy } from '@core/tabs/tab-strategy';
 
-import { PAGES } from '../../sayfalar';
+import { PAGES } from '../../pages';
 
 /** Açık tutulabilecek en fazla sekme (bellekte yaşayan sayfa bileşeni sayısını da sınırlar). */
 export const MAX_TABS = 10;

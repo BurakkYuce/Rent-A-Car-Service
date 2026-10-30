@@ -2,7 +2,7 @@ import type { Routes } from '@angular/router';
 
 import { unsavedChangesGuard } from '@core/form/unsaved-changes';
 import { ceviriBlogu, withTranslationBlock } from '@core/i18n/translation-block';
-import { permissionGuard } from '@core/oturum/session-guard';
+import { permissionGuard } from '@core/session/session-guard';
 import { FINANCE_ROUTES } from '@features/finance/finance.routes';
 import { CRM_ROUTES } from '@features/crm/crm.routes';
 import { CUSTOMER_ROUTES } from '@features/customers/customers.routes';
@@ -11,7 +11,7 @@ import { FINANCE_DOCUMENT_ROUTES } from '@features/finance-documents/finance-doc
 import { RENTAL_FORM_ROUTES } from '@features/rental-form/rental-form.routes';
 import { PRICING_ROUTES } from '@features/pricing/pricing.routes';
 import { REPORT_ROUTES } from '@features/reports/reports.routes';
-import { RESERVATION_ROUTES } from '@features/rezervasyonlar/rezervasyonlar.routes';
+import { RESERVATION_ROUTES } from '@features/reservations/reservations.routes';
 import { SYSTEM_ROUTES } from '@features/system/system.routes';
 import { SERVICE_INSURANCE_ROUTES } from '@features/service-insurance/service-insurance.routes';
 import { VEHICLE_FINANCE_ROUTES } from '@features/vehicle-finance/vehicle-finance.routes';
@@ -53,7 +53,7 @@ export const PAGES: Routes = [
     path: 'kiralar',
     title: 'Kira listesi — RentACar',
     loadComponent: () =>
-      import('@features/kiralar/kira-listesi/kira-listesi').then((m) => m.RentalList),
+      import('@features/rentals/rental-list/rental-list').then((m) => m.RentalList),
     canActivate: [ceviriBlogu('kiralar')],
   },
   {
@@ -61,7 +61,7 @@ export const PAGES: Routes = [
     // okumalarıyla aynı); kira listesi gibi rota kapısı yok — izinsiz rol uç 403'ünü uyarı bandıyla görür.
     path: 'kabis',
     title: 'KABİS bildirimleri — RentACar',
-    loadComponent: () => import('@features/kiralar/kabis-list/kabis-list').then((m) => m.KabisList),
+    loadComponent: () => import('@features/rentals/kabis-list/kabis-list').then((m) => m.KabisList),
     canActivate: [ceviriBlogu('kiralar')],
   },
   // F5.2b planlama ekranları (Blazor /takvim, /musaitlik, /rez-sartlari, /filo-kiralama). Kayıt sayfası

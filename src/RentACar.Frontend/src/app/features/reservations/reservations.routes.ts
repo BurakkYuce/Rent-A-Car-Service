@@ -1,10 +1,10 @@
 import type { Routes } from '@angular/router';
 import { unsavedChangesGuard } from '@core/form/unsaved-changes';
 import { withTranslationBlock } from '@core/i18n/translation-block';
-import { permissionGuard } from '@core/oturum/session-guard';
+import { permissionGuard } from '@core/session/session-guard';
 
 /**
- * F5.2a rezervasyon ve teklif rotaları — `sayfalar.ts`'e tek satırla eklenir. Hepsi tembel parça; metinler
+ * F5.2a rezervasyon ve teklif rotaları — `pages.ts`'e tek satırla eklenir. Hepsi tembel parça; metinler
  * `rezervasyon` çeviri bloğunda (rota yükler). Uçların tamamı OperationsWrite ister (Blazor grubu + menü kaydı):
  * rota kapısı aynı izni ister, asıl kapı sunucuda. Sıra önemli: `…/yeni`, `…/:id`'den önce.
  */
@@ -14,7 +14,7 @@ export const RESERVATION_ROUTES: Routes = withTranslationBlock('rezervasyon', [
     title: 'Rezervasyonlar — RentACar',
     canMatch: [permissionGuard('OperationsWrite')],
     loadComponent: () =>
-      import('./rezervasyon-listesi/reservation-list').then((m) => m.ReservationList),
+      import('./reservation-list/reservation-list').then((m) => m.ReservationList),
   },
   {
     path: 'rezervasyonlar/yeni',

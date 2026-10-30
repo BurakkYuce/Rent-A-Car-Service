@@ -19,8 +19,8 @@ import { ToastService } from '@core/feedback/toast-service';
 import { WarningBannerService } from '@core/feedback/warning-banner-service';
 import type { CeviriAnahtari } from '@core/i18n/translation-keys';
 import { translationFunction } from '@core/i18n/translation';
-import { genelGosterilir } from '@core/oturum/session-interceptor';
-import { SessionService } from '@core/oturum/session-service';
+import { genelGosterilir } from '@core/session/session-interceptor';
+import { SessionService } from '@core/session/session-service';
 import { tabContext } from '@core/tabs/tab-state';
 import {
   momentValue,

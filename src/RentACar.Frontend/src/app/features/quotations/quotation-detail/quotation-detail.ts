@@ -13,8 +13,8 @@ import { translationFunction } from '@core/i18n/translation';
 import { tabContext } from '@core/tabs/tab-state';
 import { TemelStore } from '@core/data/base-store';
 
-import { RF_SHARED } from '../../rezervasyonlar/common';
-import { toNumber } from '../../rezervasyonlar/reservation-model';
+import { RF_SHARED } from '../../reservations/common';
+import { toNumber } from '../../reservations/reservation-model';
 import { QuotationActions } from '../quotation-actions';
 import {
   QUOTATION_ROOT,
@@ -35,7 +35,7 @@ import {
   imports: [...RF_SHARED, RouterLink],
   providers: [QuotationActions],
   templateUrl: './quotation-detail.html',
-  styleUrl: '../../rezervasyonlar/reservation-form/reservation-form.scss',
+  styleUrl: '../../reservations/reservation-form/reservation-form.scss',
 })
 export class QuotationDetail {
   private readonly api = inject(ApiIstemcisi);

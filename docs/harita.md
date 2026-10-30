@@ -46,7 +46,7 @@ kalıcı kararlar için `docs/KARARLAR.md`, son durum için `docs/roadmap/DEVIR.
 | Müşteri PII (TC şifreli, blind-index) | `Infrastructure/.../CustomerRepository.cs`, `Application/Common/IPiiHasher.cs`, `ISecretProtector.cs` |
 | Raporlar | `Application/Reporting/`, `Web/Api/Reports/`, `Infrastructure/Persistence/SharedQueries.cs` |
 | Menü (rol → görünen ekran) | `Web/Api/Menu/MenuRegistry.cs` |
-| Bir ekranın SPA kodu | `Frontend/src/app/features/<modül>/`, rota `sayfalar.ts`, çeviri `src/i18n/bloklar/<blok>.json` |
+| Bir ekranın SPA kodu | `Frontend/src/app/features/<modül>/`, rota `pages.ts`, çeviri `src/i18n/bloklar/<blok>.json` |
 | SPA çekirdeği (API istemcisi, form, oturum) | `Frontend/src/app/core/`, `src/app/shared/` |
 | Eski Blazor adresi nereye gidiyor | `Web/Spa/Cutover.cs`, `SpaHosting.cs` |
 | Firma sitesi teması, paleti, önizleme | `PublicSite/Components/Themes/README.md` (sözleşme), `PublicSite/SitePaletteCss.cs`, `SitePreview.cs` |

@@ -686,8 +686,8 @@ public sealed class IlkKesisKararTests
     public void F5_hedefleri_SPA_rota_dosyalarinda_tanimli()
     {
         var app = Path.Combine(RepoRoot(), "src/RentACar.Frontend/src/app");
-        var text = File.ReadAllText(Path.Combine(app, "sayfalar.ts"))
-            + File.ReadAllText(Path.Combine(app, "features/rezervasyonlar/rezervasyonlar.routes.ts"));
+        var text = File.ReadAllText(Path.Combine(app, "pages.ts"))
+            + File.ReadAllText(Path.Combine(app, "features/reservations/reservations.routes.ts"));
         foreach (var path in new[] { "rezervasyonlar", "teklifler", "takvim", "musaitlik", "rez-sartlari", "filo-kiralama" })
             Assert.Contains($"path: '{path}',", text);
     }
@@ -700,11 +700,11 @@ public sealed class IlkKesisKararTests
     public void F6_hedefleri_SPA_rota_dosyalarinda_tanimli()
     {
         var app = Path.Combine(RepoRoot(), "src/RentACar.Frontend/src/app");
-        var text = File.ReadAllText(Path.Combine(app, "sayfalar.ts"))
+        var text = File.ReadAllText(Path.Combine(app, "pages.ts"))
             + File.ReadAllText(Path.Combine(app, "features/vehicles/vehicles.routes.ts"))
             + File.ReadAllText(Path.Combine(app, "features/vehicle-finance/vehicle-finance.routes.ts"));
-        Assert.Contains("VEHICLE_ROUTES", File.ReadAllText(Path.Combine(app, "sayfalar.ts")));
-        Assert.Contains("VEHICLE_FINANCE_ROUTES", File.ReadAllText(Path.Combine(app, "sayfalar.ts")));
+        Assert.Contains("VEHICLE_ROUTES", File.ReadAllText(Path.Combine(app, "pages.ts")));
+        Assert.Contains("VEHICLE_FINANCE_ROUTES", File.ReadAllText(Path.Combine(app, "pages.ts")));
         foreach (var path in new[]
                  {
                      "araclar", "araclar/detayli", "araclar/:id", "araclar/:id/detay", "arac-durum", "arac-kredi",
@@ -731,7 +731,7 @@ public sealed class IlkKesisKararTests
     public void F7_targets_are_defined_in_SPA_route_files()
     {
         var app = Path.Combine(RepoRoot(), "src/RentACar.Frontend/src/app");
-        var pages = File.ReadAllText(Path.Combine(app, "sayfalar.ts"));
+        var pages = File.ReadAllText(Path.Combine(app, "pages.ts"));
         Assert.Contains("CUSTOMER_ROUTES", pages);
         Assert.Contains("CRM_ROUTES", pages);
         var text = pages
@@ -761,7 +761,7 @@ public sealed class IlkKesisKararTests
     public void F10_hedefleri_SPA_rota_dosyalarinda_tanimli()
     {
         var app = Path.Combine(RepoRoot(), "src/RentACar.Frontend/src/app");
-        Assert.Contains("REPORT_ROUTES", File.ReadAllText(Path.Combine(app, "sayfalar.ts")));
+        Assert.Contains("REPORT_ROUTES", File.ReadAllText(Path.Combine(app, "pages.ts")));
         var text = File.ReadAllText(Path.Combine(app, "features/reports/reports.routes.ts"));
         Assert.Contains("`raporlar/${code}`", text);
         Assert.Contains("'raporlar/arac-karne/:id'", text);
@@ -785,7 +785,7 @@ public sealed class IlkKesisKararTests
     public void F11_targets_are_defined_in_SPA_route_files()
     {
         var app = Path.Combine(RepoRoot(), "src/RentACar.Frontend/src/app");
-        var pages = File.ReadAllText(Path.Combine(app, "sayfalar.ts"));
+        var pages = File.ReadAllText(Path.Combine(app, "pages.ts"));
         Assert.Contains("DEFINITION_ROUTES", pages);
         Assert.Contains("SYSTEM_ROUTES", pages);
         var routeFiles = File.ReadAllText(Path.Combine(app, "features/definitions/definitions.routes.ts"))
@@ -813,7 +813,7 @@ public sealed class IlkKesisKararTests
     public void F8_targets_are_defined_in_SPA_route_files()
     {
         var app = Path.Combine(RepoRoot(), "src/RentACar.Frontend/src/app");
-        var pages = File.ReadAllText(Path.Combine(app, "sayfalar.ts"));
+        var pages = File.ReadAllText(Path.Combine(app, "pages.ts"));
         Assert.Contains("FINANCE_ROUTES", pages);
         Assert.Contains("FINANCE_DOCUMENT_ROUTES", pages);
         var text = File.ReadAllText(Path.Combine(app, "features/finance/finance.routes.ts"))
@@ -854,7 +854,7 @@ public sealed class IlkKesisKararTests
     public void F9_targets_are_defined_in_SPA_route_files()
     {
         var app = Path.Combine(RepoRoot(), "src/RentACar.Frontend/src/app");
-        var pages = File.ReadAllText(Path.Combine(app, "sayfalar.ts"));
+        var pages = File.ReadAllText(Path.Combine(app, "pages.ts"));
         Assert.Contains("SERVICE_INSURANCE_ROUTES", pages);
         Assert.Contains("PRICING_ROUTES", pages);
         var serviceRoutes = File.ReadAllText(Path.Combine(app, "features/service-insurance/service-insurance.routes.ts"));

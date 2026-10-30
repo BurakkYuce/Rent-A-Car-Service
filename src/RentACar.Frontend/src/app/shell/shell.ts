@@ -21,7 +21,7 @@ import { branchLabel, type MenuResponse } from '@core/api/ui-types';
 import type { CeviriAnahtari } from '@core/i18n/translation-keys';
 import { trUpperCase } from '@core/text/tr-normalize';
 import { PageLeave } from '@core/form/unsaved-changes';
-import { SessionService } from '@core/oturum/session-service';
+import { SessionService } from '@core/session/session-service';
 import { MenuRefresh } from '@core/counters/menu-refresh';
 import { FetchPolicy } from '@core/data/fetch-policy';
 import type { StoreState } from '@core/data/base-store';
@@ -53,7 +53,7 @@ const ROLE_LABELS: Readonly<Record<string, CeviriAnahtari>> = {
  * Uygulama kabuğu (F3.2, Blazor `MainLayout` yeniden yazıldı; Yol v2 §5 görünümü): lacivert kenar çubuğu
  * (`GET /api/ui/v1/menu`, 240 px ↔ 56 px ikon şeridi, `rc.kabuk.dar`), altta şube + kullanıcı kartı + çıkış;
  * üst çubuk (daralt, Ctrl+K paleti, plaka arama, bildirim zili, tema), sekmeli çalışma alanı. Oturum isteyen tüm sayfalar bunun içinde
- * (`sayfalar.ts`); giriş sayfası dışında.
+ * (`pages.ts`); giriş sayfası dışında.
  *
  * - SPA öğesi router ile; Blazor öğesi TAM SAYFA açılır (`/app` dışı) — önce tüm sekmelerde
  *   kaydedilmemiş değişiklik sorulur (tek soru), onaydan sonra `beforeunload` ikinci kez sormaz.

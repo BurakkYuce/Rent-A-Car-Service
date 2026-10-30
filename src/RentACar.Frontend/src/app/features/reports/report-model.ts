@@ -3,7 +3,7 @@ import type { SelectionEndpoint } from '@core/api/ui-types';
 // yol tablosunu dışa açmadığı için yol tipleri üretilen dosyadan alınır (yalnız tip; çalışma zamanı yok).
 import type { paths } from '@core/api/generated/ui-v1';
 import type { CeviriAnahtari } from '@core/i18n/translation-keys';
-import type { Permission } from '@core/oturum/session-types';
+import type { Permission } from '@core/session/session-types';
 
 /**
  * F10.2 ORTAK RAPOR ŞABLONU — saf model. 26 rapor ekranı tek bileşenin (`ReportPage`) YAPILANDIRMASIDIR: her rapor

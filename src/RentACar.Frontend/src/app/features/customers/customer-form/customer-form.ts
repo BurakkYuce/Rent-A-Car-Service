@@ -19,7 +19,7 @@ import { type UnsavedChangesOwner, pageLeaveGuard } from '@core/form/unsaved-cha
 import { ToastService } from '@core/feedback/toast-service';
 import { WarningBannerService } from '@core/feedback/warning-banner-service';
 import { translationFunction } from '@core/i18n/translation';
-import { SessionService } from '@core/oturum/session-service';
+import { SessionService } from '@core/session/session-service';
 import { tabContext } from '@core/tabs/tab-state';
 import { FetchPolicy } from '@core/data/fetch-policy';
 import { mergeServerValues } from '@features/planning-shared/form-helpers';

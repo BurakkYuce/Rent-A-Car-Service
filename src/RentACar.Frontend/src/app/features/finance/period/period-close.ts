@@ -18,7 +18,7 @@ import { formatDay } from '@core/form/date-input';
 import { ConfirmService } from '@core/feedback/confirm-service';
 import { ToastService } from '@core/feedback/toast-service';
 import { translationFunction } from '@core/i18n/translation';
-import { genelGosterilir } from '@core/oturum/session-interceptor';
+import { genelGosterilir } from '@core/session/session-interceptor';
 import { FetchPolicy } from '@core/data/fetch-policy';
 import { TemelStore } from '@core/data/base-store';
 

@@ -20,7 +20,7 @@ import { enumLabel } from '@core/format/enum-label';
 import { ConfirmService } from '@core/feedback/confirm-service';
 import { ToastService } from '@core/feedback/toast-service';
 import { translationFunction } from '@core/i18n/translation';
-import { genelGosterilir } from '@core/oturum/session-interceptor';
+import { genelGosterilir } from '@core/session/session-interceptor';
 import { toNumber } from '@features/vehicles/vehicle-model';
 import { MoneyPipe, DateTimePipe } from '@shared/format/format-pipe';
 import { Alan } from '@shared/form/field/field';

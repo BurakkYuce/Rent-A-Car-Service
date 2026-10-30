@@ -88,7 +88,7 @@ olabilir). Açık PR yoksa "Sırada" listesinin ilk maddesi.
     hedefi zorunlu; AnonimBelge'de doğum tarihi maskeli).
   - **SPA para çekirdeği #316:** dört ayrı uygulama tek `core/form/money-submission.ts` + `money-attempts.ts` +
     `money-notice.ts`'te; denemeler oturum KİMLİĞİNE (kiracı|kullanıcı) bağlı, sekmeler arası `rc-oturum-baglami`
-    kanalı, tekrar öncesi `GET oturum/ben` doğrulaması. #320: bağlam anahtarı tek kaynak (`core/oturum/session-context.ts`)
+    kanalı, tekrar öncesi `GET oturum/ben` doğrulaması. #320: bağlam anahtarı tek kaynak (`core/session/session-context.ts`)
     + parite testi, 401'de yeniden giriş + aynı kimlikle aynı anahtar, şube değişimi denemeyi düşürmez.
   - #318 kira paneli: "H1" test konumlayıcı yarışıydı (ürün hatası değil); tahsilat sürerken/tazeleme beklerken iki
     Tahsil Et pasif, 5xx'te "Yeniden yükle", tazelemede son iyi detay korunur (donmuş deneme kaybolmaz), 429 geçici.
@@ -255,7 +255,7 @@ olabilir). Açık PR yoksa "Sırada" listesinin ilk maddesi.
    - Sonra OpenAPI anlık görüntüsü: `RACAR_OPENAPI_GUNCELLE=1` ile `UiApiOpenApiTests`, ardından
      `cd src/RentACar.Frontend && npm run tipler`.
 5. **Frontend:** çekirdeği kullan (`TemelStore`, liste sorgusu, tablo motoru, form seti, `rc-para-girdisi`, tanım CRUD).
-   Revlo'dan kopyalama yok. Rota `sayfalar.ts`; çeviri `tr.json`'da kendi bloğun (`npm run i18n:tipler`).
+   Revlo'dan kopyalama yok. Rota `pages.ts`; çeviri `tr.json`'da kendi bloğun (`npm run i18n:tipler`).
 6. **Testler:**
    - Beklenen değerler elle kurulmuş senaryodan gelir (bağımsız oracle), servis kodundan türetilmez.
    - Backend: WebFactory + gerçek PostgreSQL, `racar_app` ile izolasyon; SABİT PAROLA/KİMLİK YOK (GitGuardian).
@@ -423,7 +423,7 @@ geçişte iki kez oldu. Para dokunmayan ama giriş/yetki/PII dokunan PR'larda ay
   - Döviz değişince kur, dövizi uymayan hesap ve TRY bakiye önerisi temizlenir. "Boş tutar = kalanın tamamı"
     formunda `mukerrer` sonrası kilit yalnız BAŞARILI ödemeyle kalkar.
 - **Çakışan PR'da CI hiç koşmaz** (`pull_request` olayı merge commit'i ister). "CI bekleniyor" demeden önce
-  `gh pr view N --json mergeable`. Paralel PR'lar `sayfalar.ts`, `BLOK_HARITASI` ve üretilen i18n'de sürekli çakışır:
+  `gh pr view N --json mergeable`. Paralel PR'lar `pages.ts`, `BLOK_HARITASI` ve üretilen i18n'de sürekli çakışır:
   elle yazılanda iki tarafı koru (`git merge-file --union`), üretilenleri yeniden üret.
 - **Tek testte "tüm sayfalar × iki tema axe" CI'da 30 sn'yi aşar** → sayfa başına ayrı test (#305).
 - **İnceleyiciler yerel dev DB'ye yazmaz** (WebFixture ya da sahte API). Bir tur dev DB'ye gerçek tahsilat yazdı;

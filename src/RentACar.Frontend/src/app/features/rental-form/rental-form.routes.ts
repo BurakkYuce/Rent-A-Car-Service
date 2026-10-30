@@ -1,10 +1,10 @@
 import type { Routes } from '@angular/router';
 import { unsavedChangesGuard } from '@core/form/unsaved-changes';
 import { withTranslationBlock } from '@core/i18n/translation-block';
-import { permissionGuard } from '@core/oturum/session-guard';
+import { permissionGuard } from '@core/session/session-guard';
 
 /**
- * Kira formu rotaları (F4.3) — `sayfalar.ts`'e tek satırla eklenir. TEK form bileşeni iki rotada
+ * Kira formu rotaları (F4.3) — `pages.ts`'e tek satırla eklenir. TEK form bileşeni iki rotada
  * (Blazor `KiraForm.razor` gibi); sıra önemli: `kiralar/yeni` ve `kiralar/:id/yazdir`, `kiralar/:id`'den
  * önce. Form ve sekmeleri tembel parça (ilk pakete girmez); metinleri `kira-formu` çeviri bloğunda (rota yükler).
  */

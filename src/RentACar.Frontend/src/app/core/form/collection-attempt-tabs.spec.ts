@@ -1,7 +1,7 @@
 import { EnvironmentInjector, createEnvironmentInjector } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import type { ApiHatasi } from '../api/api-error';
-import { SessionService } from '../oturum/session-service';
+import { SessionService } from '../session/session-service';
 import {
   COLLECTION_ATTEMPT_CHANNEL,
   CollectionAttemptRecord,
