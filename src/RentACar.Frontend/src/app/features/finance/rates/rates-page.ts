@@ -11,21 +11,21 @@ import { FormControl, FormGroup, Validators } from '@angular/forms';
 import { type Observable, finalize } from 'rxjs';
 
 import { ConfirmGate } from '@core/form/money-submission';
-import { toApiError, type ApiHatasi } from '@core/api/api-hatasi';
-import { ApiIstemcisi } from '@core/api/api-istemcisi';
-import { formatMoney } from '@core/bicim/bicim';
-import { type UnsavedChangesOwner, pageLeaveGuard } from '@core/form/kaydedilmemis-degisiklik';
-import { clearServerErrors, applyServerErrors } from '@core/form/sunucu-hatalari';
-import { ConfirmService } from '@core/geri-bildirim/confirm-service';
-import { ToastService } from '@core/geri-bildirim/toast-service';
-import { translationFunction } from '@core/i18n/ceviri';
+import { toApiError, type ApiHatasi } from '@core/api/api-error';
+import { ApiIstemcisi } from '@core/api/api-client';
+import { formatMoney } from '@core/format/format';
+import { type UnsavedChangesOwner, pageLeaveGuard } from '@core/form/unsaved-changes';
+import { clearServerErrors, applyServerErrors } from '@core/form/server-errors';
+import { ConfirmService } from '@core/feedback/confirm-service';
+import { ToastService } from '@core/feedback/toast-service';
+import { translationFunction } from '@core/i18n/translation';
 import { genelGosterilir } from '@core/oturum/session-interceptor';
 import { DUGME_IZINLERI } from '@core/oturum/dugme-izinleri';
 import { SessionService } from '@core/oturum/session-service';
-import { FetchPolicy } from '@core/veri/fetch-policy';
-import { TemelStore } from '@core/veri/temel-store';
-import { mergeServerValues } from '@features/planlama-ortak/form-yardimcilari';
-import type { SecenekOgesi } from '@shared/form/kontroller/secenek';
+import { FetchPolicy } from '@core/data/fetch-policy';
+import { TemelStore } from '@core/data/base-store';
+import { mergeServerValues } from '@features/planning-shared/form-helpers';
+import type { SecenekOgesi } from '@shared/form/controls/option';
 
 import {
   type ConversionResult,

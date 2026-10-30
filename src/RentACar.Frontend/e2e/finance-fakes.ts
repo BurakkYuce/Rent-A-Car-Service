@@ -1,6 +1,6 @@
 import type { Page, Route } from '@playwright/test';
 
-import { kaydet, type KayitliIstek } from './ortak';
+import { kaydet, type KayitliIstek } from './common';
 
 /** F8.2a finans ekranları için sahte `/api/ui/v1` (değerler elle kurulmuş; uygulama kodundan türetilmez). */
 export const ACCOUNT_1 = 'c0c0c0c0-0000-4000-8000-000000000001';

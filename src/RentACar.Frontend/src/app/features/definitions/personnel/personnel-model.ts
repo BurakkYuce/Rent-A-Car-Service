@@ -1,6 +1,6 @@
-import { mergeMoment, parseMoment, isDay } from '@core/form/tarih-girdisi';
-import type { CeviriAnahtari } from '@core/i18n/ceviri-anahtarlari';
-import type { TanimAlani, DefinitionRow } from '@shared/form/tanim-crud/definition-source';
+import { mergeMoment, parseMoment, isDay } from '@core/form/date-input';
+import type { CeviriAnahtari } from '@core/i18n/translation-keys';
+import type { TanimAlani, DefinitionRow } from '@shared/form/definition-crud/definition-source';
 
 import { type SuggestionSource, commonFields } from '../definition-catalog';
 

@@ -1,13 +1,13 @@
 import { inject } from '@angular/core';
 import { CanMatchFn, Router, UrlTree } from '@angular/router';
 
-import { FULL_PAGE_NAVIGATION } from '@core/form/kaydedilmemis-degisiklik';
-import { WarningBannerService } from '@core/geri-bildirim/warning-banner-service';
-import { translationFunction } from '@core/i18n/ceviri';
+import { FULL_PAGE_NAVIGATION } from '@core/form/unsaved-changes';
+import { WarningBannerService } from '@core/feedback/warning-banner-service';
+import { translationFunction } from '@core/i18n/translation';
 
-import { PILOT_LANDING, postLoginTarget, safeReturnUrl } from './giris-hatasi';
+import { PILOT_LANDING, postLoginTarget, safeReturnUrl } from './login-error';
 import { SessionService } from './session-service';
-import type { Permission } from './oturum-tipleri';
+import type { Permission } from './session-types';
 
 /** Girilmek istenen adres (router yolu, `/app` önekisiz): giriş sonrası dönüş için. */
 function targetUrl(router: Router): string {

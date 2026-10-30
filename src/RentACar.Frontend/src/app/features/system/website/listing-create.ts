@@ -3,17 +3,17 @@ import { FormControl, FormGroup } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { TranslocoPipe } from '@jsverse/transloco';
 
-import { ApiIstemcisi } from '@core/api/api-istemcisi';
-import type { Schema } from '@core/api/ui-tipleri';
-import { pageLeaveGuard } from '@core/form/kaydedilmemis-degisiklik';
-import { translationFunction } from '@core/i18n/ceviri';
+import { ApiIstemcisi } from '@core/api/api-client';
+import type { Schema } from '@core/api/ui-types';
+import { pageLeaveGuard } from '@core/form/unsaved-changes';
+import { translationFunction } from '@core/i18n/translation';
 import { SessionService } from '@core/oturum/session-service';
-import { TemelStore } from '@core/veri/temel-store';
+import { TemelStore } from '@core/data/base-store';
 import { formSubmission } from '@shared/form/form-submission';
 import { FormErrors } from '@shared/form/form-errors';
 
-import { PlateChipComponent } from '@shared/plaka/plaka';
-import { PageBand } from '../../../kabuk/sayfa-bandi/page-band';
+import { PlateChipComponent } from '@shared/plate/plate';
+import { PageBand } from '../../../shell/page-band/page-band';
 import { LISTINGS_ROOT } from './website-hub';
 
 type Cluster = Schema<'VehicleClusterDto'>;

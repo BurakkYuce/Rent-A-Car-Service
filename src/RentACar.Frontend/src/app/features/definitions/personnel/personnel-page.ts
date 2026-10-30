@@ -1,11 +1,11 @@
 import { ChangeDetectionStrategy, Component, viewChild } from '@angular/core';
 import { TranslocoPipe } from '@jsverse/transloco';
 
-import { pageLeaveGuard } from '@core/form/kaydedilmemis-degisiklik';
-import { translationFunction } from '@core/i18n/ceviri';
-import { DefinitionCrud } from '@shared/form/tanim-crud/definition-crud';
+import { pageLeaveGuard } from '@core/form/unsaved-changes';
+import { translationFunction } from '@core/i18n/translation';
+import { DefinitionCrud } from '@shared/form/definition-crud/definition-crud';
 
-import { PageBand } from '../../../kabuk/sayfa-bandi/page-band';
+import { PageBand } from '../../../shell/page-band/page-band';
 import { selectionSuggestions } from '../definition-catalog';
 import { pagedDefinitionSource } from '../paged-source';
 import { personnelFields, personnelToBody, personnelToRow } from './personnel-model';

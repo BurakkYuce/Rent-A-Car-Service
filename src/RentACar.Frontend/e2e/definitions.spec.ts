@@ -1,8 +1,8 @@
 import { expect, test } from '@playwright/test';
 
-import { BEN, seriousViolations, collectErrors, logIn, problem, writeXsrf } from './ortak';
+import { BEN, seriousViolations, collectErrors, logIn, problem, writeXsrf } from './common';
 import { BRANCH_2, brand, branchEndpoints, definitionEndpoints } from './definition-fakes';
-import { waitReady, measureOverflow, type VitrinSayfasi } from './vitrin-sayfalari';
+import { waitReady, measureOverflow, type VitrinSayfasi } from './showcase-pages';
 
 /**
  * F11.2a tanım ekranları: genel tanım CRUD'u (markalar temsili), sürüm 409 formu silmez, kullanımda silme 400

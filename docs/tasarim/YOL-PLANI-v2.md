@@ -52,7 +52,7 @@ Hedef: Angular SPA (`src/RentACar.Frontend`), Blazor dokunulmaz.
   `--rc-vurgu`… mevcut adlar) → **bileşen** (`--rc-plaka-*`, `--rc-tabela-*`, `--rc-kenar-cubugu-*`, `--rc-bant-*`,
   `--rc-tablo-baslik-*`).
 - Tema seçimi mevcut mekanizma: `:root` + `prefers-color-scheme` + `:root[data-theme='dark'|'light']`
-  (`core/tema/tema-servisi.ts` `TEMA_ZEMINLERI` senkronlanır).
+  (`core/theme/theme-service.ts` `TEMA_ZEMINLERI` senkronlanır).
 - Feature SCSS'te hex/rgb/hsl **yasak**; yalnız `var(--rc-*)`. Bileşen tokenı yalnız kendi bileşeninde okunur.
 
 ### 2.2 Ham palet (`--rc-ham-*`)
@@ -164,13 +164,13 @@ ilk sütun (plaka) yapışkan.
 ## 6. Bileşenler
 | Bileşen | Yol | API / davranış |
 |---|---|---|
-| `rc-plaka` | `shared/plaka/` | `[plaka]`, `boyut="sm|md|lg"` (22/28/40). `plakaNormalize()` saf fonksiyon (Ek A). Geçersiz → şeritsiz "yabancı" varyant, hata fırlatmaz. |
-| `rc-plaka-arama` | `shared/plaka/` | TR şeritli input, Condensed 600, Enter → arama; boş/eşleşme yok → toast `bilgi`. |
-| `rc-tabela-karti` | `shared/tabela-karti/` | `durum`, `[deger]`, `[oran]`, `etiket`, `altMetin`, `ikon`. Dolu kart, 34px sayı, oran çubuğu. |
-| `rc-sayfa-bandi` | `kabuk/sayfa-bandi/` | `baslik`, `ikon`, `[pill]`, `[altMetin]`, `<ng-content select="[eylemler]">`. |
-| `rc-gorunum-cipleri` | `shared/gorunum-cipleri/` | `[gorunumler]: {ad, sayac?, tur?: 'hata', aktif}`. |
-| `rc-filtre-paneli` | `shared/filtre-paneli/` | 6 sütunlu grid, `Temizle` + `Filtrele` (tek dolu). |
-| `rc-tablo` (mevcut) | `shared/tablo/tablo.scss` | Koyu başlık; seçim sütunu; toplu işlem çubuğu; `.rc-hucre-alt`; `.rc-satir-bugun`; altbilgi. |
+| `rc-plaka` | `shared/plate/` | `[plaka]`, `boyut="sm|md|lg"` (22/28/40). `plakaNormalize()` saf fonksiyon (Ek A). Geçersiz → şeritsiz "yabancı" varyant, hata fırlatmaz. |
+| `rc-plaka-arama` | `shared/plate/` | TR şeritli input, Condensed 600, Enter → arama; boş/eşleşme yok → toast `bilgi`. |
+| `rc-tabela-karti` | `shared/sign-card/` | `durum`, `[deger]`, `[oran]`, `etiket`, `altMetin`, `ikon`. Dolu kart, 34px sayı, oran çubuğu. |
+| `rc-sayfa-bandi` | `shell/page-band/` | `baslik`, `ikon`, `[pill]`, `[altMetin]`, `<ng-content select="[eylemler]">`. |
+| `rc-gorunum-cipleri` | `shared/view-chips/` | `[gorunumler]: {ad, sayac?, tur?: 'hata', aktif}`. |
+| `rc-filtre-paneli` | `shared/filter-panel/` | 6 sütunlu grid, `Temizle` + `Filtrele` (tek dolu). |
+| `rc-tablo` (mevcut) | `shared/table/table.scss` | Koyu başlık; seçim sütunu; toplu işlem çubuğu; `.rc-hucre-alt`; `.rc-satir-bugun`; altbilgi. |
 | `.rc-duz-tablo` | `_duzen.scss` | Düz `<table>` için `rc-tablo` ile aynı görünüm. |
 | `rc-rozet` | mevcut | 6 durum; dolu rozet yok. |
 | `rc-hatirlatma-listesi` | `features/panel/` | 1 hf / 30 g / geçen sayaç satırları; geçen → hata rengi. |
@@ -216,7 +216,7 @@ yeniden tanımı 0 · düz tablolar `.rc-duz-tablo` · plakalar `rc-plaka` · ba
 3. Kontrast betiği yalnız `#hex` / `var(--x,#hex)` çözüyordu → `var(--rc-ham-*)` zinciri + §2.4 çiftleri eklenir;
    `rgba()` içeren bileşen tokenları denetim listesine alınmaz.
 4. e2e sabit arka planlar (`rgb(13, 19, 28)`, `rgb(245, 247, 250)`; vitrin/panel/kiralar/duman spec) yeni değerlere.
-5. `tokenlar-vitrini.ts` token adlarını elle listeliyor → güncellenir; görsel tabanlar her görünüm PR'ında yenilenir.
+5. `tokens-showcase.ts` token adlarını elle listeliyor → güncellenir; görsel tabanlar her görünüm PR'ında yenilenir.
 6. Bütçe: `anyComponentStyle` uyarı 4 kB (kira-formu 4.7 KB, panel 4.3 KB kaynak) — düzen global'e taşınınca düşmeli.
 7. `vehicles.scss` 7 feature'da `@use` → PR-B'de `_duzen.scss`'e taşınır.
 8. Kırılımlar (900/600 px, 64rem, 30rem) → SCSS değişkenleri.
@@ -234,7 +234,7 @@ Giriş → Panel · Kira listesi (Kirada) · Kira formu (finans paneli açık) �
 390, açık ve koyu; PR-C sonrası ek: kenar çubuğu daraltılmış, komut paleti açık, sekme şeridi 10/10.
 
 ## 18. Göç reçetesi (PR-P'den — D-ajanları bunu kopyalar)
-Pilot: `features/kiralar/kira-listesi` (liste kalıbı) ve `features/kira-formu` (form kalıbı). Davranış/iş mantığı
+Pilot: `features/kiralar/kira-listesi` (liste kalıbı) ve `features/rental-form` (form kalıbı). Davranış/iş mantığı
 DEĞİŞMEZ; yalnız şablon + stil. Hedef: feature SCSS'te stil denetimi bulgusu 0 (`node scripts/stil-denetimi.mjs --ayrinti`).
 
 | Önce (yerel) | Sonra (global / paylaşılan) |
@@ -243,7 +243,7 @@ DEĞİŞMEZ; yalnız şablon + stil. Hedef: feature SCSS'te stil denetimi bulgus
 | başlıktaki `rc-dugme--birincil rc-dugme--kucuk` "Yeni …" | `<a birincil class="rc-dugme rc-dugme--birincil">` (bantta tek dolu) |
 | başlık/araç çubuğundaki ikincil bağlantılar, tablo içi Excel/CSV/PDF | `<ng-container eylemler>` içinde `class="rc-dugme"` (≤ 900 px "…" menüsü); dışa aktarma `disaAktarmaAdresi(d, bicim)` ile banda, `rc-tablo`'ya `[disaAktarma]` VERİLMEZ (çift bağlantı olmasın) |
 | `<rc-katlanir-filtre>` + `<form [formGroup]>` + `.filtre__eylemler` (Filtrele/Temizle) | `<rc-filtre-paneli [formGroup] depoAnahtari="rc.filtre.<ekran>" [etkinSayisi] (filtrele) (temizle)>` — alanlar doğrudan içerik (6 sütun ızgara), `<form>` ve Filtrele/Temizle düğmeleri PANELİN |
-| — | `<rc-gorunum-cipleri [gorunumler]>`: `?gorunum=` ön ayarı mevcut süzgeçlere çevrilir (bkz. `kira-gorunumleri.ts`), yeni uç yok |
+| — | `<rc-gorunum-cipleri [gorunumler]>`: `?gorunum=` ön ayarı mevcut süzgeçlere çevrilir (bkz. `rental-views.ts`), yeni uç yok |
 | `.ozet` satırı tablonun üstünde | `<p rcTabloAraclari class="ozet" aria-live="polite">` (tablo araç çubuğunun solu) |
 | `{{ satir.plaka }}` | `<rc-plaka boyut="sm" [plaka]="satir.plaka" />` (tabloda `rcTabloHucre="plaka"`, formda md) |
 | durum rozeti `rc-rozet--bilgi` (kirada) | §1.2: kirada `--basari`, gecikmiş `--hata` ("n gün gecikti"), bugün `--uyari`, kapalı `--notr`; hesap SAF fonksiyonda (`satirGorunumu`), yalnız gösterim |
@@ -277,7 +277,7 @@ DEĞİŞMEZ; yalnız şablon + stil. Hedef: feature SCSS'te stil denetimi bulgus
   </rc-tablo>
 </div>
 ```
-Notlar: `SayfaBandi` kabukta (`kabuk/sayfa-bandi`) — feature'dan göreli içe aktarılır. Band başlığı değişirse e2e
+Notlar: `SayfaBandi` kabukta (`shell/page-band`) — feature'dan göreli içe aktarılır. Band başlığı değişirse e2e
 `hazirBekle` (`baslik`) ve `getByRole('heading', { level: 1 })` beklentileri aynı PR'da güncellenir. Filtre paneli
 varsayılan AÇIK: e2e'de "Filtreler" düğmesine tıklamak paneli KAPATIR (tıklama satırı silinir). İki satırlı hücre
 (`.rc-hucre-alt`) yalnız API alanı varsa: kira listesinde araç modeli/yakıt/vites/yıl ve müşteri türü `KiraListeSatiri`'nda

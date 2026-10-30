@@ -2,16 +2,16 @@ import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { TranslocoPipe } from '@jsverse/transloco';
 
-import { ApiIstemcisi } from '@core/api/api-istemcisi';
-import { pageLeaveGuard } from '@core/form/kaydedilmemis-degisiklik';
-import { ToastService } from '@core/geri-bildirim/toast-service';
+import { ApiIstemcisi } from '@core/api/api-client';
+import { pageLeaveGuard } from '@core/form/unsaved-changes';
+import { ToastService } from '@core/feedback/toast-service';
 import { SessionService } from '@core/oturum/session-service';
-import { translationFunction } from '@core/i18n/ceviri';
-import { Alan } from '@shared/form/alan/alan';
+import { translationFunction } from '@core/i18n/translation';
+import { Alan } from '@shared/form/field/field';
 import { formSubmission } from '@shared/form/form-submission';
 import { FormErrors } from '@shared/form/form-errors';
-import { TextInput } from '@shared/form/kontroller/text-input';
-import { PageBand } from '../../../kabuk/sayfa-bandi/page-band';
+import { TextInput } from '@shared/form/controls/text-input';
+import { PageBand } from '../../../shell/page-band/page-band';
 
 const PASSWORD_MAX = 128;
 

@@ -3,14 +3,14 @@ import { toSignal } from '@angular/core/rxjs-interop';
 import { FormControl, FormGroup, Validators } from '@angular/forms';
 
 import { moneySubmission } from '@core/form/money-submission';
-import { ApiIstemcisi, type QueryParameters } from '@core/api/api-istemcisi';
-import { type UnsavedChangesOwner, pageLeaveGuard } from '@core/form/kaydedilmemis-degisiklik';
-import { ToastService } from '@core/geri-bildirim/toast-service';
-import { translationFunction } from '@core/i18n/ceviri';
-import { FetchPolicy } from '@core/veri/fetch-policy';
-import { TemelStore } from '@core/veri/temel-store';
-import { currencyCode } from '@features/kira-formu/finans-paneli/finans-modeli';
-import type { SecenekOgesi } from '@shared/form/kontroller/secenek';
+import { ApiIstemcisi, type QueryParameters } from '@core/api/api-client';
+import { type UnsavedChangesOwner, pageLeaveGuard } from '@core/form/unsaved-changes';
+import { ToastService } from '@core/feedback/toast-service';
+import { translationFunction } from '@core/i18n/translation';
+import { FetchPolicy } from '@core/data/fetch-policy';
+import { TemelStore } from '@core/data/base-store';
+import { currencyCode } from '@features/rental-form/finance-panel/finance-model';
+import type { SecenekOgesi } from '@shared/form/controls/option';
 
 import {
   type AccountKind,

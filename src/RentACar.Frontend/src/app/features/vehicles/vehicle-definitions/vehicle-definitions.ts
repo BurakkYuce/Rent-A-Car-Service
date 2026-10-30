@@ -2,13 +2,13 @@ import { ChangeDetectionStrategy, Component, inject, viewChild } from '@angular/
 import { ActivatedRoute } from '@angular/router';
 import { TranslocoPipe } from '@jsverse/transloco';
 
-import type { ApiPath } from '@core/api/api-istemcisi';
-import { pageLeaveGuard } from '@core/form/kaydedilmemis-degisiklik';
-import { translationFunction } from '@core/i18n/ceviri';
-import { DefinitionCrud } from '@shared/form/tanim-crud/definition-crud';
-import type { TanimAlani } from '@shared/form/tanim-crud/definition-source';
+import type { ApiPath } from '@core/api/api-client';
+import { pageLeaveGuard } from '@core/form/unsaved-changes';
+import { translationFunction } from '@core/i18n/translation';
+import { DefinitionCrud } from '@shared/form/definition-crud/definition-crud';
+import type { TanimAlani } from '@shared/form/definition-crud/definition-source';
 
-import { PageBand } from '../../../kabuk/sayfa-bandi/page-band';
+import { PageBand } from '../../../shell/page-band/page-band';
 import { ACTIVE, PASSIVE, definitionSource } from './definition-source';
 
 export type DefinitionKind = 'sahip' | 'segment' | 'tip';

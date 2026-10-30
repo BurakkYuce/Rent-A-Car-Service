@@ -2,10 +2,10 @@ import { ChangeDetectionStrategy, Component, computed, input } from '@angular/co
 import { RouterLink } from '@angular/router';
 import { TranslocoPipe } from '@jsverse/transloco';
 
-import type { PanelFinance as PanelFinansVerisi } from '@core/api/ui-tipleri';
-import { FORMAT_PIPES } from '@shared/bicim/bicim-pipe';
+import type { PanelFinance as PanelFinansVerisi } from '@core/api/ui-types';
+import { FORMAT_PIPES } from '@shared/format/format-pipe';
 
-import { monthLabel, count } from './panel-modeli';
+import { monthLabel, count } from './panel-model';
 
 /**
  * Finans özeti + filo KPI (ömür boyu) + son 6 ay gelir mini-trendi. Yalnız sunucu `finans` bloğunu

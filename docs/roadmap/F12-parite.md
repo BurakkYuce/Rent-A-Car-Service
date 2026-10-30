@@ -42,5 +42,5 @@ Taşınmamış platform ekranı yok. `PlatformLayout` (kabuk) SPA'da `PlatformSh
   eşleşmesi; host: her oturumda 302 (sorgu AYNEN), oturumsuz ve firma kullanıcısı zinciri, platform operatörünün tek
   adımı, pilot anahtarı testi detay sayfası yerine yönlendirmeyi doğrular.
 - `PlatformIsolationTests`: hedef `/app/platform/kiracilar`.
-- e2e `kesis-f12.spec.ts` (yeni): eski adresler SPA'ya (sorgu + fragment), konsol ekranlarında Blazor platform
+- e2e `cutover-f12.spec.ts` (yeni): eski adresler SPA'ya (sorgu + fragment), konsol ekranlarında Blazor platform
   bağlantısı yok.

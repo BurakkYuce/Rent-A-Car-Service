@@ -1,13 +1,13 @@
 import { inject } from '@angular/core';
 import { type Observable, EMPTY, expand, map, reduce } from 'rxjs';
 
-import { ApiIstemcisi, type ApiPath } from '@core/api/api-istemcisi';
+import { ApiIstemcisi, type ApiPath } from '@core/api/api-client';
 import {
   type RestDefinitionOptions,
   type DefinitionSource,
   type DefinitionRow,
   restDefinitionSource,
-} from '@shared/form/tanim-crud/definition-source';
+} from '@shared/form/definition-crud/definition-source';
 
 /** Sayfalı liste yanıtı (`Sayfa<T>`: kayitlar/toplam/sayfaNo/boyut). */
 interface DefinitionPage {

@@ -1,15 +1,15 @@
 import { Injectable, inject } from '@angular/core';
 
-import { ApiIstemcisi, type QueryParameters } from '@core/api/api-istemcisi';
-import type { Sayfa } from '@core/api/sayfa';
-import { listDefinition } from '@core/veri/liste-sorgusu';
-import { TemelStore } from '@core/veri/temel-store';
+import { ApiIstemcisi, type QueryParameters } from '@core/api/api-client';
+import type { Sayfa } from '@core/api/page';
+import { listDefinition } from '@core/data/list-query';
+import { TemelStore } from '@core/data/base-store';
 
 import {
   RESERVATION_STATUSES,
   RESERVATION_ROOT,
   type ReservationListRow,
-} from '../rezervasyon-modeli';
+} from '../reservation-model';
 
 /**
  * Rezervasyon listesi URL ↔ API sözleşmesi (F5.1 `RezervasyonApi.RezervasyonListeFiltresi` + `SiralamaHaritasi`).

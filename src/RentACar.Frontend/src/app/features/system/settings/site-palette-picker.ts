@@ -1,8 +1,8 @@
 import { ChangeDetectionStrategy, Component, input } from '@angular/core';
 import { TranslocoPipe } from '@jsverse/transloco';
 
-import { uniqueId } from '@shared/form/alan/alan-baglami';
-import { BaseControl, controlProviders } from '@shared/form/kontroller/base-control';
+import { uniqueId } from '@shared/form/field/field-context';
+import { BaseControl, controlProviders } from '@shared/form/controls/base-control';
 
 import type { SitePaletteOption } from './settings-model';
 

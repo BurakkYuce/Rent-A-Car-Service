@@ -13,14 +13,14 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { TranslocoPipe } from '@jsverse/transloco';
 import { type Observable, finalize } from 'rxjs';
 
-import { toApiError } from '@core/api/api-hatasi';
-import { ApiIstemcisi } from '@core/api/api-istemcisi';
-import { ConfirmService } from '@core/geri-bildirim/confirm-service';
-import { ToastService } from '@core/geri-bildirim/toast-service';
-import { translationFunction } from '@core/i18n/ceviri';
+import { toApiError } from '@core/api/api-error';
+import { ApiIstemcisi } from '@core/api/api-client';
+import { ConfirmService } from '@core/feedback/confirm-service';
+import { ToastService } from '@core/feedback/toast-service';
+import { translationFunction } from '@core/i18n/translation';
 import { genelGosterilir } from '@core/oturum/session-interceptor';
-import type { StoreState } from '@core/veri/temel-store';
-import { Icon } from '@shared/ikon/icon';
+import type { StoreState } from '@core/data/base-store';
+import { Icon } from '@shared/icon/icon';
 
 import type { VehiclePhoto } from '../vehicle-model';
 

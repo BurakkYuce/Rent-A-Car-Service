@@ -2,11 +2,11 @@ import { ChangeDetectionStrategy, Component, effect, inject } from '@angular/cor
 import { RouterLink } from '@angular/router';
 import { TranslocoPipe } from '@jsverse/transloco';
 
-import { ApiIstemcisi } from '@core/api/api-istemcisi';
-import { TemelStore } from '@core/veri/temel-store';
-import { NumberPipe } from '@shared/bicim/bicim-pipe';
+import { ApiIstemcisi } from '@core/api/api-client';
+import { TemelStore } from '@core/data/base-store';
+import { NumberPipe } from '@shared/format/format-pipe';
 
-import { PageBand } from '../../../kabuk/sayfa-bandi/page-band';
+import { PageBand } from '../../../shell/page-band/page-band';
 import { PLATFORM_API, type PlatformSummary, toNumber } from '../platform-model';
 import { PlatformSessionService } from '../platform-session';
 

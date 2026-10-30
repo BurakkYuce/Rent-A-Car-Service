@@ -15,27 +15,27 @@ import { ActivatedRoute, RouterLink } from '@angular/router';
 import { TranslocoPipe } from '@jsverse/transloco';
 import { finalize } from 'rxjs';
 
-import { toApiError } from '@core/api/api-hatasi';
-import { ApiIstemcisi } from '@core/api/api-istemcisi';
-import { type UnsavedChangesOwner, pageLeaveGuard } from '@core/form/kaydedilmemis-degisiklik';
-import type { DayText } from '@core/form/tarih-girdisi';
-import { ConfirmService } from '@core/geri-bildirim/confirm-service';
-import { ToastService } from '@core/geri-bildirim/toast-service';
-import { translationFunction } from '@core/i18n/ceviri';
+import { toApiError } from '@core/api/api-error';
+import { ApiIstemcisi } from '@core/api/api-client';
+import { type UnsavedChangesOwner, pageLeaveGuard } from '@core/form/unsaved-changes';
+import type { DayText } from '@core/form/date-input';
+import { ConfirmService } from '@core/feedback/confirm-service';
+import { ToastService } from '@core/feedback/toast-service';
+import { translationFunction } from '@core/i18n/translation';
 import { DUGME_IZINLERI } from '@core/oturum/dugme-izinleri';
 import { genelGosterilir } from '@core/oturum/session-interceptor';
 import { SessionService } from '@core/oturum/session-service';
-import { tabContext } from '@core/sekme/tab-state';
-import { FetchPolicy } from '@core/veri/fetch-policy';
-import { momentValue, textValue } from '@features/planlama-ortak/form-yardimcilari';
-import { MoneyPipe, DatePipe } from '@shared/bicim/bicim-pipe';
-import { Alan } from '@shared/form/alan/alan';
+import { tabContext } from '@core/tabs/tab-state';
+import { FetchPolicy } from '@core/data/fetch-policy';
+import { momentValue, textValue } from '@features/planning-shared/form-helpers';
+import { MoneyPipe, DatePipe } from '@shared/format/format-pipe';
+import { Alan } from '@shared/form/field/field';
 import { formSubmission } from '@shared/form/form-submission';
 import { FormErrors } from '@shared/form/form-errors';
-import { TextInput } from '@shared/form/kontroller/text-input';
-import { MoneyInput } from '@shared/form/kontroller/money-input';
-import { DatePicker } from '@shared/form/tarih/date-picker';
-import { Icon } from '@shared/ikon/icon';
+import { TextInput } from '@shared/form/controls/text-input';
+import { MoneyInput } from '@shared/form/controls/money-input';
+import { DatePicker } from '@shared/form/date/date-picker';
+import { Icon } from '@shared/icon/icon';
 
 import {
   type Endorsement,
@@ -46,7 +46,7 @@ import {
 } from '../service-insurance-model';
 import { PolicyDetailStore, RegulationOptionsStore } from '../service-insurance.store';
 import { PolicyPayPanel } from './policy-pay-panel';
-import { PageBand } from '../../../kabuk/sayfa-bandi/page-band';
+import { PageBand } from '../../../shell/page-band/page-band';
 
 /**
  * Sigorta poliçesi kaydı (`/app/regulasyon/sigortalar/:id`) — Blazor `/regulasyon` poliçe satırı + "Öde" formu +

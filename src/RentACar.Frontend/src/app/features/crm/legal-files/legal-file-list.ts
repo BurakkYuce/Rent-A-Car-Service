@@ -9,37 +9,37 @@ import {
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { TranslocoPipe } from '@jsverse/transloco';
 
-import { ApiIstemcisi } from '@core/api/api-istemcisi';
-import type { DayText } from '@core/form/tarih-girdisi';
-import { type UnsavedChangesOwner, pageLeaveGuard } from '@core/form/kaydedilmemis-degisiklik';
-import { ToastService } from '@core/geri-bildirim/toast-service';
-import { translationFunction } from '@core/i18n/ceviri';
+import { ApiIstemcisi } from '@core/api/api-client';
+import type { DayText } from '@core/form/date-input';
+import { type UnsavedChangesOwner, pageLeaveGuard } from '@core/form/unsaved-changes';
+import { ToastService } from '@core/feedback/toast-service';
+import { translationFunction } from '@core/i18n/translation';
 import { DUGME_IZINLERI } from '@core/oturum/dugme-izinleri';
 import { SessionService } from '@core/oturum/session-service';
-import { FetchPolicy } from '@core/veri/fetch-policy';
-import { listQueryUrlSync } from '@core/veri/liste-sorgusu-url';
+import { FetchPolicy } from '@core/data/fetch-policy';
+import { listQueryUrlSync } from '@core/data/list-query-url';
 import { toNumber } from '@features/vehicles/vehicle-model';
-import { MoneyPipe } from '@shared/bicim/bicim-pipe';
-import { FilterPanelComponent } from '@shared/filtre-paneli/filtre-paneli';
-import { Alan } from '@shared/form/alan/alan';
-import { SearchSelection } from '@shared/form/arama-secim/search-selection';
+import { MoneyPipe } from '@shared/format/format-pipe';
+import { FilterPanelComponent } from '@shared/filter-panel/filter-panel';
+import { Alan } from '@shared/form/field/field';
+import { SearchSelection } from '@shared/form/search-selection/search-selection';
 import {
   type SecimSecenegi,
   serverSelectionSource,
-} from '@shared/form/arama-secim/selection-source';
+} from '@shared/form/search-selection/selection-source';
 import { formSubmission } from '@shared/form/form-submission';
 import { FormErrors } from '@shared/form/form-errors';
-import { TextInput } from '@shared/form/kontroller/text-input';
-import { Checkbox } from '@shared/form/kontroller/checkbox';
-import { MoneyInput } from '@shared/form/kontroller/money-input';
-import type { SecenekOgesi } from '@shared/form/kontroller/secenek';
-import { Selection } from '@shared/form/kontroller/selection';
-import { DatePicker } from '@shared/form/tarih/date-picker';
-import type { DisaAktarma } from '@shared/tablo/disa-aktarma';
-import { Table } from '@shared/tablo/table';
-import { TableCell } from '@shared/tablo/table-cell';
+import { TextInput } from '@shared/form/controls/text-input';
+import { Checkbox } from '@shared/form/controls/checkbox';
+import { MoneyInput } from '@shared/form/controls/money-input';
+import type { SecenekOgesi } from '@shared/form/controls/option';
+import { Selection } from '@shared/form/controls/selection';
+import { DatePicker } from '@shared/form/date/date-picker';
+import type { DisaAktarma } from '@shared/table/export';
+import { Table } from '@shared/table/table';
+import { TableCell } from '@shared/table/table-cell';
 
-import { PageBand } from '../../../kabuk/sayfa-bandi/page-band';
+import { PageBand } from '../../../shell/page-band/page-band';
 import { legalColumns } from '../crm-columns';
 import { emptyLegal, legalRequest, legalToForm } from '../crm-forms';
 import {

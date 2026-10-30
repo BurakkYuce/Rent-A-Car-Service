@@ -1,6 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
 
-import { seriousViolations, collectErrors, logIn, problem, writeXsrf } from './ortak';
+import { seriousViolations, collectErrors, logIn, problem, writeXsrf } from './common';
 import { ADMIN_BEN, record, settings, settingsEndpoints, type Write } from './system-fakes';
 
 /**

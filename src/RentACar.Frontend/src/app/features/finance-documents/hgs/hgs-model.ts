@@ -1,6 +1,6 @@
-import type { Schema } from '@core/api/ui-tipleri';
-import { trLowerCase } from '@core/metin/tr-normalize';
-import { listDefinition } from '@core/veri/liste-sorgusu';
+import type { Schema } from '@core/api/ui-types';
+import { trLowerCase } from '@core/text/tr-normalize';
+import { listDefinition } from '@core/data/list-query';
 
 /** `/api/ui/v1/hgs/*` (HGS geçişleri: dosyadan içe aktar, liste, yansıt). */
 export const HGS = '/api/ui/v1/hgs';

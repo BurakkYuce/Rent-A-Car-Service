@@ -1,4 +1,4 @@
-import { textValue } from '@features/planlama-ortak/form-yardimcilari';
+import { textValue } from '@features/planning-shared/form-helpers';
 import { toNumber } from '@features/vehicles/vehicle-model';
 
 import type { FleetPlan, FleetPlanRequest } from '../finance-model';

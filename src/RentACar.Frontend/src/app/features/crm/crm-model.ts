@@ -1,7 +1,7 @@
-import type { ApiPath } from '@core/api/api-istemcisi';
-import type { Schema } from '@core/api/ui-tipleri';
-import { listDefinition } from '@core/veri/liste-sorgusu';
-import type { SecimSecenegi } from '@shared/form/arama-secim/selection-source';
+import type { ApiPath } from '@core/api/api-client';
+import type { Schema } from '@core/api/ui-types';
+import { listDefinition } from '@core/data/list-query';
+import type { SecimSecenegi } from '@shared/form/search-selection/selection-source';
 
 // ---- Uçlar (`/api/ui/v1/...`; CRM OperationsWrite, analiz ViewReports)
 export const SURVEYS = '/api/ui/v1/anketler';

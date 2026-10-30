@@ -13,37 +13,37 @@ import { FormControl, FormGroup, ReactiveFormsModule } from '@angular/forms';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { TranslocoPipe } from '@jsverse/transloco';
 
-import { ApiIstemcisi, type QueryParameters } from '@core/api/api-istemcisi';
-import type { Sayfa } from '@core/api/sayfa';
-import type { GunAraligi } from '@core/form/tarih-girdisi';
-import type { CeviriAnahtari } from '@core/i18n/ceviri-anahtarlari';
-import { translationFunction } from '@core/i18n/ceviri';
+import { ApiIstemcisi, type QueryParameters } from '@core/api/api-client';
+import type { Sayfa } from '@core/api/page';
+import type { GunAraligi } from '@core/form/date-input';
+import type { CeviriAnahtari } from '@core/i18n/translation-keys';
+import { translationFunction } from '@core/i18n/translation';
 import { SessionService } from '@core/oturum/session-service';
 import { requestContext } from '@core/oturum/request-context';
-import { FetchPolicy } from '@core/veri/fetch-policy';
-import { listQueryUrlSync } from '@core/veri/liste-sorgusu-url';
-import type { StoreState } from '@core/veri/temel-store';
-import { TemelStore } from '@core/veri/temel-store';
-import { Alan } from '@shared/form/alan/alan';
-import { SearchSelection } from '@shared/form/arama-secim/search-selection';
+import { FetchPolicy } from '@core/data/fetch-policy';
+import { listQueryUrlSync } from '@core/data/list-query-url';
+import type { StoreState } from '@core/data/base-store';
+import { TemelStore } from '@core/data/base-store';
+import { Alan } from '@shared/form/field/field';
+import { SearchSelection } from '@shared/form/search-selection/search-selection';
 import {
   type SecimSecenegi,
   serverSelectionSource,
-} from '@shared/form/arama-secim/selection-source';
-import { TextInput } from '@shared/form/kontroller/text-input';
-import { Checkbox } from '@shared/form/kontroller/checkbox';
-import { NumberInput } from '@shared/form/kontroller/number-input';
-import type { SecenekOgesi } from '@shared/form/kontroller/secenek';
-import { Selection } from '@shared/form/kontroller/selection';
-import { DatePicker } from '@shared/form/tarih/date-picker';
-import { type SavedView, SavedViewChipsComponent } from '@shared/gorunum-cipleri/gorunum-cipleri';
-import { Icon } from '@shared/ikon/icon';
-import { type ExportFormat, exportUrl } from '@shared/tablo/disa-aktarma';
-import { Table } from '@shared/tablo/table';
-import { TableCell } from '@shared/tablo/table-cell';
-import type { TabloSutunu } from '@shared/tablo/tablo-modeli';
+} from '@shared/form/search-selection/selection-source';
+import { TextInput } from '@shared/form/controls/text-input';
+import { Checkbox } from '@shared/form/controls/checkbox';
+import { NumberInput } from '@shared/form/controls/number-input';
+import type { SecenekOgesi } from '@shared/form/controls/option';
+import { Selection } from '@shared/form/controls/selection';
+import { DatePicker } from '@shared/form/date/date-picker';
+import { type SavedView, SavedViewChipsComponent } from '@shared/view-chips/view-chips';
+import { Icon } from '@shared/icon/icon';
+import { type ExportFormat, exportUrl } from '@shared/table/export';
+import { Table } from '@shared/table/table';
+import { TableCell } from '@shared/table/table-cell';
+import type { TabloSutunu } from '@shared/table/table-model';
 
-import { PageBand } from '../../kabuk/sayfa-bandi/page-band';
+import { PageBand } from '../../shell/page-band/page-band';
 
 import { findReport } from './report-catalog';
 import { ShiftEditor } from './shift-editor/shift-editor';

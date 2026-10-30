@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 
-import { collectErrors, logIn, seriousViolations } from './ortak';
+import { collectErrors, logIn, seriousViolations } from './common';
 import { ADMIN_BEN } from './system-fakes';
 
 /**

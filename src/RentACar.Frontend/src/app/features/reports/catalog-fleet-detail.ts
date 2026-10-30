@@ -1,4 +1,4 @@
-import type { Schema } from '@core/api/ui-tipleri';
+import type { Schema } from '@core/api/ui-types';
 
 import { scorecardLink } from './catalog-sales';
 import {

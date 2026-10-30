@@ -1,6 +1,6 @@
 import type { Page, Route } from '@playwright/test';
 
-import { problem, writeXsrf } from './ortak';
+import { problem, writeXsrf } from './common';
 
 /**
  * Stateful fake of `/api/ui/v1/platform/*` (F12.2 e2e). Shapes follow the OpenAPI contract

@@ -11,21 +11,21 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormArray, FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { TranslocoPipe } from '@jsverse/transloco';
 
-import { ApiIstemcisi } from '@core/api/api-istemcisi';
-import { ToastService } from '@core/geri-bildirim/toast-service';
-import { translationFunction } from '@core/i18n/ceviri';
-import { Alan } from '@shared/form/alan/alan';
-import { SearchSelection } from '@shared/form/arama-secim/search-selection';
+import { ApiIstemcisi } from '@core/api/api-client';
+import { ToastService } from '@core/feedback/toast-service';
+import { translationFunction } from '@core/i18n/translation';
+import { Alan } from '@shared/form/field/field';
+import { SearchSelection } from '@shared/form/search-selection/search-selection';
 import {
   type SecimSecenegi,
   serverSelectionSource,
-} from '@shared/form/arama-secim/selection-source';
+} from '@shared/form/search-selection/selection-source';
 import { formSubmission } from '@shared/form/form-submission';
 import { FormErrors } from '@shared/form/form-errors';
-import { TextInput } from '@shared/form/kontroller/text-input';
-import { MoneyInput } from '@shared/form/kontroller/money-input';
-import { NumberInput } from '@shared/form/kontroller/number-input';
-import { DatePicker } from '@shared/form/tarih/date-picker';
+import { TextInput } from '@shared/form/controls/text-input';
+import { MoneyInput } from '@shared/form/controls/money-input';
+import { NumberInput } from '@shared/form/controls/number-input';
+import { DatePicker } from '@shared/form/date/date-picker';
 
 import type { DocumentResult, PenaltyType } from '../document-model';
 import { type PenaltyForm, penaltyRequest } from '../document-requests';

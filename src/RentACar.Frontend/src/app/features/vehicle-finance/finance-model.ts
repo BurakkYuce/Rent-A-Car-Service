@@ -1,6 +1,6 @@
-import type { Schema } from '@core/api/ui-tipleri';
-import { trUpperCase } from '@core/metin/tr-normalize';
-import { listDefinition } from '@core/veri/liste-sorgusu';
+import type { Schema } from '@core/api/ui-types';
+import { trUpperCase } from '@core/text/tr-normalize';
+import { listDefinition } from '@core/data/list-query';
 
 const currencyKey = (c: string | null | undefined) => trUpperCase((c ?? '').trim());
 

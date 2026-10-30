@@ -55,8 +55,8 @@
 **Sahte API (CI'da koşar):** `vehicles.spec.ts`, `vehicle-finance.spec.ts` (+1: durum panosu Tahsis → BAF formu
 dolu, personelsiz kayıt gitmez).
 
-**Gerçek backend (yerelde koşar; CI'da atlanır):** `f6-araclar-gercek.spec.ts` (4), `f6-arac-finans-gercek.spec.ts`
-(5), `gercek.ts` yardımcıları. Kimlik ortamdan (`RACAR_E2E_*`); sabit parola yok.
+**Gerçek backend (yerelde koşar; CI'da atlanır):** `f6-vehicles-real.spec.ts` (4), `f6-vehicle-finance-real.spec.ts`
+(5), `real.ts` yardımcıları. Kimlik ortamdan (`RACAR_E2E_*`); sabit parola yok.
 
 | Senaryo (gerçek backend, yerel `racar`, firma `yucerent`, 2026-09-24)                                                                                                                                                                                                | Sonuç |
 | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----- |

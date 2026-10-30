@@ -1,6 +1,6 @@
 import type { Page, Route } from '@playwright/test';
 
-import { BEN, kaydet, type KayitliIstek } from './ortak';
+import { BEN, kaydet, type KayitliIstek } from './common';
 
 /** F11.2b sistem/web ekranlarının sahte `/api/ui/v1` uçları (yanıt biçimleri OpenAPI DTO'larıyla birebir). */
 export const ADMIN_BEN = {

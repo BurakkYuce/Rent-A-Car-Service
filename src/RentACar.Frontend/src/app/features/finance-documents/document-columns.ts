@@ -1,7 +1,7 @@
-import { enumLabel } from '@core/bicim/enum-label';
-import type { CeviriAnahtari } from '@core/i18n/ceviri-anahtarlari';
+import { enumLabel } from '@core/format/enum-label';
+import type { CeviriAnahtari } from '@core/i18n/translation-keys';
 import { toNumber } from '@features/vehicles/vehicle-model';
-import type { TabloSutunu } from '@shared/tablo/tablo-modeli';
+import type { TabloSutunu } from '@shared/table/table-model';
 
 import type {
   ExpenseRow,

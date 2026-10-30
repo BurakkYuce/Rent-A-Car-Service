@@ -1,11 +1,11 @@
 import { Injectable, inject } from '@angular/core';
 
-import { ApiIstemcisi, type QueryParameters } from '@core/api/api-istemcisi';
-import type { Sayfa } from '@core/api/sayfa';
-import type { RentalFilterOptions, RentalListSummary, RentalListRow } from '@core/api/ui-tipleri';
+import { ApiIstemcisi, type QueryParameters } from '@core/api/api-client';
+import type { Sayfa } from '@core/api/page';
+import type { RentalFilterOptions, RentalListSummary, RentalListRow } from '@core/api/ui-types';
 import { requestContext } from '@core/oturum/request-context';
-import { listDefinition } from '@core/veri/liste-sorgusu';
-import { TemelStore } from '@core/veri/temel-store';
+import { listDefinition } from '@core/data/list-query';
+import { TemelStore } from '@core/data/base-store';
 
 /** Sunucu enum ADLARI (`RentalStatus`, `TarihListesiTuru`, `OfisDurumu`) — API tanımsız adı 400'ler. */
 export const RENTAL_STATUSES = ['Kirada', 'Tamamlandi', 'Iptal'] as const;

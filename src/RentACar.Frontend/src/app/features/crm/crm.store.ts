@@ -1,12 +1,15 @@
 import { Injectable, inject } from '@angular/core';
 import { forkJoin, map, of, type Observable } from 'rxjs';
 
-import { ApiIstemcisi, type ApiPath, type QueryParameters } from '@core/api/api-istemcisi';
-import type { Sayfa } from '@core/api/sayfa';
-import type { SelectionEndpointItem } from '@core/api/ui-tipleri';
+import { ApiIstemcisi, type ApiPath, type QueryParameters } from '@core/api/api-client';
+import type { Sayfa } from '@core/api/page';
+import type { SelectionEndpointItem } from '@core/api/ui-types';
 import { requestContext } from '@core/oturum/request-context';
-import { TemelStore } from '@core/veri/temel-store';
-import type { SelectionSource, SecimSecenegi } from '@shared/form/arama-secim/selection-source';
+import { TemelStore } from '@core/data/base-store';
+import type {
+  SelectionSource,
+  SecimSecenegi,
+} from '@shared/form/search-selection/selection-source';
 
 import {
   ASSISTANCE,

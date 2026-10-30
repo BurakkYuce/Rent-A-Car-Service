@@ -11,7 +11,7 @@ import { NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angula
 import { ActivatedRoute, Router } from '@angular/router';
 import { TranslocoPipe } from '@jsverse/transloco';
 
-import type { CeviriAnahtari } from '@core/i18n/ceviri-anahtarlari';
+import type { CeviriAnahtari } from '@core/i18n/translation-keys';
 
 import {
   loginErrorMessage,

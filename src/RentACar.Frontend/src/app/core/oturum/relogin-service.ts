@@ -41,7 +41,7 @@ export class ReloginService {
   private async open(): Promise<boolean> {
     const [{ Dialog }, { YenidenGirisDiyalogu: ReloginDialog }] = await Promise.all([
       import('@angular/cdk/dialog'),
-      import('@shared/yeniden-giris-diyalogu/yeniden-giris-diyalogu'),
+      import('@shared/relogin-dialog/relogin-dialog'),
     ]);
     const ben = this.oturum.ben();
     const data: YenidenGirisVerisi = {

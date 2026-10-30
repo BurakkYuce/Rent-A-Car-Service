@@ -1,5 +1,5 @@
 import { TestBed } from '@angular/core/testing';
-import type { ApiHatasi } from '../api/api-hatasi';
+import type { ApiHatasi } from '../api/api-error';
 import { SessionService } from '../oturum/session-service';
 import {
   COLLECTION_ATTEMPT_CHANNEL,
@@ -35,7 +35,7 @@ function exchangeRate() {
   let pickup: (() => void) | undefined;
   TestBed.configureTestingModule({
     providers: [
-      // Sekme içi mantık: kanal kapalı (sekmeler arası davranış tahsilat-denemesi-sekmeler.spec.ts'te).
+      // Sekme içi mantık: kanal kapalı (sekmeler arası davranış collection-attempt-tabs.spec.ts'te).
       { provide: COLLECTION_ATTEMPT_CHANNEL, useValue: null },
       {
         provide: SessionService,

@@ -1,10 +1,10 @@
 import { inject } from '@angular/core';
 import { type Observable, map } from 'rxjs';
 
-import { ApiIstemcisi, type ApiPath } from '@core/api/api-istemcisi';
-import type { SelectionItem } from '@core/api/ui-tipleri';
-import type { CeviriAnahtari } from '@core/i18n/ceviri-anahtarlari';
-import type { TanimAlani } from '@shared/form/tanim-crud/definition-source';
+import { ApiIstemcisi, type ApiPath } from '@core/api/api-client';
+import type { SelectionItem } from '@core/api/ui-types';
+import type { CeviriAnahtari } from '@core/i18n/translation-keys';
+import type { TanimAlani } from '@shared/form/definition-crud/definition-source';
 
 import { DEFINITION_PATHS, type DefinitionKind } from './definition-paths';
 

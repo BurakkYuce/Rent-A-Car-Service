@@ -2,12 +2,12 @@ import { ChangeDetectionStrategy, Component, inject, viewChild } from '@angular/
 import { ActivatedRoute } from '@angular/router';
 import { TranslocoPipe } from '@jsverse/transloco';
 
-import { pageLeaveGuard } from '@core/form/kaydedilmemis-degisiklik';
-import { translationFunction } from '@core/i18n/ceviri';
-import { DefinitionCrud } from '@shared/form/tanim-crud/definition-crud';
-import { restDefinitionSource } from '@shared/form/tanim-crud/definition-source';
+import { pageLeaveGuard } from '@core/form/unsaved-changes';
+import { translationFunction } from '@core/i18n/translation';
+import { DefinitionCrud } from '@shared/form/definition-crud/definition-crud';
+import { restDefinitionSource } from '@shared/form/definition-crud/definition-source';
 
-import { PageBand } from '../../kabuk/sayfa-bandi/page-band';
+import { PageBand } from '../../shell/page-band/page-band';
 import { type DefinitionKind, definitionConfig, selectionSuggestions } from './definition-catalog';
 import { pagedDefinitionSource } from './paged-source';
 

@@ -1,6 +1,6 @@
-import type { ApiHatasi } from '@core/api/api-hatasi';
-import { formatMoney } from '@core/bicim/bicim';
-import type { CeviriAnahtari } from '@core/i18n/ceviri-anahtarlari';
+import type { ApiHatasi } from '@core/api/api-error';
+import { formatMoney } from '@core/format/format';
+import type { CeviriAnahtari } from '@core/i18n/translation-keys';
 
 /**
  * Para formunun kalıcı notu (form altında; `mukerrer` için interceptor toast'u GÖSTERMEZ — tek kaynak). Metin anahtar +

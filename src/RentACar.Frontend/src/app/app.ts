@@ -10,16 +10,16 @@ import {
   RouterOutlet,
 } from '@angular/router';
 
-import { QueryMessages } from '@core/geri-bildirim/query-messages';
-import { WarningBannerService } from '@core/geri-bildirim/warning-banner-service';
-import { VersionService } from '@core/surum/version-service';
-import { ToastAlani } from '@shared/toast/toast-alani';
-import { WarningBanner } from '@shared/uyari-bandi/warning-banner';
+import { QueryMessages } from '@core/feedback/query-messages';
+import { WarningBannerService } from '@core/feedback/warning-banner-service';
+import { VersionService } from '@core/version/version-service';
+import { ToastAlani } from '@shared/toast/toast-area';
+import { WarningBanner } from '@shared/warning-banner/warning-banner';
 
 /**
  * Uygulama kökü: uyarı bandı + sayfa + toast yığını. Gezinme olaylarını banda bildirir, `?bilgi=`/`?hata=`
  * mesajlarını işler ve yeni sürüm denetimini başlatır. Kabuk (menü, üst çubuk, sekmeler) bir rota
- * bileşenidir (`kabuk/kabuk.routes.ts`, tembel): giriş sayfası onun dışında çizilir.
+ * bileşenidir (`shell/shell.routes.ts`, tembel): giriş sayfası onun dışında çizilir.
  */
 @Component({
   selector: 'rc-root',

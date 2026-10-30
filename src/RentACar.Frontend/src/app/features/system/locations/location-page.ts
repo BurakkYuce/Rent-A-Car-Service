@@ -2,19 +2,19 @@ import { ChangeDetectionStrategy, Component, inject, viewChild } from '@angular/
 import { TranslocoPipe } from '@jsverse/transloco';
 import { type Observable, map } from 'rxjs';
 
-import { ApiIstemcisi } from '@core/api/api-istemcisi';
-import type { Schema, SelectionItem } from '@core/api/ui-tipleri';
-import { pageLeaveGuard } from '@core/form/kaydedilmemis-degisiklik';
-import type { CeviriAnahtari } from '@core/i18n/ceviri-anahtarlari';
-import { translationFunction } from '@core/i18n/ceviri';
-import { DefinitionCrud } from '@shared/form/tanim-crud/definition-crud';
+import { ApiIstemcisi } from '@core/api/api-client';
+import type { Schema, SelectionItem } from '@core/api/ui-types';
+import { pageLeaveGuard } from '@core/form/unsaved-changes';
+import type { CeviriAnahtari } from '@core/i18n/translation-keys';
+import { translationFunction } from '@core/i18n/translation';
+import { DefinitionCrud } from '@shared/form/definition-crud/definition-crud';
 import {
   type TanimAlani,
   type DefinitionSource,
   type DefinitionRow,
   restDefinitionSource,
-} from '@shared/form/tanim-crud/definition-source';
-import { PageBand } from '../../../kabuk/sayfa-bandi/page-band';
+} from '@shared/form/definition-crud/definition-source';
+import { PageBand } from '../../../shell/page-band/page-band';
 
 type LocationList = Schema<'SayfaOfLocationDto'>;
 

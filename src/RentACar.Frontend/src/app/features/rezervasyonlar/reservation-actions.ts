@@ -3,18 +3,18 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { Router } from '@angular/router';
 import { finalize, type Observable } from 'rxjs';
 
-import { toApiError, type ApiHatasi } from '@core/api/api-hatasi';
-import { ApiIstemcisi } from '@core/api/api-istemcisi';
-import { ConfirmService } from '@core/geri-bildirim/confirm-service';
-import { ToastService } from '@core/geri-bildirim/toast-service';
-import { translationFunction } from '@core/i18n/ceviri';
+import { toApiError, type ApiHatasi } from '@core/api/api-error';
+import { ApiIstemcisi } from '@core/api/api-client';
+import { ConfirmService } from '@core/feedback/confirm-service';
+import { ToastService } from '@core/feedback/toast-service';
+import { translationFunction } from '@core/i18n/translation';
 import { genelGosterilir } from '@core/oturum/session-interceptor';
 
 import {
   RESERVATION_ROOT,
   type ConvertToRentalResponse,
   type ReservationDetailResponse,
-} from './rezervasyon-modeli';
+} from './reservation-model';
 
 /** Eylemin hedefi (liste satırı ya da detay): kimlik + ekranda görünen no. */
 export interface RezervasyonHedefi {

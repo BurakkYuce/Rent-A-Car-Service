@@ -14,37 +14,37 @@ import { ActivatedRoute, RouterLink } from '@angular/router';
 import { TranslocoPipe } from '@jsverse/transloco';
 import { finalize } from 'rxjs';
 
-import { toApiError } from '@core/api/api-hatasi';
-import { ApiIstemcisi } from '@core/api/api-istemcisi';
-import { formatMoney } from '@core/bicim/bicim';
-import { type UnsavedChangesOwner, pageLeaveGuard } from '@core/form/kaydedilmemis-degisiklik';
-import { applyServerErrors } from '@core/form/sunucu-hatalari';
+import { toApiError } from '@core/api/api-error';
+import { ApiIstemcisi } from '@core/api/api-client';
+import { formatMoney } from '@core/format/format';
+import { type UnsavedChangesOwner, pageLeaveGuard } from '@core/form/unsaved-changes';
+import { applyServerErrors } from '@core/form/server-errors';
 import { moneySubmission } from '@core/form/money-submission';
-import { ConfirmService } from '@core/geri-bildirim/confirm-service';
-import { ToastService } from '@core/geri-bildirim/toast-service';
-import { WarningBannerService } from '@core/geri-bildirim/warning-banner-service';
-import type { CeviriAnahtari } from '@core/i18n/ceviri-anahtarlari';
-import { translationFunction } from '@core/i18n/ceviri';
+import { ConfirmService } from '@core/feedback/confirm-service';
+import { ToastService } from '@core/feedback/toast-service';
+import { WarningBannerService } from '@core/feedback/warning-banner-service';
+import type { CeviriAnahtari } from '@core/i18n/translation-keys';
+import { translationFunction } from '@core/i18n/translation';
 import { genelGosterilir } from '@core/oturum/session-interceptor';
-import { tabContext } from '@core/sekme/tab-state';
-import { FetchPolicy } from '@core/veri/fetch-policy';
-import { mergeServerValues } from '@features/planlama-ortak/form-yardimcilari';
-import { MoneyPipe, NumberPipe, DatePipe } from '@shared/bicim/bicim-pipe';
-import { Alan } from '@shared/form/alan/alan';
-import { SearchSelection } from '@shared/form/arama-secim/search-selection';
+import { tabContext } from '@core/tabs/tab-state';
+import { FetchPolicy } from '@core/data/fetch-policy';
+import { mergeServerValues } from '@features/planning-shared/form-helpers';
+import { MoneyPipe, NumberPipe, DatePipe } from '@shared/format/format-pipe';
+import { Alan } from '@shared/form/field/field';
+import { SearchSelection } from '@shared/form/search-selection/search-selection';
 import {
   type SecimSecenegi,
   serverSelectionSource,
-} from '@shared/form/arama-secim/selection-source';
+} from '@shared/form/search-selection/selection-source';
 import { formSubmission } from '@shared/form/form-submission';
 import { FormErrors } from '@shared/form/form-errors';
-import { TextInput } from '@shared/form/kontroller/text-input';
-import { MoneyInput } from '@shared/form/kontroller/money-input';
-import { NumberInput } from '@shared/form/kontroller/number-input';
-import type { SecenekOgesi } from '@shared/form/kontroller/secenek';
-import { Selection } from '@shared/form/kontroller/selection';
+import { TextInput } from '@shared/form/controls/text-input';
+import { MoneyInput } from '@shared/form/controls/money-input';
+import { NumberInput } from '@shared/form/controls/number-input';
+import type { SecenekOgesi } from '@shared/form/controls/option';
+import { Selection } from '@shared/form/controls/selection';
 import { MoneySubmitBar } from '@shared/form/money-submit/money-submit-bar';
-import { DatePicker } from '@shared/form/tarih/date-picker';
+import { DatePicker } from '@shared/form/date/date-picker';
 
 import { planText } from '../service-insurance-columns';
 import { lineNetAmount } from '../money-math';
@@ -70,8 +70,8 @@ import {
   infoToForm,
   lineRequest,
 } from './service-form-model';
-import { PageBand } from '../../../kabuk/sayfa-bandi/page-band';
-import { PlateChipComponent } from '@shared/plaka/plaka';
+import { PageBand } from '../../../shell/page-band/page-band';
+import { PlateChipComponent } from '@shared/plate/plate';
 
 type Transition = 'servise-al' | 'baslat' | 'tamamla' | 'iptal';
 

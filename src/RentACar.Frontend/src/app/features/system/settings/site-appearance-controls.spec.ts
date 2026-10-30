@@ -1,8 +1,8 @@
 import { ChangeDetectionStrategy, Component, signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { FormControl, ReactiveFormsModule } from '@angular/forms';
-import { provideTranslation } from '@core/i18n/ceviri';
-import { Alan } from '@shared/form/alan/alan';
+import { provideTranslation } from '@core/i18n/translation';
+import { Alan } from '@shared/form/field/field';
 
 import type { SitePaletteOption } from './settings-model';
 import { SiteColorInput } from './site-color-input';

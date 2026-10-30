@@ -3,9 +3,9 @@ import { FormControl, FormGroup } from '@angular/forms';
 import { TranslocoService } from '@jsverse/transloco';
 import { Subject, firstValueFrom } from 'rxjs';
 
-import { ApiHatasi } from '@core/api/api-hatasi';
+import { ApiHatasi } from '@core/api/api-error';
 import { SubmitLock } from '@core/form/submit-lock';
-import { provideTranslation } from '@core/i18n/ceviri';
+import { provideTranslation } from '@core/i18n/translation';
 
 import { formSubmission } from './form-submission';
 

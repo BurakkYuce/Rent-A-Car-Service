@@ -1,5 +1,5 @@
-import type { Schema } from '@core/api/ui-tipleri';
-import { tarihBicimle } from '@core/bicim/bicim';
+import type { Schema } from '@core/api/ui-types';
+import { tarihBicimle } from '@core/format/format';
 
 import {
   OPS_OR_VIEW,

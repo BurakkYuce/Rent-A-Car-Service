@@ -1,5 +1,5 @@
-import type { Schema } from '@core/api/ui-tipleri';
-import { trSearchKey } from '@core/metin/tr-normalize';
+import type { Schema } from '@core/api/ui-types';
+import { trSearchKey } from '@core/text/tr-normalize';
 
 export type SettingsDto = Schema<'SettingsDto'>;
 export type SettingsRequest = Schema<'SettingsRequest'>;

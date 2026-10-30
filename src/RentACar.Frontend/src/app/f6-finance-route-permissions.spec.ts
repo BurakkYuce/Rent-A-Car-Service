@@ -3,9 +3,9 @@ import { provideRouter, UrlTree, type CanMatchFn, type Route } from '@angular/ro
 import { TranslocoService } from '@jsverse/transloco';
 import { firstValueFrom } from 'rxjs';
 
-import { provideTranslation } from '@core/i18n/ceviri';
+import { provideTranslation } from '@core/i18n/translation';
 import { SessionService } from '@core/oturum/session-service';
-import type { Permission } from '@core/oturum/oturum-tipleri';
+import type { Permission } from '@core/oturum/session-types';
 
 import { PAGES } from './sayfalar';
 

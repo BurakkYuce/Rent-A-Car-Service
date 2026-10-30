@@ -2,7 +2,7 @@ import { TestBed } from '@angular/core/testing';
 import { TranslocoService } from '@jsverse/transloco';
 import { firstValueFrom } from 'rxjs';
 
-import { provideTranslation } from '@core/i18n/ceviri';
+import { provideTranslation } from '@core/i18n/translation';
 
 /**
  * Kabul testi (b-fiyat-hesapla-16): fiyat motoru (`/fiyat-hesapla`) genç sürücü ücretini TOPLAMA EKLEMEZ (ücret kirada

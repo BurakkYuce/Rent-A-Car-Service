@@ -33,18 +33,18 @@
 
 ## Bulunan eksik (bu PR'da eklendi): SPA'dan Blazor'a tam sayfa giden bağlantılar
 
-Kira formunun sabit finans paneli (F4.4, `features/kira-formu/finans-paneli/`) üç bağlantıyı `href` ile Blazor finans
+Kira formunun sabit finans paneli (F4.4, `features/rental-form/finance-panel/`) üç bağlantıyı `href` ile Blazor finans
 sayfalarına TAM SAYFA gönderiyordu (F4.4 yer tutucusu; F8 ekranları o gün yoktu). Artık `routerLink`:
 
 1. Nakit sekmesi "Depozito ekranı" → `/app/depozito` (`finans-depozito.ts`).
 2. Faturalar sekmesindeki fatura no → `/app/faturalar` (`finans-faturalar.ts`; Blazor paneli de listeye gidiyordu).
-3. Ceza/HGS sekmesi "Ceza ekle / yansıt" → `/app/cezalar` (`finans-listeler.ts`).
+3. Ceza/HGS sekmesi "Ceza ekle / yansıt" → `/app/cezalar` (`finance-lists.ts`).
 
 Uygulamadaki diğer bağlantılar zaten router'daydı: kasa ve depozito ekranındaki cari adı → SPA ekstre, kira formu ve
 cari detayındaki ekstre bağlantıları (F7.3). Genel arama sonuçları bilinçli olarak tam sayfa kalır (F11.2b: taşınan
 ekranlar sunucuda yönlenir).
 
-Çit: `e2e/kesis-f8.spec.ts` (bağlantı hedefleri, tıklamada tam sayfa yüklemesi olmadığı — pencere işareti korunur —
+Çit: `e2e/cutover-f8.spec.ts` (bağlantı hedefleri, tıklamada tam sayfa yüklemesi olmadığı — pencere işareti korunur —
 ve F8 ekranlarının hiçbir bağlantısının Blazor finans sayfasına düşmediği).
 
 ## Para kararları (#299, #300 — değişmedi, kesiş bunları taşır)
@@ -114,7 +114,7 @@ ve F8 ekranlarının hiçbir bağlantısının Blazor finans sayfasına düşmed
 ## e2e
 
 **Sahte API (CI'da koşar):** `finance.spec.ts` (#299) ve `finance-documents.spec.ts` (#300): üç zorunlu senaryo, para
-senaryoları, axe iki tema, 320/390/768/1440 taşma. Bu PR: `kesis-f8.spec.ts`:
+senaryoları, axe iki tema, 320/390/768/1440 taşma. Bu PR: `cutover-f8.spec.ts`:
 - 18 eski adres → SPA; sorgu ve fragment korunur, doğru başlık açılır.
 - Eski fatura yazdır adresi → SPA yazdır rotası → sunucunun PDF ucu; tek istek, döngü yok.
 - İzinsiz operatör eski ekstre adresinden SPA izin kapısına düşer.

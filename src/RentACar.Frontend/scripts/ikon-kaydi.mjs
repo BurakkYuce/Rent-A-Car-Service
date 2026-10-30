@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// src/app/shared/ikon/ikon-listesi.json → src/app/shared/ikon/ikon-kaydi.ts
+// src/app/shared/icon/icon-list.json → src/app/shared/icon/icon-registry.ts
 // Revlo scripts/generate-icon-registry.mjs'ten uyarlandı: Tabler (outline/filled) SVG'leri pakete
 // gömülür, yalnız listelenenler (ağaç sallama yerine açık alt küme). SVG sadeleştirilir: yorum,
 // sınıf, boyut, xmlns (HTML içinde gereksiz) ve Tabler'ın görünmez çerçeve yolu atılır, çizgi
@@ -11,8 +11,8 @@ import { relative, resolve } from 'node:path';
 import { format, resolveConfig } from 'prettier';
 
 const KOK = resolve(import.meta.dirname, '..');
-const LISTE = resolve(KOK, 'src/app/shared/ikon/ikon-listesi.json');
-const HEDEF = resolve(KOK, 'src/app/shared/ikon/ikon-kaydi.ts');
+const LISTE = resolve(KOK, 'src/app/shared/icon/icon-list.json');
+const HEDEF = resolve(KOK, 'src/app/shared/icon/icon-registry.ts');
 const TABLER = resolve(KOK, 'node_modules/@tabler/icons/icons');
 const CIZGI = '1.75';
 
@@ -54,7 +54,7 @@ const satirlar = [...ikonlar.entries()]
   .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
   .map(([ad, svg]) => `  '${ad}': '${svg.replace(/\\/g, '\\\\').replace(/'/g, "\\'")}',`)
   .join('\n');
-const govde = `/** OTOMATİK ÜRETİLDİ: scripts/ikon-kaydi.mjs (liste ikon-listesi.json, kaynak @tabler/icons). Elle düzenlemeyin. */
+const govde = `/** OTOMATİK ÜRETİLDİ: scripts/ikon-kaydi.mjs (liste icon-list.json, kaynak @tabler/icons). Elle düzenlemeyin. */
 export const IKONLAR = {
 ${satirlar}
 } as const;

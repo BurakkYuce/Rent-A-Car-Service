@@ -96,7 +96,7 @@
           "options": {
             "tsConfig": "tsconfig.spec.json",
             // Üretilir (npm run i18n:tipler): tüm özellik çeviri blokları testlerde önyüklü.
-            "providersFile": "src/test-saglayicilari.ts"
+            "providersFile": "src/test-providers.ts"
           }
         }
       }

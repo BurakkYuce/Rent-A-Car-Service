@@ -1,6 +1,6 @@
 import { FormControl, FormGroup } from '@angular/forms';
 
-import { SERVER_ERROR } from '@core/form/sunucu-hatalari';
+import { SERVER_ERROR } from '@core/form/server-errors';
 
 import { mergeServerValues, pickValues } from './version-merge';
 

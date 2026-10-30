@@ -13,7 +13,7 @@ export const routes: Routes = [
     path: 'giris',
     canMatch: [guestGuard],
     title: 'Giriş — RentACar',
-    loadComponent: () => import('@features/giris/login-page').then((m) => m.LoginPage),
+    loadComponent: () => import('@features/login/login-page').then((m) => m.LoginPage),
   },
   // F12.2 platform console: its own session and layout, OUTSIDE the tenant shell (no tenant menu/tabs).
   {
@@ -23,7 +23,7 @@ export const routes: Routes = [
   {
     path: '',
     canMatch: [sessionGuard],
-    loadChildren: () => import('./kabuk/kabuk.routes').then((m) => m.SHELL_ROUTES),
+    loadChildren: () => import('./shell/shell.routes').then((m) => m.SHELL_ROUTES),
   },
   { path: '**', redirectTo: '' },
 ];

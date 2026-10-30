@@ -2,9 +2,9 @@
 // Çeviri sözlüğü: çekirdek `src/i18n/tr.json` (ilk pakete gömülü) + özellik blokları
 // `src/i18n/bloklar/<blok>.json` (rota parçasıyla tembel yüklenir; `ceviriBlogu(...)`).
 // Üretir:
-//   src/app/core/i18n/ceviri-anahtarlari.ts  tipli anahtar birliği (TÜM dosyalar; kaynak dil tr)
-//   src/app/core/i18n/ceviri-bloklari.ts     blok → dinamik import kaydı (her blok ayrı parça)
-//   src/test-saglayicilari.ts                birim testleri: tüm bloklar önyüklü (angular.json providersFile)
+//   src/app/core/i18n/translation-keys.ts  tipli anahtar birliği (TÜM dosyalar; kaynak dil tr)
+//   src/app/core/i18n/translation-blocks.ts     blok → dinamik import kaydı (her blok ayrı parça)
+//   src/test-providers.ts                birim testleri: tüm bloklar önyüklü (angular.json providersFile)
 // Üst düzey anahtarın hangi blokta olduğu TEK yerde: aşağıdaki BLOK_HARITASI. Haritadaki bir anahtar
 // tr.json'da bulunursa (ör. eski dal merge edildi) yazma kipi onu blok dosyasına TAŞIR (tr.json'daki sürüm
 // kazanır, üst düzey anahtar bütün olarak değişir); kontrol kipi hata verir.
@@ -66,9 +66,9 @@ const BLOK_HARITASI = {
 const KOK = resolve(import.meta.dirname, '..');
 const CEKIRDEK = resolve(KOK, 'src/i18n/tr.json');
 const BLOK_DIZINI = resolve(KOK, 'src/i18n/bloklar');
-const ANAHTAR_HEDEF = resolve(KOK, 'src/app/core/i18n/ceviri-anahtarlari.ts');
-const BLOK_HEDEF = resolve(KOK, 'src/app/core/i18n/ceviri-bloklari.ts');
-const TEST_HEDEF = resolve(KOK, 'src/test-saglayicilari.ts');
+const ANAHTAR_HEDEF = resolve(KOK, 'src/app/core/i18n/translation-keys.ts');
+const BLOK_HEDEF = resolve(KOK, 'src/app/core/i18n/translation-blocks.ts');
+const TEST_HEDEF = resolve(KOK, 'src/test-providers.ts');
 const kontrol = process.argv.includes('--kontrol');
 
 const hatalar = [];
@@ -196,13 +196,13 @@ ciktilar.set(
   await bicimle(
     `/** OTOMATİK ÜRETİLDİ: scripts/i18n-tipleri.mjs. Elle düzenlemeyin. */
 import type { Provider } from '@angular/core';
-import { ONYUKLU_CEVIRI_BLOKLARI } from './app/core/i18n/onyuklu-ceviri';
+import { ONYUKLU_CEVIRI_BLOKLARI } from './app/core/i18n/preloaded-translation';
 ${doluBloklar.map((b) => `import ${tsAdi(b)} from './i18n/bloklar/${b}.json';`).join('\n')}
 
 /**
  * Birim testleri (angular.json \`test.providersFile\`): bileşen/servis testleri rotadan geçmediği için tüm
  * özellik çeviri blokları çekirdekle birlikte eşzamanlı yüklenir. Uygulama bu dosyayı İÇE AKTARMAZ; üretimde
- * bloklar rotada \`ceviriBlogu(...)\` ile tembel gelir (yükleme davranışı \`ceviri-blogu.spec.ts\`'te).
+ * bloklar rotada \`ceviriBlogu(...)\` ile tembel gelir (yükleme davranışı \`translation-block.spec.ts\`'te).
  */
 const saglayicilar: Provider[] = [
   { provide: ONYUKLU_CEVIRI_BLOKLARI, useValue: [${doluBloklar.map(tsAdi).join(', ')}] },

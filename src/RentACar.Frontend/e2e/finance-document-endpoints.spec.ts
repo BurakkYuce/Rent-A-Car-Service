@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test';
 
 import { CATEGORY_1, RENTAL_1, documentEndpoints, incomingRow } from './finance-document-fakes';
-import { BEN, collectErrors, logIn, problem } from './ortak';
+import { BEN, collectErrors, logIn, problem } from './common';
 
 /**
  * #300 eksik uçların SPA bağları: fatura döviz toplamı (`/faturalar/ozet`), gider "Sözleşme" alanı + sütunu

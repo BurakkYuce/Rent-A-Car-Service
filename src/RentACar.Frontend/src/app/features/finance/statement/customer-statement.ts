@@ -14,20 +14,20 @@ import { FormControl, FormGroup } from '@angular/forms';
 import { ActivatedRoute } from '@angular/router';
 import { finalize } from 'rxjs';
 
-import { enumLabel } from '@core/bicim/enum-label';
+import { enumLabel } from '@core/format/enum-label';
 import { ConfirmGate } from '@core/form/money-submission';
-import { toApiError } from '@core/api/api-hatasi';
-import { ApiIstemcisi, type QueryParameters } from '@core/api/api-istemcisi';
-import { type UnsavedChangesOwner, pageLeaveGuard } from '@core/form/kaydedilmemis-degisiklik';
-import { ConfirmService } from '@core/geri-bildirim/confirm-service';
-import { ToastService } from '@core/geri-bildirim/toast-service';
-import { translationFunction } from '@core/i18n/ceviri';
+import { toApiError } from '@core/api/api-error';
+import { ApiIstemcisi, type QueryParameters } from '@core/api/api-client';
+import { type UnsavedChangesOwner, pageLeaveGuard } from '@core/form/unsaved-changes';
+import { ConfirmService } from '@core/feedback/confirm-service';
+import { ToastService } from '@core/feedback/toast-service';
+import { translationFunction } from '@core/i18n/translation';
 import { genelGosterilir } from '@core/oturum/session-interceptor';
 import { SessionService } from '@core/oturum/session-service';
-import { tabContext } from '@core/sekme/tab-state';
-import { FetchPolicy } from '@core/veri/fetch-policy';
-import { TemelStore } from '@core/veri/temel-store';
-import type { SecenekOgesi } from '@shared/form/kontroller/secenek';
+import { tabContext } from '@core/tabs/tab-state';
+import { FetchPolicy } from '@core/data/fetch-policy';
+import { TemelStore } from '@core/data/base-store';
+import type { SecenekOgesi } from '@shared/form/controls/option';
 
 import { CashOperationForm } from '../cash/cash-operation-form';
 import {

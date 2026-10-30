@@ -1,8 +1,8 @@
 import { expect, test, type Page } from '@playwright/test';
 
-import { BEN, seriousViolations, collectErrors, logIn, problem, writeXsrf } from './ortak';
+import { BEN, seriousViolations, collectErrors, logIn, problem, writeXsrf } from './common';
 import { OWNER_1, VEHICLE_1, vehicleCard, vehicleEndpoints } from './vehicle-fakes';
-import { waitReady, measureOverflow, type VitrinSayfasi } from './vitrin-sayfalari';
+import { waitReady, measureOverflow, type VitrinSayfasi } from './showcase-pages';
 
 /**
  * F6.2a araç ekranları: liste (49 sütun, sabit plaka, modele göre grupla), detaylı liste, kart (yeni/düzenle +

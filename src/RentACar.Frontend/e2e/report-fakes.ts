@@ -1,6 +1,6 @@
 import type { Page, Request, Route } from '@playwright/test';
 
-import { problem } from './ortak';
+import { problem } from './common';
 
 /**
  * F10.2 rapor ekranlarının sahte `/api/ui/v1/raporlar/*` yanıtları. Biçim uçların zarfıyla birebir

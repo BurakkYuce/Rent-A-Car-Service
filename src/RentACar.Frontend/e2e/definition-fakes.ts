@@ -1,6 +1,6 @@
 import type { Page, Route } from '@playwright/test';
 
-import { kaydet, problem, type KayitliIstek } from './ortak';
+import { kaydet, problem, type KayitliIstek } from './common';
 
 /** F11.2a tanım ekranlarının sahte `/api/ui/v1` uçları (yanıt biçimi `DefinitionEndpoints` sözleşmesi). */
 export const BRAND_1 = '11111111-0000-4000-8000-00000000b001';

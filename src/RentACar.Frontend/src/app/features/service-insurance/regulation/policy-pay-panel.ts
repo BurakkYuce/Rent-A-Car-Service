@@ -11,15 +11,15 @@ import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { TranslocoPipe } from '@jsverse/transloco';
 
-import type { FinanceAccountItem } from '@core/api/ui-tipleri';
-import { formatMoney } from '@core/bicim/bicim';
+import type { FinanceAccountItem } from '@core/api/ui-types';
+import { formatMoney } from '@core/format/format';
 import { moneySubmission } from '@core/form/money-submission';
-import { ToastService } from '@core/geri-bildirim/toast-service';
-import { translationFunction } from '@core/i18n/ceviri';
-import { Alan } from '@shared/form/alan/alan';
-import { MoneyInput } from '@shared/form/kontroller/money-input';
-import type { SecenekOgesi } from '@shared/form/kontroller/secenek';
-import { Selection } from '@shared/form/kontroller/selection';
+import { ToastService } from '@core/feedback/toast-service';
+import { translationFunction } from '@core/i18n/translation';
+import { Alan } from '@shared/form/field/field';
+import { MoneyInput } from '@shared/form/controls/money-input';
+import type { SecenekOgesi } from '@shared/form/controls/option';
+import { Selection } from '@shared/form/controls/selection';
 import { MoneySubmitBar } from '@shared/form/money-submit/money-submit-bar';
 
 import { round2 } from '../money-math';

@@ -15,41 +15,41 @@ import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { TranslocoPipe } from '@jsverse/transloco';
 import { finalize, map } from 'rxjs';
 
-import { toApiError } from '@core/api/api-hatasi';
-import { ApiIstemcisi, type QueryParameters } from '@core/api/api-istemcisi';
-import type { RentalListRow } from '@core/api/ui-tipleri';
-import { ConfirmService } from '@core/geri-bildirim/confirm-service';
-import { ToastService } from '@core/geri-bildirim/toast-service';
-import { translationFunction } from '@core/i18n/ceviri';
-import type { CeviriAnahtari } from '@core/i18n/ceviri-anahtarlari';
+import { toApiError } from '@core/api/api-error';
+import { ApiIstemcisi, type QueryParameters } from '@core/api/api-client';
+import type { RentalListRow } from '@core/api/ui-types';
+import { ConfirmService } from '@core/feedback/confirm-service';
+import { ToastService } from '@core/feedback/toast-service';
+import { translationFunction } from '@core/i18n/translation';
+import type { CeviriAnahtari } from '@core/i18n/translation-keys';
 import { DUGME_IZINLERI, type ButtonName } from '@core/oturum/dugme-izinleri';
 import { genelGosterilir } from '@core/oturum/session-interceptor';
 import { SessionService } from '@core/oturum/session-service';
-import { sayiBicimle } from '@core/bicim/bicim';
-import { bugun, formatDay } from '@core/form/tarih-girdisi';
-import { ShellCounters, type KabukSayaclariDegeri } from '@core/sayac/shell-counters';
-import { FetchPolicy } from '@core/veri/fetch-policy';
-import { parseQuery, urlParameters } from '@core/veri/liste-sorgusu';
-import { listQueryUrlSync } from '@core/veri/liste-sorgusu-url';
-import { FilterPanelComponent } from '@shared/filtre-paneli/filtre-paneli';
-import { Alan } from '@shared/form/alan/alan';
-import { SearchSelection } from '@shared/form/arama-secim/search-selection';
+import { sayiBicimle } from '@core/format/format';
+import { bugun, formatDay } from '@core/form/date-input';
+import { ShellCounters, type KabukSayaclariDegeri } from '@core/counters/shell-counters';
+import { FetchPolicy } from '@core/data/fetch-policy';
+import { parseQuery, urlParameters } from '@core/data/list-query';
+import { listQueryUrlSync } from '@core/data/list-query-url';
+import { FilterPanelComponent } from '@shared/filter-panel/filter-panel';
+import { Alan } from '@shared/form/field/field';
+import { SearchSelection } from '@shared/form/search-selection/search-selection';
 import {
   type SecimSecenegi,
   serverSelectionSource,
-} from '@shared/form/arama-secim/selection-source';
-import { TextInput } from '@shared/form/kontroller/text-input';
-import type { SecenekOgesi } from '@shared/form/kontroller/secenek';
-import { Selection } from '@shared/form/kontroller/selection';
-import { DatePicker } from '@shared/form/tarih/date-picker';
-import { SavedViewChipsComponent, type SavedView } from '@shared/gorunum-cipleri/gorunum-cipleri';
-import { Icon } from '@shared/ikon/icon';
-import { PlateChipComponent } from '@shared/plaka/plaka';
-import { exportUrl, type DisaAktarma } from '@shared/tablo/disa-aktarma';
-import { Table } from '@shared/tablo/table';
-import { TableCell } from '@shared/tablo/table-cell';
+} from '@shared/form/search-selection/selection-source';
+import { TextInput } from '@shared/form/controls/text-input';
+import type { SecenekOgesi } from '@shared/form/controls/option';
+import { Selection } from '@shared/form/controls/selection';
+import { DatePicker } from '@shared/form/date/date-picker';
+import { SavedViewChipsComponent, type SavedView } from '@shared/view-chips/view-chips';
+import { Icon } from '@shared/icon/icon';
+import { PlateChipComponent } from '@shared/plate/plate';
+import { exportUrl, type DisaAktarma } from '@shared/table/export';
+import { Table } from '@shared/table/table';
+import { TableCell } from '@shared/table/table-cell';
 
-import { PageBand } from '../../../kabuk/sayfa-bandi/page-band';
+import { PageBand } from '../../../shell/page-band/page-band';
 import {
   RENTAL_VIEW_CODES,
   viewFilters,
@@ -62,7 +62,7 @@ import {
   type RentalFilters,
   type RentalViewCode,
   type RowView,
-} from './kira-gorunumleri';
+} from './rental-views';
 
 import {
   RENTAL_STATUSES,

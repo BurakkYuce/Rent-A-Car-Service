@@ -1,11 +1,11 @@
-import type { ApiPath, QueryParameters } from '@core/api/api-istemcisi';
-import type { Schema } from '@core/api/ui-tipleri';
-import { type DayText, mergeMoment } from '@core/form/tarih-girdisi';
+import type { ApiPath, QueryParameters } from '@core/api/api-client';
+import type { Schema } from '@core/api/ui-types';
+import { type DayText, mergeMoment } from '@core/form/date-input';
 import {
   currencyCode,
   exchangeRateField,
   moneyText,
-} from '@features/kira-formu/finans-paneli/finans-modeli';
+} from '@features/rental-form/finance-panel/finance-model';
 
 /**
  * F8.2a finans ekranlarının SAF kuralları: tipler (üretilen şemaların takma adları), uç yolları ve istek gövdeleri.

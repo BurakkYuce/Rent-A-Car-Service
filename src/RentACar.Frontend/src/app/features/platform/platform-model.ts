@@ -1,4 +1,4 @@
-import type { Schema } from '@core/api/ui-tipleri';
+import type { Schema } from '@core/api/ui-types';
 
 /**
  * F12.2 platform console — contract types (generated from OpenAPI) and PURE rules shared by the pages.

@@ -2,9 +2,9 @@ import { computed, inject, Injectable, signal } from '@angular/core';
 import { CanMatchFn, Router } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
 
-import { toApiError } from '@core/api/api-hatasi';
-import { ApiIstemcisi } from '@core/api/api-istemcisi';
-import type { CeviriAnahtari } from '@core/i18n/ceviri-anahtarlari';
+import { toApiError } from '@core/api/api-error';
+import { ApiIstemcisi } from '@core/api/api-client';
+import type { CeviriAnahtari } from '@core/i18n/translation-keys';
 import { requestContext } from '@core/oturum/request-context';
 import { SessionService } from '@core/oturum/session-service';
 

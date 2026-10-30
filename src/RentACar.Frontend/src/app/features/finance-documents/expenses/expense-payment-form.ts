@@ -11,17 +11,17 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { TranslocoPipe } from '@jsverse/transloco';
 
-import { formatMoney } from '@core/bicim/bicim';
+import { formatMoney } from '@core/format/format';
 import { moneySubmission } from '@core/form/money-submission';
-import { ToastService } from '@core/geri-bildirim/toast-service';
-import { translationFunction } from '@core/i18n/ceviri';
+import { ToastService } from '@core/feedback/toast-service';
+import { translationFunction } from '@core/i18n/translation';
 import { toNumber } from '@features/vehicles/vehicle-model';
-import { MoneyPipe } from '@shared/bicim/bicim-pipe';
-import { Alan } from '@shared/form/alan/alan';
-import { TextInput } from '@shared/form/kontroller/text-input';
-import { MoneyInput } from '@shared/form/kontroller/money-input';
+import { MoneyPipe } from '@shared/format/format-pipe';
+import { Alan } from '@shared/form/field/field';
+import { TextInput } from '@shared/form/controls/text-input';
+import { MoneyInput } from '@shared/form/controls/money-input';
 import { MoneySubmitBar } from '@shared/form/money-submit/money-submit-bar';
-import { DatePicker } from '@shared/form/tarih/date-picker';
+import { DatePicker } from '@shared/form/date/date-picker';
 
 import type { ExpensePayment, ExpensePaymentRequest, ExpenseRow } from '../document-model';
 import {

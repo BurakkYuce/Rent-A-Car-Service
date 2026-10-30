@@ -1,10 +1,10 @@
 import { Injectable, inject } from '@angular/core';
 import { tap } from 'rxjs';
 
-import { ApiIstemcisi } from '@core/api/api-istemcisi';
-import type { PanelSummaryResponse } from '@core/api/ui-tipleri';
-import { ShellCounters } from '@core/sayac/shell-counters';
-import { TemelStore } from '@core/veri/temel-store';
+import { ApiIstemcisi } from '@core/api/api-client';
+import type { PanelSummaryResponse } from '@core/api/ui-types';
+import { ShellCounters } from '@core/counters/shell-counters';
+import { TemelStore } from '@core/data/base-store';
 
 /**
  * Panel verisi: `GET /api/ui/v1/panel/ozet` TEK istek (KPI, vade, dönüş/çıkış kovaları, finans). Kapılar

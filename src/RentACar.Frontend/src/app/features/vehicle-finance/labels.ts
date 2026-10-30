@@ -1,10 +1,10 @@
 import { DestroyRef, Injectable, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 
-import { ApiIstemcisi } from '@core/api/api-istemcisi';
-import { translationFunction } from '@core/i18n/ceviri';
+import { ApiIstemcisi } from '@core/api/api-client';
+import { translationFunction } from '@core/i18n/translation';
 import { requestContext } from '@core/oturum/request-context';
-import type { SecimSecenegi } from '@shared/form/arama-secim/selection-source';
+import type { SecimSecenegi } from '@shared/form/search-selection/selection-source';
 
 type Kind = 'musteri' | 'arac';
 

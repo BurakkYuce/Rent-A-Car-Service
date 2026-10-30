@@ -156,7 +156,7 @@ for (const [tema, mixin] of [
 }
 
 // TemaServisi kiracı vurgusunu bu zeminlere karşı okunur yapar; kopya SCSS'ten kayarsa hata.
-const SERVIS = resolve(import.meta.dirname, '../src/app/core/tema/tema-servisi.ts');
+const SERVIS = resolve(import.meta.dirname, '../src/app/core/theme/theme-service.ts');
 const servisKaynak = readFileSync(SERVIS, 'utf8');
 const ZEMIN_SIRASI = [
   '--rc-zemin',

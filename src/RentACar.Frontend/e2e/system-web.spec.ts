@@ -1,8 +1,8 @@
 import { expect, test, type Page } from '@playwright/test';
 
-import { seriousViolations, collectErrors, logIn } from './ortak';
+import { seriousViolations, collectErrors, logIn } from './common';
 import { ADMIN_BEN, record, settingsEndpoints, usersEndpoints, type Write } from './system-fakes';
-import { measureOverflow } from './vitrin-sayfalari';
+import { measureOverflow } from './showcase-pages';
 
 /**
  * F11.2b web sitesi (ilan sihirbazı 3 adım, site içeriği, blog önizleme), gelen talepler, bildirimler, arama, parola;

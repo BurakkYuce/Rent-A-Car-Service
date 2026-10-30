@@ -1,7 +1,7 @@
 import { TestBed } from '@angular/core/testing';
 import { firstValueFrom, of } from 'rxjs';
 
-import { ApiIstemcisi } from '@core/api/api-istemcisi';
+import { ApiIstemcisi } from '@core/api/api-client';
 
 import { PAGE_SIZE, pagedDefinitionSource } from './paged-source';
 

@@ -1,6 +1,6 @@
-import { tarihBicimle } from '@core/bicim/bicim';
-import type { CeviriAnahtari } from '@core/i18n/ceviri-anahtarlari';
-import type { TabloSutunu } from '@shared/tablo/tablo-modeli';
+import { tarihBicimle } from '@core/format/format';
+import type { CeviriAnahtari } from '@core/i18n/translation-keys';
+import type { TabloSutunu } from '@shared/table/table-model';
 
 import {
   type DueItem,

@@ -2,21 +2,21 @@ import { ChangeDetectionStrategy, Component, computed, inject, viewChild } from 
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { TranslocoPipe } from '@jsverse/transloco';
 
-import { ApiIstemcisi, type ApiPath } from '@core/api/api-istemcisi';
-import type { Schema } from '@core/api/ui-tipleri';
-import { pageLeaveGuard } from '@core/form/kaydedilmemis-degisiklik';
-import { ConfirmService } from '@core/geri-bildirim/confirm-service';
-import { ToastService } from '@core/geri-bildirim/toast-service';
-import { translationFunction } from '@core/i18n/ceviri';
-import { Alan } from '@shared/form/alan/alan';
+import { ApiIstemcisi, type ApiPath } from '@core/api/api-client';
+import type { Schema } from '@core/api/ui-types';
+import { pageLeaveGuard } from '@core/form/unsaved-changes';
+import { ConfirmService } from '@core/feedback/confirm-service';
+import { ToastService } from '@core/feedback/toast-service';
+import { translationFunction } from '@core/i18n/translation';
+import { Alan } from '@shared/form/field/field';
 import { formSubmission } from '@shared/form/form-submission';
 import { FormErrors } from '@shared/form/form-errors';
-import { Selection } from '@shared/form/kontroller/selection';
-import type { SecenekOgesi } from '@shared/form/kontroller/secenek';
-import { DefinitionCrud } from '@shared/form/tanim-crud/definition-crud';
-import { restDefinitionSource } from '@shared/form/tanim-crud/definition-source';
+import { Selection } from '@shared/form/controls/selection';
+import type { SecenekOgesi } from '@shared/form/controls/option';
+import { DefinitionCrud } from '@shared/form/definition-crud/definition-crud';
+import { restDefinitionSource } from '@shared/form/definition-crud/definition-source';
 
-import { PageBand } from '../../../kabuk/sayfa-bandi/page-band';
+import { PageBand } from '../../../shell/page-band/page-band';
 import { reservationSourceFields } from './reservation-source-fields';
 
 type ReflectResult = Schema<'ReflectRatesResult'>;

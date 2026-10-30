@@ -1,6 +1,6 @@
 import { signal } from '@angular/core';
 import { EMPTY, Observable, defer, finalize, tap } from 'rxjs';
-import { toApiError } from '../api/api-hatasi';
+import { toApiError } from '../api/api-error';
 
 /**
  * Gönderim kilidi + `Idempotency-Key` kuralı (docs/api/idempotency-envanteri.md, roadmap README

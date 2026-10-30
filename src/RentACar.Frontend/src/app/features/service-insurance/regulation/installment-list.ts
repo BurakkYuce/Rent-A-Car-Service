@@ -12,36 +12,36 @@ import { ActivatedRoute, RouterLink } from '@angular/router';
 import { TranslocoPipe } from '@jsverse/transloco';
 import type { Observable } from 'rxjs';
 
-import { ApiIstemcisi, type QueryParameters } from '@core/api/api-istemcisi';
-import { type UnsavedChangesOwner, pageLeaveGuard } from '@core/form/kaydedilmemis-degisiklik';
-import type { DayText } from '@core/form/tarih-girdisi';
-import { ToastService } from '@core/geri-bildirim/toast-service';
-import { translationFunction } from '@core/i18n/ceviri';
+import { ApiIstemcisi, type QueryParameters } from '@core/api/api-client';
+import { type UnsavedChangesOwner, pageLeaveGuard } from '@core/form/unsaved-changes';
+import type { DayText } from '@core/form/date-input';
+import { ToastService } from '@core/feedback/toast-service';
+import { translationFunction } from '@core/i18n/translation';
 import { SessionService } from '@core/oturum/session-service';
-import type { Sayfa } from '@core/api/sayfa';
-import { FetchPolicy } from '@core/veri/fetch-policy';
-import type { TemelStore } from '@core/veri/temel-store';
-import type { FilterCatalog, ListeTanimi } from '@core/veri/liste-sorgusu';
-import { listQueryUrlSync } from '@core/veri/liste-sorgusu-url';
-import { momentValue, textValue } from '@features/planlama-ortak/form-yardimcilari';
-import { Alan } from '@shared/form/alan/alan';
-import { SearchSelection } from '@shared/form/arama-secim/search-selection';
+import type { Sayfa } from '@core/api/page';
+import { FetchPolicy } from '@core/data/fetch-policy';
+import type { TemelStore } from '@core/data/base-store';
+import type { FilterCatalog, ListeTanimi } from '@core/data/list-query';
+import { listQueryUrlSync } from '@core/data/list-query-url';
+import { momentValue, textValue } from '@features/planning-shared/form-helpers';
+import { Alan } from '@shared/form/field/field';
+import { SearchSelection } from '@shared/form/search-selection/search-selection';
 import {
   type SecimSecenegi,
   serverSelectionSource,
-} from '@shared/form/arama-secim/selection-source';
+} from '@shared/form/search-selection/selection-source';
 import { formSubmission } from '@shared/form/form-submission';
 import { FormErrors } from '@shared/form/form-errors';
-import { TextInput } from '@shared/form/kontroller/text-input';
-import { MoneyInput } from '@shared/form/kontroller/money-input';
-import { NumberInput } from '@shared/form/kontroller/number-input';
-import type { SecenekOgesi } from '@shared/form/kontroller/secenek';
-import { Selection } from '@shared/form/kontroller/selection';
-import { DatePicker } from '@shared/form/tarih/date-picker';
-import { Icon } from '@shared/ikon/icon';
-import { Table } from '@shared/tablo/table';
-import { TableCell } from '@shared/tablo/table-cell';
-import type { TabloSutunu } from '@shared/tablo/tablo-modeli';
+import { TextInput } from '@shared/form/controls/text-input';
+import { MoneyInput } from '@shared/form/controls/money-input';
+import { NumberInput } from '@shared/form/controls/number-input';
+import type { SecenekOgesi } from '@shared/form/controls/option';
+import { Selection } from '@shared/form/controls/selection';
+import { DatePicker } from '@shared/form/date/date-picker';
+import { Icon } from '@shared/icon/icon';
+import { Table } from '@shared/table/table';
+import { TableCell } from '@shared/table/table-cell';
+import type { TabloSutunu } from '@shared/table/table-model';
 
 import { inspectionColumns, mtvColumns } from '../service-insurance-columns';
 import {
@@ -56,9 +56,9 @@ import {
 import { InspectionListStore, MtvListStore } from '../service-insurance.store';
 import type { InstallmentKind } from './installment-pay-panel';
 import { RegulationTabs } from './regulation-tabs';
-import { PageBand } from '../../../kabuk/sayfa-bandi/page-band';
-import { FilterPanelComponent } from '@shared/filtre-paneli/filtre-paneli';
-import { PlateChipComponent } from '@shared/plaka/plaka';
+import { PageBand } from '../../../shell/page-band/page-band';
+import { FilterPanelComponent } from '@shared/filter-panel/filter-panel';
+import { PlateChipComponent } from '@shared/plate/plate';
 
 interface Row {
   readonly id: string;

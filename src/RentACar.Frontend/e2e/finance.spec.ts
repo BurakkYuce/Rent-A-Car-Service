@@ -1,8 +1,8 @@
 import { expect, test, type Page } from '@playwright/test';
 
 import { ACCOUNT_1, ACCOUNT_2, fixedRate, financeHubEndpoints } from './finance-fakes';
-import { BEN, seriousViolations, collectErrors, logIn, problem, writeXsrf } from './ortak';
-import { waitReady, measureOverflow, type VitrinSayfasi } from './vitrin-sayfalari';
+import { BEN, seriousViolations, collectErrors, logIn, problem, writeXsrf } from './common';
+import { waitReady, measureOverflow, type VitrinSayfasi } from './showcase-pages';
 
 /**
  * F8.2a finans ekranları (PARA): kasa hub, nakit işlem, bakiye düzeltme, cari virman, tek cari / çok cari toplu,

@@ -3,16 +3,16 @@ import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angula
 import { TranslocoPipe } from '@jsverse/transloco';
 import { map } from 'rxjs';
 
-import { ApiIstemcisi } from '@core/api/api-istemcisi';
-import type { Schema } from '@core/api/ui-tipleri';
-import { ToastService } from '@core/geri-bildirim/toast-service';
-import { translationFunction } from '@core/i18n/ceviri';
-import { TemelStore } from '@core/veri/temel-store';
-import { Alan } from '@shared/form/alan/alan';
+import { ApiIstemcisi } from '@core/api/api-client';
+import type { Schema } from '@core/api/ui-types';
+import { ToastService } from '@core/feedback/toast-service';
+import { translationFunction } from '@core/i18n/translation';
+import { TemelStore } from '@core/data/base-store';
+import { Alan } from '@shared/form/field/field';
 import { formSubmission } from '@shared/form/form-submission';
 import { FormErrors } from '@shared/form/form-errors';
-import { TextInput } from '@shared/form/kontroller/text-input';
-import { NumberInput } from '@shared/form/kontroller/number-input';
+import { TextInput } from '@shared/form/controls/text-input';
+import { NumberInput } from '@shared/form/controls/number-input';
 
 type Suggestion = Schema<'ServiceDefinitionSuggestionDto'>;
 

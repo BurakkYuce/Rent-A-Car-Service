@@ -10,24 +10,24 @@ import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angula
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { TranslocoPipe } from '@jsverse/transloco';
 
-import { ApiIstemcisi } from '@core/api/api-istemcisi';
-import { ToastService } from '@core/geri-bildirim/toast-service';
-import { translationFunction } from '@core/i18n/ceviri';
+import { ApiIstemcisi } from '@core/api/api-client';
+import { ToastService } from '@core/feedback/toast-service';
+import { translationFunction } from '@core/i18n/translation';
 import { SessionService } from '@core/oturum/session-service';
-import { tabContext } from '@core/sekme/tab-state';
-import { FetchPolicy } from '@core/veri/fetch-policy';
-import { MoneyPipe, NumberPipe, DatePipe, DateTimePipe } from '@shared/bicim/bicim-pipe';
-import { Alan } from '@shared/form/alan/alan';
+import { tabContext } from '@core/tabs/tab-state';
+import { FetchPolicy } from '@core/data/fetch-policy';
+import { MoneyPipe, NumberPipe, DatePipe, DateTimePipe } from '@shared/format/format-pipe';
+import { Alan } from '@shared/form/field/field';
 import { formSubmission } from '@shared/form/form-submission';
 import { FormErrors } from '@shared/form/form-errors';
-import { NumberInput } from '@shared/form/kontroller/number-input';
-import { Icon } from '@shared/ikon/icon';
+import { NumberInput } from '@shared/form/controls/number-input';
+import { Icon } from '@shared/icon/icon';
 
 import { SCORECARD_ROLES } from '../vehicle-guards';
 import { STATUS_BADGE, toNumber, vehicleStatus } from '../vehicle-model';
 import { VehicleDetailStore } from '../vehicle.store';
-import { PageBand } from '../../../kabuk/sayfa-bandi/page-band';
-import { PlateChipComponent } from '@shared/plaka/plaka';
+import { PageBand } from '../../../shell/page-band/page-band';
+import { PlateChipComponent } from '@shared/plate/plate';
 
 /** KM kaydı kaynağı → etiket anahtarı (Blazor: Kira dönüşü / Servis çıkışı / Manuel). */
 export function kmSourceKey(

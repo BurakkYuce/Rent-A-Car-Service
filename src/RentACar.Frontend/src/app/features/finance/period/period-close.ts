@@ -11,16 +11,16 @@ import { FormControl, FormGroup, Validators } from '@angular/forms';
 import { finalize } from 'rxjs';
 
 import { ConfirmGate } from '@core/form/money-submission';
-import { toApiError } from '@core/api/api-hatasi';
-import { ApiIstemcisi } from '@core/api/api-istemcisi';
-import { clearServerErrors, applyServerErrors } from '@core/form/sunucu-hatalari';
-import { formatDay } from '@core/form/tarih-girdisi';
-import { ConfirmService } from '@core/geri-bildirim/confirm-service';
-import { ToastService } from '@core/geri-bildirim/toast-service';
-import { translationFunction } from '@core/i18n/ceviri';
+import { toApiError } from '@core/api/api-error';
+import { ApiIstemcisi } from '@core/api/api-client';
+import { clearServerErrors, applyServerErrors } from '@core/form/server-errors';
+import { formatDay } from '@core/form/date-input';
+import { ConfirmService } from '@core/feedback/confirm-service';
+import { ToastService } from '@core/feedback/toast-service';
+import { translationFunction } from '@core/i18n/translation';
 import { genelGosterilir } from '@core/oturum/session-interceptor';
-import { FetchPolicy } from '@core/veri/fetch-policy';
-import { TemelStore } from '@core/veri/temel-store';
+import { FetchPolicy } from '@core/data/fetch-policy';
+import { TemelStore } from '@core/data/base-store';
 
 import { type PeriodCloseState, financePath } from '../finance-model';
 import { FIN_COMMON, toAmount } from '../finance-shared';

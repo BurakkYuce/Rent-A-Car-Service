@@ -3,8 +3,8 @@ import { TranslocoPipe } from '@jsverse/transloco';
 
 import type { MoneySubmissionState } from '@core/form/money-submission';
 import { FormErrors } from '@shared/form/form-errors';
-import { Icon } from '@shared/ikon/icon';
-import type { IkonAdi } from '@shared/ikon/ikon-kaydi';
+import { Icon } from '@shared/icon/icon';
+import type { IkonAdi } from '@shared/icon/icon-registry';
 
 import { MoneyNoticeView } from './money-notice';
 

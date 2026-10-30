@@ -2,16 +2,16 @@ import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
 import { FormArray, FormControl, FormGroup, Validators } from '@angular/forms';
 
 import { moneySubmission } from '@core/form/money-submission';
-import { formatMoney } from '@core/bicim/bicim';
-import { type UnsavedChangesOwner, pageLeaveGuard } from '@core/form/kaydedilmemis-degisiklik';
+import { formatMoney } from '@core/format/format';
+import { type UnsavedChangesOwner, pageLeaveGuard } from '@core/form/unsaved-changes';
 import { newOperationKey } from '@core/form/submit-lock';
-import { ToastService } from '@core/geri-bildirim/toast-service';
-import { translationFunction } from '@core/i18n/ceviri';
+import { ToastService } from '@core/feedback/toast-service';
+import { translationFunction } from '@core/i18n/translation';
 import {
   type SecimSecenegi,
   serverSelectionSource,
-} from '@shared/form/arama-secim/selection-source';
-import type { SecenekOgesi } from '@shared/form/kontroller/secenek';
+} from '@shared/form/search-selection/selection-source';
+import type { SecenekOgesi } from '@shared/form/controls/option';
 
 import {
   type BulkExpenseRequest,

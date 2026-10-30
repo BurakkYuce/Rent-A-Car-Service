@@ -3,10 +3,10 @@ import { provideRouter } from '@angular/router';
 import { TranslocoService } from '@jsverse/transloco';
 import { NEVER, firstValueFrom, of, throwError } from 'rxjs';
 
-import { ApiIstemcisi } from '@core/api/api-istemcisi';
-import { ToastService } from '@core/geri-bildirim/toast-service';
-import { provideTranslation } from '@core/i18n/ceviri';
-import { MenuRefresh } from '@core/sayac/menu-refresh';
+import { ApiIstemcisi } from '@core/api/api-client';
+import { ToastService } from '@core/feedback/toast-service';
+import { provideTranslation } from '@core/i18n/translation';
+import { MenuRefresh } from '@core/counters/menu-refresh';
 
 import { NotificationsPage } from './notifications-page';
 

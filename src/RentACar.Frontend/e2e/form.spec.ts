@@ -1,7 +1,7 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test, type Page, type Request } from '@playwright/test';
 
-import { logIn } from './ortak';
+import { logIn } from './common';
 
 /**
  * F3.6 form seti — sahte arka uçla (route mock) üretim derlemesi üstünde:

@@ -1,6 +1,6 @@
 import type { Routes } from '@angular/router';
-import { unsavedChangesGuard } from '@core/form/kaydedilmemis-degisiklik';
-import { withTranslationBlock } from '@core/i18n/ceviri-blogu';
+import { unsavedChangesGuard } from '@core/form/unsaved-changes';
+import { withTranslationBlock } from '@core/i18n/translation-block';
 import { permissionGuard } from '@core/oturum/session-guard';
 
 /**
@@ -22,7 +22,7 @@ export const RESERVATION_ROUTES: Routes = withTranslationBlock('rezervasyon', [
     canMatch: [permissionGuard('OperationsWrite')],
     canDeactivate: [unsavedChangesGuard],
     loadComponent: () =>
-      import('./rezervasyon-formu/rezervasyon-formu').then((m) => m.ReservationFormPage),
+      import('./reservation-form/reservation-form').then((m) => m.ReservationFormPage),
   },
   {
     path: 'rezervasyonlar/:id',
@@ -30,14 +30,14 @@ export const RESERVATION_ROUTES: Routes = withTranslationBlock('rezervasyon', [
     canMatch: [permissionGuard('OperationsWrite')],
     canDeactivate: [unsavedChangesGuard],
     loadComponent: () =>
-      import('./rezervasyon-formu/rezervasyon-formu').then((m) => m.ReservationFormPage),
+      import('./reservation-form/reservation-form').then((m) => m.ReservationFormPage),
   },
   {
     path: 'teklifler',
     title: 'Teklifler — RentACar',
     canMatch: [permissionGuard('OperationsWrite')],
     loadComponent: () =>
-      import('../teklifler/teklif-listesi/quotation-list').then((m) => m.QuotationList),
+      import('../quotations/quotation-list/quotation-list').then((m) => m.QuotationList),
   },
   {
     path: 'teklifler/yeni',
@@ -45,13 +45,13 @@ export const RESERVATION_ROUTES: Routes = withTranslationBlock('rezervasyon', [
     canMatch: [permissionGuard('OperationsWrite')],
     canDeactivate: [unsavedChangesGuard],
     loadComponent: () =>
-      import('../teklifler/teklif-formu/teklif-formu').then((m) => m.QuotationFormPage),
+      import('../quotations/quotation-form/quotation-form').then((m) => m.QuotationFormPage),
   },
   {
     path: 'teklifler/:id',
     title: 'Teklif — RentACar',
     canMatch: [permissionGuard('OperationsWrite')],
     loadComponent: () =>
-      import('../teklifler/teklif-detayi/quotation-detail').then((m) => m.QuotationDetail),
+      import('../quotations/quotation-detail/quotation-detail').then((m) => m.QuotationDetail),
   },
 ]);

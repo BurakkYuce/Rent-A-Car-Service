@@ -11,16 +11,16 @@ import {
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { TranslocoPipe } from '@jsverse/transloco';
 
-import { type UnsavedChangesOwner, pageLeaveGuard } from '@core/form/kaydedilmemis-degisiklik';
-import { tabContext } from '@core/sekme/tab-state';
-import { FetchPolicy } from '@core/veri/fetch-policy';
-import { translationFunction } from '@core/i18n/ceviri';
-import { MoneyPipe, DatePipe } from '@shared/bicim/bicim-pipe';
+import { type UnsavedChangesOwner, pageLeaveGuard } from '@core/form/unsaved-changes';
+import { tabContext } from '@core/tabs/tab-state';
+import { FetchPolicy } from '@core/data/fetch-policy';
+import { translationFunction } from '@core/i18n/translation';
+import { MoneyPipe, DatePipe } from '@shared/format/format-pipe';
 
 import { num } from '../service-insurance-model';
 import { InstallmentRecordStore } from '../service-insurance.store';
 import { type InstallmentKind, InstallmentPayPanel } from './installment-pay-panel';
-import { PageBand } from '../../../kabuk/sayfa-bandi/page-band';
+import { PageBand } from '../../../shell/page-band/page-band';
 
 /**
  * MTV / muayene kaydı (`/app/regulasyon/mtv/:id`, `/app/regulasyon/muayeneler/:id`) — Blazor `/regulasyon` MTV ve

@@ -48,7 +48,7 @@ yok.** `/tarife-aktar` (Import klasöründe) F11 envanterinde değil; F9'un sayf
    cari ve kira kimlikli, rezervasyon ve fatura listeleri. Karşılığı olmayan hedef düz adresle kalır; `safeHitUrl`
    (#304 L1) önce uygulanır.
 
-Çit: `e2e/kesis-f11.spec.ts` + `panel.spec.ts` (site talebi bağlantısı) + Vitest `search-page.spec.ts` (`hitRoute`),
+Çit: `e2e/cutover-f11.spec.ts` + `panel.spec.ts` (site talebi bağlantısı) + Vitest `search-page.spec.ts` (`hitRoute`),
 `booking-requests-page.spec.ts` (`statusFromQuery`).
 
 ## Güvenlik ve KVKK kararları (#288, #304, #308 — değişmedi, kesiş bunları taşır)
@@ -105,7 +105,7 @@ yok.** `/tarife-aktar` (Import klasöründe) F11 envanterinde değil; F9'un sayf
 
 **Sahte API (CI'da koşar):** `definitions.spec.ts`, `definitions-remaining.spec.ts`, `definitions-personnel.spec.ts`,
 `system-admin.spec.ts`, `system-settings.spec.ts`, `system-web.spec.ts` (#297/#304/#306/#308: üç zorunlu senaryo, KVKK
-ve sır kanıtları, axe iki tema, 320/390/768/1440 taşma) + `kesis-f11.spec.ts` (bu PR): 47 eski adres → SPA (sorgu ve
+ve sır kanıtları, axe iki tema, 320/390/768/1440 taşma) + `cutover-f11.spec.ts` (bu PR): 47 eski adres → SPA (sorgu ve
 fragment korunur, doğru sekme başlığı); 47 ekranın sayfa içeriğindeki hiçbir bağlantı Blazor F11 sayfasına düşmez;
 `/ara?q=` bir kez aranır, adresten silinir, sonuç bağlantısı router'la gider (tam sayfa yüklemesi yok); `/gelen-talepler?durum=0`
 "Yeni" süzgeciyle açılır ve uca `durum=Yeni` gider. `panel.spec.ts`: site talebi kutusu `/app/gelen-talepler?durum=Yeni`.

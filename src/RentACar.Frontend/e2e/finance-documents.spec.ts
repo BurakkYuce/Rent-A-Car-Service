@@ -11,8 +11,8 @@ import {
   invoiceDetail,
   penaltyDetail,
 } from './finance-document-fakes';
-import { BEN, seriousViolations, collectErrors, logIn, problem, writeXsrf } from './ortak';
-import { waitReady, measureOverflow, type VitrinSayfasi } from './vitrin-sayfalari';
+import { BEN, seriousViolations, collectErrors, logIn, problem, writeXsrf } from './common';
+import { waitReady, measureOverflow, type VitrinSayfasi } from './showcase-pages';
 
 /**
  * F8.2b finans belge ekranları: faturalar (+ detay listesi), cezalar, giderler, gelen e-fatura, araç satışları.

@@ -5,13 +5,13 @@ import { RouterTestingHarness } from '@angular/router/testing';
 import { TranslocoService } from '@jsverse/transloco';
 import { firstValueFrom } from 'rxjs';
 
-import { FULL_PAGE_NAVIGATION } from '@core/form/kaydedilmemis-degisiklik';
-import { WarningBannerService } from '@core/geri-bildirim/warning-banner-service';
-import { provideTranslation } from '@core/i18n/ceviri';
+import { FULL_PAGE_NAVIGATION } from '@core/form/unsaved-changes';
+import { WarningBannerService } from '@core/feedback/warning-banner-service';
+import { provideTranslation } from '@core/i18n/translation';
 
 import { anyPermissionGuard, permissionGuard, guestGuard, sessionGuard } from './session-guard';
 import { SessionService } from './session-service';
-import type { Permission } from './oturum-tipleri';
+import type { Permission } from './session-types';
 
 @Component({ selector: 'rc-bos', changeDetection: ChangeDetectionStrategy.OnPush, template: '' })
 class Empty {}

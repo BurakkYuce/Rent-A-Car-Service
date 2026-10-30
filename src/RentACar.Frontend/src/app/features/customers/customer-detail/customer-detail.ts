@@ -11,18 +11,18 @@ import { FormControl, FormGroup, ReactiveFormsModule } from '@angular/forms';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { TranslocoPipe } from '@jsverse/transloco';
 
-import { translationFunction } from '@core/i18n/ceviri';
+import { translationFunction } from '@core/i18n/translation';
 import { SessionService } from '@core/oturum/session-service';
-import { tabContext } from '@core/sekme/tab-state';
-import { FetchPolicy } from '@core/veri/fetch-policy';
+import { tabContext } from '@core/tabs/tab-state';
+import { FetchPolicy } from '@core/data/fetch-policy';
 import { toNumber } from '@features/vehicles/vehicle-model';
-import { MoneyPipe, DatePipe } from '@shared/bicim/bicim-pipe';
-import { Alan } from '@shared/form/alan/alan';
-import { TabbedForm, TabPanel, type SekmeTanimi } from '@shared/form/sekmeli-form/tabbed-form';
-import { DatePicker } from '@shared/form/tarih/date-picker';
-import { Icon } from '@shared/ikon/icon';
+import { MoneyPipe, DatePipe } from '@shared/format/format-pipe';
+import { Alan } from '@shared/form/field/field';
+import { TabbedForm, TabPanel, type SekmeTanimi } from '@shared/form/tabbed-form/tabbed-form';
+import { DatePicker } from '@shared/form/date/date-picker';
+import { Icon } from '@shared/icon/icon';
 
-import { PageBand } from '../../../kabuk/sayfa-bandi/page-band';
+import { PageBand } from '../../../shell/page-band/page-band';
 import { balanceSide, canSeeStatement, type CustomerProfile } from '../customer-model';
 import { CustomerDetailStore } from '../customer.store';
 

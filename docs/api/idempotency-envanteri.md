@@ -179,7 +179,7 @@ Servis düzeyinde (Blazor da kapsanır):
   giriş ister; çift yazım yok). Belirsiz deneme yoksa (iki sekme) form korunur, yalnız dokunulmamış ön-dolu tutar yeni
   bakiyeyle yenilenir. 409 kaydı silmez (`mevcut`suz 409 eşzamanlı yarış olabilir); yalnız o anahtarın 2xx'i siler.
 
-**SPA uygulaması — kira formu sabit paneli (F4.4, `features/kira-formu/finans-paneli/`):**
+**SPA uygulaması — kira formu sabit paneli (F4.4, `features/rental-form/finance-panel/`):**
 - `tahsilatAnahtar`'ın kaynağı kira detayıdır: `GET kiralar/{id}` → `tahsilat` (`TahsilatBilgisi`; liste/pano ile
   aynı üretim; FinanceWrite + iptal olmayan kira; bakiye ≤ 0'da da dolar). Tahsilat isteği başlıksız gider.
 - Form bir **satır kopyası** tutar (`TahsilatKopyasi`): boştaki form her yeni detayla kopyayı tazeler; kullanıcı

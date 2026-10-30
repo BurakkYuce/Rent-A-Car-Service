@@ -1,9 +1,9 @@
 import { DestroyRef, Injectable, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 
-import { ApiIstemcisi } from '@core/api/api-istemcisi';
-import { translationFunction } from '@core/i18n/ceviri';
-import type { SecimSecenegi } from '@shared/form/arama-secim/selection-source';
+import { ApiIstemcisi } from '@core/api/api-client';
+import { translationFunction } from '@core/i18n/translation';
+import type { SecimSecenegi } from '@shared/form/search-selection/selection-source';
 
 import { customerLabelFetch } from './crm.store';
 

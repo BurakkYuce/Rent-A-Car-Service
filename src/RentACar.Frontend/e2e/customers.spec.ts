@@ -1,8 +1,8 @@
 import { expect, test, type Page } from '@playwright/test';
 
 import { ACCOUNT_1, card, customerCrmEndpoints } from './customers-crm-fakes';
-import { BEN, seriousViolations, collectErrors, logIn, problem, writeXsrf } from './ortak';
-import { waitReady, measureOverflow, type VitrinSayfasi } from './vitrin-sayfalari';
+import { BEN, seriousViolations, collectErrors, logIn, problem, writeXsrf } from './common';
+import { waitReady, measureOverflow, type VitrinSayfasi } from './showcase-pages';
 
 /**
  * F7.2 cari ekranları: liste, kart (yeni / düzenle), 360° detay + ekstre. Üç zorunlu senaryo (doğrulama hatasında

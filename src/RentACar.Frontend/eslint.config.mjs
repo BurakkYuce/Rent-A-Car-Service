@@ -12,13 +12,13 @@ const TR_METIN = [
   {
     selector: 'MemberExpression[property.name=/^to(Lower|Upper)Case$/]',
     message:
-      "Ham toLowerCase/toUpperCase yasak (Türkçe İ/ı bozulur). '@core/metin/tr-normalize' kullanın.",
+      "Ham toLowerCase/toUpperCase yasak (Türkçe İ/ı bozulur). '@core/text/tr-normalize' kullanın.",
   },
   {
     selector:
       'CallExpression[callee.property.name=/^toLocale(Lower|Upper)Case$/][arguments.length=0]',
     message:
-      "Yerel ayarsız toLocaleLowerCase/UpperCase yasak (tarayıcı diline bağlı). '@core/metin/tr-normalize' kullanın.",
+      "Yerel ayarsız toLocaleLowerCase/UpperCase yasak (tarayıcı diline bağlı). '@core/text/tr-normalize' kullanın.",
   },
 ];
 
@@ -40,7 +40,7 @@ const MUTLAK_URL = [
 ];
 
 /**
- * F4.3b istisnası: harici paylaşım bağlantıları (`src/app/shared/dis-baglantilar.ts`) YALNIZ iki mutlak köke
+ * F4.3b istisnası: harici paylaşım bağlantıları (`src/app/shared/external-links.ts`) YALNIZ iki mutlak köke
  * izinlidir — WhatsApp (`https://wa.me/`) ve Gmail taslak kökü. Bunlar API çağrısı değil yeni sekmede açılan
  * gezinme bağlantısıdır; dosya HTTP katmanını içe aktaramaz (aşağıdaki blok). Başka her mutlak adres yine hata.
  * (esquery regex'inde `/` yazılamaz → `\x2F`.)
@@ -63,7 +63,7 @@ const STORE_SUBSCRIBE = [
   {
     selector: "CallExpression[callee.property.name='subscribe']",
     message:
-      "Özellik store'unda ham subscribe yasak. Veriyi '@core/veri/temel-store' TemelStore ile yükleyin (dört durum + switchMap iptali).",
+      "Özellik store'unda ham subscribe yasak. Veriyi '@core/data/base-store' TemelStore ile yükleyin (dört durum + switchMap iptali).",
   },
 ];
 
@@ -79,7 +79,7 @@ export default defineConfig(
       'playwright-report/',
       'blob-report/',
       // openapi-typescript çıktısı (npm run tipler): elle düzenlenmez, CI yeniden üretip farkı yakalar.
-      'src/app/core/api/uretilen/',
+      'src/app/core/api/generated/',
     ],
   },
   {
@@ -138,7 +138,7 @@ export default defineConfig(
   },
   {
     // F4.3b harici paylaşım bağlantıları: dar mutlak-URL istisnası + HTTP katmanı içe aktarılamaz.
-    files: ['src/app/shared/dis-baglantilar.ts', 'src/app/shared/dis-baglantilar.spec.ts'],
+    files: ['src/app/shared/external-links.ts', 'src/app/shared/external-links.spec.ts'],
     rules: {
       'no-restricted-syntax': ['error', ...TR_METIN, ...DIS_BAGLANTI_URL],
       'no-restricted-imports': [
@@ -184,7 +184,7 @@ export default defineConfig(
               name: '@angular/common/http',
               importNames: ['HttpClient'],
               message:
-                "HttpClient'ı doğrudan kullanmayın; '@core/api/api-istemcisi' ApiIstemcisi kullanın.",
+                "HttpClient'ı doğrudan kullanmayın; '@core/api/api-client' ApiIstemcisi kullanın.",
             },
           ],
         },
@@ -201,7 +201,7 @@ export default defineConfig(
         {
           selector: 'BindingPipe[name=/^(lowercase|uppercase|titlecase)$/]',
           message:
-            "lowercase/uppercase/titlecase pipe yasak (Türkçe İ/ı bozulur). '@core/metin/tr-normalize' kullanın.",
+            "lowercase/uppercase/titlecase pipe yasak (Türkçe İ/ı bozulur). '@core/text/tr-normalize' kullanın.",
         },
       ],
     },

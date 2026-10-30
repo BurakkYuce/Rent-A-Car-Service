@@ -14,39 +14,39 @@ import { RouterLink } from '@angular/router';
 import { TranslocoPipe } from '@jsverse/transloco';
 import { finalize } from 'rxjs';
 
-import { toApiError } from '@core/api/api-hatasi';
-import { ApiIstemcisi, type QueryParameters } from '@core/api/api-istemcisi';
-import { invariantDecimal } from '@core/form/ondalik';
-import type { DayText } from '@core/form/tarih-girdisi';
-import { ConfirmService } from '@core/geri-bildirim/confirm-service';
-import { ToastService } from '@core/geri-bildirim/toast-service';
-import type { CeviriAnahtari } from '@core/i18n/ceviri-anahtarlari';
-import { translationFunction } from '@core/i18n/ceviri';
+import { toApiError } from '@core/api/api-error';
+import { ApiIstemcisi, type QueryParameters } from '@core/api/api-client';
+import { invariantDecimal } from '@core/form/decimal';
+import type { DayText } from '@core/form/date-input';
+import { ConfirmService } from '@core/feedback/confirm-service';
+import { ToastService } from '@core/feedback/toast-service';
+import type { CeviriAnahtari } from '@core/i18n/translation-keys';
+import { translationFunction } from '@core/i18n/translation';
 import { genelGosterilir } from '@core/oturum/session-interceptor';
 import { SessionService } from '@core/oturum/session-service';
-import { FetchPolicy } from '@core/veri/fetch-policy';
-import { listQueryUrlSync } from '@core/veri/liste-sorgusu-url';
-import { type StoreState, TemelStore } from '@core/veri/temel-store';
-import type { Sayfa } from '@core/api/sayfa';
-import { textValue } from '@features/planlama-ortak/form-yardimcilari';
+import { FetchPolicy } from '@core/data/fetch-policy';
+import { listQueryUrlSync } from '@core/data/list-query-url';
+import { type StoreState, TemelStore } from '@core/data/base-store';
+import type { Sayfa } from '@core/api/page';
+import { textValue } from '@features/planning-shared/form-helpers';
 import { CustomerLabels } from '@features/vehicle-finance/labels';
-import { MoneyPipe } from '@shared/bicim/bicim-pipe';
-import { Alan } from '@shared/form/alan/alan';
-import { SearchSelection } from '@shared/form/arama-secim/search-selection';
+import { MoneyPipe } from '@shared/format/format-pipe';
+import { Alan } from '@shared/form/field/field';
+import { SearchSelection } from '@shared/form/search-selection/search-selection';
 import {
   type SecimSecenegi,
   serverSelectionSource,
-} from '@shared/form/arama-secim/selection-source';
-import { TextInput } from '@shared/form/kontroller/text-input';
-import { MoneyInput } from '@shared/form/kontroller/money-input';
-import { DatePicker } from '@shared/form/tarih/date-picker';
-import { Icon } from '@shared/ikon/icon';
-import { Table } from '@shared/tablo/table';
-import { TableCell } from '@shared/tablo/table-cell';
-import type { TabloSutunu } from '@shared/tablo/tablo-modeli';
+} from '@shared/form/search-selection/selection-source';
+import { TextInput } from '@shared/form/controls/text-input';
+import { MoneyInput } from '@shared/form/controls/money-input';
+import { DatePicker } from '@shared/form/date/date-picker';
+import { Icon } from '@shared/icon/icon';
+import { Table } from '@shared/table/table';
+import { TableCell } from '@shared/table/table-cell';
+import type { TabloSutunu } from '@shared/table/table-model';
 
 import { COST_OFFERS, type CostOfferList, type CostOfferRow, OFFER_LIST } from './cost-model';
-import { PageBand } from '../../../kabuk/sayfa-bandi/page-band';
+import { PageBand } from '../../../shell/page-band/page-band';
 
 const toNum = (v: number | string | null | undefined): number | null => {
   if (v === null || v === undefined || v === '') return null;

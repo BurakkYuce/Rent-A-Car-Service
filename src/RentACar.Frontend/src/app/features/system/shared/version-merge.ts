@@ -1,6 +1,6 @@
 import type { AbstractControl, FormGroup } from '@angular/forms';
 
-import { SERVER_ERROR } from '@core/form/sunucu-hatalari';
+import { SERVER_ERROR } from '@core/form/server-errors';
 
 type Values = Readonly<Record<string, unknown>>;
 
