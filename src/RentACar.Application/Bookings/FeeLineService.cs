@@ -10,29 +10,14 @@ namespace RentACar.Application.Bookings;
 /// <summary>Sistem ücret satırı — SAF hesap çıktısı (önizleme VE kayıt aynı listeden geçer).</summary>
 public sealed record SistemUcretSatiri(string TanimKod, string Ad, decimal BirimNet, int Gun, string? Not);
 
-/// <summary>Sistem ücretini belirleyen sözleşme alanları (<see cref="FeeLineService"/> hesabının TÜM girdileri).</summary>
-public readonly record struct FeeInputs(
-    Guid VehicleId, Guid MusteriId, Guid? IkinciSurucuId, DateTimeOffset BasTar, int Gun,
-    string? CikisOfisi, string? DonusOfisi, decimal? DropUcreti, string? Doviz)
-{
-    public static FeeInputs Of(RentalContract c) => new(
-        c.VehicleId, c.MusteriId, c.IkinciSurucuId, c.BasTar, c.Gun, c.CikisOfisi, c.DonusOfisi, c.DropUcreti, c.Doviz);
-}
-
 /// <summary>
-/// Kira transaction'ından ÖNCE çözülmüş sistem ücretleri (tanım + satır). <see cref="LinesFor"/> SAF: DB'ye gitmez,
-/// kilit altında çağrılabilir. Kira girdileri ön okumadan farklıysa (ör. rezervasyon arada güncellendi) eski
-/// girdiyle ücret yazmak yerine 409 <c>cakisma</c> — kullanıcı yeniden dener, ücret güncel girdiden hesaplanır.
+/// Sistem ücretinin ANA VERİ girdileri (aracın grup değeri, tüm gruplar, müşteri doğum tarihi, drop tanımları, SYS-*
+/// tanımları). Kira deposu bunları kira transaction'ının KENDİ bağlantısından, kilit ALTINDA okur (#416 L2: kilitten önce
+/// okunan bayat ana veriyle ücret yazılmaz; #416 L1: kilit tutulurken ek bağlantı açılmaz).
 /// </summary>
-public sealed record ContractFees(FeeInputs Inputs, IReadOnlyList<(EkHizmetTanim Definition, SistemUcretSatiri Row)> Rows)
-{
-    public IReadOnlyList<RentalAddOn> LinesFor(RentalContract c)
-    {
-        if (FeeInputs.Of(c) != Inputs)
-            throw new Common.ConcurrentModificationException(Common.ConcurrentModificationException.RecordMessage);
-        return Rows.Select(r => RentalAddOnService.Line(c.Id, r.Definition, r.Row.Gun, r.Row.BirimNet, r.Definition.KdvOrani)).ToList();
-    }
-}
+public sealed record ContractFeeData(
+    string? VehicleGroupValue, IReadOnlyList<VehicleGroup> Groups, DateTimeOffset? BirthDate,
+    IReadOnlyList<DropTanim> DropDefinitions, IReadOnlyList<EkHizmetTanim> Definitions);
 
 /// <summary>
 /// Sözleşme ücret kalemleri (FAZ 3.A3a): genç sürücü + ek (2.) sürücü ücretleri SİSTEM-üretimi
@@ -126,6 +111,7 @@ public sealed class FeeLineService(
         var value = vehicle?.Grup?.Trim();
         if (string.IsNullOrWhiteSpace(value)) return null;
         // Kabul B-A2: ekrandan açılan araç grubun ADINI taşır — Kod sonra Ad (fiyat motoruyla aynı kural).
+        // Kayıt yolu (LinesFor) da AYNI fonksiyonu tüm gruplarla çağırır → önizleme == kayıt.
         return VehicleGroupMatch.Find(await groups.ListAsync(ct), value); // tüm gruplar: pasif kod Ad'a düşmez (M1)
     }
 
@@ -158,6 +144,11 @@ public sealed class FeeLineService(
     public async Task<decimal?> ResolveDropFeeAsync(
         string? pickupOffice, string? returnOffice, decimal? manualOverride, int day,
         CancellationToken ct = default)
+        => ResolveDropFee(await dropDefinitions.ListAsync(ct), pickupOffice, returnOffice, manualOverride, day);
+
+    /// <summary>Saf drop çözümü (<see cref="ResolveDropFeeAsync"/> ve kilit altındaki kayıt yolu aynı kural).</summary>
+    public static decimal? ResolveDropFee(
+        IReadOnlyList<DropTanim> definitions, string? pickupOffice, string? returnOffice, decimal? manualOverride, int day)
     {
         if (manualOverride is > 0m) return manualOverride;
         // Adversarial A3b-B5: AÇIK 0 = MUAFİYET (operatör talimatı) — tanım ücreti bastırılır.
@@ -175,7 +166,7 @@ public sealed class FeeLineService(
         static bool Es(string? a, string? b)
             => string.Equals((a ?? "").Trim(), (b ?? "").Trim(), StringComparison.OrdinalIgnoreCase);
 
-        var candidates = (await dropDefinitions.ListAsync(ct))
+        var candidates = definitions
             .Where(t => Es(t.Lokasyon, returnInfo))
             .ToList();
         if (candidates.Count == 0) return null;
@@ -229,18 +220,35 @@ public sealed class FeeLineService(
     }
 
     /// <summary>
-    /// Kira OLUŞTURMA yolu (doğrudan kira + rez→kira): ücret girdilerini (grup, doğum tarihi, drop ücreti, SYS-*
-    /// tanımları) kira transaction'ından ÖNCE okur. Kalemler <see cref="ContractFees.LinesFor"/> ile SAF üretilir ve
-    /// kira deposu onları kira satırıyla AYNI transaction'da ekler (yarım kira kalmaz). Kilit altında ek bağlantı
-    /// açılmaz (adversarial #416 L1: havuz tükenmesi). Sistem tanımı yoksa kendi işleminde yaratılır — ana veri,
-    /// kira geri alınsa da zararsız kalır.
+    /// Kira OLUŞTURMA yolu (doğrudan kira + rez→kira), transaction'dan ÖNCE: kiranın gerektirdiği SYS-* tanımları yoksa
+    /// kendi işlemlerinde yaratılır (ana veri; kira geri alınsa da zararsız). Tutarlar burada HESAPLANMAZ — kira deposu
+    /// ücret girdilerini kilit altında okuyup <see cref="LinesFor"/> ile hesaplar (#416 L2).
     /// </summary>
-    public async Task<ContractFees> PrepareContractFeesAsync(RentalContract c, CancellationToken ct = default)
+    public async Task EnsureSystemDefinitionsAsync(RentalContract c, CancellationToken ct = default)
     {
-        var rows = new List<(EkHizmetTanim, SistemUcretSatiri)>();
         foreach (var s in await ContractRowsAsync(c, ct))
-            rows.Add((await GetOrCreateDefinitionAsync(s.TanimKod, s.Ad, ct), s));
-        return new ContractFees(FeeInputs.Of(c), rows);
+            await GetOrCreateDefinitionAsync(s.TanimKod, s.Ad, ct);
+    }
+
+    /// <summary>
+    /// Kira oluşturmanın ücret kalemleri — SAF (DB'ye gitmez): kira deposu bunu kira transaction'ında, kilit ALTINDA
+    /// kendi bağlantısından okuduğu <paramref name="data"/> ile çağırır; kalemler kirayla aynı transaction'da yazılır.
+    /// Önizlemeyle AYNI kurallar (<see cref="VehicleGroupMatch.Find"/>, <see cref="ResolveDropFee"/>,
+    /// <see cref="CalculatePure"/>, tanımın KDV oranı) → önizleme == kayıt. Gereken SYS-* tanımı kilit altında yoksa
+    /// (ana veri ön adımdan sonra değişti ve tanım hiç yaratılmamıştı) 409 <c>cakisma</c>: yeniden deneme ön adımda yaratır.
+    /// </summary>
+    public static IReadOnlyList<RentalAddOn> LinesFor(RentalContract c, ContractFeeData data)
+    {
+        var group = VehicleGroupMatch.Find(data.Groups, data.VehicleGroupValue);
+        var drop = ResolveDropFee(data.DropDefinitions, c.CikisOfisi, c.DonusOfisi, c.DropUcreti, c.Gun);
+        var rows = CalculatePure(group, c.Gun, c.BasTar, group is null ? null : data.BirthDate,
+            c.IkinciSurucuId is not null, c.Doviz, [], drop);
+        return rows.Select(s =>
+        {
+            var definition = data.Definitions.FirstOrDefault(x => string.Equals(x.Kod, s.TanimKod, StringComparison.OrdinalIgnoreCase))
+                ?? throw new Common.ConcurrentModificationException(Common.ConcurrentModificationException.RecordMessage);
+            return RentalAddOnService.Line(c.Id, definition, s.Gun, s.BirimNet, definition.KdvOrani);
+        }).ToList();
     }
 
     /// <summary>Senkron yolu: AÇIK kiraya eksik sistem ücret satırlarını ekler (kira deposunun kilit + toplam

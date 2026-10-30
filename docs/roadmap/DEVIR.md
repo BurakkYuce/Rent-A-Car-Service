@@ -168,7 +168,7 @@ olabilir). Açık PR yoksa "Sırada" listesinin ilk maddesi.
    üretim doğrulaması → canlı duman testi (README "Doğrulama"; 301'ler, giriş, 403/404 bandı, platform konsolu).
    Küçük temizlikler BİTTİ (doğrulandı 2026-10-30): ölü `ben.pilot` dalı, `YeniArayuzPilot` kolonu, `PlatformIsolation`
    Blazor yolları.
-2. **Low kalıntıları** (§6): #416 L2 (bayat ana veriyle ücret), #419 L1–L3 (oturum başlığı iş akışı kilidi, `ben`
+2. **Low kalıntıları** (§6): #419 L1–L3 (oturum başlığı iş akışı kilidi, `ben`
    öncesi bağsız gönderim, anahtarsız para yolları), `AccountRef` bileşik FK'leri (defter hesap referansı polimorfik;
    düz FK kurulamaz, ayrı tasarım). Ofis adı DB unique index + İ/ı normalize kuralı kullanıcı kararı.
 3. ~~F4.6b / F5–F11 Blazor sayfa silme ve F13 söküm~~ **BİTTİ (#349, #350)** — kullanıcı kararıyla pilot beklenmeden.
@@ -460,11 +460,12 @@ Etiketsiz madde açıktır.
   `Idempotency-Key` zorunlu, `RentalAddOns.IslemAnahtari` + kısmi unique index, kira kilidi altında yeniden arama,
   SPA `formGonderimi` ile işlem başına anahtar (envanter E37; test `LowTemizligiBUiTests.Ek_hizmet_*`). Blazor ve
   SYS-* yolu bilinçli anahtarsız (F13'te Blazor kalkınca kapanır).
-- ~~**Kira oluşturma atomik değil**~~ KAPALI (#416). Açık **#416 L2 (Low):** ücret girdileri (müşteri doğum tarihi,
-  grup genç sürücü ücreti, drop tanımı, araç grubu, SYS tanımı KDV'si) transaction'dan ÖNCE okunur; bu ana veri
-  okumayla rezervasyon kilidi arasında değişirse ücret eski değerle yazılır (pencere ms, kilit çekişmesinde uzar;
-  deftere yazmaz; kiranın sonraki güncellemesinde `SyncContractFeesAsync` düzeltir). Çözüm: girdileri kilit altında
-  transaction'ın KENDİ bağlantısıyla oku (L1 korunur). Probe'lar `koordinasyon/adv-416-ProbeTests.cs` P8c–e.
+- ~~**Kira oluşturma atomik değil**~~ KAPALI (#416). ~~**#416 L2 (Low)**~~ KAPALI (`fix/kira-ucret-girdisi-kilit`):
+  ücret ana verisi (araç grubu, gruplar, doğum tarihi, drop tanımları, SYS tanımı KDV'si) artık kira transaction'ında,
+  kilit ALTINDA, transaction'ın KENDİ bağlantısından okunur (`BookingRepository.ReadFeeDataAsync` →
+  `FeeLineService.LinesFor`, saf); kilitten önce yalnız eksik SYS tanımı yaratılır. Kalıcı testler
+  `KiraOlusturmaAtomikTests.Conversion_uses_*_while_waiting_for_lock` + doğrudan kira. Ana veri satırları kilitlenmez:
+  okuma ile commit arasındaki ms pencere main öncesiyle aynıdır.
 - ~~`RentalsApi` (harici): yabancı ya da olmayan müşteri/araç kontrolü yok~~ KAPALI: kira için kontrol
   `RentalService.CreateDirectAsync` girişinde (harici API, `/api/ui`, Blazor aynı kural; uç kopyaları kaldırıldı).
   ~~Rezervasyon/teklif yolunda servis düzeyinde varlık kontrolü yok (#328 Low-1)~~ KAPALI: tek kural

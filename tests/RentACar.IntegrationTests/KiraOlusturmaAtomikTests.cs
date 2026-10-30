@@ -4,6 +4,7 @@ using Npgsql;
 using RentACar.Application.Bookings;
 using RentACar.Application.Common;
 using RentACar.Application.Customers;
+using RentACar.Application.DropTanimlari;
 using RentACar.Application.RentalAddOns;
 using RentACar.Application.VehicleGroups;
 using RentACar.Application.Vehicles;
@@ -208,24 +209,182 @@ public sealed class KiraOlusturmaAtomikTests(PostgresFixture fx)
         Assert.Equal((4, 4, 0), await CountsAsync(check.ServiceProvider)); // 4 kira × 1 genç satırı, kısa kira → plan yok
     }
 
-    /// <summary>L1 tutarlılığı: kilit altında okunan sözleşmenin ücret girdisi ön okumadan farklıysa (rezervasyon arada
-    /// güncellendi) eski girdiyle ücret yazılmaz — 409 cakisma. Aynı girdide kalemler kilit altındaki kiranın Id'sine bağlanır.</summary>
+    /// <summary>Kilit altındaki saf hesap: kalemler kilit altındaki kiranın Id'sine ve kilit altında okunan tanımın KDV'sine
+    /// bağlanır; gereken SYS tanımı kilit altında yoksa (ön adımdan sonra ana veri değişti) tahmin yerine 409 cakisma.</summary>
     [Fact]
-    public void Fee_lines_reject_inputs_changed_after_prepare()
+    public void Fee_lines_use_locked_definition_and_reject_missing_one()
     {
-        var definition = new Domain.Entities.EkHizmetTanim { Kod = FeeLineService.YoungDriverCode, Ad = "Genç sürücü ücreti", KdvOrani = 0.20m };
-        var prepared = new Domain.Entities.RentalContract { VehicleId = Guid.NewGuid(), MusteriId = Guid.NewGuid(), BasTar = Start, Gun = 3 };
-        var fees = new ContractFees(FeeInputs.Of(prepared),
-            [(definition, new SistemUcretSatiri(FeeLineService.YoungDriverCode, "Genç sürücü ücreti", 100m, 3, null))]);
+        var group = new Domain.Entities.VehicleGroup { Kod = "EKO", Ad = "Ekonomik", Aktif = true, GencSurucuYas = 25, GencSurucuUcretGunluk = 100m };
+        var definition = new Domain.Entities.EkHizmetTanim { Kod = FeeLineService.YoungDriverCode, Ad = "Genç sürücü ücreti", KdvOrani = 0.10m };
+        var rental = new Domain.Entities.RentalContract { VehicleId = Guid.NewGuid(), MusteriId = Guid.NewGuid(), BasTar = Start, Gun = 3 };
+        ContractFeeData Data(params Domain.Entities.EkHizmetTanim[] definitions) => new("EKO", [group], Start.AddYears(-22), [], definitions);
 
-        var locked = new Domain.Entities.RentalContract { VehicleId = prepared.VehicleId, MusteriId = prepared.MusteriId, BasTar = Start, Gun = 3 };
-        var line = Assert.Single(fees.LinesFor(locked));
-        Assert.Equal(locked.Id, line.RentalId);
-        Assert.Equal(360m, line.Toplam); // 100 × 3 = 300 net + %20
+        var line = Assert.Single(FeeLineService.LinesFor(rental, Data(definition)));
+        Assert.Equal(rental.Id, line.RentalId);
+        Assert.Equal(definition.Id, line.EkHizmetTanimId);
+        Assert.Equal(330m, line.Toplam); // 100 × 3 = 300 net + tanımın %10'u
 
-        var changed = new Domain.Entities.RentalContract { VehicleId = prepared.VehicleId, MusteriId = prepared.MusteriId, BasTar = Start, Gun = 4 };
-        Assert.Throws<ConcurrentModificationException>(() => fees.LinesFor(changed));
+        Assert.Throws<ConcurrentModificationException>(() => FeeLineService.LinesFor(rental, Data()));
     }
+
+    // ---- #416 L2: ücret ana verisi kilit ALTINDA, transaction'ın kendi bağlantısından okunur ----
+    // Oracle (elle): baz 3 gün × 1000 = 3000; drop İSTANBUL→İZMİR 400 net → 480 brüt; genç (22 yaş < 25) 3 × 100 = 300 net →
+    // 360 brüt (SYS tanımları KDV %20). Değişiklik yapılmasa GenelToplam 3840 olurdu (eski kod her durumda bunu yazıyordu).
+
+    [Fact]
+    public async Task Conversion_uses_birth_date_corrected_while_waiting_for_lock()
+    {
+        var (host, tenant, rid, customer, _, _) = await LockSeedAsync("34 KL 01");
+        using var _h = host;
+        var total = await ConvertWhileLockedAsync(host, tenant, rid, (sp, _) => SetBirthDateAsync(sp, customer, Start.AddYears(-40)));
+        Assert.Equal(3480m, total); // 40 yaş → genç ücreti yok: 3000 + 480
+    }
+
+    [Fact]
+    public async Task Conversion_uses_group_fee_changed_while_waiting_for_lock()
+    {
+        var (host, tenant, rid, _, group, _) = await LockSeedAsync("34 KL 02");
+        using var _h = host;
+        var total = await ConvertWhileLockedAsync(host, tenant, rid,
+            (sp, _) => sp.GetRequiredService<VehicleGroupService>().UpdateAsync(group, GroupInput(200m)));
+        Assert.Equal(4200m, total); // 3000 + 480 + 3 × 200 = 600 net → 720
+    }
+
+    [Fact]
+    public async Task Conversion_uses_drop_definition_changed_while_waiting_for_lock()
+    {
+        var (host, tenant, rid, _, _, drop) = await LockSeedAsync("34 KL 03");
+        using var _h = host;
+        var total = await ConvertWhileLockedAsync(host, tenant, rid, (sp, _) => sp.GetRequiredService<DropDefinitionService>()
+            .UpdateAsync(drop, new DropTanimInput { Lokasyon = "IZMIR", Sube = "ISTANBUL", Ucret = 500m }));
+        Assert.Equal(3960m, total); // 3000 + 500 net → 600 + 360
+    }
+
+    [Fact]
+    public async Task Conversion_uses_system_definition_vat_changed_while_waiting_for_lock()
+    {
+        var (host, tenant, rid, _, _, _) = await LockSeedAsync("34 KL 04");
+        using var _h = host;
+        var total = await ConvertWhileLockedAsync(host, tenant, rid, (sp, _) => DbAsync(sp, async db =>
+        {
+            (await db.EkHizmetTanimlari.SingleAsync(t => t.Kod == FeeLineService.YoungDriverCode)).KdvOrani = 0.10m;
+            return await db.SaveChangesAsync();
+        }));
+        Assert.Equal(3810m, total); // 3000 + 480 + 300 net × 1,10 = 330
+    }
+
+    /// <summary>Rezervasyonun kendi ücret girdisi kilit beklenirken değişirse de taze değer kullanılır (önceden 409 cakisma
+    /// dönüyordu, kullanıcı yeniden denemek zorundaydı). Rezervasyon kilitli olduğundan değişiklik kilidi tutan işlemde.</summary>
+    [Fact]
+    public async Task Conversion_uses_reservation_drop_waiver_made_while_waiting_for_lock()
+    {
+        var (host, tenant, rid, _, _, _) = await LockSeedAsync("34 KL 05");
+        using var _h = host;
+        var total = await ConvertWhileLockedAsync(host, tenant, rid, async (_, holder) =>
+        {
+            (await holder.Reservations.SingleAsync(r => r.Id == rid)).DropUcreti = 0m; // açık 0 = muafiyet
+            await holder.SaveChangesAsync();
+        });
+        Assert.Equal(3360m, total); // 3000 + 360
+    }
+
+    /// <summary>Doğrudan kira: ana veri sözleşme no tahsisinden SONRA, aynı transaction'da okunur — günün sayaç satırı
+    /// başka bağlantıda tutulurken düzeltilen doğum tarihi kayda girer.</summary>
+    [Fact]
+    public async Task Direct_rental_uses_birth_date_corrected_while_waiting_for_number()
+    {
+        var tenant = Guid.NewGuid();
+        using var host = new TestHost(fx.AppConnectionString);
+        Guid customer, vehicle;
+        using (var seed = host.ScopeFor(tenant))
+        {
+            var sp = seed.ServiceProvider;
+            (customer, var first) = await SeedAsync(sp, "34 KL 06");
+            // Isınma: günün sayaç satırı ve SYS-GENC tanımı oluşur (sonraki kira sayaç satırında bekleyebilsin).
+            await sp.GetRequiredService<RentalService>().CreateDirectAsync(new BookingInput
+            { MusteriId = customer, VehicleId = first, BasTar = Start, BitTar = Start.AddDays(3), GunlukUcret = 1000m });
+            vehicle = await sp.GetRequiredService<VehicleService>().CreateAsync(new VehicleInput { Plaka = "34 KL 07", Grup = "EKO" });
+        }
+
+        var total = await ActWhileLockedAsync(host, tenant,
+            $"SELECT 1 FROM \"TenantSequences\" WHERE \"TenantId\" = {tenant} FOR UPDATE", "%INSERT INTO \"TenantSequences\"%",
+            sp => sp.GetRequiredService<RentalService>().CreateDirectAsync(new BookingInput
+            { MusteriId = customer, VehicleId = vehicle, BasTar = Start, BitTar = Start.AddDays(3), GunlukUcret = 1000m }),
+            (sp, _) => SetBirthDateAsync(sp, customer, Start.AddYears(-40)));
+        Assert.Equal(3000m, total); // genç ücreti yok (eski kod bayat 360'ı yazıp 3360 kaydediyordu)
+    }
+
+    private Task<decimal> ConvertWhileLockedAsync(TestHost host, Guid tenant, Guid rid, Func<IServiceProvider, AppDbContext, Task> mutate)
+        => ActWhileLockedAsync(host, tenant,
+            $"SELECT 1 FROM \"Reservations\" WHERE \"Id\" = {rid} FOR UPDATE", "%\"Reservations\"%FOR UPDATE%",
+            sp => sp.GetRequiredService<ReservationService>().ConvertToRentalAsync(rid), mutate);
+
+    /// <summary>
+    /// <paramref name="lockSql"/> başka bir bağlantıda (holder) tutulurken <paramref name="act"/> başlar ve kilitte bekler
+    /// (kilitten önceki adımı — SYS tanımlarının yaratılması — çoktan geçmiştir; <c>pg_stat_activity</c> ile doğrulanır);
+    /// beklerken <paramref name="mutate"/> ana veriyi değiştirir; sonra kilit bırakılır. Oluşan kiranın GenelToplam'ı döner.
+    /// </summary>
+    private async Task<decimal> ActWhileLockedAsync(TestHost host, Guid tenant, FormattableString lockSql, string waitingQuery,
+        Func<IServiceProvider, Task<Guid>> act, Func<IServiceProvider, AppDbContext, Task> mutate)
+    {
+        using var hs = host.ScopeFor(tenant);
+        await using var holder = await hs.ServiceProvider.GetRequiredService<IDbContextFactory<AppDbContext>>().CreateDbContextAsync();
+        await using var tx = await holder.Database.BeginTransactionAsync();
+        await holder.Database.ExecuteSqlInterpolatedAsync(lockSql);
+        var running = Task.Run(async () =>
+        {
+            using var s = host.ScopeFor(tenant);
+            return await act(s.ServiceProvider);
+        });
+        Assert.True(await WaitForLockAsync(waitingQuery), "işlem kilide ulaşmadı — yarış kurulamadı");
+        await mutate(hs.ServiceProvider, holder);
+        await tx.CommitAsync();
+        var rentalId = await running;
+        return (await hs.ServiceProvider.GetRequiredService<RentalService>().GetAsync(rentalId))!.GenelToplam;
+    }
+
+    private async Task<bool> WaitForLockAsync(string queryPattern)
+    {
+        await using var conn = new NpgsqlConnection(fx.AppConnectionString);
+        await conn.OpenAsync();
+        for (var i = 0; i < 100; i++)
+        {
+            await using var cmd = new NpgsqlCommand(
+                "SELECT count(*) FROM pg_stat_activity WHERE datname = current_database() AND wait_event_type = 'Lock' AND query LIKE @q", conn);
+            cmd.Parameters.AddWithValue("q", queryPattern);
+            if ((long)(await cmd.ExecuteScalarAsync())! > 0) return true;
+            await Task.Delay(100);
+        }
+        return false;
+    }
+
+    private static Task SetBirthDateAsync(IServiceProvider sp, Guid customer, DateTimeOffset birth) => DbAsync(sp, async db =>
+    {
+        (await db.Customers.SingleAsync(c => c.Id == customer)).DogumTarihi = birth;
+        return await db.SaveChangesAsync();
+    });
+
+    private async Task<(TestHost Host, Guid Tenant, Guid Reservation, Guid Customer, Guid Group, Guid Drop)> LockSeedAsync(string plate)
+    {
+        var tenant = Guid.NewGuid();
+        var host = new TestHost(fx.AppConnectionString);
+        using var s = host.ScopeFor(tenant);
+        var sp = s.ServiceProvider;
+        var group = await sp.GetRequiredService<VehicleGroupService>().CreateAsync(GroupInput(100m));
+        var drop = await sp.GetRequiredService<DropDefinitionService>().CreateAsync(new DropTanimInput { Lokasyon = "IZMIR", Sube = "ISTANBUL", Ucret = 400m });
+        var customer = await sp.GetRequiredService<CustomerService>().CreateAsync(new CustomerInput
+        { Tip = CustomerType.Bireysel, Ad = "Genc", Soyad = "KL", DogumTarihi = Start.AddYears(-22) });
+        var vehicle = await sp.GetRequiredService<VehicleService>().CreateAsync(new VehicleInput { Plaka = plate, Grup = "EKO" });
+        var rid = await sp.GetRequiredService<ReservationService>().CreateAsync(new BookingInput
+        {
+            MusteriId = customer, VehicleId = vehicle, BasTar = Start, BitTar = Start.AddDays(3),
+            GunlukUcret = 1000m, CikisOfisi = "ISTANBUL", DonusOfisi = "IZMIR"
+        });
+        return (host, tenant, rid, customer, group, drop);
+    }
+
+    private static VehicleGroupInput GroupInput(decimal young) =>
+        new() { Kod = "EKO", Ad = "Ekonomik", GencSurucuYas = 25, GencSurucuUcretGunluk = young };
 
     private static async Task<(Guid Customer, Guid Vehicle)> SeedAsync(IServiceProvider sp, string plate)
     {

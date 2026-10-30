@@ -242,10 +242,11 @@ public sealed class RentalService(
         // RentalAddOn; KURAL A: BaseGross'a dokunmaz, FX kirada atlanır) + fatura dönem planı (FAZ 4.2-B1; uygun
         // uzun/aylık kirada) TEK transaction'da yazılır. Önceden ayrı adımlardı: ikinci adım patlarsa kira ücretsiz
         // ya da plansız kalıcı oluyor, araç bu yarım kirayla bloke kalıyordu.
-        var lines = new NewRentalLines(
-            (await feeLines.PrepareContractFeesAsync(contract, ct)).LinesFor(contract),
-            RentACar.Application.FaturaDonemleri.InvoicePeriodPlanService.BuildPlan(contract));
-        await _repository.CreateRentalAsync(contract, lines, ct);
+        // Ücret ana verisi (grup, doğum tarihi, drop, SYS-* KDV) transaction içinde, kendi bağlantısından okunur (#416 L2).
+        await feeLines.EnsureSystemDefinitionsAsync(contract, ct);
+        await _repository.CreateRentalAsync(contract, (rental, fees) => new NewRentalLines(
+            FeeLineService.LinesFor(rental, fees),
+            RentACar.Application.FaturaDonemleri.InvoicePeriodPlanService.BuildPlan(rental)), ct);
         return contract.Id;
     }
 
