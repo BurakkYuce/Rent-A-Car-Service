@@ -310,7 +310,8 @@ public sealed class BookingRepository(IDbContextFactory<AppDbContext> factory) :
         return rows.ToList();
     }
 
-    public async Task CreateRentalAsync(RentalContract contract, NewRentalLines lines, CancellationToken ct = default)
+    public async Task CreateRentalAsync(
+        RentalContract contract, Func<RentalContract, ContractFeeData, NewRentalLines> buildLines, CancellationToken ct = default)
     {
         await PgRetry.RunAsync(async () => // P0-5: deadlock/serialization çakışmasında baştan dene
         {
@@ -319,7 +320,7 @@ public sealed class BookingRepository(IDbContextFactory<AppDbContext> factory) :
             contract.SozlesmeNo = await DocumentNoGenerator.GenerateAsync(db, db.TenantId, DocumentNoType.KiraSozlesmesi, ct);
             try
             {
-                await AddRentalWithLinesAsync(db, contract, lines, ct);
+                await AddRentalWithLinesAsync(db, contract, buildLines, ct);
                 await tx.CommitAsync(ct);
             }
             catch (DbUpdateException ex) when (IsExclusionViolation(ex))
@@ -451,7 +452,7 @@ public sealed class BookingRepository(IDbContextFactory<AppDbContext> factory) :
 
     public async Task<Guid> ConvertToRentalAsync(
         Guid reservationId, Func<Reservation, RentalContract> buildRental,
-        Func<RentalContract, NewRentalLines> buildLines, CancellationToken ct = default)
+        Func<RentalContract, ContractFeeData, NewRentalLines> buildLines, CancellationToken ct = default)
     {
         return await PgRetry.RunAsync(async () => // P0-5: deadlock/serialization çakışmasında baştan dene
         {
@@ -469,8 +470,6 @@ public sealed class BookingRepository(IDbContextFactory<AppDbContext> factory) :
                     $"Rezervasyon bu sırada başka bir oturumda '{reservation.Durum}' durumuna geçti; kiraya çevrilmedi.");
 
             var rental = buildRental(reservation);
-            // Alt satırlar kilit ALTINDA okunan rezervasyondan kurulan kiradan — SAF (ek bağlantı yok, #416 L1).
-            var lines = buildLines(rental);
             rental.SozlesmeNo = await DocumentNoGenerator.GenerateAsync(db, db.TenantId, DocumentNoType.KiraSozlesmesi, ct);
 
             reservation.Durum = ReservationStatus.KirayaCevrildi;
@@ -480,7 +479,7 @@ public sealed class BookingRepository(IDbContextFactory<AppDbContext> factory) :
             try
             {
                 // rental insert + ücret satırları + dönem planı + reservation update + audit, atomik
-                await AddRentalWithLinesAsync(db, rental, lines, ct);
+                await AddRentalWithLinesAsync(db, rental, buildLines, ct);
                 await tx.CommitAsync(ct);
             }
             catch (DbUpdateException ex) when (IsExclusionViolation(ex))
@@ -499,10 +498,13 @@ public sealed class BookingRepository(IDbContextFactory<AppDbContext> factory) :
     /// kirayı FK sırasıyla önce ekler. PgRetry yeniden denemesi AYNI nesnelerle gelir (doğrudan kira): navigasyon her
     /// denemede baştan atanır, böylece önceki denemenin EF fixup'ı (kalemleri EkHizmetler'e eklemesi) ikinci bir
     /// INSERT üretemez (#416 M1: 40P01 sonrası 23505 PK_RentalAddOns → 500). Dönem satırlarının navigasyonu yok;
-    /// her denemede taze context'e Added olarak girerler.
+    /// her denemede taze context'e Added olarak girerler. Satırlar her denemede, o denemenin transaction'ında okunan ücret
+    /// ana verisinden yeniden kurulur (#416 L2).
     /// </summary>
-    private static async Task AddRentalWithLinesAsync(AppDbContext db, RentalContract rental, NewRentalLines lines, CancellationToken ct)
+    private static async Task AddRentalWithLinesAsync(
+        AppDbContext db, RentalContract rental, Func<RentalContract, ContractFeeData, NewRentalLines> buildLines, CancellationToken ct)
     {
+        var lines = buildLines(rental, await ReadFeeDataAsync(db, rental, ct));
         if (lines.AddOns.Any(a => a.RentalId != rental.Id) || lines.Periods.Any(p => p.RentalId != rental.Id))
             throw new InvalidOperationException("Alt satır başka bir kiraya ait.");
         RentalTotals.Recompute(rental, lines.AddOns.Sum(a => a.Toplam));
@@ -511,6 +513,19 @@ public sealed class BookingRepository(IDbContextFactory<AppDbContext> factory) :
         db.FaturaDonemleri.AddRange(lines.Periods);
         await db.SaveChangesAsync(ct);
     }
+
+    /// <summary>
+    /// #416 L2: sistem ücretinin ana verisi, çağıranın transaction'ında ve KENDİ bağlantısından (ek bağlantı yok — L1)
+    /// okunur; çevirmede rezervasyon kilidi ALINDIKTAN sonra, doğrudan kirada sözleşme no tahsisinden sonra. Sıralar
+    /// depo listeleriyle aynı (VehicleGroupRepository/DropDefinitionRepository/AddOnDefinitionRepository.ListAsync) →
+    /// önizleme ile aynı eşleşme.
+    /// </summary>
+    private static async Task<ContractFeeData> ReadFeeDataAsync(AppDbContext db, RentalContract rental, CancellationToken ct) => new(
+        await db.Vehicles.AsNoTracking().Where(v => v.Id == rental.VehicleId).Select(v => v.Grup).FirstOrDefaultAsync(ct),
+        await db.VehicleGroups.AsNoTracking().OrderBy(g => g.Kod).ToListAsync(ct),
+        await db.Customers.AsNoTracking().Where(c => c.Id == rental.MusteriId).Select(c => c.DogumTarihi).FirstOrDefaultAsync(ct),
+        await db.DropTanimlari.AsNoTracking().OrderBy(t => t.Lokasyon).ThenBy(t => t.Sube).ToListAsync(ct),
+        await db.EkHizmetTanimlari.AsNoTracking().OrderBy(t => t.Kod).ToListAsync(ct));
 
     private static bool IsExclusionViolation(DbUpdateException ex)
         => ex.InnerException is PostgresException { SqlState: PostgresErrorCodes.ExclusionViolation };

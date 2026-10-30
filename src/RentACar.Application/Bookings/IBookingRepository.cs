@@ -33,10 +33,12 @@ public interface IBookingRepository
     /// <summary>Kira listesi: filtre + müşteri/araç/fatura-durumu birleşimi (salt-okunur projeksiyon).</summary>
     Task<IReadOnlyList<RentalRow>> SearchRentalRowsAsync(RentalFilter filter, CancellationToken ct = default);
     Task<RentalContract?> FindRentalAsync(Guid id, CancellationToken ct = default);
-    /// <summary>SozlesmeNo'yu boşluksuz tahsis edip kirayı + <paramref name="lines"/> (sistem ücret satırları, dönem
-    /// planı) TEK transaction'da ekler; GenelToplam/Bakiye kalemlerle birlikte yazılır. Herhangi bir parça
-    /// patlarsa hiçbiri kalmaz. Çakışmada AvailabilityConflictException.</summary>
-    Task CreateRentalAsync(RentalContract contract, NewRentalLines lines, CancellationToken ct = default);
+    /// <summary>SozlesmeNo'yu boşluksuz tahsis edip kirayı + <paramref name="buildLines"/> (sistem ücret satırları, dönem
+    /// planı; ücret ana verisi <see cref="ContractFeeData"/> transaction'ın kendi bağlantısından okunup verilir — SAF
+    /// olmalı, her PgRetry denemesinde yeniden çağrılır) TEK transaction'da ekler; GenelToplam/Bakiye kalemlerle birlikte
+    /// yazılır. Herhangi bir parça patlarsa hiçbiri kalmaz. Çakışmada AvailabilityConflictException.</summary>
+    Task CreateRentalAsync(RentalContract contract, Func<RentalContract, ContractFeeData, NewRentalLines> buildLines,
+        CancellationToken ct = default);
     /// <summary>F4.1 adversarial M2: satır <c>FOR UPDATE</c> ile kilitlenip kilit ALTINDA okunur (aynı TX).</summary>
     Task<bool> UpdateRentalAsync(Guid id, Action<RentalContract> apply, CancellationToken ct = default);
     /// <summary>
@@ -77,12 +79,13 @@ public interface IBookingRepository
 
     /// <summary>
     /// Tasfiye: rezervasyondan kira sözleşmesi üretir (TEK transaction): rental ekle
-    /// (no tahsis + exclusion) + <paramref name="buildLines"/> (kilit ALTINDA kurulan kiradan; ücret satırları + dönem
-    /// planı — SAF olmalı: kilit altında DB'ye gitmez, #416 L1), rezervasyonu KirayaCevrildi + link. Yeni kira Id döner.
+    /// (no tahsis + exclusion) + <paramref name="buildLines"/> (kilit ALTINDA kurulan kiradan ve kilit ALTINDA aynı
+    /// bağlantıdan okunan <see cref="ContractFeeData"/>'dan; ücret satırları + dönem planı — SAF olmalı: ek bağlantı
+    /// açmaz, #416 L1/L2), rezervasyonu KirayaCevrildi + link. Yeni kira Id döner.
     /// </summary>
     Task<Guid> ConvertToRentalAsync(
         Guid reservationId, Func<Reservation, RentalContract> buildRental,
-        Func<RentalContract, NewRentalLines> buildLines, CancellationToken ct = default);
+        Func<RentalContract, ContractFeeData, NewRentalLines> buildLines, CancellationToken ct = default);
 }
 
 /// <summary>Yeni kirayla AYNI transaction'da yazılan alt satırlar (DEVIR §6: kira oluşturma atomik).</summary>

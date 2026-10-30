@@ -372,12 +372,13 @@ public sealed class ReservationService(
 
         // DEVIR §6: ücret satırları + dönem planı dönüşümle AYNI transaction'da (doğrudan kirayla aynı yol). Önceden
         // ücret ayrı adımdı (patlarsa rezervasyon çevrilmiş, kira ücretsiz kalıyordu) ve dönüşen kiraya plan HİÇ
-        // kurulmuyordu (uzatmaya kadar dönem paneli boş). Ücret girdileri kilitten ÖNCE okunur (#416 L1: kilit +
-        // transaction bağlantısı tutulurken ek bağlantı açılmaz); kilit altında yalnız saf hesap kalır ve kilit
-        // altında okunan rezervasyon ön okumadan farklıysa LinesFor 409 cakisma verir (eski girdiyle ücret yazılmaz).
-        var fees = await _feeLines.PrepareContractFeesAsync(Build(reservation), ct);
+        // kurulmuyordu (uzatmaya kadar dönem paneli boş). Kilitten önce yalnız eksik SYS-* tanımları yaratılır; ücret
+        // girdileri (kilit altında okunan rezervasyon + ana veri) kilit ALTINDA, transaction'ın kendi bağlantısından
+        // okunur (#416 L1: ek bağlantı yok; L2: arada değişen müşteri/grup/drop/KDV bayat yazılmaz).
+        await _feeLines.EnsureSystemDefinitionsAsync(Build(reservation), ct);
         return await _repository.ConvertToRentalAsync(id, Build,
-            rental => new NewRentalLines(fees.LinesFor(rental), FaturaDonemleri.InvoicePeriodPlanService.BuildPlan(rental)),
+            (rental, fees) => new NewRentalLines(FeeLineService.LinesFor(rental, fees),
+                FaturaDonemleri.InvoicePeriodPlanService.BuildPlan(rental)),
             ct);
     }
 
