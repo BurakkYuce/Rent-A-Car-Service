@@ -10,6 +10,30 @@ namespace RentACar.Application.Bookings;
 /// <summary>Sistem ücret satırı — SAF hesap çıktısı (önizleme VE kayıt aynı listeden geçer).</summary>
 public sealed record SistemUcretSatiri(string TanimKod, string Ad, decimal BirimNet, int Gun, string? Not);
 
+/// <summary>Sistem ücretini belirleyen sözleşme alanları (<see cref="FeeLineService"/> hesabının TÜM girdileri).</summary>
+public readonly record struct FeeInputs(
+    Guid VehicleId, Guid MusteriId, Guid? IkinciSurucuId, DateTimeOffset BasTar, int Gun,
+    string? CikisOfisi, string? DonusOfisi, decimal? DropUcreti, string? Doviz)
+{
+    public static FeeInputs Of(RentalContract c) => new(
+        c.VehicleId, c.MusteriId, c.IkinciSurucuId, c.BasTar, c.Gun, c.CikisOfisi, c.DonusOfisi, c.DropUcreti, c.Doviz);
+}
+
+/// <summary>
+/// Kira transaction'ından ÖNCE çözülmüş sistem ücretleri (tanım + satır). <see cref="LinesFor"/> SAF: DB'ye gitmez,
+/// kilit altında çağrılabilir. Kira girdileri ön okumadan farklıysa (ör. rezervasyon arada güncellendi) eski
+/// girdiyle ücret yazmak yerine 409 <c>cakisma</c> — kullanıcı yeniden dener, ücret güncel girdiden hesaplanır.
+/// </summary>
+public sealed record ContractFees(FeeInputs Inputs, IReadOnlyList<(EkHizmetTanim Definition, SistemUcretSatiri Row)> Rows)
+{
+    public IReadOnlyList<RentalAddOn> LinesFor(RentalContract c)
+    {
+        if (FeeInputs.Of(c) != Inputs)
+            throw new Common.ConcurrentModificationException(Common.ConcurrentModificationException.RecordMessage);
+        return Rows.Select(r => RentalAddOnService.Line(c.Id, r.Definition, r.Row.Gun, r.Row.BirimNet, r.Definition.KdvOrani)).ToList();
+    }
+}
+
 /// <summary>
 /// Sözleşme ücret kalemleri (FAZ 3.A3a): genç sürücü + ek (2.) sürücü ücretleri SİSTEM-üretimi
 /// RentalAddOn satırı olarak. KURAL A KORUNUR — BaseGross'a DOKUNULMAZ (ReturnMath/fark/iade
@@ -205,20 +229,18 @@ public sealed class FeeLineService(
     }
 
     /// <summary>
-    /// Kira OLUŞTURMA yolu (doğrudan kira + rez→kira): yeni sözleşmenin sistem ücret satırlarını YAZMADAN üretir;
-    /// kira deposu bunları kira satırıyla AYNI transaction'da ekler (yarım kira — ücretsiz kira — kalmaz). Kalem
-    /// matematiği <see cref="RentalAddOnService.Line"/> (elle eklenen kalemle aynı); KDV oranı sistem tanımından.
-    /// Sistem tanımı (SYS-*) yoksa kendi işleminde yaratılır — ana veri, kira geri alınsa da zararsız kalır.
+    /// Kira OLUŞTURMA yolu (doğrudan kira + rez→kira): ücret girdilerini (grup, doğum tarihi, drop ücreti, SYS-*
+    /// tanımları) kira transaction'ından ÖNCE okur. Kalemler <see cref="ContractFees.LinesFor"/> ile SAF üretilir ve
+    /// kira deposu onları kira satırıyla AYNI transaction'da ekler (yarım kira kalmaz). Kilit altında ek bağlantı
+    /// açılmaz (adversarial #416 L1: havuz tükenmesi). Sistem tanımı yoksa kendi işleminde yaratılır — ana veri,
+    /// kira geri alınsa da zararsız kalır.
     /// </summary>
-    public async Task<IReadOnlyList<RentalAddOn>> BuildContractFeesAsync(RentalContract c, CancellationToken ct = default)
+    public async Task<ContractFees> PrepareContractFeesAsync(RentalContract c, CancellationToken ct = default)
     {
-        var lines = new List<RentalAddOn>();
+        var rows = new List<(EkHizmetTanim, SistemUcretSatiri)>();
         foreach (var s in await ContractRowsAsync(c, ct))
-        {
-            var definition = await GetOrCreateDefinitionAsync(s.TanimKod, s.Ad, ct);
-            lines.Add(RentalAddOnService.Line(c.Id, definition, s.Gun, s.BirimNet, definition.KdvOrani));
-        }
-        return lines;
+            rows.Add((await GetOrCreateDefinitionAsync(s.TanimKod, s.Ad, ct), s));
+        return new ContractFees(FeeInputs.Of(c), rows);
     }
 
     /// <summary>Senkron yolu: AÇIK kiraya eksik sistem ücret satırlarını ekler (kira deposunun kilit + toplam

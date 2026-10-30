@@ -451,7 +451,7 @@ public sealed class BookingRepository(IDbContextFactory<AppDbContext> factory) :
 
     public async Task<Guid> ConvertToRentalAsync(
         Guid reservationId, Func<Reservation, RentalContract> buildRental,
-        Func<RentalContract, CancellationToken, Task<NewRentalLines>> buildLines, CancellationToken ct = default)
+        Func<RentalContract, NewRentalLines> buildLines, CancellationToken ct = default)
     {
         return await PgRetry.RunAsync(async () => // P0-5: deadlock/serialization çakışmasında baştan dene
         {
@@ -469,9 +469,8 @@ public sealed class BookingRepository(IDbContextFactory<AppDbContext> factory) :
                     $"Rezervasyon bu sırada başka bir oturumda '{reservation.Durum}' durumuna geçti; kiraya çevrilmedi.");
 
             var rental = buildRental(reservation);
-            // Alt satırlar kilit ALTINDA okunan rezervasyondan kurulan kiradan (salt okuma; no tahsisinden ÖNCE —
-            // sayaç kilidi kısa kalsın).
-            var lines = await buildLines(rental, ct);
+            // Alt satırlar kilit ALTINDA okunan rezervasyondan kurulan kiradan — SAF (ek bağlantı yok, #416 L1).
+            var lines = buildLines(rental);
             rental.SozlesmeNo = await DocumentNoGenerator.GenerateAsync(db, db.TenantId, DocumentNoType.KiraSozlesmesi, ct);
 
             reservation.Durum = ReservationStatus.KirayaCevrildi;
@@ -495,17 +494,20 @@ public sealed class BookingRepository(IDbContextFactory<AppDbContext> factory) :
     }
 
     /// <summary>
-    /// Kira + alt satırları (DEVIR §6) çağıranın transaction'ında yazar: toplamlar kalemlerle birlikte (RentalTotals —
-    /// ek hizmet deposuyla aynı formül), önce kira (alt satırların FK hedefi), sonra kalemler + dönem planı.
+    /// Kira + alt satırları (DEVIR §6) çağıranın transaction'ında TEK SaveChanges ile yazar: toplamlar kalemlerle
+    /// birlikte (RentalTotals — ek hizmet deposuyla aynı formül); kalemler kira grafına (EkHizmetler) bağlanır, EF
+    /// kirayı FK sırasıyla önce ekler. PgRetry yeniden denemesi AYNI nesnelerle gelir (doğrudan kira): navigasyon her
+    /// denemede baştan atanır, böylece önceki denemenin EF fixup'ı (kalemleri EkHizmetler'e eklemesi) ikinci bir
+    /// INSERT üretemez (#416 M1: 40P01 sonrası 23505 PK_RentalAddOns → 500). Dönem satırlarının navigasyonu yok;
+    /// her denemede taze context'e Added olarak girerler.
     /// </summary>
     private static async Task AddRentalWithLinesAsync(AppDbContext db, RentalContract rental, NewRentalLines lines, CancellationToken ct)
     {
         if (lines.AddOns.Any(a => a.RentalId != rental.Id) || lines.Periods.Any(p => p.RentalId != rental.Id))
             throw new InvalidOperationException("Alt satır başka bir kiraya ait.");
         RentalTotals.Recompute(rental, lines.AddOns.Sum(a => a.Toplam));
+        rental.EkHizmetler = [.. lines.AddOns];
         db.Rentals.Add(rental);
-        await db.SaveChangesAsync(ct);
-        db.RentalAddOns.AddRange(lines.AddOns);
         db.FaturaDonemleri.AddRange(lines.Periods);
         await db.SaveChangesAsync(ct);
     }

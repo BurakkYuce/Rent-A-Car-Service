@@ -243,7 +243,7 @@ public sealed class RentalService(
         // uzun/aylık kirada) TEK transaction'da yazılır. Önceden ayrı adımlardı: ikinci adım patlarsa kira ücretsiz
         // ya da plansız kalıcı oluyor, araç bu yarım kirayla bloke kalıyordu.
         var lines = new NewRentalLines(
-            await feeLines.BuildContractFeesAsync(contract, ct),
+            (await feeLines.PrepareContractFeesAsync(contract, ct)).LinesFor(contract),
             RentACar.Application.FaturaDonemleri.InvoicePeriodPlanService.BuildPlan(contract));
         await _repository.CreateRentalAsync(contract, lines, ct);
         return contract.Id;

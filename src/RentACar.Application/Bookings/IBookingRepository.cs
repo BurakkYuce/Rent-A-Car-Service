@@ -78,11 +78,11 @@ public interface IBookingRepository
     /// <summary>
     /// Tasfiye: rezervasyondan kira sözleşmesi üretir (TEK transaction): rental ekle
     /// (no tahsis + exclusion) + <paramref name="buildLines"/> (kilit ALTINDA kurulan kiradan; ücret satırları + dönem
-    /// planı), rezervasyonu KirayaCevrildi + link. Yeni kira Id döner.
+    /// planı — SAF olmalı: kilit altında DB'ye gitmez, #416 L1), rezervasyonu KirayaCevrildi + link. Yeni kira Id döner.
     /// </summary>
     Task<Guid> ConvertToRentalAsync(
         Guid reservationId, Func<Reservation, RentalContract> buildRental,
-        Func<RentalContract, CancellationToken, Task<NewRentalLines>> buildLines, CancellationToken ct = default);
+        Func<RentalContract, NewRentalLines> buildLines, CancellationToken ct = default);
 }
 
 /// <summary>Yeni kirayla AYNI transaction'da yazılan alt satırlar (DEVIR §6: kira oluşturma atomik).</summary>

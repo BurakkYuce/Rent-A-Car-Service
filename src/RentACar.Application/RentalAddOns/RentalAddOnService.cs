@@ -72,7 +72,7 @@ public sealed class RentalAddOnService(
 
     /// <summary>
     /// Kalem matematiği TEK yerde: tanım snapshot + NET = round(birim × miktar, 2) → KDV/brüt (kuruş tutarlı).
-    /// Kira oluşturma (FeeLineService.BuildContractFeesAsync — kira ile AYNI transaction) de bunu kullanır.
+    /// Kira oluşturma (ContractFees.LinesFor — kira ile AYNI transaction) de bunu kullanır.
     /// </summary>
     public static RentalAddOn Line(
         Guid rentalId, EkHizmetTanim definition, decimal quantity, decimal unitNet, decimal rate,

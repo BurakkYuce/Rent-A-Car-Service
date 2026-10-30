@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Npgsql;
 using RentACar.Application.Bookings;
+using RentACar.Application.Common;
 using RentACar.Application.Customers;
 using RentACar.Application.RentalAddOns;
 using RentACar.Application.VehicleGroups;
@@ -132,6 +133,100 @@ public sealed class KiraOlusturmaAtomikTests(PostgresFixture fx)
         Assert.Equal(2, await DbAsync(sp, db => db.FaturaDonemleri.CountAsync(d => d.RentalId == rentalId)));
     }
 
+    /// <summary>
+    /// #416 adversarial M1: geçici 40P01 (deadlock) PgRetry ile yeniden denenir ve BAŞARIR — önceden doğrudan kirada
+    /// ikinci deneme aynı kalem nesnesini iki kez ekleyip 23505 PK_RentalAddOns ile 500 dönüyordu. Hata kira ve kalem
+    /// SaveChanges'a girdikten SONRA (plan eklemesinde) ve kalem eklemesinde ayrı ayrı. Sözleşme no boşluksuz.
+    /// </summary>
+    [Fact]
+    public async Task Direct_rental_retries_transient_deadlock_cleanly()
+    {
+        var tenant = Guid.NewGuid();
+        using var host = new TestHost(fx.AppConnectionString);
+        using var scope = host.ScopeFor(tenant);
+        var sp = scope.ServiceProvider;
+        var (customer, vehicle) = await SeedAsync(sp, "34 KA 05");
+        var rentals = sp.GetRequiredService<RentalService>();
+        var start = MonthStart();
+
+        await using (await DeadlockOnceAsync("FaturaDonemleri", tenant))
+            await rentals.CreateDirectAsync(new BookingInput
+            { MusteriId = customer, VehicleId = vehicle, BasTar = start, BitTar = start.AddMonths(2), GunlukUcret = 100m });
+        Assert.Equal((1, 1, 2), await CountsAsync(sp));
+
+        var second = await sp.GetRequiredService<VehicleService>().CreateAsync(new VehicleInput { Plaka = "34 KA 06", Grup = "EKO" });
+        Guid id;
+        await using (await DeadlockOnceAsync("RentalAddOns", tenant))
+            id = await rentals.CreateDirectAsync(new BookingInput
+            { MusteriId = customer, VehicleId = second, BasTar = Start, BitTar = Start.AddDays(3), GunlukUcret = 1000m });
+        Assert.Equal((2, 2, 2), await CountsAsync(sp));
+        Assert.Equal(3360m, (await rentals.GetAsync(id))!.GenelToplam); // 3000 + 360 — kalem bir kez
+
+        // Boşluksuz no: her gün öneki içinde sıra 1..k (geri alınan deneme numara tüketmez).
+        var nos = await DbAsync(sp, db => db.Rentals.Select(r => r.SozlesmeNo).ToListAsync());
+        Assert.All(nos.GroupBy(n => n[..^3]), g => Assert.Equal(
+            Enumerable.Range(1, g.Count()), g.Select(n => int.Parse(n[^3..])).Order()));
+    }
+
+    /// <summary>
+    /// #416 adversarial L1: çevirme rezervasyon kilidi + transaction bağlantısını tutarken ek bağlantı AÇMAZ (ücret
+    /// girdileri kilitten önce okunur). Önceden havuz=2'de 4 paralel çevirme havuz tükenmesiyle zaman aşımına düşüyordu.
+    /// </summary>
+    [Fact]
+    public async Task Parallel_conversions_do_not_exhaust_small_pool()
+    {
+        var tenant = Guid.NewGuid();
+        var reservationIds = new List<Guid>();
+        using (var seedHost = new TestHost(fx.AppConnectionString))
+        using (var seed = seedHost.ScopeFor(tenant))
+        {
+            var sp = seed.ServiceProvider;
+            var (customer, first) = await SeedAsync(sp, "34 KA 10");
+            for (var i = 0; i < 4; i++)
+            {
+                var vehicle = i == 0 ? first
+                    : await sp.GetRequiredService<VehicleService>().CreateAsync(new VehicleInput { Plaka = $"34 KA 1{i}", Grup = "EKO" });
+                reservationIds.Add(await sp.GetRequiredService<ReservationService>().CreateAsync(new BookingInput
+                { MusteriId = customer, VehicleId = vehicle, BasTar = Start, BitTar = Start.AddDays(3), GunlukUcret = 1000m }));
+            }
+        }
+
+        using var host = new TestHost(fx.AppConnectionString + ";Maximum Pool Size=2;Timeout=5");
+        var results = await Task.WhenAll(reservationIds.Select(rid => Task.Run(async () =>
+        {
+            try
+            {
+                using var s = host.ScopeFor(tenant);
+                await s.ServiceProvider.GetRequiredService<ReservationService>().ConvertToRentalAsync(rid);
+                return "ok";
+            }
+            catch (Exception ex) { return ex.GetType().Name + ": " + (ex.InnerException?.Message ?? ex.Message); }
+        })));
+        Assert.All(results, r => Assert.Equal("ok", r));
+
+        using var check = host.ScopeFor(tenant);
+        Assert.Equal((4, 4, 0), await CountsAsync(check.ServiceProvider)); // 4 kira × 1 genç satırı, kısa kira → plan yok
+    }
+
+    /// <summary>L1 tutarlılığı: kilit altında okunan sözleşmenin ücret girdisi ön okumadan farklıysa (rezervasyon arada
+    /// güncellendi) eski girdiyle ücret yazılmaz — 409 cakisma. Aynı girdide kalemler kilit altındaki kiranın Id'sine bağlanır.</summary>
+    [Fact]
+    public void Fee_lines_reject_inputs_changed_after_prepare()
+    {
+        var definition = new Domain.Entities.EkHizmetTanim { Kod = FeeLineService.YoungDriverCode, Ad = "Genç sürücü ücreti", KdvOrani = 0.20m };
+        var prepared = new Domain.Entities.RentalContract { VehicleId = Guid.NewGuid(), MusteriId = Guid.NewGuid(), BasTar = Start, Gun = 3 };
+        var fees = new ContractFees(FeeInputs.Of(prepared),
+            [(definition, new SistemUcretSatiri(FeeLineService.YoungDriverCode, "Genç sürücü ücreti", 100m, 3, null))]);
+
+        var locked = new Domain.Entities.RentalContract { VehicleId = prepared.VehicleId, MusteriId = prepared.MusteriId, BasTar = Start, Gun = 3 };
+        var line = Assert.Single(fees.LinesFor(locked));
+        Assert.Equal(locked.Id, line.RentalId);
+        Assert.Equal(360m, line.Toplam); // 100 × 3 = 300 net + %20
+
+        var changed = new Domain.Entities.RentalContract { VehicleId = prepared.VehicleId, MusteriId = prepared.MusteriId, BasTar = Start, Gun = 4 };
+        Assert.Throws<ConcurrentModificationException>(() => fees.LinesFor(changed));
+    }
+
     private static async Task<(Guid Customer, Guid Vehicle)> SeedAsync(IServiceProvider sp, string plate)
     {
         await sp.GetRequiredService<VehicleGroupService>().CreateAsync(new VehicleGroupInput
@@ -162,6 +257,18 @@ public sealed class KiraOlusturmaAtomikTests(PostgresFixture fx)
             $"CREATE OR REPLACE FUNCTION {name}() RETURNS trigger AS $$ BEGIN IF NEW.\"TenantId\" = '{tenant}' THEN RAISE EXCEPTION 'test: {table}'; END IF; RETURN NEW; END; $$ LANGUAGE plpgsql; " +
             $"CREATE TRIGGER {name} BEFORE INSERT ON \"{table}\" FOR EACH ROW EXECUTE FUNCTION {name}();");
         return new Drop(() => ExecAsync($"DROP TRIGGER IF EXISTS {name} ON \"{table}\"; DROP FUNCTION IF EXISTS {name}();"));
+    }
+
+    /// <summary>Bu kiracının ilk <paramref name="table"/> eklemesinde YALNIZ BİR KEZ sentetik 40P01 (deadlock).</summary>
+    private async Task<IAsyncDisposable> DeadlockOnceAsync(string table, Guid tenant)
+    {
+        var name = "test_kira_dl_" + tenant.ToString("N")[..12];
+        await ExecAsync(
+            $"CREATE SEQUENCE {name}_s; " +
+            $"CREATE FUNCTION {name}() RETURNS trigger SECURITY DEFINER AS $$ BEGIN IF NEW.\"TenantId\" = '{tenant}' THEN " +
+            $"IF nextval('{name}_s') = 1 THEN RAISE EXCEPTION 'test deadlock' USING ERRCODE = '40P01'; END IF; END IF; RETURN NEW; END; $$ LANGUAGE plpgsql; " +
+            $"CREATE TRIGGER {name} BEFORE INSERT ON \"{table}\" FOR EACH ROW EXECUTE FUNCTION {name}();");
+        return new Drop(() => ExecAsync($"DROP TRIGGER IF EXISTS {name} ON \"{table}\"; DROP FUNCTION IF EXISTS {name}(); DROP SEQUENCE IF EXISTS {name}_s;"));
     }
 
     private async Task ExecAsync(string sql)
