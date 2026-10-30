@@ -44,6 +44,11 @@ public sealed class ExceptionHandlingMiddleware(RequestDelegate next, ILogger<Ex
         {
             await WriteAsync(ctx, StatusCodes.Status400BadRequest, "validation", ex.Message);
         }
+        // Bağlama hatası (bozuk tarih/JSON): Development'ta ThrowOnBadRequest istisna atar → 500 değil 400.
+        catch (BadHttpRequestException ex)
+        {
+            await WriteAsync(ctx, ex.StatusCode, "bad_request", "İstek biçimi geçersiz (parametre ya da gövde okunamadı).");
+        }
         catch (Exception ex)
         {
             logger.LogError(ex, "Beklenmeyen hata: {Path}", ctx.Request.Path);

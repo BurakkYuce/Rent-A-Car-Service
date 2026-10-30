@@ -238,12 +238,14 @@ public sealed class RentalService(
             IkinciSurucuSerbestTel = Lim(input.IkinciSurucuSerbestTel, 32, "2. sürücü telefonu"),
             IkinciSurucuSerbestEhliyetSinifi = Lim(input.IkinciSurucuSerbestEhliyetSinifi, 16, "2. sürücü ehliyet sınıfı")
         };
-        await _repository.CreateRentalAsync(contract, ct);
-        // FAZ 3.A3a: sistem ücret satırları (genç/ek sürücü) — RentalAddOn olarak (KURAL A: BaseGross'a
-        // dokunmaz; GenelToplam add-on mekanizmasıyla güncellenir). FX kirada sessizce atlanır.
-        await feeLines.ApplyContractFeesAsync(contract.Id, ct);
-        // FAZ 4.2-B1: uygun (uzun/aylık) kirada fatura dönem planı kurulur (parasız; idempotent).
-        await periodPlan.EnsurePlanAsync(contract.Id, ct);
+        // DEVIR §6 (kira oluşturma atomik): kira + sistem ücret satırları (FAZ 3.A3a genç/ek sürücü/drop —
+        // RentalAddOn; KURAL A: BaseGross'a dokunmaz, FX kirada atlanır) + fatura dönem planı (FAZ 4.2-B1; uygun
+        // uzun/aylık kirada) TEK transaction'da yazılır. Önceden ayrı adımlardı: ikinci adım patlarsa kira ücretsiz
+        // ya da plansız kalıcı oluyor, araç bu yarım kirayla bloke kalıyordu.
+        var lines = new NewRentalLines(
+            (await feeLines.PrepareContractFeesAsync(contract, ct)).LinesFor(contract),
+            RentACar.Application.FaturaDonemleri.InvoicePeriodPlanService.BuildPlan(contract));
+        await _repository.CreateRentalAsync(contract, lines, ct);
         return contract.Id;
     }
 
