@@ -153,8 +153,8 @@ olabilir). Açık PR yoksa "Sırada" listesinin ilk maddesi.
    `PlatformIsolation` atlama listesindeki `/_blazor|_framework|_content`.
 2. **Low kalıntıları** (§6 "2026-09-25 Low'ları" — kalanlar: #320 L2 tekrar-öncesi doğrulama ile POST arası TOCTOU
    [kalıcı çözüm sunucuda beklenen kullanıcı başlığı], #331 L1 başarısız sekmeler arası yenilemede yeniden deneme yok,
-   #318 L2 isteğe bağlı "diğer formun tahsilatı yazıldı" notu, ofis adı normalize tekilliği [migration + mevcut çift
-   kayıt kararı], `AccountRef` bileşik FK'leri).
+   #318 L2 isteğe bağlı "diğer formun tahsilatı yazıldı" notu, `AccountRef` bileşik FK'leri). Ofis adı tekilliği
+   uygulama düzeyinde kapalı (§6); DB unique index + mevcut çift kayıt temizliği isteğe bağlı kullanıcı kararı.
 3. ~~F4.6b / F5–F11 Blazor sayfa silme ve F13 söküm~~ **BİTTİ (#349, #350)** — kullanıcı kararıyla pilot beklenmeden.
    Blazor'daki bilinen okuma sızıntıları (CRM listeleri tüm şubeler, `CustomerEdit.razor` maskesi, `/cariler/{id}/ekstre`
    operatöre açık — Karar (7)) sayfalarla birlikte KAPANDI (yayından sonra canlıda da).
@@ -455,7 +455,11 @@ Etiketsiz madde açıktır.
   aynı yardımcıyı çağırır. Test `RezTeklifVarlikKontroluTests`.
   Açık kalan: kalıcı çözüm bileşik FK (migration); `FiloKiralamaService` (Blazor filo formu) servis düzeyinde
   denetlemiyor.
-- Ofis adları normalize anahtarda tekil değil (kiracı başına tekillik kısıtı).
+- ~~Ofis adları normalize anahtarda tekil değil~~ KAPALI (uygulama düzeyi, H1 58bfaf72 + fix/ofis-adi-tekil):
+  `LocationRepository.RequireUniqueNameAsync` oluşturma ve iki güncelleme yolunda `OfficeNameKey.Generate` (trim +
+  ToLowerInvariant — interceptor'la TEK kural) ile reddeder (`errors[ad]`), kiracı başına advisory kilit altında.
+  Tarihsel çiftler farklı şubedeyse interceptor/`FindByNameAsync` BELİRSİZ → null (metin yolu). Açık: DB unique index
+  yok (Postgres `lower('İ')` .NET'ten farklı; canlıdaki çiftler migration'ı kırar) — kullanıcı kararı.
 - ~~Yakıt ölçeği: kullanıcı kararı bekliyor~~ KAPANDI (2026-09-25): tek iç ölçek 0–12, harici API sınırda yüzde↔12 (§1).
 - ~~Üretimde bağlama hatası `kod`suz 400~~ KAPALI (doğrulandı 2026-09-25): `UiApiExtensions.GenelProblem` 400'ü `dogrulama` koduyla döner.
 - ~~22001/22003 güvenlik ağı Warning~~ KAPALI (doğrulandı 2026-09-25): `UiApiExtensions.LogSeviyesi`.

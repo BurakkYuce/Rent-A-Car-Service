@@ -107,4 +107,92 @@ public sealed class LocationTests(PostgresFixture fx)
         await svc2.CreateAsync(new LocationInput { Kod = "T1", Ad = "Tenant2" });
         Assert.Single(await svc2.ListAsync());
     }
+
+    // Ofis adı anahtarı (trim + ToLowerInvariant, OfficeNameKey) kiracı içinde tekil. Beklenen anahtarlar elle:
+    // .NET invariant küçültme Türkçe 'İ'/'ı'yı DEĞİŞTİRMEZ, ASCII 'I' → 'i'. "İzmir Merkez" → "İzmir merkez";
+    // aşağıdakilerin hepsi aynı anahtara iner.
+    [Theory]
+    [InlineData("  İzmir Merkez  ")]
+    [InlineData("İzmir MERKEZ")]
+    [InlineData("İZMIR MERKEZ")]
+    [InlineData("İzmir merkez")]
+    public async Task Duplicate_office_name_variant_is_rejected_on_create_with_field_ad(string variant)
+    {
+        using var host = new TestHost(fx.AppConnectionString);
+        using var scope = host.ScopeFor(Guid.NewGuid());
+        var svc = scope.ServiceProvider.GetRequiredService<LocationService>();
+
+        await svc.CreateAsync(new LocationInput { Kod = "IZM", Ad = "İzmir Merkez" });
+        var ex = await Assert.ThrowsAsync<ValidationException>(
+            () => svc.CreateAsync(new LocationInput { Kod = "IZM2", Ad = variant }));
+        Assert.Equal("ad", ex.Alan);
+        Assert.Single(await svc.ListAsync());
+    }
+
+    [Fact]
+    public async Task Renaming_into_existing_office_name_is_rejected_on_both_update_paths()
+    {
+        using var host = new TestHost(fx.AppConnectionString);
+        using var scope = host.ScopeFor(Guid.NewGuid());
+        var svc = scope.ServiceProvider.GetRequiredService<LocationService>();
+
+        await svc.CreateAsync(new LocationInput { Kod = "IZM", Ad = "İzmir Merkez" });
+        var other = await svc.CreateAsync(new LocationInput { Kod = "ANK", Ad = "Ankara" });
+
+        var plain = await Assert.ThrowsAsync<ValidationException>(
+            () => svc.UpdateAsync(other, new LocationInput { Kod = "ANK", Ad = " İzmir MERKEZ" }));
+        Assert.Equal("ad", plain.Alan);
+        var version = await svc.RowVersionAsync(other);
+        var versioned = await Assert.ThrowsAsync<ValidationException>(
+            () => svc.UpdateAsync(other, new LocationInput { Kod = "ANK", Ad = "İZMIR MERKEZ" }, version));
+        Assert.Equal("ad", versioned.Alan);
+        Assert.Equal("Ankara", (await svc.GetAsync(other))!.Ad);
+    }
+
+    [Fact]
+    public async Task Resaving_own_office_with_name_variant_is_allowed()
+    {
+        using var host = new TestHost(fx.AppConnectionString);
+        using var scope = host.ScopeFor(Guid.NewGuid());
+        var svc = scope.ServiceProvider.GetRequiredService<LocationService>();
+
+        var id = await svc.CreateAsync(new LocationInput { Kod = "IZM", Ad = "İzmir Merkez" });
+        Assert.True(await svc.UpdateAsync(id, new LocationInput { Kod = "IZM", Ad = "İzmir Merkez" }));
+        Assert.True(await svc.UpdateAsync(id, new LocationInput { Kod = "IZM", Ad = " İZMIR merkez " }, await svc.RowVersionAsync(id)));
+        Assert.Equal("İZMIR merkez", (await svc.GetAsync(id))!.Ad);
+    }
+
+    [Fact]
+    public async Task Same_office_name_in_another_tenant_is_allowed()
+    {
+        using var host = new TestHost(fx.AppConnectionString);
+        using (var s1 = host.ScopeFor(Guid.NewGuid()))
+            await s1.ServiceProvider.GetRequiredService<LocationService>()
+                .CreateAsync(new LocationInput { Kod = "IZM", Ad = "İzmir Merkez" });
+
+        using var s2 = host.ScopeFor(Guid.NewGuid());
+        var svc2 = s2.ServiceProvider.GetRequiredService<LocationService>();
+        await svc2.CreateAsync(new LocationInput { Kod = "IZM2", Ad = " İzmir MERKEZ " });
+        Assert.Single(await svc2.ListAsync());
+    }
+
+    // Tekillik interceptor'la AYNI anahtarı kullanır, Türkçe kültür kuralı DEĞİL: "İzmir Merkez" → "İzmir merkez",
+    // "izmir merkez" → "izmir merkez", "İZMİR MERKEZ" → "İzmİr merkez" (elle). Üç farklı anahtar → üçü de kabul;
+    // ofis→şube çözümü (FindByNameAsync, interceptor'la tek kural) her adı YALNIZ kendi kaydına çözer — karışma yok.
+    [Fact]
+    public async Task Turkish_dotted_i_variants_have_distinct_keys_and_resolve_to_their_own_office()
+    {
+        using var host = new TestHost(fx.AppConnectionString);
+        using var scope = host.ScopeFor(Guid.NewGuid());
+        var svc = scope.ServiceProvider.GetRequiredService<LocationService>();
+        var repo = scope.ServiceProvider.GetRequiredService<ILocationRepository>();
+
+        var a = await svc.CreateAsync(new LocationInput { Kod = "I1", Ad = "İzmir Merkez" });
+        var b = await svc.CreateAsync(new LocationInput { Kod = "I2", Ad = "izmir merkez" });
+        var c = await svc.CreateAsync(new LocationInput { Kod = "I3", Ad = "İZMİR MERKEZ" });
+
+        Assert.Equal(a, (await repo.FindByNameAsync(" İzmir MERKEZ"))!.Id);
+        Assert.Equal(b, (await repo.FindByNameAsync("IZMIR MERKEZ"))!.Id);
+        Assert.Equal(c, (await repo.FindByNameAsync("İzmİr Merkez"))!.Id);
+    }
 }
