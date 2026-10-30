@@ -1,6 +1,6 @@
 import type { Page, Route } from '@playwright/test';
 
-import { kaydet, type KayitliIstek } from './ortak';
+import { kaydet, type KayitliIstek } from './common';
 
 /** F7.2 cari + CRM ekranları için sahte `/api/ui/v1` (değerler elle kurulmuş; uygulama kodundan türetilmez). */
 export const ACCOUNT_1 = 'c1c1c1c1-0000-4000-8000-000000000001';

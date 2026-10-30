@@ -8,8 +8,8 @@
   "scripts": {
     "ng": "ng",
     "start": "ng serve",
-    "tipler": "openapi-typescript ../../docs/api/ui-v1.json -o src/app/core/api/uretilen/ui-v1.ts && prettier --write --log-level warn src/app/core/api/uretilen/ui-v1.ts",
-    "tipler:kontrol": "npm run tipler && git ls-files --error-unmatch src/app/core/api/uretilen/ui-v1.ts >/dev/null && git diff --exit-code -- src/app/core/api/uretilen/",
+    "tipler": "openapi-typescript ../../docs/api/ui-v1.json -o src/app/core/api/generated/ui-v1.ts && prettier --write --log-level warn src/app/core/api/generated/ui-v1.ts",
+    "tipler:kontrol": "npm run tipler && git ls-files --error-unmatch src/app/core/api/generated/ui-v1.ts >/dev/null && git diff --exit-code -- src/app/core/api/generated/",
     "prebuild": "npm run tipler",
     "build": "ng build",
     "prewatch": "npm run tipler",

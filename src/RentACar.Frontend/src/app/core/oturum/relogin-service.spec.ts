@@ -5,11 +5,11 @@ import { provideRouter } from '@angular/router';
 import { TranslocoService } from '@jsverse/transloco';
 import { firstValueFrom } from 'rxjs';
 
-import { toApiError } from '@core/api/api-hatasi';
-import { provideTranslation } from '@core/i18n/ceviri';
+import { toApiError } from '@core/api/api-error';
+import { provideTranslation } from '@core/i18n/translation';
 
 import { SessionService } from './session-service';
-import type { Ben, LoginCredentials } from './oturum-tipleri';
+import type { Ben, LoginCredentials } from './session-types';
 import { ReloginService } from './relogin-service';
 
 const BEN: Ben = {

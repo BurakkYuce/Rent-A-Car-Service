@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 
-import { BEN, seriousViolations, collectErrors, logIn, problem, writeXsrf } from './ortak';
+import { BEN, seriousViolations, collectErrors, logIn, problem, writeXsrf } from './common';
 import { definitionEndpoints } from './definition-fakes';
 import {
   GROUP_1,
@@ -14,7 +14,7 @@ import {
   vatRate,
   vehicleGroupEndpoints,
 } from './definition-remaining-fakes';
-import { waitReady, measureOverflow, type VitrinSayfasi } from './vitrin-sayfalari';
+import { waitReady, measureOverflow, type VitrinSayfasi } from './showcase-pages';
 
 /**
  * F11.2c kalan tanım ekranları: sayfalı F11.1b uçları (satır sürümsüz → düzenlemede tekil okuma, PUT'a `surum`),

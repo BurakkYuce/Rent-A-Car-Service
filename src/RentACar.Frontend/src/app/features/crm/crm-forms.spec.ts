@@ -1,7 +1,7 @@
 import { of } from 'rxjs';
 import { describe, expect, it } from 'vitest';
 
-import type { ApiIstemcisi, QueryParameters } from '@core/api/api-istemcisi';
+import type { ApiIstemcisi, QueryParameters } from '@core/api/api-client';
 import { balanceSide, rowBadges, type CustomerRow } from '@features/customers/customer-model';
 import { currencyCode } from '@features/customers/customer-detail/customer-detail';
 

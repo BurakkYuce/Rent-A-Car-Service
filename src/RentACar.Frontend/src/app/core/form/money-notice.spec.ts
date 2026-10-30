@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { ApiHatasi } from '@core/api/api-hatasi';
+import { ApiHatasi } from '@core/api/api-error';
 
 import {
   UNCERTAIN_NOTICE,

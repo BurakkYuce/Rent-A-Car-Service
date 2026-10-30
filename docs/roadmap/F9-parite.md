@@ -38,7 +38,7 @@
 2. **Araç durum panosundaki "Servis" bağlantısı.** `vehicle-status-board.html` `href="/servisler"` ile Blazor servis
    ekranına gidiyordu; artık `routerLink` → `/app/servisler`. İpucu metnindeki "(şimdilik eski arayüzde)" kaldırıldı.
 
-Çit: `e2e/kesis-f9.spec.ts` (bağlantı hedefleri, tıklamada tam sayfa yüklemesi olmadığı — pencere işareti korunur).
+Çit: `e2e/cutover-f9.spec.ts` (bağlantı hedefleri, tıklamada tam sayfa yüklemesi olmadığı — pencere işareti korunur).
 
 ## Kesiş (mekanik)
 
@@ -93,7 +93,7 @@ KalanGun, Kova)` ile `Api/SystemAdmin/SystemAdminApi.Messages.cs` `DueItemDto(Ar
 **Sahte API (CI'da koşar):** `service-insurance.spec.ts` (#301; üç zorunlu senaryo MTV ödemesinde, kaybolan yanıtta
 tek ödeme, tarife `cakisma` birleştirmesi, çift tıklamada tek kalem, M1–M4/L1/P5 düzeltmeleri, 320/390/768/1440 taşma).
 Bu PR'da "tüm sayfalar: içerik + axe iki tema" testi #305 deseniyle sayfa başına 21 ayrı teste bölündü (tek test CI'da
-30 sn sınırına dayanıyordu). `kesis-f9.spec.ts` (bu PR): 15 eski adres → SPA (sorgu ve fragment korunur, doğru
+30 sn sınırına dayanıyordu). `cutover-f9.spec.ts` (bu PR): 15 eski adres → SPA (sorgu ve fragment korunur, doğru
 başlık); F9 liste ve kayıt ekranlarındaki hiçbir bağlantı Blazor F9 sayfasına düşmez; panel vade bağlantıları ve araç
 durum "Servis" bağlantısı router'la gider (tam sayfa yüklemesi yok).
 

@@ -1,4 +1,4 @@
-import { trUpperCase } from '@core/metin/tr-normalize';
+import { trUpperCase } from '@core/text/tr-normalize';
 
 const iso = (c: string | null | undefined): string => {
   const k = trUpperCase((c ?? '').trim());

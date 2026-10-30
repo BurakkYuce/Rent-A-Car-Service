@@ -10,7 +10,7 @@
 //   global      features/** içinde `.sayfa/.ust/.kart/.tablo/.num/.bolum/.aciklama/.islemler` ya da
 //               herhangi bir `.rc-*` global sınıfının yeniden tanımı (düzen katmanı `_duzen.scss`'te)
 //   golge       features/** içinde box-shadow (gölge yalnız katmanlarda, global/shared'da)
-//   plaka-tr    shared/plaka/** içinde Türkçe yerel ayarlı büyük harf (Ek A: plakada İ yok)
+//   plaka-tr    shared/plate/** içinde Türkçe yerel ayarlı büyük harf (Ek A: plakada İ yok)
 //   baslik      features/** şablonunda (`.html` ya da satır içi `template:`) gövde `<h1>` — sayfa başlığı
 //               `rc-sayfa-bandi`'dir (§5.4, §16). Yalnız BANDSIZ ekranlar (giriş, platform girişi, yazdırma
 //               belgesi, vitrin) muaf.
@@ -34,10 +34,10 @@ const RC_SINIF = /\.rc-[\w-]+/;
 
 /** Kabuk bandı olmayan ekranlar: başlıkları gövdede `<h1>` (§5.5 giriş, yazdırma belgesi, geliştirici vitrini). */
 const BANDSIZ = [
-  'src/app/features/giris/',
+  'src/app/features/login/',
   'src/app/features/platform/login/',
-  'src/app/features/kira-formu/kira-yazdir.ts',
-  'src/app/features/vitrin/',
+  'src/app/features/rental-form/rental-print.ts',
+  'src/app/features/showcase/',
 ];
 
 function dosyalar(dizin) {
@@ -155,7 +155,7 @@ for (const dosya of dosyalar(SRC)) {
       }
     }
   }
-  if (rel.startsWith('src/app/shared/plaka/')) {
+  if (rel.startsWith('src/app/shared/plate/')) {
     for (const m of yorumsuz(metin).matchAll(/toLocaleUpperCase\(\s*['"`]tr/g)) {
       bulgular.push({ kural: 'plaka-tr', satir: satirNo(metin, m.index), ayrinti: m[0] });
     }

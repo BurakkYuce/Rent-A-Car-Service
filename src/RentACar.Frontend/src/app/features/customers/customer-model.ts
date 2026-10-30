@@ -1,6 +1,6 @@
-import type { Schema } from '@core/api/ui-tipleri';
-import type { Permission } from '@core/oturum/oturum-tipleri';
-import { listDefinition } from '@core/veri/liste-sorgusu';
+import type { Schema } from '@core/api/ui-types';
+import type { Permission } from '@core/oturum/session-types';
+import { listDefinition } from '@core/data/list-query';
 
 /**
  * #295 M1: cari ekstre (bakiye + firma geneli hareketler) yalnız detay ucunun bakiyeyi açtığı izinlerle görünür —

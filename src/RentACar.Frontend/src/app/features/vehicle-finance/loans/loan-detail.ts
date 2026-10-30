@@ -14,23 +14,23 @@ import { ActivatedRoute, RouterLink } from '@angular/router';
 import { TranslocoPipe } from '@jsverse/transloco';
 import { finalize } from 'rxjs';
 
-import { toApiError } from '@core/api/api-hatasi';
-import { ApiIstemcisi } from '@core/api/api-istemcisi';
-import { type UnsavedChangesOwner, pageLeaveGuard } from '@core/form/kaydedilmemis-degisiklik';
-import { ConfirmService } from '@core/geri-bildirim/confirm-service';
-import { ToastService } from '@core/geri-bildirim/toast-service';
-import { translationFunction } from '@core/i18n/ceviri';
+import { toApiError } from '@core/api/api-error';
+import { ApiIstemcisi } from '@core/api/api-client';
+import { type UnsavedChangesOwner, pageLeaveGuard } from '@core/form/unsaved-changes';
+import { ConfirmService } from '@core/feedback/confirm-service';
+import { ToastService } from '@core/feedback/toast-service';
+import { translationFunction } from '@core/i18n/translation';
 import { SessionService } from '@core/oturum/session-service';
 import { genelGosterilir } from '@core/oturum/session-interceptor';
-import { tabContext } from '@core/sekme/tab-state';
-import { FetchPolicy } from '@core/veri/fetch-policy';
+import { tabContext } from '@core/tabs/tab-state';
+import { FetchPolicy } from '@core/data/fetch-policy';
 import { toNumber } from '@features/vehicles/vehicle-model';
-import { MoneyPipe, NumberPipe, DatePipe } from '@shared/bicim/bicim-pipe';
+import { MoneyPipe, NumberPipe, DatePipe } from '@shared/format/format-pipe';
 
 import { LOANS, LoanDetailStore, recordPath } from '../finance.store';
 import { InstallmentPaymentPanel } from './installment-payment-panel';
-import { PageBand } from '../../../kabuk/sayfa-bandi/page-band';
-import { PlateChipComponent } from '@shared/plaka/plaka';
+import { PageBand } from '../../../shell/page-band/page-band';
+import { PlateChipComponent } from '@shared/plate/plate';
 
 /**
  * Araç kredisi kaydı (`/app/arac-kredi/:id`): künye, hesaplanan özet (deftere yazmaz), TAKSİT PLANI (kalan-yöntemi,

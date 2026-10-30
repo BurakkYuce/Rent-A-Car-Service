@@ -1,7 +1,7 @@
 import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
 import { TranslocoPipe } from '@jsverse/transloco';
 
-import { BaseControl, controlProviders } from '@shared/form/kontroller/base-control';
+import { BaseControl, controlProviders } from '@shared/form/controls/base-control';
 
 import { isHexColor } from './settings-model';
 

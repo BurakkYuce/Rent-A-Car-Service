@@ -1,6 +1,6 @@
 import type { Page, Route } from '@playwright/test';
 
-import { kaydet, type KayitliIstek } from './ortak';
+import { kaydet, type KayitliIstek } from './common';
 
 /**
  * F9.2 servis / sigorta / vade / fiyat-tarife ekranları için sahte `/api/ui/v1`. Değerler ELLE kurulmuş senaryo

@@ -11,33 +11,33 @@ import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angula
 import { Router, RouterLink } from '@angular/router';
 import { TranslocoPipe } from '@jsverse/transloco';
 
-import { ApiIstemcisi } from '@core/api/api-istemcisi';
-import { type UnsavedChangesOwner, pageLeaveGuard } from '@core/form/kaydedilmemis-degisiklik';
-import type { DayText } from '@core/form/tarih-girdisi';
-import { ToastService } from '@core/geri-bildirim/toast-service';
-import type { CeviriAnahtari } from '@core/i18n/ceviri-anahtarlari';
-import { translationFunction } from '@core/i18n/ceviri';
+import { ApiIstemcisi } from '@core/api/api-client';
+import { type UnsavedChangesOwner, pageLeaveGuard } from '@core/form/unsaved-changes';
+import type { DayText } from '@core/form/date-input';
+import { ToastService } from '@core/feedback/toast-service';
+import type { CeviriAnahtari } from '@core/i18n/translation-keys';
+import { translationFunction } from '@core/i18n/translation';
 import { SessionService } from '@core/oturum/session-service';
-import { FetchPolicy } from '@core/veri/fetch-policy';
-import { listQueryUrlSync } from '@core/veri/liste-sorgusu-url';
-import { momentValue, textValue } from '@features/planlama-ortak/form-yardimcilari';
-import { Alan } from '@shared/form/alan/alan';
-import { SearchSelection } from '@shared/form/arama-secim/search-selection';
+import { FetchPolicy } from '@core/data/fetch-policy';
+import { listQueryUrlSync } from '@core/data/list-query-url';
+import { momentValue, textValue } from '@features/planning-shared/form-helpers';
+import { Alan } from '@shared/form/field/field';
+import { SearchSelection } from '@shared/form/search-selection/search-selection';
 import {
   type SecimSecenegi,
   serverSelectionSource,
-} from '@shared/form/arama-secim/selection-source';
+} from '@shared/form/search-selection/selection-source';
 import { formSubmission } from '@shared/form/form-submission';
 import { FormErrors } from '@shared/form/form-errors';
-import { TextInput } from '@shared/form/kontroller/text-input';
-import { Checkbox } from '@shared/form/kontroller/checkbox';
-import { NumberInput } from '@shared/form/kontroller/number-input';
-import type { SecenekOgesi } from '@shared/form/kontroller/secenek';
-import { Selection } from '@shared/form/kontroller/selection';
-import { DatePicker } from '@shared/form/tarih/date-picker';
-import { Icon } from '@shared/ikon/icon';
-import { Table } from '@shared/tablo/table';
-import { TableCell } from '@shared/tablo/table-cell';
+import { TextInput } from '@shared/form/controls/text-input';
+import { Checkbox } from '@shared/form/controls/checkbox';
+import { NumberInput } from '@shared/form/controls/number-input';
+import type { SecenekOgesi } from '@shared/form/controls/option';
+import { Selection } from '@shared/form/controls/selection';
+import { DatePicker } from '@shared/form/date/date-picker';
+import { Icon } from '@shared/icon/icon';
+import { Table } from '@shared/table/table';
+import { TableCell } from '@shared/table/table-cell';
 
 import { serviceColumns } from '../service-insurance-columns';
 import {
@@ -55,9 +55,9 @@ import {
 } from '../service-insurance-model';
 import { ServiceListStore } from '../service-insurance.store';
 import { emptyInfoForm, infoRequest } from './service-form-model';
-import { PageBand } from '../../../kabuk/sayfa-bandi/page-band';
-import { FilterPanelComponent } from '@shared/filtre-paneli/filtre-paneli';
-import { PlateChipComponent } from '@shared/plaka/plaka';
+import { PageBand } from '../../../shell/page-band/page-band';
+import { FilterPanelComponent } from '@shared/filter-panel/filter-panel';
+import { PlateChipComponent } from '@shared/plate/plate';
 
 /**
  * Servis / bakım (`/app/servisler`) — Blazor `ServiceRecordList.razor`: durum sekmeleri, liste, "Yeni Servis Kaydı"

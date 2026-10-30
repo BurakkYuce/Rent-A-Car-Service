@@ -2,16 +2,16 @@ import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@a
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { TranslocoPipe } from '@jsverse/transloco';
 
-import { ApiIstemcisi } from '@core/api/api-istemcisi';
-import type { Schema } from '@core/api/ui-tipleri';
-import { translationFunction } from '@core/i18n/ceviri';
-import { TemelStore } from '@core/veri/temel-store';
-import { DateTimePipe } from '@shared/bicim/bicim-pipe';
-import { Alan } from '@shared/form/alan/alan';
-import { TextInput } from '@shared/form/kontroller/text-input';
-import { Selection } from '@shared/form/kontroller/selection';
-import type { SecenekOgesi } from '@shared/form/kontroller/secenek';
-import { PageBand } from '../../../kabuk/sayfa-bandi/page-band';
+import { ApiIstemcisi } from '@core/api/api-client';
+import type { Schema } from '@core/api/ui-types';
+import { translationFunction } from '@core/i18n/translation';
+import { TemelStore } from '@core/data/base-store';
+import { DateTimePipe } from '@shared/format/format-pipe';
+import { Alan } from '@shared/form/field/field';
+import { TextInput } from '@shared/form/controls/text-input';
+import { Selection } from '@shared/form/controls/selection';
+import type { SecenekOgesi } from '@shared/form/controls/option';
+import { PageBand } from '../../../shell/page-band/page-band';
 
 type AuditPageDto = Schema<'SayfaOfAuditDto'>;
 

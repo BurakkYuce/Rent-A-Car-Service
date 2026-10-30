@@ -9,27 +9,27 @@ import {
 import { FormControl, FormGroup, ReactiveFormsModule } from '@angular/forms';
 import { TranslocoPipe } from '@jsverse/transloco';
 
-import type { CeviriAnahtari } from '@core/i18n/ceviri-anahtarlari';
-import { translationFunction } from '@core/i18n/ceviri';
-import { FetchPolicy } from '@core/veri/fetch-policy';
-import { listQueryUrlSync } from '@core/veri/liste-sorgusu-url';
-import type { StoreState } from '@core/veri/temel-store';
-import type { Sayfa } from '@core/api/sayfa';
-import { textValue } from '@features/planlama-ortak/form-yardimcilari';
-import { Alan } from '@shared/form/alan/alan';
-import { TextInput } from '@shared/form/kontroller/text-input';
-import type { SecenekOgesi } from '@shared/form/kontroller/secenek';
-import { Selection } from '@shared/form/kontroller/selection';
-import { Table } from '@shared/tablo/table';
-import { TableCell } from '@shared/tablo/table-cell';
+import type { CeviriAnahtari } from '@core/i18n/translation-keys';
+import { translationFunction } from '@core/i18n/translation';
+import { FetchPolicy } from '@core/data/fetch-policy';
+import { listQueryUrlSync } from '@core/data/list-query-url';
+import type { StoreState } from '@core/data/base-store';
+import type { Sayfa } from '@core/api/page';
+import { textValue } from '@features/planning-shared/form-helpers';
+import { Alan } from '@shared/form/field/field';
+import { TextInput } from '@shared/form/controls/text-input';
+import type { SecenekOgesi } from '@shared/form/controls/option';
+import { Selection } from '@shared/form/controls/selection';
+import { Table } from '@shared/table/table';
+import { TableCell } from '@shared/table/table-cell';
 
 import { RegulationTabs } from '../regulation/regulation-tabs';
 import { dueColumns } from '../service-insurance-columns';
 import { DUE_BUCKETS, DUE_LIST, type DueBucket, type DueItem } from '../service-insurance-model';
 import { DueBoardStore } from '../service-insurance.store';
-import { PageBand } from '../../../kabuk/sayfa-bandi/page-band';
-import { FilterPanelComponent } from '@shared/filtre-paneli/filtre-paneli';
-import { PlateChipComponent } from '@shared/plaka/plaka';
+import { PageBand } from '../../../shell/page-band/page-band';
+import { FilterPanelComponent } from '@shared/filter-panel/filter-panel';
+import { PlateChipComponent } from '@shared/plate/plate';
 
 /**
  * Vade uyarıları (`/app/vade`) — Blazor `VadePanosu.razor`: sigorta / MTV / muayene bitiş takibi; kova özeti

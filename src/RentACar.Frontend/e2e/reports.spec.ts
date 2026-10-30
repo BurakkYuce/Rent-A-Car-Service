@@ -1,8 +1,8 @@
 import { expect, test } from '@playwright/test';
 
-import { BEN, seriousViolations, collectErrors, logIn } from './ortak';
+import { BEN, seriousViolations, collectErrors, logIn } from './common';
 import { VEHICLE_1, reportEndpoints } from './report-fakes';
-import { waitReady, measureOverflow, type VitrinSayfasi } from './vitrin-sayfalari';
+import { waitReady, measureOverflow, type VitrinSayfasi } from './showcase-pages';
 
 /**
  * F10.2 rapor ekranları: TEK ortak rapor ekranı + rapor tanımları. Ortak akış (dönem süzgeci → istek, görünüm

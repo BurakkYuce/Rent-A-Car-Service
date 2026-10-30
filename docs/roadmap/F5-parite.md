@@ -11,11 +11,11 @@
 | Sayfa (Blazor → SPA) | Alan | Sütun | Süzgeç | Eylem | İzin | Sonuç |
 |---|---|---|---|---|---|---|
 | `/rezervasyonlar` → `features/rezervasyonlar` | 25/25 (+km/yakıt, açıklama) | 16/16 | 5/5 | Onayla, Kiraya çevir, Düzenle, İptal, Excel/CSV/PDF | OperationsWrite; iptal OperationsDelete (sunucu `yetkiler`) | **eklendi:** Opsiyonlu rengi |
-| `/teklifler` → `features/teklifler` | 9/9 | 8/8 (tarih 2 sütun) | + durum | Gönder, Kabul → Rezervasyon (onaylı), Reddet (onaylı) | OperationsWrite | tam |
-| `/takvim` → `features/takvim` | — | ızgara (K/R, hafta sonu, kira öncelikli) | ay, plaka/marka, grup, şube | ay gezinmesi süzgeci korur, Temizle | OperationsWrite | **eklendi:** rota izni |
-| `/musaitlik` → `features/musaitlik` | 11 girdi | 25/25 | pencere + grup/şube/kaynak/döviz/plaka | Kirala (`?varac&vfrom&vto&vgrup`), broker notu | OperationsWrite | **eklendi:** rota izni |
-| `/rez-sartlari` → `features/rez-sartlari` | 8/8 | 8/8 | müşteri, durum, talep aralığı | Karşılandı, Geri al, Düzenle, Sil (onaylı), "N kayıt · N bekleyen" | OperationsWrite | **eklendi:** rota izni |
-| `/filo-kiralama` → `features/filo-kiralama` | 21/21 (yeni) + 14/14 (künye) | 12/12 | 6/6 | Tamamla, İptal (OperationsDelete, onaylı), Künye, Excel/CSV/PDF, "N sözleşme" | OperationsWrite | **eklendi:** rota izni |
+| `/teklifler` → `features/quotations` | 9/9 | 8/8 (tarih 2 sütun) | + durum | Gönder, Kabul → Rezervasyon (onaylı), Reddet (onaylı) | OperationsWrite | tam |
+| `/takvim` → `features/calendar` | — | ızgara (K/R, hafta sonu, kira öncelikli) | ay, plaka/marka, grup, şube | ay gezinmesi süzgeci korur, Temizle | OperationsWrite | **eklendi:** rota izni |
+| `/musaitlik` → `features/availability` | 11 girdi | 25/25 | pencere + grup/şube/kaynak/döviz/plaka | Kirala (`?varac&vfrom&vto&vgrup`), broker notu | OperationsWrite | **eklendi:** rota izni |
+| `/rez-sartlari` → `features/reservation-terms` | 8/8 | 8/8 | müşteri, durum, talep aralığı | Karşılandı, Geri al, Düzenle, Sil (onaylı), "N kayıt · N bekleyen" | OperationsWrite | **eklendi:** rota izni |
+| `/filo-kiralama` → `features/fleet-rentals` | 21/21 (yeni) + 14/14 (künye) | 12/12 | 6/6 | Tamamla, İptal (OperationsDelete, onaylı), Künye, Excel/CSV/PDF, "N sözleşme" | OperationsWrite | **eklendi:** rota izni |
 
 ## Bulunan eksikler (bu PR'da eklendi)
 
@@ -24,7 +24,7 @@
    istiyor; SPA'daki altı planlama rotasında (`takvim`, `musaitlik`, `rez-sartlari`, `filo-kiralama`,
    `filo-kiralama/yeni`, `filo-kiralama/:id`) `canMatch` guard'ı YOKTU. Muhasebe rolü sayfayı açıp API
    403'üyle boş/hatalı ekran görüyordu. Düzeltme: `sayfalar.ts`'te `izinGuard('OperationsWrite')` (rezervasyon
-   ve teklif rotalarıyla aynı). Çit: `src/app/f5-rota-izinleri.spec.ts` — beklenen 12 rota ELLE yazılı
+   ve teklif rotalarıyla aynı). Çit: `src/app/f5-route-permissions.spec.ts` — beklenen 12 rota ELLE yazılı
    (razor `@attribute`'larından), rota tablosundan türetilmez. Gerçek backend'de Muhasebe kullanıcısıyla da
    doğrulandı (uyarı bandı + ana sayfa). Veri güvenliği değişmedi (uçlar zaten 403 veriyordu); yalnız UX paritesi.
 2. **FAZ-81 "Opsiyonlu" rengi.** Blazor rezervasyon listesi `Rezerv` durumunu kiracının seçtiği renkle
@@ -49,12 +49,12 @@
 
 ## e2e
 
-**Sahte API (CI'da koşar):** `rezervasyon.spec.ts`, `planlama.spec.ts`, `rez-sartlari.spec.ts`,
-`filo-kiralama.spec.ts` (F5.2a/b) — üç zorunlu senaryo, axe iki tema, 320/390/768/1440 taşma.
+**Sahte API (CI'da koşar):** `reservations.spec.ts`, `planning.spec.ts`, `reservation-terms.spec.ts`,
+`fleet-rentals.spec.ts` (F5.2a/b) — üç zorunlu senaryo, axe iki tema, 320/390/768/1440 taşma.
 
-**Gerçek backend (bu PR, yerelde koşar; CI'da atlanır):** `f5-rezervasyon-gercek.spec.ts`,
-`f5-planlama-gercek.spec.ts`, `f5-kapsam-gercek.spec.ts` + `gercek.ts` yardımcıları. Ortam
-`RACAR_E2E_KOK` + `RACAR_E2E_SIFRE` (bkz. `e2e/ortam.ts`); kullanıcılar rastgele parolayla koşum öncesi
+**Gerçek backend (bu PR, yerelde koşar; CI'da atlanır):** `f5-reservation-real.spec.ts`,
+`f5-planning-real.spec.ts`, `f5-scope-real.spec.ts` + `real.ts` yardımcıları. Ortam
+`RACAR_E2E_KOK` + `RACAR_E2E_SIFRE` (bkz. `e2e/env.ts`); kullanıcılar rastgele parolayla koşum öncesi
 üretilir, sonra silinir. Pencere rastgele ileri tarih, araç sunucunun müsaitlik ucundan; oluşan kira ve
 rezervasyonlar koşum sonunda iptal edilir.
 

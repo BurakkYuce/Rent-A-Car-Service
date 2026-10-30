@@ -12,20 +12,20 @@ import { FormControl, FormGroup, ReactiveFormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { TranslocoPipe } from '@jsverse/transloco';
 
-import type { Sayfa } from '@core/api/sayfa';
-import { translationFunction } from '@core/i18n/ceviri';
-import { tabContext } from '@core/sekme/tab-state';
-import { FetchPolicy } from '@core/veri/fetch-policy';
-import { listQueryUrlSync } from '@core/veri/liste-sorgusu-url';
-import type { StoreState } from '@core/veri/temel-store';
-import { ApiIstemcisi } from '@core/api/api-istemcisi';
-import { Alan } from '@shared/form/alan/alan';
-import { TextInput } from '@shared/form/kontroller/text-input';
-import type { SecenekOgesi } from '@shared/form/kontroller/secenek';
-import { Selection } from '@shared/form/kontroller/selection';
-import { Icon } from '@shared/ikon/icon';
-import { Table } from '@shared/tablo/table';
-import { TableCell } from '@shared/tablo/table-cell';
+import type { Sayfa } from '@core/api/page';
+import { translationFunction } from '@core/i18n/translation';
+import { tabContext } from '@core/tabs/tab-state';
+import { FetchPolicy } from '@core/data/fetch-policy';
+import { listQueryUrlSync } from '@core/data/list-query-url';
+import type { StoreState } from '@core/data/base-store';
+import { ApiIstemcisi } from '@core/api/api-client';
+import { Alan } from '@shared/form/field/field';
+import { TextInput } from '@shared/form/controls/text-input';
+import type { SecenekOgesi } from '@shared/form/controls/option';
+import { Selection } from '@shared/form/controls/selection';
+import { Icon } from '@shared/icon/icon';
+import { Table } from '@shared/table/table';
+import { TableCell } from '@shared/table/table-cell';
 
 import { ALLOCATION_PREFILL_KEY, type AllocationPrefill } from '../allocation-prefill';
 import { suggestionList } from '../suggestions';
@@ -48,10 +48,10 @@ import {
 } from '../vehicle-model';
 import { StatusBoardStore, selectionSuggestionFetch } from '../vehicle.store';
 import { statusColumns } from './status-columns';
-import { PageBand } from '../../../kabuk/sayfa-bandi/page-band';
-import { FilterPanelComponent } from '@shared/filtre-paneli/filtre-paneli';
-import { PlateChipComponent } from '@shared/plaka/plaka';
-import { StatusSignCardComponent } from '@shared/tabela-karti/tabela-karti';
+import { PageBand } from '../../../shell/page-band/page-band';
+import { FilterPanelComponent } from '@shared/filter-panel/filter-panel';
+import { PlateChipComponent } from '@shared/plate/plate';
+import { StatusSignCardComponent } from '@shared/sign-card/sign-card';
 
 /** Canlı pano tazeleme aralığı (Blazor `data-rc-tazele="60"`). */
 export const REFRESH_INTERVAL_MS = 60_000;

@@ -4,22 +4,22 @@ import { FormArray, FormControl, FormGroup, ReactiveFormsModule, Validators } fr
 import { TranslocoPipe } from '@jsverse/transloco';
 import { catchError, of } from 'rxjs';
 
-import { ApiIstemcisi } from '@core/api/api-istemcisi';
-import type { Schema } from '@core/api/ui-tipleri';
-import { pageLeaveGuard } from '@core/form/kaydedilmemis-degisiklik';
-import { ToastService } from '@core/geri-bildirim/toast-service';
-import { translationFunction } from '@core/i18n/ceviri';
-import { Alan } from '@shared/form/alan/alan';
+import { ApiIstemcisi } from '@core/api/api-client';
+import type { Schema } from '@core/api/ui-types';
+import { pageLeaveGuard } from '@core/form/unsaved-changes';
+import { ToastService } from '@core/feedback/toast-service';
+import { translationFunction } from '@core/i18n/translation';
+import { Alan } from '@shared/form/field/field';
 import { formSubmission } from '@shared/form/form-submission';
 import { FormErrors } from '@shared/form/form-errors';
-import { TextInput } from '@shared/form/kontroller/text-input';
-import { NumberInput } from '@shared/form/kontroller/number-input';
-import { Selection } from '@shared/form/kontroller/selection';
-import { DefinitionCrud } from '@shared/form/tanim-crud/definition-crud';
-import { restDefinitionSource } from '@shared/form/tanim-crud/definition-source';
-import { DatePicker } from '@shared/form/tarih/date-picker';
+import { TextInput } from '@shared/form/controls/text-input';
+import { NumberInput } from '@shared/form/controls/number-input';
+import { Selection } from '@shared/form/controls/selection';
+import { DefinitionCrud } from '@shared/form/definition-crud/definition-crud';
+import { restDefinitionSource } from '@shared/form/definition-crud/definition-source';
+import { DatePicker } from '@shared/form/date/date-picker';
 
-import { PageBand } from '../../../kabuk/sayfa-bandi/page-band';
+import { PageBand } from '../../../shell/page-band/page-band';
 import { occupancyFields, selectionSuggestions } from '../definition-catalog';
 
 type BulkResult = Schema<'OccupancyBulkResult'>;

@@ -1,9 +1,9 @@
-import type { SelectionEndpoint } from '@core/api/ui-tipleri';
+import type { SelectionEndpoint } from '@core/api/ui-types';
 // Rapor tanımları uç şemasına YOLDAN bağlanır (sütun alanı, özet alanı, süzgeç parametresi): `ui-tipleri`
 // yol tablosunu dışa açmadığı için yol tipleri üretilen dosyadan alınır (yalnız tip; çalışma zamanı yok).
-import type { paths } from '@core/api/uretilen/ui-v1';
-import type { CeviriAnahtari } from '@core/i18n/ceviri-anahtarlari';
-import type { Permission } from '@core/oturum/oturum-tipleri';
+import type { paths } from '@core/api/generated/ui-v1';
+import type { CeviriAnahtari } from '@core/i18n/translation-keys';
+import type { Permission } from '@core/oturum/session-types';
 
 /**
  * F10.2 ORTAK RAPOR ŞABLONU — saf model. 26 rapor ekranı tek bileşenin (`ReportPage`) YAPILANDIRMASIDIR: her rapor

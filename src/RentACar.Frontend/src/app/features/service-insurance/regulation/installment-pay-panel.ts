@@ -11,20 +11,20 @@ import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { TranslocoPipe } from '@jsverse/transloco';
 
-import type { FinanceAccountItem } from '@core/api/ui-tipleri';
-import { formatMoney } from '@core/bicim/bicim';
+import type { FinanceAccountItem } from '@core/api/ui-types';
+import { formatMoney } from '@core/format/format';
 import { moneySubmission } from '@core/form/money-submission';
-import type { DayText } from '@core/form/tarih-girdisi';
-import { ToastService } from '@core/geri-bildirim/toast-service';
-import { translationFunction } from '@core/i18n/ceviri';
-import { momentValue, textValue } from '@features/planlama-ortak/form-yardimcilari';
-import { Alan } from '@shared/form/alan/alan';
-import { TextInput } from '@shared/form/kontroller/text-input';
-import { MoneyInput } from '@shared/form/kontroller/money-input';
-import type { SecenekOgesi } from '@shared/form/kontroller/secenek';
-import { Selection } from '@shared/form/kontroller/selection';
+import type { DayText } from '@core/form/date-input';
+import { ToastService } from '@core/feedback/toast-service';
+import { translationFunction } from '@core/i18n/translation';
+import { momentValue, textValue } from '@features/planning-shared/form-helpers';
+import { Alan } from '@shared/form/field/field';
+import { TextInput } from '@shared/form/controls/text-input';
+import { MoneyInput } from '@shared/form/controls/money-input';
+import type { SecenekOgesi } from '@shared/form/controls/option';
+import { Selection } from '@shared/form/controls/selection';
 import { MoneySubmitBar } from '@shared/form/money-submit/money-submit-bar';
-import { DatePicker } from '@shared/form/tarih/date-picker';
+import { DatePicker } from '@shared/form/date/date-picker';
 
 import {
   type AccountKind,

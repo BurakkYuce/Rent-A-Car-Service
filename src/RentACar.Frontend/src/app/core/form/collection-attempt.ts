@@ -1,8 +1,8 @@
 import { DestroyRef, Injectable, InjectionToken, inject } from '@angular/core';
-import type { ApiHatasi, CurrentOperation } from '../api/api-hatasi';
-import { formatMoney } from '../bicim/bicim';
-import type { ToastService } from '../geri-bildirim/toast-service';
-import type { CeviriAnahtari } from '../i18n/ceviri-anahtarlari';
+import type { ApiHatasi, CurrentOperation } from '../api/api-error';
+import { formatMoney } from '../format/format';
+import type { ToastService } from '../feedback/toast-service';
+import type { CeviriAnahtari } from '../i18n/translation-keys';
 import { SessionService } from '../oturum/session-service';
 
 /**

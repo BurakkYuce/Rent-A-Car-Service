@@ -1,5 +1,5 @@
 import { Subject, of, throwError } from 'rxjs';
-import { ApiHatasi } from '../api/api-hatasi';
+import { ApiHatasi } from '../api/api-error';
 import { SubmitLock, newOperationKey } from './submit-lock';
 
 /** Sayaçlı üretici: anahtarlar tahmin edilebilir (`a1`, `a2`, …). */

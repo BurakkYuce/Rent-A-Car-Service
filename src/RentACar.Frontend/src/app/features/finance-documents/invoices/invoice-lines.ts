@@ -10,22 +10,22 @@ import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angula
 import { RouterLink } from '@angular/router';
 import { TranslocoPipe } from '@jsverse/transloco';
 
-import { translationFunction } from '@core/i18n/ceviri';
-import { FetchPolicy } from '@core/veri/fetch-policy';
-import { listQueryUrlSync } from '@core/veri/liste-sorgusu-url';
+import { translationFunction } from '@core/i18n/translation';
+import { FetchPolicy } from '@core/data/fetch-policy';
+import { listQueryUrlSync } from '@core/data/list-query-url';
 import { CustomerLabels } from '@features/vehicle-finance/labels';
-import { Alan } from '@shared/form/alan/alan';
-import { SearchSelection } from '@shared/form/arama-secim/search-selection';
+import { Alan } from '@shared/form/field/field';
+import { SearchSelection } from '@shared/form/search-selection/search-selection';
 import {
   type SecimSecenegi,
   serverSelectionSource,
-} from '@shared/form/arama-secim/selection-source';
-import { TextInput } from '@shared/form/kontroller/text-input';
-import { Checkbox } from '@shared/form/kontroller/checkbox';
-import { DatePicker } from '@shared/form/tarih/date-picker';
-import { Icon } from '@shared/ikon/icon';
-import type { DisaAktarma } from '@shared/tablo/disa-aktarma';
-import { Table } from '@shared/tablo/table';
+} from '@shared/form/search-selection/selection-source';
+import { TextInput } from '@shared/form/controls/text-input';
+import { Checkbox } from '@shared/form/controls/checkbox';
+import { DatePicker } from '@shared/form/date/date-picker';
+import { Icon } from '@shared/icon/icon';
+import type { DisaAktarma } from '@shared/table/export';
+import { Table } from '@shared/table/table';
 
 import { invoiceLineColumns } from '../document-columns';
 import {
@@ -34,9 +34,9 @@ import {
   invoiceLineExportParameters,
 } from '../document-model';
 import { InvoiceLineStore } from '../document.store';
-import { PageBand } from '../../../kabuk/sayfa-bandi/page-band';
-import { PlateChipComponent } from '@shared/plaka/plaka';
-import { TableCell } from '@shared/tablo/table-cell';
+import { PageBand } from '../../../shell/page-band/page-band';
+import { PlateChipComponent } from '@shared/plate/plate';
+import { TableCell } from '@shared/table/table-cell';
 
 /**
  * Fatura detay listesi (`/app/faturalar/detay-listesi`) — Blazor `InvoiceLineList.razor` paritesi: fatura SATIRI

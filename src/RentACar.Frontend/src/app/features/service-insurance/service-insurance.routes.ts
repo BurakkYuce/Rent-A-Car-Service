@@ -1,7 +1,7 @@
 import type { Routes } from '@angular/router';
 
-import { unsavedChangesGuard } from '@core/form/kaydedilmemis-degisiklik';
-import { withTranslationBlock } from '@core/i18n/ceviri-blogu';
+import { unsavedChangesGuard } from '@core/form/unsaved-changes';
+import { withTranslationBlock } from '@core/i18n/translation-block';
 import { anyPermissionGuard } from '@features/vehicles/vehicle-guards';
 
 /** Servis / sigorta / vade uçlarının okuma izni (F9.1 `ReadAny`; Blazor sayfaları tüm rollere açıktı). */

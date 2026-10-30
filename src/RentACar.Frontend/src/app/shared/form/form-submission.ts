@@ -2,10 +2,10 @@ import { DestroyRef, Injector, Signal, inject, runInInjectionContext, signal } f
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import type { AbstractControl } from '@angular/forms';
 import type { Observable } from 'rxjs';
-import { toApiError, type ApiHatasi } from '@core/api/api-hatasi';
+import { toApiError, type ApiHatasi } from '@core/api/api-error';
 import { SubmitLock } from '@core/form/submit-lock';
-import { clearServerErrors, applyServerErrors } from '@core/form/sunucu-hatalari';
-import { translationFunction } from '@core/i18n/ceviri';
+import { clearServerErrors, applyServerErrors } from '@core/form/server-errors';
+import { translationFunction } from '@core/i18n/translation';
 import { genelGosterilir } from '@core/oturum/session-interceptor';
 
 export interface GonderimSecenekleri<T> {

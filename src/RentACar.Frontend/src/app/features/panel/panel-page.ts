@@ -12,19 +12,19 @@ import {
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { TranslocoPipe } from '@jsverse/transloco';
 
-import type { PanelReturnRow, PanelSummaryResponse } from '@core/api/ui-tipleri';
+import type { PanelReturnRow, PanelSummaryResponse } from '@core/api/ui-types';
 import { SubmitLock } from '@core/form/submit-lock';
-import { translationFunction } from '@core/i18n/ceviri';
+import { translationFunction } from '@core/i18n/translation';
 import { SessionService } from '@core/oturum/session-service';
-import { tabContext } from '@core/sekme/tab-state';
-import { FetchPolicy } from '@core/veri/fetch-policy';
-import { FORMAT_PIPES } from '@shared/bicim/bicim-pipe';
-import { Icon } from '@shared/ikon/icon';
-import type { IkonAdi } from '@shared/ikon/ikon-kaydi';
-import { PlateChipComponent } from '@shared/plaka/plaka';
-import { StatusSignCardComponent, type FleetStatus } from '@shared/tabela-karti/tabela-karti';
+import { tabContext } from '@core/tabs/tab-state';
+import { FetchPolicy } from '@core/data/fetch-policy';
+import { FORMAT_PIPES } from '@shared/format/format-pipe';
+import { Icon } from '@shared/icon/icon';
+import type { IkonAdi } from '@shared/icon/icon-registry';
+import { PlateChipComponent } from '@shared/plate/plate';
+import { StatusSignCardComponent, type FleetStatus } from '@shared/sign-card/sign-card';
 
-import { PageBand } from '../../kabuk/sayfa-bandi/page-band';
+import { PageBand } from '../../shell/page-band/page-band';
 import { ReminderList } from './reminder-list';
 import { QUICK_ACTIONS, QuickActions, type HizliIslem } from './quick-actions';
 import {
@@ -43,7 +43,7 @@ import {
   isRefreshDue,
   isWritableField,
   percent,
-} from './panel-modeli';
+} from './panel-model';
 import { PanelFinance } from './panel-finance';
 import { PANEL_COLLECTION_LOCK, PanelCollectionForm } from './panel-collection-form';
 import { PanelStore } from './panel.store';

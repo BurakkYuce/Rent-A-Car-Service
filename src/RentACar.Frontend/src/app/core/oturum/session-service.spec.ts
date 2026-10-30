@@ -4,16 +4,16 @@ import { provideRouter, Router } from '@angular/router';
 import { TranslocoService } from '@jsverse/transloco';
 import { firstValueFrom } from 'rxjs';
 
-import { provideApiClient } from '@core/api/api-istemcisi';
+import { provideApiClient } from '@core/api/api-client';
 import { contextOfSession } from '@core/form/money-attempts';
-import { ToastService } from '@core/geri-bildirim/toast-service';
-import { WarningBannerService } from '@core/geri-bildirim/warning-banner-service';
-import { provideTranslation } from '@core/i18n/ceviri';
-import { THEME_KEY } from '@core/tema/tema-servisi';
+import { ToastService } from '@core/feedback/toast-service';
+import { WarningBannerService } from '@core/feedback/warning-banner-service';
+import { provideTranslation } from '@core/i18n/translation';
+import { THEME_KEY } from '@core/theme/theme-service';
 
 import { sessionInterceptor } from './session-interceptor';
 import { SessionService } from './session-service';
-import type { Ben } from './oturum-tipleri';
+import type { Ben } from './session-types';
 
 const BEN: Ben = {
   kullanici: { id: 'u-1', kullaniciAdi: 'ayse', adSoyad: 'Ayşe Yılmaz' },

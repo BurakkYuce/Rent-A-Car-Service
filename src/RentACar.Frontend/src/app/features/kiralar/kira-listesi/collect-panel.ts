@@ -21,32 +21,32 @@ import {
 } from '@angular/forms';
 import { TranslocoPipe } from '@jsverse/transloco';
 
-import { ApiIstemcisi } from '@core/api/api-istemcisi';
+import { ApiIstemcisi } from '@core/api/api-client';
 import type {
   FinanceAccountItem,
   FinanceTransactionResponse,
   RentalListRow,
   CollectionRequest,
-} from '@core/api/ui-tipleri';
-import { formatMoney } from '@core/bicim/bicim';
-import { invariantDecimal } from '@core/form/ondalik';
+} from '@core/api/ui-types';
+import { formatMoney } from '@core/format/format';
+import { invariantDecimal } from '@core/form/decimal';
 import {
   CollectionAttemptRecord,
   CollectionAttempt,
   type TahsilatGonderimi,
   reportCollectionDuplicate,
 } from '@core/form/collection-attempt';
-import { ToastService } from '@core/geri-bildirim/toast-service';
-import { translationFunction } from '@core/i18n/ceviri';
+import { ToastService } from '@core/feedback/toast-service';
+import { translationFunction } from '@core/i18n/translation';
 import { requestContext } from '@core/oturum/request-context';
-import { TemelStore } from '@core/veri/temel-store';
-import { Alan } from '@shared/form/alan/alan';
+import { TemelStore } from '@core/data/base-store';
+import { Alan } from '@shared/form/field/field';
 import { formSubmission } from '@shared/form/form-submission';
 import { FormErrors } from '@shared/form/form-errors';
-import { MoneyInput } from '@shared/form/kontroller/money-input';
-import type { SecenekOgesi } from '@shared/form/kontroller/secenek';
-import { Selection } from '@shared/form/kontroller/selection';
-import { Icon } from '@shared/ikon/icon';
+import { MoneyInput } from '@shared/form/controls/money-input';
+import type { SecenekOgesi } from '@shared/form/controls/option';
+import { Selection } from '@shared/form/controls/selection';
+import { Icon } from '@shared/icon/icon';
 
 import { rentalCurrency, count } from './rental-columns';
 

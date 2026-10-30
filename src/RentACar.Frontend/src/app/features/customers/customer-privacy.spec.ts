@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import type { Permission } from '@core/oturum/oturum-tipleri';
+import type { Permission } from '@core/oturum/session-types';
 
 import {
   cardToForm,

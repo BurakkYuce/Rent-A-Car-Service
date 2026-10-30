@@ -1,7 +1,7 @@
 import { ChangeDetectionStrategy, Component, computed } from '@angular/core';
 import { TranslocoPipe } from '@jsverse/transloco';
 
-import { BaseControl, controlProviders } from '@shared/form/kontroller/base-control';
+import { BaseControl, controlProviders } from '@shared/form/controls/base-control';
 
 /** Haftanın günleri — numaralandırma .NET `DayOfWeek` ile AYNI (0 = Pazar); Blazor sırası Pzt…Paz. */
 export const WEEKDAYS = [1, 2, 3, 4, 5, 6, 0] as const;

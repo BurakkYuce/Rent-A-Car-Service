@@ -22,7 +22,7 @@
 ## Bulunan eksik (bu PR'da eklendi)
 
 1. **Kira formundaki "Cari ekstre" ve "Cari kartını aç" bağlantıları (gezinme paritesi).** Kira formu üst bağlantı
-   çubuğu (`kira-formu.html`) ve Müşteri sekmesi (`sekmeler/musteri.ts`) `[href]="'/cariler/…'"` ile Blazor cari
+   çubuğu (`rental-form.html`) ve Müşteri sekmesi (`sekmeler/musteri.ts`) `[href]="'/cariler/…'"` ile Blazor cari
    sayfalarına TAM SAYFA gidiyordu (F4.3 yer tutucusu; F7/F8 ekranları o gün yoktu). Artık `routerLink`:
    `/app/cariler/:id` ve `/app/cariler/:id/ekstre`. Ekstre bağlantısı yalnız ekstre rotasının kapısıyla görünür —
    FinanceWrite ∨ ViewReports (#295 KVKK M1; kural tek yerde, `customer-model.ts` `canSeeStatement`). Önceden
@@ -32,7 +32,7 @@
 3. **CRM analizi "Personel Çalışma" bağlantısı.** Blazor rapor sayfasına tam sayfa gidiyordu; SPA rapor ekranı
    F10.2'de geldiği için artık `routerLink` (`/app/raporlar/personel-calisma`).
 
-Çit: `e2e/kesis-f7.spec.ts` (bağlantı hedefleri, tıklamada tam sayfa yüklemesi olmadığı — pencere işareti korunur —,
+Çit: `e2e/cutover-f7.spec.ts` (bağlantı hedefleri, tıklamada tam sayfa yüklemesi olmadığı — pencere işareti korunur —,
 izinsiz kullanıcıda ekstre bağlantısının yokluğu).
 
 ## KVKK kararları (#295, değişmedi — kesiş bunları taşır)
@@ -66,7 +66,7 @@ izinsiz kullanıcıda ekstre bağlantısının yokluğu).
 ## e2e
 
 **Sahte API (CI'da koşar):** `customers.spec.ts`, `crm.spec.ts` (#295; üç zorunlu senaryo, KVKK, axe iki tema,
-320/390/768/1440 taşma) + `kesis-f7.spec.ts` (bu PR): 8 eski adres → SPA (sorgu ve fragment korunur, doğru başlık);
+320/390/768/1440 taşma) + `cutover-f7.spec.ts` (bu PR): 8 eski adres → SPA (sorgu ve fragment korunur, doğru başlık);
 F7 ekranlarındaki hiçbir bağlantı Blazor cari/CRM sayfasına düşmez (ekstre dahil); kira formundaki bağlantılar
 router'la gider, izinsiz kullanıcıda ekstre bağlantısı yok.
 

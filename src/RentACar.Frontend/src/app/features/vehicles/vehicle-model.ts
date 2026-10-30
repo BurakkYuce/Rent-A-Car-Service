@@ -1,5 +1,5 @@
-import type { Schema } from '@core/api/ui-tipleri';
-import { listDefinition } from '@core/veri/liste-sorgusu';
+import type { Schema } from '@core/api/ui-types';
+import { listDefinition } from '@core/data/list-query';
 
 export type VehicleListRow = Schema<'AracListeSatiri'>;
 export type VehicleSummary = Schema<'AracOzeti'>;

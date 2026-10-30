@@ -1,8 +1,8 @@
 import { expect, test, type Page } from '@playwright/test';
 
-import { seriousViolations, collectErrors, logIn } from './ortak';
+import { seriousViolations, collectErrors, logIn } from './common';
 import { fakePlatformApi, OPERATOR, OPERATOR_SECRET, TENANT_A, TENANT_B } from './platform-fakes';
-import { measureOverflow } from './vitrin-sayfalari';
+import { measureOverflow } from './showcase-pages';
 
 /**
  * F12.2 platform console (`/app/platform/*`): separate session and layout from the tenant shell.

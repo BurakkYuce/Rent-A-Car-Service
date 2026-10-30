@@ -2,10 +2,10 @@ import { ChangeDetectionStrategy, Component, input } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { TranslocoPipe } from '@jsverse/transloco';
 
-import type { CeviriAnahtari } from '@core/i18n/ceviri-anahtarlari';
-import type { Permission } from '@core/oturum/oturum-tipleri';
-import { Icon } from '@shared/ikon/icon';
-import type { IkonAdi } from '@shared/ikon/ikon-kaydi';
+import type { CeviriAnahtari } from '@core/i18n/translation-keys';
+import type { Permission } from '@core/oturum/session-types';
+import { Icon } from '@shared/icon/icon';
+import type { IkonAdi } from '@shared/icon/icon-registry';
 
 export interface HizliIslem {
   readonly etiket: string;

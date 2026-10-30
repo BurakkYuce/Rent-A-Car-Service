@@ -88,7 +88,7 @@ olabilir). Açık PR yoksa "Sırada" listesinin ilk maddesi.
     hedefi zorunlu; AnonimBelge'de doğum tarihi maskeli).
   - **SPA para çekirdeği #316:** dört ayrı uygulama tek `core/form/money-submission.ts` + `money-attempts.ts` +
     `money-notice.ts`'te; denemeler oturum KİMLİĞİNE (kiracı|kullanıcı) bağlı, sekmeler arası `rc-oturum-baglami`
-    kanalı, tekrar öncesi `GET oturum/ben` doğrulaması. #320: bağlam anahtarı tek kaynak (`core/oturum/oturum-baglami.ts`)
+    kanalı, tekrar öncesi `GET oturum/ben` doğrulaması. #320: bağlam anahtarı tek kaynak (`core/oturum/session-context.ts`)
     + parite testi, 401'de yeniden giriş + aynı kimlikle aynı anahtar, şube değişimi denemeyi düşürmez.
   - #318 kira paneli: "H1" test konumlayıcı yarışıydı (ürün hatası değil); tahsilat sürerken/tazeleme beklerken iki
     Tahsil Et pasif, 5xx'te "Yeniden yükle", tazelemede son iyi detay korunur (donmuş deneme kaybolmaz), 429 geçici.
@@ -285,7 +285,7 @@ olabilir). Açık PR yoksa "Sırada" listesinin ilk maddesi.
     - Merge sonrası `git pull --ff-only`, worktree ve dalı sil (`git worktree remove`, `git branch -d`).
     - Bu dosyanın §1'ini güncelle; faz bitince `F*.md` + README durum ve `DEGISIKLIKLER.md` kaydı.
 12. **Bağımlı PR'lar:** her merge'den sonra açık diğer PR'lar `git merge origin/main` ile güncellenir (force-push YOK).
-    - Üretilen dosyalar (`docs/api/ui-v1.json`, `core/api/uretilen/ui-v1.ts`, `core/i18n/ceviri-anahtarlari.ts`)
+    - Üretilen dosyalar (`docs/api/ui-v1.json`, `core/api/generated/ui-v1.ts`, `core/i18n/translation-keys.ts`)
       elle birleştirilmez, koddan yeniden üretilir.
     - `tr.json`'da git iki merge-base bulursa anahtar anahtar birleştir.
 
@@ -426,10 +426,10 @@ geçişte iki kez oldu. Para dokunmayan ama giriş/yetki/PII dokunan PR'larda ay
   ters kayıtla kapatıldı ama değişmez defterde kaldı.
 - **`sessiz` istek:** hiçbir hatayı yutmamalı; 403/429/5xx/ağ hataları form içinde gösterilir.
 - **Çekirdek 409 bildirimi:** `istekBaglami({ mukerrerBasligi })`.
-- **Harici bağlantılar:** yalnız `shared/dis-baglantilar.ts`'te; lint istisnası dar. Mutlak URL başka yerde yasak.
+- **Harici bağlantılar:** yalnız `shared/external-links.ts`'te; lint istisnası dar. Mutlak URL başka yerde yasak.
 - **Paket bütçesi:** uyarı 380, hata 450 kB. Yeni ekranlar tembel rota parçası olmalı.
 - **Geliştirme:** e2e varsayılan portu 4321 başka ajanda doluysa geçici Playwright config ile başka port kullan
-  ve config'i commit'leme. `tablo.spec.ts:116` yalnız macOS'ta kırmızı, CI'da yeşil.
+  ve config'i commit'leme. `table.spec.ts:116` yalnız macOS'ta kırmızı, CI'da yeşil.
 
 **Süreç ve araç**
 - `gh pr checks --watch` erken çıkabilir; boş çıktı "bitti" değildir. Yalnız `scripts/pr-izle.sh` kullan; merge ayrı komutta.

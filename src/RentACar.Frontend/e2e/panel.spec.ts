@@ -1,7 +1,7 @@
 import { expect, test, type Page } from '@playwright/test';
 
-import { BEN, seriousViolations, collectErrors, logIn, problem } from './ortak';
-import { measureOverflow } from './vitrin-sayfalari';
+import { BEN, seriousViolations, collectErrors, logIn, problem } from './common';
+import { measureOverflow } from './showcase-pages';
 
 /**
  * F4.5 Panel (sahte `/api/ui/v1`, üretim derlemesi + CSP): gecikme varsayılanlı sekme, finans kapısı

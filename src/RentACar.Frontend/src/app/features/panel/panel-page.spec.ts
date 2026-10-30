@@ -5,14 +5,14 @@ import { provideRouter } from '@angular/router';
 import { TranslocoService } from '@jsverse/transloco';
 import { firstValueFrom } from 'rxjs';
 
-import { provideApiClient } from '@core/api/api-istemcisi';
-import type { PanelReturnRow, PanelSummaryResponse } from '@core/api/ui-tipleri';
-import { ToastService } from '@core/geri-bildirim/toast-service';
-import { provideTranslation } from '@core/i18n/ceviri';
+import { provideApiClient } from '@core/api/api-client';
+import type { PanelReturnRow, PanelSummaryResponse } from '@core/api/ui-types';
+import { ToastService } from '@core/feedback/toast-service';
+import { provideTranslation } from '@core/i18n/translation';
 import { sessionInterceptor } from '@core/oturum/session-interceptor';
 import { ReloginService } from '@core/oturum/relogin-service';
 import { SessionService } from '@core/oturum/session-service';
-import type { Ben } from '@core/oturum/oturum-tipleri';
+import type { Ben } from '@core/oturum/session-types';
 
 import { PanelPage } from './panel-page';
 

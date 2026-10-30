@@ -8,18 +8,18 @@ import {
 } from '@angular/core';
 import { provideRouter, RouteReuseStrategy, withNavigationErrorHandler } from '@angular/router';
 
-import { provideApiClient } from '@core/api/api-istemcisi';
-import { CONFIRM_PROMPT } from '@core/form/kaydedilmemis-degisiklik';
-import { cdkConfirmPrompt } from '@core/geri-bildirim/confirm-service';
-import { RcErrorHandler } from '@core/hata/istemci-hata';
-import { provideTranslation } from '@core/i18n/ceviri';
-import { SESSION_CONTEXT } from '@core/oturum/oturum-baglami';
+import { provideApiClient } from '@core/api/api-client';
+import { CONFIRM_PROMPT } from '@core/form/unsaved-changes';
+import { cdkConfirmPrompt } from '@core/feedback/confirm-service';
+import { RcErrorHandler } from '@core/errors/client-error';
+import { provideTranslation } from '@core/i18n/translation';
+import { SESSION_CONTEXT } from '@core/oturum/session-context';
 import { sessionInterceptor } from '@core/oturum/session-interceptor';
 import { SessionService } from '@core/oturum/session-service';
-import { ChunkErrorService, isChunkLoadError } from '@core/surum/parca-hatasi';
-import { TabRouteStrategy } from '@core/sekme/sekme-stratejisi';
-import { provideTheme } from '@core/tema/tema';
-import { provideTurkishLocale } from '@core/yerel/tr-yerel';
+import { ChunkErrorService, isChunkLoadError } from '@core/version/chunk-error';
+import { TabRouteStrategy } from '@core/tabs/tab-strategy';
+import { provideTheme } from '@core/theme/theme';
+import { provideTurkishLocale } from '@core/locale/tr-locale';
 
 import { routes } from './app.routes';
 

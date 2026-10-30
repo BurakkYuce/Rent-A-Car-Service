@@ -1,6 +1,6 @@
 import type { Routes } from '@angular/router';
 
-import { ceviriBlogu } from '@core/i18n/ceviri-blogu';
+import { ceviriBlogu } from '@core/i18n/translation-block';
 
 import { platformGuestGuard, platformSessionGuard } from './platform-session';
 

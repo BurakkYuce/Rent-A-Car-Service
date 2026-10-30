@@ -1,5 +1,5 @@
-import type { Schema } from '@core/api/ui-tipleri';
-import { listDefinition } from '@core/veri/liste-sorgusu';
+import type { Schema } from '@core/api/ui-types';
+import { listDefinition } from '@core/data/list-query';
 
 // ---- Fatura (`/api/ui/v1/faturalar`)
 export type InvoiceRow = Schema<'InvoiceListRow'>;

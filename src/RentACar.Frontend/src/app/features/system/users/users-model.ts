@@ -1,5 +1,5 @@
-import type { Schema } from '@core/api/ui-tipleri';
-import { PERMISSIONS, type Permission } from '@core/oturum/oturum-tipleri';
+import type { Schema } from '@core/api/ui-types';
+import { PERMISSIONS, type Permission } from '@core/oturum/session-types';
 
 export type UserDto = Schema<'UserDto'>;
 export type PermissionExceptionDto = Schema<'PermissionExceptionDto'>;

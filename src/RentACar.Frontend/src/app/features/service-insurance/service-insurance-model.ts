@@ -1,6 +1,6 @@
-import type { Sayfa } from '@core/api/sayfa';
-import type { Schema } from '@core/api/ui-tipleri';
-import { listDefinition } from '@core/veri/liste-sorgusu';
+import type { Sayfa } from '@core/api/page';
+import type { Schema } from '@core/api/ui-types';
+import { listDefinition } from '@core/data/list-query';
 
 // ---- Servis / bakım (`/api/ui/v1/servisler`)
 export type ServiceRecordRow = Schema<'ServiceRecordRow'>;

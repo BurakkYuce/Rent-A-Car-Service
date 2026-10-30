@@ -12,29 +12,29 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { TranslocoPipe } from '@jsverse/transloco';
 
-import { ApiIstemcisi } from '@core/api/api-istemcisi';
-import type { FinanceAccountItem, SelectionItem } from '@core/api/ui-tipleri';
-import { formatMoney } from '@core/bicim/bicim';
+import { ApiIstemcisi } from '@core/api/api-client';
+import type { FinanceAccountItem, SelectionItem } from '@core/api/ui-types';
+import { formatMoney } from '@core/format/format';
 import { moneySubmission } from '@core/form/money-submission';
-import { ConfirmService } from '@core/geri-bildirim/confirm-service';
-import { ToastService } from '@core/geri-bildirim/toast-service';
-import { translationFunction } from '@core/i18n/ceviri';
+import { ConfirmService } from '@core/feedback/confirm-service';
+import { ToastService } from '@core/feedback/toast-service';
+import { translationFunction } from '@core/i18n/translation';
 import { requestContext } from '@core/oturum/request-context';
 import { SessionService } from '@core/oturum/session-service';
 import { rentalPickSource } from '@features/crm/crm.store';
 import { toNumber } from '@features/vehicles/vehicle-model';
-import { Alan } from '@shared/form/alan/alan';
-import { SearchSelection } from '@shared/form/arama-secim/search-selection';
+import { Alan } from '@shared/form/field/field';
+import { SearchSelection } from '@shared/form/search-selection/search-selection';
 import {
   type SecimSecenegi,
   serverSelectionSource,
-} from '@shared/form/arama-secim/selection-source';
-import { TextInput } from '@shared/form/kontroller/text-input';
-import { MoneyInput } from '@shared/form/kontroller/money-input';
-import type { SecenekOgesi } from '@shared/form/kontroller/secenek';
-import { Selection } from '@shared/form/kontroller/selection';
+} from '@shared/form/search-selection/selection-source';
+import { TextInput } from '@shared/form/controls/text-input';
+import { MoneyInput } from '@shared/form/controls/money-input';
+import type { SecenekOgesi } from '@shared/form/controls/option';
+import { Selection } from '@shared/form/controls/selection';
 import { MoneySubmitBar } from '@shared/form/money-submit/money-submit-bar';
-import { DatePicker } from '@shared/form/tarih/date-picker';
+import { DatePicker } from '@shared/form/date/date-picker';
 
 import {
   CURRENCIES,

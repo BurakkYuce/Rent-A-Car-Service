@@ -1,13 +1,13 @@
-import type { QueryParameters } from '@core/api/api-istemcisi';
-import { formatMoney, sayiBicimle, tarihBicimle, formatDateTime } from '@core/bicim/bicim';
+import type { QueryParameters } from '@core/api/api-client';
+import { formatMoney, sayiBicimle, tarihBicimle, formatDateTime } from '@core/format/format';
 import {
   type FilterCatalog,
   type FilterDefinition,
   type ListeSorgusu,
   type ListeTanimi,
   listDefinition,
-} from '@core/veri/liste-sorgusu';
-import type { DisaAktarma, ExportFormat, ExportPath } from '@shared/tablo/disa-aktarma';
+} from '@core/data/list-query';
+import type { DisaAktarma, ExportFormat, ExportPath } from '@shared/table/export';
 
 import type { ReportDefinition, ReportFilter, ReportView, ValueKind } from './report-model';
 

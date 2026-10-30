@@ -14,9 +14,9 @@ import { toSignal } from '@angular/core/rxjs-interop';
 import { FormControl, FormGroup, Validators } from '@angular/forms';
 
 import { moneySubmission } from '@core/form/money-submission';
-import { ToastService } from '@core/geri-bildirim/toast-service';
-import { translationFunction } from '@core/i18n/ceviri';
-import { currencyCode, prefillAmount } from '@features/kira-formu/finans-paneli/finans-modeli';
+import { ToastService } from '@core/feedback/toast-service';
+import { translationFunction } from '@core/i18n/translation';
+import { currencyCode, prefillAmount } from '@features/rental-form/finance-panel/finance-model';
 
 import {
   type AccountKind,

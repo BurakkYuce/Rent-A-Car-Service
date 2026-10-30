@@ -10,19 +10,19 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { TranslocoPipe } from '@jsverse/transloco';
 
-import { ApiIstemcisi } from '@core/api/api-istemcisi';
-import type { SelectionItem, Schema } from '@core/api/ui-tipleri';
+import { ApiIstemcisi } from '@core/api/api-client';
+import type { SelectionItem, Schema } from '@core/api/ui-types';
 import { requestContext } from '@core/oturum/request-context';
 import { SessionService } from '@core/oturum/session-service';
-import { textValue } from '@features/planlama-ortak/form-yardimcilari';
-import { MoneyPipe, NumberPipe } from '@shared/bicim/bicim-pipe';
-import { Alan } from '@shared/form/alan/alan';
+import { textValue } from '@features/planning-shared/form-helpers';
+import { MoneyPipe, NumberPipe } from '@shared/format/format-pipe';
+import { Alan } from '@shared/form/field/field';
 import { formSubmission } from '@shared/form/form-submission';
 import { FormErrors } from '@shared/form/form-errors';
-import { TextInput } from '@shared/form/kontroller/text-input';
-import { NumberInput } from '@shared/form/kontroller/number-input';
-import { DateTimePicker } from '@shared/form/tarih/date-time-picker';
-import { PageBand } from '../../../kabuk/sayfa-bandi/page-band';
+import { TextInput } from '@shared/form/controls/text-input';
+import { NumberInput } from '@shared/form/controls/number-input';
+import { DateTimePicker } from '@shared/form/date/date-time-picker';
+import { PageBand } from '../../../shell/page-band/page-band';
 
 type PriceQuote = Schema<'PriceQuoteDto'>;
 type PriceQuoteRequest = Schema<'PriceQuoteRequest'>;

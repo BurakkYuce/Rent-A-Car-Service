@@ -13,28 +13,28 @@ import { type FormControl, ReactiveFormsModule } from '@angular/forms';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { TranslocoPipe } from '@jsverse/transloco';
 
-import { ApiIstemcisi } from '@core/api/api-istemcisi';
-import { formatMoney, sayiBicimle } from '@core/bicim/bicim';
-import { ConfirmService } from '@core/geri-bildirim/confirm-service';
-import { translationFunction } from '@core/i18n/ceviri';
+import { ApiIstemcisi } from '@core/api/api-client';
+import { formatMoney, sayiBicimle } from '@core/format/format';
+import { ConfirmService } from '@core/feedback/confirm-service';
+import { translationFunction } from '@core/i18n/translation';
 import { requestContext } from '@core/oturum/request-context';
-import { TemelStore } from '@core/veri/temel-store';
-import { CURRENCIES, CHANNELS } from '@features/kira-formu/finans-paneli/finans-modeli';
-import { FORMAT_PIPES } from '@shared/bicim/bicim-pipe';
-import { Alan } from '@shared/form/alan/alan';
-import { SearchSelection } from '@shared/form/arama-secim/search-selection';
-import type { SecimSecenegi } from '@shared/form/arama-secim/selection-source';
+import { TemelStore } from '@core/data/base-store';
+import { CURRENCIES, CHANNELS } from '@features/rental-form/finance-panel/finance-model';
+import { FORMAT_PIPES } from '@shared/format/format-pipe';
+import { Alan } from '@shared/form/field/field';
+import { SearchSelection } from '@shared/form/search-selection/search-selection';
+import type { SecimSecenegi } from '@shared/form/search-selection/selection-source';
 import { FormErrors } from '@shared/form/form-errors';
-import { TextInput } from '@shared/form/kontroller/text-input';
-import { Checkbox } from '@shared/form/kontroller/checkbox';
-import { MoneyInput } from '@shared/form/kontroller/money-input';
-import { NumberInput } from '@shared/form/kontroller/number-input';
-import type { SecenekOgesi } from '@shared/form/kontroller/secenek';
-import { Selection } from '@shared/form/kontroller/selection';
+import { TextInput } from '@shared/form/controls/text-input';
+import { Checkbox } from '@shared/form/controls/checkbox';
+import { MoneyInput } from '@shared/form/controls/money-input';
+import { NumberInput } from '@shared/form/controls/number-input';
+import type { SecenekOgesi } from '@shared/form/controls/option';
+import { Selection } from '@shared/form/controls/selection';
 import { MoneyNoticeView } from '@shared/form/money-submit/money-notice';
 import { MoneySubmitBar } from '@shared/form/money-submit/money-submit-bar';
-import { DatePicker } from '@shared/form/tarih/date-picker';
-import { Icon } from '@shared/ikon/icon';
+import { DatePicker } from '@shared/form/date/date-picker';
+import { Icon } from '@shared/icon/icon';
 
 import {
   ACCOUNT_KINDS,
@@ -44,7 +44,7 @@ import {
   customerPath,
   financePath,
 } from './finance-model';
-import { PageBand } from '../../kabuk/sayfa-bandi/page-band';
+import { PageBand } from '../../shell/page-band/page-band';
 
 type Translate = ReturnType<typeof translationFunction>;
 

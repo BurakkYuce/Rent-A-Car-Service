@@ -12,12 +12,12 @@ import {
   untracked,
 } from '@angular/core';
 
-import type { ApiPath } from '@core/api/api-istemcisi';
+import type { ApiPath } from '@core/api/api-client';
 import {
   contextOfSession,
   identityOfContext,
   identityOfSession,
-} from '@core/oturum/oturum-baglami';
+} from '@core/oturum/session-context';
 import { SessionService } from '@core/oturum/session-service';
 
 import type { MoneyContent, MoneyNotice } from './money-notice';
@@ -47,7 +47,7 @@ export interface MoneyAttempt<TBody = unknown> {
 }
 
 /**
- * Bağlam anahtarı ve kimlik — TEK kaynak `@core/oturum/oturum-baglami` (`OturumServisi.baglam` de onu kullanır).
+ * Bağlam anahtarı ve kimlik — TEK kaynak `@core/oturum/session-context` (`OturumServisi.baglam` de onu kullanır).
  * Burada yalnız yeniden dışa aktarılır; kendi biçimini tanımlamaz.
  */
 export { contextOfSession, identityOfContext, identityOfSession };

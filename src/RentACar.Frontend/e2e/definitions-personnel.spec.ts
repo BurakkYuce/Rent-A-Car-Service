@@ -1,8 +1,8 @@
 import { expect, test, type Page } from '@playwright/test';
 
-import { BEN, seriousViolations, collectErrors, kaydet, logIn, problem, writeXsrf } from './ortak';
+import { BEN, seriousViolations, collectErrors, kaydet, logIn, problem, writeXsrf } from './common';
 import { pagedEndpoints } from './definition-remaining-fakes';
-import { waitReady, measureOverflow, type VitrinSayfasi } from './vitrin-sayfalari';
+import { waitReady, measureOverflow, type VitrinSayfasi } from './showcase-pages';
 
 /**
  * F11.2d KVKK ekranları: personel (TC yazma-yalnız, maaş yalnız tekil detayda) ve veri içe aktar (sayaç + mesaj

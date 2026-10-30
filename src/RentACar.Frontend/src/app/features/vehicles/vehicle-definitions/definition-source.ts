@@ -1,13 +1,13 @@
 import { inject } from '@angular/core';
 import { type Observable, EMPTY, expand, map, reduce } from 'rxjs';
 
-import { ApiIstemcisi, type ApiPath } from '@core/api/api-istemcisi';
-import type { Sayfa } from '@core/api/sayfa';
+import { ApiIstemcisi, type ApiPath } from '@core/api/api-client';
+import type { Sayfa } from '@core/api/page';
 import type {
   DefinitionValue,
   DefinitionSource,
   DefinitionRow,
-} from '@shared/form/tanim-crud/definition-source';
+} from '@shared/form/definition-crud/definition-source';
 
 /** Tanım listeleri sunucuda sayfalı; ekranda tamamı (tanım kümeleri küçüktür). */
 const PAGE_SIZE = 200;

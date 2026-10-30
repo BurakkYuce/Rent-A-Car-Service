@@ -1,8 +1,8 @@
 import { expect, test } from '@playwright/test';
 
 import { RENTAL_1, customerCrmEndpoints, survey } from './customers-crm-fakes';
-import { BEN, seriousViolations, collectErrors, logIn, problem } from './ortak';
-import { waitReady, measureOverflow, type VitrinSayfasi } from './vitrin-sayfalari';
+import { BEN, seriousViolations, collectErrors, logIn, problem } from './common';
+import { waitReady, measureOverflow, type VitrinSayfasi } from './showcase-pages';
 
 /**
  * F7.2 CRM ekranları: anket, şikayet, assistans, hukuk, CRM analiz. Anket/şikayet/assistans/hukuk: liste + satırda

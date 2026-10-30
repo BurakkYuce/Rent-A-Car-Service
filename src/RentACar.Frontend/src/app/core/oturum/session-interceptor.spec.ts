@@ -5,16 +5,16 @@ import { provideRouter, Router } from '@angular/router';
 import { TranslocoService } from '@jsverse/transloco';
 import { firstValueFrom } from 'rxjs';
 
-import { ApiHatasi } from '@core/api/api-hatasi';
-import { ApiIstemcisi, provideApiClient } from '@core/api/api-istemcisi';
-import { ToastService } from '@core/geri-bildirim/toast-service';
-import { WarningBannerService } from '@core/geri-bildirim/warning-banner-service';
-import { provideTranslation } from '@core/i18n/ceviri';
+import { ApiHatasi } from '@core/api/api-error';
+import { ApiIstemcisi, provideApiClient } from '@core/api/api-client';
+import { ToastService } from '@core/feedback/toast-service';
+import { WarningBannerService } from '@core/feedback/warning-banner-service';
+import { provideTranslation } from '@core/i18n/translation';
 
 import { requestContext } from './request-context';
 import { sessionInterceptor } from './session-interceptor';
 import { SessionService } from './session-service';
-import type { Ben } from './oturum-tipleri';
+import type { Ben } from './session-types';
 import { ReloginService } from './relogin-service';
 
 const BEN: Ben = {

@@ -1,8 +1,8 @@
 import { expect, test, type Page, type Route } from '@playwright/test';
 
-import { BEN, seriousViolations, collectErrors, logIn, problem, writeXsrf } from './ortak';
+import { BEN, seriousViolations, collectErrors, logIn, problem, writeXsrf } from './common';
 import { SHIFTS, reportEndpoints } from './report-fakes';
-import { measureOverflow } from './vitrin-sayfalari';
+import { measureOverflow } from './showcase-pages';
 
 /**
  * F10.3 personel çalışma — vardiya ekle / düzenle / sil (`/api/ui/v1/vardiyalar`). Üç zorunlu senaryo: doğrulama

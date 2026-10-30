@@ -1,6 +1,6 @@
 import { defineConfig, devices } from '@playwright/test';
 
-import { ORTAM } from './e2e/ortam';
+import { ORTAM } from './e2e/env';
 
 /** Yerel duman testi: production derlemesi /app/ altında, üretimdeki CSP ile servis edilir. */
 const PORT = 4321;
@@ -36,11 +36,11 @@ export default defineConfig({
     trace: 'retain-on-failure',
   },
   projects: [
-    { name: 'chromium', use: { ...devices['Desktop Chrome'] }, testIgnore: /gorsel\.spec\.ts/ },
-    { name: 'gorsel', use: { ...devices['Desktop Chrome'] }, testMatch: /gorsel\.spec\.ts/ },
+    { name: 'chromium', use: { ...devices['Desktop Chrome'] }, testIgnore: /visual\.spec\.ts/ },
+    { name: 'gorsel', use: { ...devices['Desktop Chrome'] }, testMatch: /visual\.spec\.ts/ },
   ],
   webServer: {
-    command: `node e2e/sunucu.mjs ${PORT}`,
+    command: `node e2e/server.mjs ${PORT}`,
     url: `http://127.0.0.1:${PORT}/app/`,
     reuseExistingServer: false,
     timeout: 30_000,

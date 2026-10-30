@@ -1,6 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
 
-import { BEN, seriousViolations, collectErrors, logIn, problem, writeXsrf } from './ortak';
+import { BEN, seriousViolations, collectErrors, logIn, problem, writeXsrf } from './common';
 import {
   INSTALLMENT_1,
   LOAN_1,
@@ -11,7 +11,7 @@ import {
   loanDetail,
 } from './vehicle-finance-fakes';
 import { statusRow, vehicleEndpoints } from './vehicle-fakes';
-import { waitReady, measureOverflow, type VitrinSayfasi } from './vitrin-sayfalari';
+import { waitReady, measureOverflow, type VitrinSayfasi } from './showcase-pages';
 
 /**
  * F6.2b araç finans ekranları: kredi (liste + kayıt + TAKSİT ÖDEME), müşteri taksit, sipariş, BAF, hasar, filo plan.

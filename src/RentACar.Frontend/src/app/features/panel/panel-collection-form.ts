@@ -25,8 +25,8 @@ import {
 } from '@angular/forms';
 import { TranslocoPipe } from '@jsverse/transloco';
 
-import type { ApiHatasi } from '@core/api/api-hatasi';
-import { ApiIstemcisi } from '@core/api/api-istemcisi';
+import type { ApiHatasi } from '@core/api/api-error';
+import { ApiIstemcisi } from '@core/api/api-client';
 import { SubmitLock } from '@core/form/submit-lock';
 import {
   CollectionAttemptRecord,
@@ -34,20 +34,20 @@ import {
   type TahsilatGonderimi,
   reportCollectionDuplicate,
 } from '@core/form/collection-attempt';
-import type { FinanceAccountItem, CollectionInfo } from '@core/api/ui-tipleri';
-import { formatMoney } from '@core/bicim/bicim';
-import { invariantDecimal } from '@core/form/ondalik';
-import { ToastService } from '@core/geri-bildirim/toast-service';
-import { translationFunction } from '@core/i18n/ceviri';
+import type { FinanceAccountItem, CollectionInfo } from '@core/api/ui-types';
+import { formatMoney } from '@core/format/format';
+import { invariantDecimal } from '@core/form/decimal';
+import { ToastService } from '@core/feedback/toast-service';
+import { translationFunction } from '@core/i18n/translation';
 import { requestContext } from '@core/oturum/request-context';
-import { Alan } from '@shared/form/alan/alan';
+import { Alan } from '@shared/form/field/field';
 import { formSubmission } from '@shared/form/form-submission';
 import { FormErrors } from '@shared/form/form-errors';
-import { MoneyInput } from '@shared/form/kontroller/money-input';
-import type { SecenekOgesi } from '@shared/form/kontroller/secenek';
-import { Selection } from '@shared/form/kontroller/selection';
+import { MoneyInput } from '@shared/form/controls/money-input';
+import type { SecenekOgesi } from '@shared/form/controls/option';
+import { Selection } from '@shared/form/controls/selection';
 
-import { type AccountType, count, collectionBody } from './panel-modeli';
+import { type AccountType, count, collectionBody } from './panel-model';
 
 /**
  * Panelin TEK tahsilat kilidi (sayfa sağlar). Tüm satırların formu aynı kilidi kullanır: istek uçarken ne başka

@@ -1,4 +1,4 @@
-import type { Schema } from '@core/api/ui-tipleri';
+import type { Schema } from '@core/api/ui-types';
 
 import {
   OPS_OR_VIEW,

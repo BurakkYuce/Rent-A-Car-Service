@@ -12,10 +12,10 @@ import { TranslocoService } from '@jsverse/transloco';
 import { type Observable, Subject, of, throwError } from 'rxjs';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { toApiError } from '@core/api/api-hatasi';
-import { ApiIstemcisi, type IstekSecenekleri } from '@core/api/api-istemcisi';
-import { ConfirmService } from '@core/geri-bildirim/confirm-service';
-import { ToastService } from '@core/geri-bildirim/toast-service';
+import { toApiError } from '@core/api/api-error';
+import { ApiIstemcisi, type IstekSecenekleri } from '@core/api/api-client';
+import { ConfirmService } from '@core/feedback/confirm-service';
+import { ToastService } from '@core/feedback/toast-service';
 import { DUPLICATE_CALLER_SHOWS } from '@core/oturum/request-context';
 import { SessionService } from '@core/oturum/session-service';
 import { ReloginService } from '@core/oturum/relogin-service';

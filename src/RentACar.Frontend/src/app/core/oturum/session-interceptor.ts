@@ -10,16 +10,16 @@ import {
 import { inject } from '@angular/core';
 import { catchError, from, Observable, switchMap, tap, throwError } from 'rxjs';
 
-import { type ApiHatasiBilgisi, toApiError } from '@core/api/api-hatasi';
+import { type ApiHatasiBilgisi, toApiError } from '@core/api/api-error';
 import {
   API_ROOT,
   EXPECTED_SESSION_HEADER,
   IDEMPOTENCY_HEADER,
   XSRF_HEADER,
-} from '@core/api/api-istemcisi';
-import { ToastService } from '@core/geri-bildirim/toast-service';
-import { WarningBannerService } from '@core/geri-bildirim/warning-banner-service';
-import { translationFunction } from '@core/i18n/ceviri';
+} from '@core/api/api-client';
+import { ToastService } from '@core/feedback/toast-service';
+import { WarningBannerService } from '@core/feedback/warning-banner-service';
+import { translationFunction } from '@core/i18n/translation';
 
 import {
   requestContext,
@@ -31,7 +31,7 @@ import {
   XSRF_REFRESHED,
   NO_RELOGIN,
 } from './request-context';
-import { identityOfSession } from './oturum-baglami';
+import { identityOfSession } from './session-context';
 import { SessionService } from './session-service';
 import { ReloginService } from './relogin-service';
 

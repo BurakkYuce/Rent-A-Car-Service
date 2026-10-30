@@ -14,21 +14,21 @@ import { RouterLink } from '@angular/router';
 import { TranslocoPipe } from '@jsverse/transloco';
 import { finalize } from 'rxjs';
 
-import { toApiError } from '@core/api/api-hatasi';
-import { ApiIstemcisi } from '@core/api/api-istemcisi';
-import { enumLabel } from '@core/bicim/enum-label';
-import { ConfirmService } from '@core/geri-bildirim/confirm-service';
-import { ToastService } from '@core/geri-bildirim/toast-service';
-import { translationFunction } from '@core/i18n/ceviri';
+import { toApiError } from '@core/api/api-error';
+import { ApiIstemcisi } from '@core/api/api-client';
+import { enumLabel } from '@core/format/enum-label';
+import { ConfirmService } from '@core/feedback/confirm-service';
+import { ToastService } from '@core/feedback/toast-service';
+import { translationFunction } from '@core/i18n/translation';
 import { genelGosterilir } from '@core/oturum/session-interceptor';
 import { toNumber } from '@features/vehicles/vehicle-model';
-import { MoneyPipe, DateTimePipe } from '@shared/bicim/bicim-pipe';
-import { Alan } from '@shared/form/alan/alan';
-import type { SecenekOgesi } from '@shared/form/kontroller/secenek';
-import { Selection } from '@shared/form/kontroller/selection';
-import { Icon } from '@shared/ikon/icon';
+import { MoneyPipe, DateTimePipe } from '@shared/format/format-pipe';
+import { Alan } from '@shared/form/field/field';
+import type { SecenekOgesi } from '@shared/form/controls/option';
+import { Selection } from '@shared/form/controls/selection';
+import { Icon } from '@shared/icon/icon';
 
-import { PageBand } from '../../../kabuk/sayfa-bandi/page-band';
+import { PageBand } from '../../../shell/page-band/page-band';
 import {
   HGS,
   HGS_MAX_BYTES,

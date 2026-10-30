@@ -3,16 +3,16 @@ import { computed, inject, Injectable, signal } from '@angular/core';
 import { Router } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
 
-import { ApiHatasi, toApiError } from '@core/api/api-hatasi';
-import { ApiIstemcisi } from '@core/api/api-istemcisi';
-import { ToastService } from '@core/geri-bildirim/toast-service';
-import { WarningBannerService } from '@core/geri-bildirim/warning-banner-service';
-import { translationFunction } from '@core/i18n/ceviri';
-import { THEME_KEY, TemaServisi } from '@core/tema/tema-servisi';
+import { ApiHatasi, toApiError } from '@core/api/api-error';
+import { ApiIstemcisi } from '@core/api/api-client';
+import { ToastService } from '@core/feedback/toast-service';
+import { WarningBannerService } from '@core/feedback/warning-banner-service';
+import { translationFunction } from '@core/i18n/translation';
+import { THEME_KEY, TemaServisi } from '@core/theme/theme-service';
 
 import { requestContext } from './request-context';
-import { contextOfSession, identityOfContext, type OturumBaglami } from './oturum-baglami';
-import type { Ben, LoginCredentials, Permission } from './oturum-tipleri';
+import { contextOfSession, identityOfContext, type OturumBaglami } from './session-context';
+import type { Ben, LoginCredentials, Permission } from './session-types';
 
 /** Oturum uçları kendi hatalarını çağırana verir: diyalog ya da genel toast/bant yok. Her istekte taze bağlam. */
 function sessionRequest() {

@@ -1,7 +1,7 @@
-import type { CeviriAnahtari } from '@core/i18n/ceviri-anahtarlari';
-import type { TabloSutunu } from '@shared/tablo/tablo-modeli';
+import type { CeviriAnahtari } from '@core/i18n/translation-keys';
+import type { TabloSutunu } from '@shared/table/table-model';
 
-import { toNumber, type ReservationListRow } from '../rezervasyon-modeli';
+import { toNumber, type ReservationListRow } from '../reservation-model';
 
 type Translation = (key: CeviriAnahtari, parameters?: Record<string, unknown>) => string;
 

@@ -1,6 +1,6 @@
 import type { Page, Route } from '@playwright/test';
 
-import { kaydet, type KayitliIstek } from './ortak';
+import { kaydet, type KayitliIstek } from './common';
 
 /** F8.2b finans belge ekranları için sahte `/api/ui/v1` (değerler elle kurulmuş; uygulama kodundan türetilmez). */
 export const INVOICE_1 = 'f8f8f8f8-0000-4000-8000-000000000001';

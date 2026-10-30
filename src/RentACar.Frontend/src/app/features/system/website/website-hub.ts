@@ -11,17 +11,17 @@ import { RouterLink } from '@angular/router';
 import { TranslocoPipe } from '@jsverse/transloco';
 import type { Observable } from 'rxjs';
 
-import { toApiError } from '@core/api/api-hatasi';
-import { ApiIstemcisi } from '@core/api/api-istemcisi';
-import type { Schema } from '@core/api/ui-tipleri';
-import { ConfirmService } from '@core/geri-bildirim/confirm-service';
-import { ToastService } from '@core/geri-bildirim/toast-service';
-import { translationFunction } from '@core/i18n/ceviri';
+import { toApiError } from '@core/api/api-error';
+import { ApiIstemcisi } from '@core/api/api-client';
+import type { Schema } from '@core/api/ui-types';
+import { ConfirmService } from '@core/feedback/confirm-service';
+import { ToastService } from '@core/feedback/toast-service';
+import { translationFunction } from '@core/i18n/translation';
 import { DUGME_IZINLERI } from '@core/oturum/dugme-izinleri';
 import { SessionService } from '@core/oturum/session-service';
-import { TemelStore } from '@core/veri/temel-store';
-import { MoneyPipe } from '@shared/bicim/bicim-pipe';
-import { PageBand } from '../../../kabuk/sayfa-bandi/page-band';
+import { TemelStore } from '@core/data/base-store';
+import { MoneyPipe } from '@shared/format/format-pipe';
+import { PageBand } from '../../../shell/page-band/page-band';
 
 type ListingRow = Schema<'ListingRowDto'>;
 type ListingPage = Schema<'SayfaOfListingRowDto'>;

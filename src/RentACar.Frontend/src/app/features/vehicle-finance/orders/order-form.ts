@@ -14,41 +14,41 @@ import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { TranslocoPipe } from '@jsverse/transloco';
 import { finalize } from 'rxjs';
 
-import { toApiError } from '@core/api/api-hatasi';
-import { ApiIstemcisi } from '@core/api/api-istemcisi';
-import { type UnsavedChangesOwner, pageLeaveGuard } from '@core/form/kaydedilmemis-degisiklik';
-import { ConfirmService } from '@core/geri-bildirim/confirm-service';
-import { ToastService } from '@core/geri-bildirim/toast-service';
-import { WarningBannerService } from '@core/geri-bildirim/warning-banner-service';
-import { translationFunction } from '@core/i18n/ceviri';
-import { trLowerCase } from '@core/metin/tr-normalize';
+import { toApiError } from '@core/api/api-error';
+import { ApiIstemcisi } from '@core/api/api-client';
+import { type UnsavedChangesOwner, pageLeaveGuard } from '@core/form/unsaved-changes';
+import { ConfirmService } from '@core/feedback/confirm-service';
+import { ToastService } from '@core/feedback/toast-service';
+import { WarningBannerService } from '@core/feedback/warning-banner-service';
+import { translationFunction } from '@core/i18n/translation';
+import { trLowerCase } from '@core/text/tr-normalize';
 import { genelGosterilir } from '@core/oturum/session-interceptor';
-import { tabContext } from '@core/sekme/tab-state';
-import { FetchPolicy } from '@core/veri/fetch-policy';
-import { mergeServerValues } from '@features/planlama-ortak/form-yardimcilari';
+import { tabContext } from '@core/tabs/tab-state';
+import { FetchPolicy } from '@core/data/fetch-policy';
+import { mergeServerValues } from '@features/planning-shared/form-helpers';
 import { suggestionList } from '@features/vehicles/suggestions';
 import { toNumber } from '@features/vehicles/vehicle-model';
 import { selectionSuggestionFetch, vehicleSuggestionFetch } from '@features/vehicles/vehicle.store';
-import { MoneyPipe } from '@shared/bicim/bicim-pipe';
-import { Alan } from '@shared/form/alan/alan';
-import { SearchSelection } from '@shared/form/arama-secim/search-selection';
+import { MoneyPipe } from '@shared/format/format-pipe';
+import { Alan } from '@shared/form/field/field';
+import { SearchSelection } from '@shared/form/search-selection/search-selection';
 import {
   type SecimSecenegi,
   serverSelectionSource,
-} from '@shared/form/arama-secim/selection-source';
+} from '@shared/form/search-selection/selection-source';
 import { formSubmission } from '@shared/form/form-submission';
 import { FormErrors } from '@shared/form/form-errors';
-import { TextInput } from '@shared/form/kontroller/text-input';
-import { MoneyInput } from '@shared/form/kontroller/money-input';
-import { NumberInput } from '@shared/form/kontroller/number-input';
-import type { SecenekOgesi } from '@shared/form/kontroller/secenek';
-import { Selection } from '@shared/form/kontroller/selection';
-import { DatePicker } from '@shared/form/tarih/date-picker';
+import { TextInput } from '@shared/form/controls/text-input';
+import { MoneyInput } from '@shared/form/controls/money-input';
+import { NumberInput } from '@shared/form/controls/number-input';
+import type { SecenekOgesi } from '@shared/form/controls/option';
+import { Selection } from '@shared/form/controls/selection';
+import { DatePicker } from '@shared/form/date/date-picker';
 
 import { ORDER_CURRENCIES, type OrderDetail } from '../finance-model';
 import { ORDERS, OrderFormStore, recordPath } from '../finance.store';
 import { type OrderFormValue, emptyOrder, orderRequest, orderToForm } from './order-form-model';
-import { PageBand } from '../../../kabuk/sayfa-bandi/page-band';
+import { PageBand } from '../../../shell/page-band/page-band';
 
 type Transition = 'onayla' | 'teslim-al' | 'iptal';
 

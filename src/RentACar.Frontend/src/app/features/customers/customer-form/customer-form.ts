@@ -13,32 +13,32 @@ import { FormArray, ReactiveFormsModule, Validators, type FormControl } from '@a
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { TranslocoPipe } from '@jsverse/transloco';
 
-import { ApiIstemcisi } from '@core/api/api-istemcisi';
-import type { CeviriAnahtari } from '@core/i18n/ceviri-anahtarlari';
-import { type UnsavedChangesOwner, pageLeaveGuard } from '@core/form/kaydedilmemis-degisiklik';
-import { ToastService } from '@core/geri-bildirim/toast-service';
-import { WarningBannerService } from '@core/geri-bildirim/warning-banner-service';
-import { translationFunction } from '@core/i18n/ceviri';
+import { ApiIstemcisi } from '@core/api/api-client';
+import type { CeviriAnahtari } from '@core/i18n/translation-keys';
+import { type UnsavedChangesOwner, pageLeaveGuard } from '@core/form/unsaved-changes';
+import { ToastService } from '@core/feedback/toast-service';
+import { WarningBannerService } from '@core/feedback/warning-banner-service';
+import { translationFunction } from '@core/i18n/translation';
 import { SessionService } from '@core/oturum/session-service';
-import { tabContext } from '@core/sekme/tab-state';
-import { FetchPolicy } from '@core/veri/fetch-policy';
-import { mergeServerValues } from '@features/planlama-ortak/form-yardimcilari';
+import { tabContext } from '@core/tabs/tab-state';
+import { FetchPolicy } from '@core/data/fetch-policy';
+import { mergeServerValues } from '@features/planning-shared/form-helpers';
 import { suggestionList } from '@features/vehicles/suggestions';
-import { DateTimePipe } from '@shared/bicim/bicim-pipe';
-import { Alan } from '@shared/form/alan/alan';
+import { DateTimePipe } from '@shared/format/format-pipe';
+import { Alan } from '@shared/form/field/field';
 import { formSubmission } from '@shared/form/form-submission';
 import { FormErrors } from '@shared/form/form-errors';
-import { TextInput } from '@shared/form/kontroller/text-input';
-import { Checkbox } from '@shared/form/kontroller/checkbox';
-import { MoneyInput } from '@shared/form/kontroller/money-input';
-import { NumberInput } from '@shared/form/kontroller/number-input';
-import type { SecenekOgesi } from '@shared/form/kontroller/secenek';
-import { Selection } from '@shared/form/kontroller/selection';
-import { TabbedForm, TabPanel, type SekmeTanimi } from '@shared/form/sekmeli-form/tabbed-form';
-import { DatePicker } from '@shared/form/tarih/date-picker';
-import { Icon } from '@shared/ikon/icon';
+import { TextInput } from '@shared/form/controls/text-input';
+import { Checkbox } from '@shared/form/controls/checkbox';
+import { MoneyInput } from '@shared/form/controls/money-input';
+import { NumberInput } from '@shared/form/controls/number-input';
+import type { SecenekOgesi } from '@shared/form/controls/option';
+import { Selection } from '@shared/form/controls/selection';
+import { TabbedForm, TabPanel, type SekmeTanimi } from '@shared/form/tabbed-form/tabbed-form';
+import { DatePicker } from '@shared/form/date/date-picker';
+import { Icon } from '@shared/icon/icon';
 
-import { PageBand } from '../../../kabuk/sayfa-bandi/page-band';
+import { PageBand } from '../../../shell/page-band/page-band';
 import { CUSTOMERS, CUSTOMER_TYPES, customerPath, type CustomerCard } from '../customer-model';
 import {
   CustomerCardStore,

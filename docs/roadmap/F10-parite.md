@@ -52,7 +52,7 @@
    `shift-editor.spec.ts`.
 2. **SPA içi bağlantılar.** Panel (filo analiz, finans analiz, "km'si geçen bakım" kutusu) ve araç ekranları (liste,
    kart, detay "Araç Karnesi") rapora eski arayüzün adresiyle tam sayfa gidiyordu. Artık SPA rotasıyla açılıyorlar.
-   Çit: `kesis-f10.spec.ts`.
+   Çit: `cutover-f10.spec.ts`.
 
 ## Bilinçli farklar (gerekçeli)
 
@@ -77,7 +77,7 @@
   - oturum düşünce yerinde giriş, sonra AYNI anahtar ve gövdeyle tekrar;
   - `cakisma` formu silmez: güncel kayıt kirli forma birleşir, sonraki PUT yeni sürümle gider.
 - `shift-editor.spec.ts` ayrıca: sil onaylı ve rapor tazelenir, yetkisizde bölüm yok, 320/390/768 taşma 0.
-- `kesis-f10.spec.ts` (F10.3b):
+- `cutover-f10.spec.ts` (F10.3b):
   - 26 eski adres SPA'ya gider (sorgu ve fragment korunur, doğru başlık);
   - rapor ekranlarında Blazor rapor sayfasına düşen bağlantı yok;
   - araç ekranlarındaki "Araç Karnesi" SPA içinde açılır.

@@ -2,20 +2,20 @@ import { ChangeDetectionStrategy, Component, computed, inject, viewChildren } fr
 import { TranslocoPipe } from '@jsverse/transloco';
 import { map } from 'rxjs';
 
-import { ApiIstemcisi } from '@core/api/api-istemcisi';
-import type { Schema } from '@core/api/ui-tipleri';
-import { pageLeaveGuard } from '@core/form/kaydedilmemis-degisiklik';
-import type { CeviriAnahtari } from '@core/i18n/ceviri-anahtarlari';
-import { translationFunction } from '@core/i18n/ceviri';
+import { ApiIstemcisi } from '@core/api/api-client';
+import type { Schema } from '@core/api/ui-types';
+import { pageLeaveGuard } from '@core/form/unsaved-changes';
+import type { CeviriAnahtari } from '@core/i18n/translation-keys';
+import { translationFunction } from '@core/i18n/translation';
 import { SessionService } from '@core/oturum/session-service';
-import { DefinitionCrud } from '@shared/form/tanim-crud/definition-crud';
+import { DefinitionCrud } from '@shared/form/definition-crud/definition-crud';
 import {
   type TanimAlani,
   type DefinitionSource,
   type DefinitionRow,
   restDefinitionSource,
-} from '@shared/form/tanim-crud/definition-source';
-import { PageBand } from '../../../kabuk/sayfa-bandi/page-band';
+} from '@shared/form/definition-crud/definition-source';
+import { PageBand } from '../../../shell/page-band/page-band';
 
 type PageList = Schema<'SayfaOfPageRowDto'>;
 

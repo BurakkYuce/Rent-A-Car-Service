@@ -2,9 +2,9 @@ import { ChangeDetectionStrategy, Component, computed, input } from '@angular/co
 import { RouterLink } from '@angular/router';
 import { TranslocoPipe } from '@jsverse/transloco';
 
-import { FORMAT_PIPES } from '@shared/bicim/bicim-pipe';
+import { FORMAT_PIPES } from '@shared/format/format-pipe';
 
-import type { VadeKutusu, VadeSatiri } from './panel-modeli';
+import type { VadeKutusu, VadeSatiri } from './panel-model';
 
 /**
  * Hatırlatmalar (Yol v2 §6 `rc-hatirlatma-listesi`): vade kademeleri matrisi (1 hafta / 30 gün kalan / tarihi

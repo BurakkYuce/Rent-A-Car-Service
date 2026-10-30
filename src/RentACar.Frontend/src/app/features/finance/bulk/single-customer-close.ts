@@ -12,18 +12,18 @@ import { FormControl, FormGroup, FormRecord, Validators } from '@angular/forms';
 import { ActivatedRoute } from '@angular/router';
 
 import { moneySubmission } from '@core/form/money-submission';
-import { ApiIstemcisi } from '@core/api/api-istemcisi';
-import { formatMoney } from '@core/bicim/bicim';
-import { type UnsavedChangesOwner, pageLeaveGuard } from '@core/form/kaydedilmemis-degisiklik';
-import { ConfirmService } from '@core/geri-bildirim/confirm-service';
-import { ToastService } from '@core/geri-bildirim/toast-service';
-import { translationFunction } from '@core/i18n/ceviri';
-import { FetchPolicy } from '@core/veri/fetch-policy';
-import { TemelStore } from '@core/veri/temel-store';
+import { ApiIstemcisi } from '@core/api/api-client';
+import { formatMoney } from '@core/format/format';
+import { type UnsavedChangesOwner, pageLeaveGuard } from '@core/form/unsaved-changes';
+import { ConfirmService } from '@core/feedback/confirm-service';
+import { ToastService } from '@core/feedback/toast-service';
+import { translationFunction } from '@core/i18n/translation';
+import { FetchPolicy } from '@core/data/fetch-policy';
+import { TemelStore } from '@core/data/base-store';
 import {
   type SecimSecenegi,
   serverSelectionSource,
-} from '@shared/form/arama-secim/selection-source';
+} from '@shared/form/search-selection/selection-source';
 
 import {
   type AccountKind,

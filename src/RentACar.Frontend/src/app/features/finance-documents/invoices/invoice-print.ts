@@ -2,8 +2,8 @@ import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
 import { ActivatedRoute } from '@angular/router';
 import { TranslocoPipe } from '@jsverse/transloco';
 
-import { FULL_PAGE_NAVIGATION } from '@core/form/kaydedilmemis-degisiklik';
-import { PageBand } from '../../../kabuk/sayfa-bandi/page-band';
+import { FULL_PAGE_NAVIGATION } from '@core/form/unsaved-changes';
+import { PageBand } from '../../../shell/page-band/page-band';
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 

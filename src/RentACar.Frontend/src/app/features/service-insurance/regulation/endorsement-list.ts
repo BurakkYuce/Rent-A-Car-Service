@@ -3,24 +3,24 @@ import { FormControl, FormGroup, ReactiveFormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { TranslocoPipe } from '@jsverse/transloco';
 
-import type { DayText } from '@core/form/tarih-girdisi';
-import { translationFunction } from '@core/i18n/ceviri';
-import { FetchPolicy } from '@core/veri/fetch-policy';
-import { listQueryUrlSync } from '@core/veri/liste-sorgusu-url';
-import { textValue } from '@features/planlama-ortak/form-yardimcilari';
-import { Alan } from '@shared/form/alan/alan';
-import { TextInput } from '@shared/form/kontroller/text-input';
-import { DatePicker } from '@shared/form/tarih/date-picker';
-import { Table } from '@shared/tablo/table';
-import { TableCell } from '@shared/tablo/table-cell';
+import type { DayText } from '@core/form/date-input';
+import { translationFunction } from '@core/i18n/translation';
+import { FetchPolicy } from '@core/data/fetch-policy';
+import { listQueryUrlSync } from '@core/data/list-query-url';
+import { textValue } from '@features/planning-shared/form-helpers';
+import { Alan } from '@shared/form/field/field';
+import { TextInput } from '@shared/form/controls/text-input';
+import { DatePicker } from '@shared/form/date/date-picker';
+import { Table } from '@shared/table/table';
+import { TableCell } from '@shared/table/table-cell';
 
 import { endorsementColumns } from '../service-insurance-columns';
 import { ENDORSEMENT_LIST, type EndorsementRow } from '../service-insurance-model';
 import { EndorsementListStore } from '../service-insurance.store';
 import { RegulationTabs } from './regulation-tabs';
-import { PageBand } from '../../../kabuk/sayfa-bandi/page-band';
-import { FilterPanelComponent } from '@shared/filtre-paneli/filtre-paneli';
-import { PlateChipComponent } from '@shared/plaka/plaka';
+import { PageBand } from '../../../shell/page-band/page-band';
+import { FilterPanelComponent } from '@shared/filter-panel/filter-panel';
+import { PlateChipComponent } from '@shared/plate/plate';
 
 /**
  * Zeyiller (`/app/regulasyon/zeyiller`, #301) — Blazor `/regulasyon` "Zeyil (Poliçe Ekleri)" tablosu: TÜM poliçelerin

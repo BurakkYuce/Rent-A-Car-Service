@@ -3,18 +3,18 @@ import { toSignal } from '@angular/core/rxjs-interop';
 import { FormControl, FormGroup, Validators } from '@angular/forms';
 
 import { moneySubmission } from '@core/form/money-submission';
-import { ApiIstemcisi, type QueryParameters } from '@core/api/api-istemcisi';
-import { type UnsavedChangesOwner, pageLeaveGuard } from '@core/form/kaydedilmemis-degisiklik';
-import { bugun } from '@core/form/tarih-girdisi';
-import { ToastService } from '@core/geri-bildirim/toast-service';
-import { translationFunction } from '@core/i18n/ceviri';
-import { FetchPolicy } from '@core/veri/fetch-policy';
-import { TemelStore } from '@core/veri/temel-store';
-import { currencyCode } from '@features/kira-formu/finans-paneli/finans-modeli';
+import { ApiIstemcisi, type QueryParameters } from '@core/api/api-client';
+import { type UnsavedChangesOwner, pageLeaveGuard } from '@core/form/unsaved-changes';
+import { bugun } from '@core/form/date-input';
+import { ToastService } from '@core/feedback/toast-service';
+import { translationFunction } from '@core/i18n/translation';
+import { FetchPolicy } from '@core/data/fetch-policy';
+import { TemelStore } from '@core/data/base-store';
+import { currencyCode } from '@features/rental-form/finance-panel/finance-model';
 import {
   type SecimSecenegi,
   serverSelectionSource,
-} from '@shared/form/arama-secim/selection-source';
+} from '@shared/form/search-selection/selection-source';
 
 import {
   type CustomerTransferRequest,

@@ -4,15 +4,15 @@ import { RouterLink } from '@angular/router';
 import { TranslocoPipe } from '@jsverse/transloco';
 import type { Observable } from 'rxjs';
 
-import { toApiError } from '@core/api/api-hatasi';
-import { ApiIstemcisi } from '@core/api/api-istemcisi';
-import type { Schema } from '@core/api/ui-tipleri';
-import { ToastService } from '@core/geri-bildirim/toast-service';
-import { translationFunction } from '@core/i18n/ceviri';
-import { MenuRefresh } from '@core/sayac/menu-refresh';
-import { TemelStore } from '@core/veri/temel-store';
-import { DatePipe, DateTimePipe } from '@shared/bicim/bicim-pipe';
-import { PageBand } from '../../../kabuk/sayfa-bandi/page-band';
+import { toApiError } from '@core/api/api-error';
+import { ApiIstemcisi } from '@core/api/api-client';
+import type { Schema } from '@core/api/ui-types';
+import { ToastService } from '@core/feedback/toast-service';
+import { translationFunction } from '@core/i18n/translation';
+import { MenuRefresh } from '@core/counters/menu-refresh';
+import { TemelStore } from '@core/data/base-store';
+import { DatePipe, DateTimePipe } from '@shared/format/format-pipe';
+import { PageBand } from '../../../shell/page-band/page-band';
 
 type NotificationCenter = Schema<'NotificationCenterDto'>;
 type NotificationItem = Schema<'NotificationDto'>;

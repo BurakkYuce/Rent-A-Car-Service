@@ -1,12 +1,12 @@
 import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
 import { TranslocoPipe } from '@jsverse/transloco';
 
-import { ApiIstemcisi } from '@core/api/api-istemcisi';
-import type { Schema } from '@core/api/ui-tipleri';
-import { TemelStore } from '@core/veri/temel-store';
-import { DatePipe } from '@shared/bicim/bicim-pipe';
+import { ApiIstemcisi } from '@core/api/api-client';
+import type { Schema } from '@core/api/ui-types';
+import { TemelStore } from '@core/data/base-store';
+import { DatePipe } from '@shared/format/format-pipe';
 
-import { PageBand } from '../../../kabuk/sayfa-bandi/page-band';
+import { PageBand } from '../../../shell/page-band/page-band';
 import { kilobytes } from './documents-page';
 
 type PlatformDocument = Schema<'PlatformDocumentDto'>;

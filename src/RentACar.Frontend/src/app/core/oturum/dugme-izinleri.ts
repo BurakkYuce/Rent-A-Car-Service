@@ -1,4 +1,4 @@
-import type { Permission } from './oturum-tipleri';
+import type { Permission } from './session-types';
 
 /** Bir düğmenin (ya da bağlantının) görünürlük kapısı ve tetiklediği sunucu ucu. */
 export interface DugmeIzni {

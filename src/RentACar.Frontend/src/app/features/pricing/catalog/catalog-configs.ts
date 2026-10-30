@@ -1,4 +1,4 @@
-import type { CeviriAnahtari } from '@core/i18n/ceviri-anahtarlari';
+import type { CeviriAnahtari } from '@core/i18n/translation-keys';
 
 import type { CatalogColumn, CatalogConfig, CatalogField } from './catalog-model';
 

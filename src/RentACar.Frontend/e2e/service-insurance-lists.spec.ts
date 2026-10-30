@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 
-import { BEN, seriousViolations, collectErrors, logIn } from './ortak';
+import { BEN, seriousViolations, collectErrors, logIn } from './common';
 import { POLICY_1, serviceInsuranceEndpoints } from './service-insurance-fakes';
 
 /**

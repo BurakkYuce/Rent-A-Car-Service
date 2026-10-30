@@ -1,6 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
 
-import { BEN, seriousViolations, collectErrors, logIn, problem, writeXsrf } from './ortak';
+import { BEN, seriousViolations, collectErrors, logIn, problem, writeXsrf } from './common';
 import {
   INSPECTION_1,
   MTV_1,
@@ -12,7 +12,7 @@ import {
   serviceDetail,
   serviceInsuranceEndpoints,
 } from './service-insurance-fakes';
-import { waitReady, measureOverflow, type VitrinSayfasi } from './vitrin-sayfalari';
+import { waitReady, measureOverflow, type VitrinSayfasi } from './showcase-pages';
 
 /**
  * F9.2 servis / sigorta / vade / fiyat-tarife ekranları. Üç zorunlu senaryo PARA formunda (MTV ödemesi): doğrulama

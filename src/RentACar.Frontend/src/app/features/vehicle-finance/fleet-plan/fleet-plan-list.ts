@@ -15,31 +15,31 @@ import { RouterLink } from '@angular/router';
 import { TranslocoPipe } from '@jsverse/transloco';
 import { catchError, debounceTime, finalize, map, of, startWith, switchMap } from 'rxjs';
 
-import { toApiError } from '@core/api/api-hatasi';
-import { ApiIstemcisi } from '@core/api/api-istemcisi';
-import type { SelectionEndpointItem } from '@core/api/ui-tipleri';
-import { type UnsavedChangesOwner, pageLeaveGuard } from '@core/form/kaydedilmemis-degisiklik';
-import { ConfirmService } from '@core/geri-bildirim/confirm-service';
-import { ToastService } from '@core/geri-bildirim/toast-service';
-import { WarningBannerService } from '@core/geri-bildirim/warning-banner-service';
-import { translationFunction } from '@core/i18n/ceviri';
+import { toApiError } from '@core/api/api-error';
+import { ApiIstemcisi } from '@core/api/api-client';
+import type { SelectionEndpointItem } from '@core/api/ui-types';
+import { type UnsavedChangesOwner, pageLeaveGuard } from '@core/form/unsaved-changes';
+import { ConfirmService } from '@core/feedback/confirm-service';
+import { ToastService } from '@core/feedback/toast-service';
+import { WarningBannerService } from '@core/feedback/warning-banner-service';
+import { translationFunction } from '@core/i18n/translation';
 import { DUGME_IZINLERI } from '@core/oturum/dugme-izinleri';
 import { SessionService } from '@core/oturum/session-service';
 import { requestContext } from '@core/oturum/request-context';
 import { genelGosterilir } from '@core/oturum/session-interceptor';
-import { FetchPolicy } from '@core/veri/fetch-policy';
-import { listQueryUrlSync } from '@core/veri/liste-sorgusu-url';
-import { mergeServerValues } from '@features/planlama-ortak/form-yardimcilari';
+import { FetchPolicy } from '@core/data/fetch-policy';
+import { listQueryUrlSync } from '@core/data/list-query-url';
+import { mergeServerValues } from '@features/planning-shared/form-helpers';
 import { SUGGESTION_DELAY_MS } from '@features/vehicles/suggestions';
 import { toNumber } from '@features/vehicles/vehicle-model';
-import { NumberPipe } from '@shared/bicim/bicim-pipe';
-import { Alan } from '@shared/form/alan/alan';
+import { NumberPipe } from '@shared/format/format-pipe';
+import { Alan } from '@shared/form/field/field';
 import { formSubmission } from '@shared/form/form-submission';
 import { FormErrors } from '@shared/form/form-errors';
-import { TextInput } from '@shared/form/kontroller/text-input';
-import { NumberInput } from '@shared/form/kontroller/number-input';
-import { Table } from '@shared/tablo/table';
-import { TableCell } from '@shared/tablo/table-cell';
+import { TextInput } from '@shared/form/controls/text-input';
+import { NumberInput } from '@shared/form/controls/number-input';
+import { Table } from '@shared/table/table';
+import { TableCell } from '@shared/table/table-cell';
 
 import { fleetPlanColumns, signed } from '../finance-columns';
 import { FLEET_PLAN_LIST, type FleetPlan } from '../finance-model';
@@ -51,7 +51,7 @@ import {
   fleetPlanToForm,
   fleetPlanTotals,
 } from './fleet-plan-model';
-import { PageBand } from '../../../kabuk/sayfa-bandi/page-band';
+import { PageBand } from '../../../shell/page-band/page-band';
 
 type Editing = { readonly kind: 'new' } | { readonly kind: 'record'; readonly id: string };
 

@@ -13,10 +13,10 @@ kısa kurallardır; genel bağlam kökteki `CLAUDE.md` ve `docs/roadmap/` altın
 - **`any` yasak.** Bilinmeyen veri `unknown` + daraltma.
 - **Türkçe güvenli metin:** ham `toLowerCase()`/`toUpperCase()`, argümansız `toLocale*Case()` ve
   `lowercase`/`uppercase`/`titlecase` pipe'ları yasak ("I/ı", "İ/i" bozulur, arama kaçar).
-  `@core/metin/tr-normalize` (`trKucukHarf`, `trBuyukHarf`, `trNormalize`) kullanın.
+  `@core/text/tr-normalize` (`trKucukHarf`, `trBuyukHarf`, `trNormalize`) kullanın.
 - **Yalnız göreli URL:** `src/` içinde `http(s)://` ile başlayan metin yasak. XSRF header'ı yalnız
   göreli URL'lere eklenir; CSP `connect-src 'self'`. **Tek istisna — harici paylaşım (F4.3b):**
-  `src/app/shared/dis-baglantilar.ts` içinde YALNIZ `https://wa.me/` ve Gmail taslak kökü
+  `src/app/shared/external-links.ts` içinde YALNIZ `https://wa.me/` ve Gmail taslak kökü
   (`https://mail.google.com/mail/?view=cm&fs=1`) yazılabilir (lint seçicisi bu iki kökü birebir tanır; başka
   mutlak adres o dosyada da hata). Gerekçe: bunlar API çağrısı değil, kullanıcının yeni sekmede açtığı gezinme
   bağlantısıdır (`window.open`, `noopener`) — XSRF/`connect-src` kapsamına girmez; dosya `@angular/common/http`
@@ -49,7 +49,7 @@ kısa kurallardır; genel bağlam kökteki `CLAUDE.md` ve `docs/roadmap/` altın
   `-cok-dar` 30rem): bileşen SCSS'inde `@use 'kirilim';` (`includePaths: src/styles`); ham kırılım
   değeri yazılmaz.
 - **Tema:** `:root` açık; `prefers-color-scheme: dark` + `:root:not([data-theme=light])` koyu;
-  `[data-theme=dark]` her durumda koyu. `TemaServisi` (`@core/tema`) modu yazar/saklar
+  `[data-theme=dark]` her durumda koyu. `TemaServisi` (`@core/theme`) modu yazar/saklar
   (`localStorage` `rc.tema`, yalnız mod — kişisel veri değil) ve kiracı rengini `--rc-kiraci-*`
   değişkenlerine uygular; üstündeki metin ve okunur ton otomatik seçilir.
 - **Kontrast kapısı:** `npm run kontrast` iki temada metin ≥ 4.5, kontrol kenarı ve odak ≥ 3 denetler
@@ -59,28 +59,28 @@ kısa kurallardır; genel bağlam kökteki `CLAUDE.md` ve `docs/roadmap/` altın
 - **Font:** IBM Plex Sans 400/500/600 (`--rc-font`) + IBM Plex Sans Condensed 600 yalnız plaka
   (`--rc-font-plaka`); self-host woff2 (`src/styles/fonts/`, kaynak `@fontsource/*` devDependency,
   latin + latin-ext; ğ/Ğ/ş/Ş/İ/₺ latin-ext'te, ı/ç/ö/ü latin'de). Sayılar global `tabular-nums`.
-- **Biçim:** `@core/bicim/bicim` (`paraBicimle` → `1.234,56 ₺`, yarım kuruş sıfırdan uzağa;
+- **Biçim:** `@core/format/format` (`paraBicimle` → `1.234,56 ₺`, yarım kuruş sıfırdan uzağa;
   `tarihBicimle` → `dd.MM.yyyy`; `tarihSaatBicimle` İstanbul saatiyle) ve pipe'ları `para`, `sayi`,
-  `tarih`, `tarihSaat` (`@shared/bicim/bicim-pipe`). `LOCALE_ID = 'tr'`. Kendi `toFixed`/`Intl`
+  `tarih`, `tarihSaat` (`@shared/format/format-pipe`). `LOCALE_ID = 'tr'`. Kendi `toFixed`/`Intl`
   biçimi yazılmaz.
 - **i18n:** Transloco, tek dil tr. Şablonda `'anahtar' | transloco`, TS'te tipli `ceviriFonksiyonu()`
   (anahtar birliği TÜM dosyalardan). Sözlük ikiye bölünür (çekirdek eki "rota bazlı tembel çeviri"):
   - **Çekirdek** `src/i18n/tr.json` — ilk pakete gömülü; YALNIZ kabuk/core/shared ya da birden çok
     özelliğin ortak metni (`form`, `tablo`, `kabuk`, `oturum`, `geriBildirim`…).
   - **Özellik bloğu** `src/i18n/bloklar/<blok>.json` — ayrı tembel parça, rota `canActivate`'inde bileşenden
-    ÖNCE birleşir (`@core/i18n/ceviri-blogu`; anahtar yanıp sönmez, hata → parça hatası yolu). Üst düzey
+    ÖNCE birleşir (`@core/i18n/translation-block`; anahtar yanıp sönmez, hata → parça hatası yolu). Üst düzey
     anahtar → blok eşlemesi TEK yerde: `scripts/i18n-tipleri.mjs` `BLOK_HARITASI`.
   - **Yeni faz/özellik:** (1) `BLOK_HARITASI`'na `<ustAnahtar>: '<blok>'`; (2) metinleri
     `src/i18n/bloklar/<blok>.json`'a (üst düzey anahtar altında) yaz — `tr.json`'a yazılırsa `npm run i18n:tipler`
     taşır; (3) rotaya `canActivate: [ceviriBlogu('<blok>')]` ya da rota dizisine `ceviriBloguyla('<blok>', [...])`
-    (ör. `kira-formu.routes.ts`); başka özelliğin bloğunu kullanan sayfa onu da listeler; (4) `npm run i18n:tipler`.
+    (ör. `rental-form.routes.ts`); başka özelliğin bloğunu kullanan sayfa onu da listeler; (4) `npm run i18n:tipler`.
     Bloğu yüklemeyen rotada anahtar eksik anahtar gibi görünür (geliştirmede `EKSİK: …`) — e2e yakalar.
-  - Birim testleri rotadan geçmez: `src/test-saglayicilari.ts` (üretilir, `angular.json` `test.providersFile`)
-    tüm blokları önyükler. Rota yükleme davranışı `ceviri-blogu.spec.ts`'te.
-  - `npm run i18n:tipler` üretir/taşır (`ceviri-anahtarlari.ts`, `ceviri-bloklari.ts`, `test-saglayicilari.ts`, blok
+  - Birim testleri rotadan geçmez: `src/test-providers.ts` (üretilir, `angular.json` `test.providersFile`)
+    tüm blokları önyükler. Rota yükleme davranışı `translation-block.spec.ts`'te.
+  - `npm run i18n:tipler` üretir/taşır (`translation-keys.ts`, `translation-blocks.ts`, `test-providers.ts`, blok
     sırası); `lint` (`--kontrol`) bayatlığı ve `tr.json`'da kalmış blok anahtarını reddeder.
-- **İkonlar:** `<rc-ikon ad="…" />`, Tabler alt kümesi. Yeni ikon: `ikon-listesi.json`'a ekle,
-  `npm run ikonlar`. Üretilen `ikon-kaydi.ts` ve `ceviri-anahtarlari.ts` elle düzenlenmez; lint
+- **İkonlar:** `<rc-ikon ad="…" />`, Tabler alt kümesi. Yeni ikon: `icon-list.json`'a ekle,
+  `npm run ikonlar`. Üretilen `icon-registry.ts` ve `translation-keys.ts` elle düzenlenmez; lint
   bayatlığı yakalar.
 - **Primitifler:** sınıf tabanlı `rc-dugme` (`--birincil`, `--hayalet`, `--kucuk`, `--buyuk`,
   `--ikon`, `rc-dugme-grubu`), `rc-rozet` (`--basari|uyari|hata|bilgi`), `rc-iskelet`; bileşen
@@ -88,11 +88,11 @@ kısa kurallardır; genel bağlam kökteki `CLAUDE.md` ve `docs/roadmap/` altın
 
 ## Veri katmanı (F3.4)
 
-- **HTTP yalnız `ApiIstemcisi`** (`@core/api/api-istemcisi`): yol tip düzeyinde `/api/ui/v1/...`,
+- **HTTP yalnız `ApiIstemcisi`** (`@core/api/api-client`): yol tip düzeyinde `/api/ui/v1/...`,
   `withCredentials`, XSRF (`XSRF-TOKEN` → `X-XSRF-TOKEN`), her hata tipli `ApiHatasi { status, kod,
 detay, alanlar? }`. `features/**` içinde `HttpClient` içe aktarımı lint'le yasak. Otomatik yeniden
   deneme yok (`mukerrer`'de kayıt yeniden yüklenir, yeni anahtarla tekrar gönderilmez).
-- **Store verisi yalnız `TemelStore<T, P>`** (`@core/veri/temel-store`): dört durum
+- **Store verisi yalnız `TemelStore<T, P>`** (`@core/data/base-store`): dört durum
   `bos | yukleniyor | hazir | hata`; `switchMap` ile son istek kazanır; hata ASLA boş liste değildir
   ("Kayıt bulunamadı" için `kayitYok(durum)`). `features/**/store/**` ve `*.store.ts` içinde ham
   `.subscribe(` lint'le yasak.
@@ -101,24 +101,24 @@ detay, alanlar? }`. `features/**` içinde `HttpClient` içe aktarımı lint'le y
 - **Liste sorgusu:** `listeTanimi({ filtreler, siralanabilir, varsayilanSirala })` + sayfada
   `listeSorgusuUrlSenkronu(tanim)`. URL tek doğruluk kaynağı; bozuk parametre varsayılana düşer,
   `boyut` 1..200, `sirala` beyaz listeden. Yazarken `{ yaziyor: true }` (replaceUrl).
-- Katlanır filtre: `<rc-katlanir-filtre>` (`@shared/katlanir-filtre`); kap stilsiz, aç/kapa düğmesi `rc-dugme`.
+- Katlanır filtre: `<rc-katlanir-filtre>` (`@shared/collapsible-filter`); kap stilsiz, aç/kapa düğmesi `rc-dugme`.
 - İlk gerçek liste ekranı: `features/kiralar/kira-listesi` (F4.2) — `listeTanimi` + URL senkronu + üç
-  `FetchPolicy` bağı (liste, özet, öneriler) + `TahsilatAnahtar`'lı "Tahsil Et" (`tahsil-paneli.ts`). Yeni liste
+  `FetchPolicy` bağı (liste, özet, öneriler) + `TahsilatAnahtar`'lı "Tahsil Et" (`collect-panel.ts`). Yeni liste
   ekranı bu kablolamayı örnek alır.
 
 ## Oturum ve geri bildirim (F3.3)
 
-- **Oturum:** `OturumServisi` (`@core/oturum/oturum-servisi`) — `ben()` (üretilen `BenYaniti`), `girisYapildi()`,
+- **Oturum:** `OturumServisi` (`@core/oturum/session-service`) — `ben()` (üretilen `BenYaniti`), `girisYapildi()`,
   `izinVar('FinanceWrite')`, `baglam()` (= `OTURUM_BAGLAMI`), `girisYap`, `cikisYap` (tam temizlik: kayıtlı
   temizleyiciler + `rc.*` localStorage/sessionStorage, `rc.tema` hariç), `temizlikKaydet(fn)` (sekmeler, önbellekler
   çıkışta silinsin diye buraya kaydolur). Rotalar: `canMatch: [oturumGuard]` ya da `[izinGuard('FinanceWrite')]`
-  (`@core/oturum/oturum-guard`); `/giris` `misafirGuard`. Dönüş adresi yalnız uygulama içi (`guvenliDonusAdresi`).
+  (`@core/oturum/session-guard`); `/giris` `misafirGuard`. Dönüş adresi yalnız uygulama içi (`guvenliDonusAdresi`).
 - **Hatalar `kod`'a göre** (`oturumInterceptor`, `provideApiIstemcisi(oturumInterceptor)`): `oturum_yok` → yerinde
   yeniden giriş diyaloğu + AYNI isteğin taze XSRF ile tekrarı (sayfadan gidilmez); `xsrf_gecersiz` → belirteç
   yenilenip BİR kez tekrar; `yetki_yok`/`pilot_degil`/alansız `cakisma` → uyarı bandı; `mukerrer` → tekrar YOK,
   `MUKERRERDE_YENILE` çağrılır + bilgi toast'u; `cok_istek` → uyarı toast'u; 5xx/ağ → hata toast'u;
   `kiraci_kapali` → giriş sayfası. İstek bayrakları: `istekBaglami({ sessiz, yenidenGirisYok, mukerrerdeYenile })`
-  (`@core/oturum/istek-baglami`) → `ApiIstemcisi` `context`.
+  (`@core/oturum/request-context`) → `ApiIstemcisi` `context`.
 - **Form hatası:** F3.6 `formGonderimi` alanları kontrollere yazar; interceptor'ın sayfa düzeyinde gösterdiği
   kodlar (`genelGosterilir`: `yetki_yok`, `pilot_degil`, `mukerrer`, `cok_istek`, 5xx, ağ, `kiraci_kapali`) forma ikinci kez yazılmaz. `ONAY_ISTEMI` (kaydedilmemiş değişiklik) = CDK onay diyaloğu
   (`cdkOnayIstemi`). Form değerlerine hiçbir dalda dokunulmaz.
@@ -131,7 +131,7 @@ detay, alanlar? }`. `features/**` içinde `HttpClient` içe aktarımı lint'le y
   ana paket adı 5 dk'da bir (ve sekme görünür olunca) karşılaştırılır → "Yenile" bildirimi; ChunkLoadError → hedef
   adrese tek kontrollü yenileme (`rc.parcaYenileme`, 60 sn döngü koruması). Yakalanmamış hata oturum açıkken
   `POST /api/ui/v1/istemci-hata`'ya raporlanır (yalnız yol, sorgu dizesi yok; sayfa başına 10).
-- e2e: `e2e/oturum.spec.ts` `/api/ui/v1`'i Playwright ile sahteler (`e2e/ortak.ts`); vitrin formu
+- e2e: `e2e/session.spec.ts` `/api/ui/v1`'i Playwright ile sahteler (`e2e/common.ts`); vitrin formu
   `/app/vitrin/geri-bildirim` bu sözleşmeyi gösterir (canlıda uç yok).
 
 ## Form seti (F3.6)
@@ -151,7 +151,7 @@ detay, alanlar? }`. `features/**` içinde `HttpClient` içe aktarımı lint'le y
   (F4.4; eski `odaktaSec` seçeneği kalktı): yazılan önceden dolu tutarın sonuna eklenmez, yerine geçer.
 - **Alan:** her kontrol `<rc-alan etiket="…" ipucu="…">` içinde: etiket `for`, zorunlu `*` (doğrulayıcıdan),
   hata yuvası, `aria-invalid`/`aria-describedby`/`aria-required`. Radyo grubunda `grup`.
-- **Gönderim yalnız `formGonderimi()`** (`@shared/form/form-gonderimi`): çift tık tek istek, istemci
+- **Gönderim yalnız `formGonderimi()`** (`@shared/form/form-submission`): çift tık tek istek, istemci
   doğrulaması geçmezse istek gitmez, `Idempotency-Key` kuralı `GonderimKilidi`'nde (mantıksal gönderim
   başına anahtar, yeniden denemede aynı, her 2xx ve `mukerrer` sonrası yeni; deterministik sunucu
   anahtarı `deterministikAnahtar` ile dokunulmadan önce gelir), hata alanlara (`alanlar`), değerler
@@ -168,9 +168,9 @@ detay, alanlar? }`. `features/**` içinde `HttpClient` içe aktarımı lint'le y
 
 ## Kira formu (F4.3)
 
-- `features/kira-formu/`: TEK bileşen iki rotada (`/kiralar/yeni`, `/kiralar/:id`) + `/kiralar/:id/yazdir`
+- `features/rental-form/`: TEK bileşen iki rotada (`/kiralar/yeni`, `/kiralar/:id`) + `/kiralar/:id/yazdir`
   (sunucu PDF ucuna tam sayfa). Durum/eylemler `KiraFormuDurumu`'nda (sayfa `providers`), saf kurallar
-  `kira-formu-modeli.ts`'te (sorgu sözleşmesi `?varac&vfrom&vto&vgrup&musteriId`, `#sekme=…&alt=…`,
+  `rental-form-model.ts`'te (sorgu sözleşmesi `?varac&vfrom&vto&vgrup&musteriId`, `#sekme=…&alt=…`,
   gövdeler: POST whitelist, PUT 58 alanın HEPSİ). Tutar formülü YOK — `hesapla` / `donus-hesapla`.
 - Hızlı Giriş alanları AYNA: aynı `FormControl` iki girdiye bağlanamaz → `form.ayna` + `aynalariBagla`.
   Formu sıfırlarken YALNIZ `formuSifirla` (ayna değerleriyle birlikte; düz `reset` aynayı null'layıp
@@ -197,13 +197,13 @@ detay, alanlar? }`. `features/**` içinde `HttpClient` içe aktarımı lint'le y
     Katalog kesikse (`toplam > ogeler`) listede olmayan tanım sunucu aramasıyla (`q`) eklenir.
   - Kaynak / özel kod datalist önerileri yazılanla `q` ile sunucuda aranır (`oneriAramasi`, 250 ms).
   - Paylaş barı (`rc-kf-paylas-bari`): hazır metin sunucudan (`paylasim.mesaj`), link varsa kendi kökünden eklenir;
-    bağlantılar `@shared/dis-baglantilar`.
+    bağlantılar `@shared/external-links`.
 
 ## Tablo motoru (F3.5)
 
-- **`<rc-tablo>`** (`@shared/tablo/tablo`), TanStack `table-core` + `virtual-core` doğrudan (bağdaştırıcı
+- **`<rc-tablo>`** (`@shared/table/table`), TanStack `table-core` + `virtual-core` doğrudan (bağdaştırıcı
   yok, sürümler sabit). Rota ile TEMBEL yüklenen sayfada kullanılır (ilk pakete girmez). Örnek kablolama:
-  `features/vitrin/tablo-vitrini` (`/app/vitrin/tablo`, 49 sütun × 5.000 kayıt).
+  `features/showcase/table-showcase` (`/app/vitrin/tablo`, 49 sütun × 5.000 kayıt).
 - Girdiler: `etiket`, `sutunlar: TabloSutunu<T>[]` (`kod` kalıcı; `tur: para|sayi|tarih|tarihSaat|metin`,
   `sirala: true | 'apiAlani'`, `sabit`, `gizli`, `gizlenemez`, `genislik`), `kaynak` = `store.liste.durum()`
   (TemelStore; `Sayfa<T>` → sunucu sayfalaması), `satirKimligi`, `tabloKodu` (kullanıcı düzeni),
@@ -224,12 +224,12 @@ detay, alanlar? }`. `features/**` içinde `HttpClient` içe aktarımı lint'le y
 ## Kabuk ve sekmeli çalışma alanı (F3.2)
 
 - **Rotalar:** `/giris` kabuk DIŞINDA; geri kalan her şey `canMatch: [oturumGuard]` olan kabuk rotasının
-  (`kabuk/kabuk.routes.ts`, tembel) çocuğu. **Sayfa eklemek = `src/app/sayfalar.ts`'e satır:** `title`
+  (`shell/shell.routes.ts`, tembel) çocuğu. **Sayfa eklemek = `src/app/sayfalar.ts`'e satır:** `title`
   zorunlu (`'<Ad> — RentACar'` → belge başlığı + sekme etiketi), `loadComponent`, kirli form varsa
   `canDeactivate: [kaydedilmemisDegisiklikGuard]`, izin varsa `canMatch: [izinGuard(...)]`. Kayıt sayfası
   yol parametresi olarak YALNIZ `:id` kullanır (`kiralar/:id`); başka parametreli sayfa yenilemede geri gelmez.
 - **Kök, 404, izin reddi:** kök (`/app/`) → `/panel`; bilinmeyen adres → kabuğun `**` 404 sayfası
-  (`kabuk/not-found`, adres korunur, sekme açmaz); `izinGuard`/`anyPermissionGuard` reddi → uyarı bandı + `/panel`
+  (`shell/not-found`, adres korunur, sekme açmaz); `izinGuard`/`anyPermissionGuard` reddi → uyarı bandı + `/panel`
   (sunucunun `?hata=yetki_yok` hedefiyle aynı). Yer tutucu sayfa yok; vitrin rotaları gizli (bağlantısız) kalır —
   CI e2e/görsel kapıları onları üretim derlemesinde koşar. Veri istemeyen e2e sayfası: `/app/vitrin`.
 - **Menü:** `GET /api/ui/v1/menu`'den (`MenuStore` + `FetchPolicy`, 5 dk'da bir ve bağlam değişince tazelenir).
@@ -238,22 +238,22 @@ detay, alanlar? }`. `features/**` içinde `HttpClient` içe aktarımı lint'le y
   kaydedilmemiş değişiklik tek soruyla sorulur (`SekmeServisi.ayrilmaOnayi`), onaydan sonra `beforeunload`
   ikinci kez sormaz (`SayfaTerki`). Faz kesişinde (F5+) menü kaydında `sahip` `spa` olunca öğe kendiliğinden
   SPA'ya döner — kabukta kod değişmez. Etkin sayfa: en uzun `/`-sınırlı önek, `aria-current="page"`, grubu açılır.
-- **Ctrl+K / ⌘K:** komut paleti (tembel parça, CDK diyaloğu). Arama `trAramaAnahtari` (`@core/metin/tr-normalize`:
+- **Ctrl+K / ⌘K:** komut paleti (tembel parça, CDK diyaloğu). Arama `trAramaAnahtari` (`@core/text/tr-normalize`:
   `İş` = `iş` = `is`, `Işık` = `isik`). **CDK'yı dinamik `import('@angular/cdk/overlay')` ile ALMAYIN**: dinamik
   içe aktarılan modülün tüm dışa aktarımları canlı sayılır, `core.mjs` ve rxjs'in paylaşılan kısmı ilk pakete
   şişer (+12 kB ölçüldü). CDK tembel modülün içinde STATİK içe aktarılır, kabuk o modülü dinamik yükler.
 - **Mobil (≤ 900 px):** yan menü çekmece; açıkken içerik sütunu `inert`, Esc/perde kapatır, odak menü düğmesine döner.
 - **Yol v2 görünümü (`docs/tasarim/YOL-PLANI-v2.md` §5):** lacivert kenar çubuğu (`--rc-kenar-cubugu-*`; 240 px ↔
-  56 px şerit, `rc.kabuk.dar`), akordeon tek grup (`rc.menu.acik`), grup ikonu `menu-ikonlari.ts` (grup ADI →
+  56 px şerit, `rc.kabuk.dar`), akordeon tek grup (`rc.menu.acik`), grup ikonu `menu-icons.ts` (grup ADI →
   ikon; yeni sunucu grubu buraya). Kısayol çifti `+ Kira`/`+ Rezervasyon` sunucunun HIZLI bağlantılarından
-  (`kisayollar.ts`; izin süzmesi sunucuda). SPA kira listesi Kira grubunda kayıtlı görünümlerle
-  (`kiralar?gorunum=…`) açılır; sayaçlar `@core/sayac/kabuk-sayaclari` (kabuk istek ATMAZ — Panel yanıtı yayımlar).
+  (`shortcuts.ts`; izin süzmesi sunucuda). SPA kira listesi Kira grubunda kayıtlı görünümlerle
+  (`kiralar?gorunum=…`) açılır; sayaçlar `@core/counters/shell-counters` (kabuk istek ATMAZ — Panel yanıtı yayımlar).
   Kullanıcı kartı/çıkış kenar çubuğunun altında; üst çubukta tekrar yok. Üst çubuk erişilebilir adlarında
   "Plaka" GEÇMEZ ("Hızlı araç arama") — e2e'deki `getByLabel('Plaka')` form alanlarıyla çakışır.
-- **Sayfa bandı** `kabuk/sayfa-bandi` (`rc-sayfa-bandi`): sayfanın TEK `<h1>`'i; `[eylemler]` çerçeveli ikinciller
+- **Sayfa bandı** `shell/page-band` (`rc-sayfa-bandi`): sayfanın TEK `<h1>`'i; `[eylemler]` çerçeveli ikinciller
   (≤ 900 px "…" menüsüne iner), `[birincil]` tek dolu birincil. Stil kapsüllenmez (projeksiyondaki `.rc-dugme`
   bantta yeniden boyanır).
-- **Sekmeler** (`@core/sekme` ilk pakette küçük çekirdek + `kabuk/sekmeler` tembel): her kabuk sayfası (desen +
+- **Sekmeler** (`@core/tabs` ilk pakette küçük çekirdek + `shell/tabs` tembel): her kabuk sayfası (desen +
   yol parametreleri; sorgu/fragment HARİÇ) bir sekme. Başka sekmeye geçince bileşen YOK EDİLMEZ
   (`SekmeRotaStratejisi`, `RouteReuseStrategy`): form, kaydırma, sayfa store'u yaşar. Bu yüzden
   `kaydedilmemisDegisiklikGuard` sekme DEĞİŞİMİNDE sormaz, sekme KAPATILIRKEN sorar (arka plandaki kirli sekme
@@ -267,17 +267,17 @@ detay, alanlar? }`. `features/**` içinde `HttpClient` içe aktarımı lint'le y
   yeniden yükler (canlı pano, rozetli liste); form sayfası varsayılanda (`degisirse`) kalır.
 - Sayfa kendi `<main>`'ini açmaz (kabukta var); sayfa başlığı `h1`. Sayfa yüksekliği `100vh` değil (kabuk üst
   çubuğu + sekme çubuğu ≈ 5 rem).
-- e2e: `oturumAc` menüyü de sahteler (`e2e/ortak.ts` `MENU`); Blazor ekranı `page.route('**/<yol>')` ile sahte
-  HTML. `e2e/kabuk.spec.ts` menü/etkin sayfa/Ctrl+K/390 px çekmece/sekmeler.
+- e2e: `oturumAc` menüyü de sahteler (`e2e/common.ts` `MENU`); Blazor ekranı `page.route('**/<yol>')` ile sahte
+  HTML. `e2e/shell.spec.ts` menü/etkin sayfa/Ctrl+K/390 px çekmece/sekmeler.
 
 ## Vitrin ve kontroller (F3.7)
 
 - **Vitrin** `/app/vitrin` (dizin) → `tokenlar`, `primitifler`, `form`, `tanim`, `tablo`, `geri-bildirim`, `kabuk`.
-  Yeni çekirdek parçası = vitrinde sayfa + `sayfalar.ts` satırı + dizine bağlantı + `e2e/vitrin-sayfalari.ts`
-  satırı. Liste uygulamadan türetilmez; `e2e/vitrin.spec.ts` dizinin bu listeyle birebir olduğunu denetler.
+  Yeni çekirdek parçası = vitrinde sayfa + `sayfalar.ts` satırı + dizine bağlantı + `e2e/showcase-pages.ts`
+  satırı. Liste uygulamadan türetilmez; `e2e/showcase.spec.ts` dizinin bu listeyle birebir olduğunu denetler.
 - **Her vitrin sayfası (CI `e2e` işi):** açık + koyu temada axe ciddi/kritik 0 ve konsol hatası yok; 320/390/768
   (dokunmatik öykünme) ve 1440 px'te gövde yatay taşması 0 (`scripts/mobil-tasma.mjs`'in SPA karşılığı, suçlu
-  elemanı raporlar); görsel regresyon açık/koyu × 320/390/768/1440, tam sayfa (`e2e/gorsel.spec.ts`).
+  elemanı raporlar); görsel regresyon açık/koyu × 320/390/768/1440, tam sayfa (`e2e/visual.spec.ts`).
 - **Görsel tabanlar** `e2e/gorsel-tabanlari/` YALNIZ `mcr.microsoft.com/playwright:v<@playwright/test>-noble`
   imajında, linux/amd64 üretilir (macOS çizimi farklı; `gorsel` projesi Linux dışında atlanır). CI `e2e` işi
   bu imajın içinde koşar. Doğrula `npm run e2e:gorsel`, güncelle `npm run e2e:gorsel:guncelle` (ikisi de
@@ -286,8 +286,8 @@ detay, alanlar? }`. `features/**` içinde `HttpClient` içe aktarımı lint'le y
   Kasıtlı görünüm değişikliği yapan PR tabanları AYNI PR'da günceller. `@playwright/test` yükseltmesi =
   `ci.yml` + `gorsel-taban.yml` imaj etiketi + tabanların yeniden üretimi (etiket uyuşmazsa CI tarayıcıyı
   bulamayıp kırılır).
-- **Faz çıkışı e2e:** "doğrulama hatasında form korunur" (`form.spec.ts`, `oturum.spec.ts` (a)), "oturum
-  düşünce form kaybolmaz" (`oturum.spec.ts` (b)/(b2)), "`cakisma` formu silmez" (`oturum.spec.ts` (c)) —
+- **Faz çıkışı e2e:** "doğrulama hatasında form korunur" (`form.spec.ts`, `session.spec.ts` (a)), "oturum
+  düşünce form kaybolmaz" (`session.spec.ts` (b)/(b2)), "`cakisma` formu silmez" (`session.spec.ts` (c)) —
   hepsi `npm run e2e` ile CI'da.
 
 ## Paket bütçesi
@@ -297,7 +297,7 @@ detay, alanlar? }`. `features/**` içinde `HttpClient` içe aktarımı lint'le y
   ile CSS. Bütçe `angular.json`'da uyarı **392 kB** (≈ ölçüm + 20), hata **430 kB** (gerekçe dosyada yorum
   olarak). Uyarı aşılırsa eşiği yükseltmeden önce ilk pakete neyin girdiğini ölçün.
 - İlk pakete yalnız her ekranda gereken çekirdek girer. Sayfa/özellik, CDK, diyaloglar, komut paleti,
-  sekme makinesi, tablo motoru tembel. **İkon kaydı** (`ikon-kaydi.ts`, ~10 kB) de tembel: `<rc-ikon>` ilk
+  sekme makinesi, tablo motoru tembel. **İkon kaydı** (`icon-registry.ts`, ~10 kB) de tembel: `<rc-ikon>` ilk
   çizimde yükler (kutu boyutu korunur), `PendingTasks`'e kayıtlı. Çekirdek `tr.json` bilinçli gömülü (~8 kB;
   ilk çizimde anahtar yanıp sönmez); özellik metinleri rota parçasıyla gelen bloklarda (yukarıdaki "i18n").
 - Ölçüm: `npx ng build --stats-json` → `dist/rentacar-frontend/stats.json` (esbuild metafile).
@@ -326,12 +326,12 @@ durumunda `test-results/` — iz, gerçek/fark PNG'leri — artifact). Yerelde i
 ## API tipleri (`/api/ui/v1`)
 
 - Kaynak: `docs/api/ui-v1.json` (.NET testi `UiApiOpenApiTests` canlı OpenAPI ile birebir kilitler).
-- `npm run tipler` → `src/app/core/api/uretilen/ui-v1.ts` (openapi-typescript, sabit sürüm; Prettier'dan
+- `npm run tipler` → `src/app/core/api/generated/ui-v1.ts` (openapi-typescript, sabit sürüm; Prettier'dan
   geçer). **Üretilen dosya commit'lenir ve elle düzenlenmez**; ESLint onu yok sayar. `prebuild`/`prewatch`
   her derlemede yeniden üretir.
-- Kod tipleri **doğrudan üretilen dosyadan değil** `@core/api/ui-tipleri`'nden alır (`BenYaniti`,
+- Kod tipleri **doğrudan üretilen dosyadan değil** `@core/api/ui-types`'nden alır (`BenYaniti`,
   `MenuYaniti`…). Özellik kendi takma adlarını kendi klasöründe `Sema<'KiraDetayYaniti'>` ile kurar
-  (ör. `features/kira-formu/kira-tipleri.ts`). API'de alan adı/tipi değişirse: .NET testi JSON'u güncelletir → `npm run tipler` →
+  (ör. `features/rental-form/rental-types.ts`). API'de alan adı/tipi değişirse: .NET testi JSON'u güncelletir → `npm run tipler` →
   kullanan kod `typecheck`'te kırılır. JSON değişip tipler üretilmezse CI `tipler:kontrol` kırmızı.
 - API değiştiğinde akış: `RACAR_OPENAPI_GUNCELLE=1 dotnet test --filter UiApiOpenApiTests` →
   `npm run tipler` → ikisini birlikte commit'le.

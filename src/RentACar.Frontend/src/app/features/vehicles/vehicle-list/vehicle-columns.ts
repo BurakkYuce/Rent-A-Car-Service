@@ -1,5 +1,5 @@
-import type { CeviriAnahtari } from '@core/i18n/ceviri-anahtarlari';
-import type { TabloSutunu } from '@shared/tablo/tablo-modeli';
+import type { CeviriAnahtari } from '@core/i18n/translation-keys';
+import type { TabloSutunu } from '@shared/table/table-model';
 
 import { toNumber, type VehicleListRow } from '../vehicle-model';
 

@@ -2,7 +2,7 @@ import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
 import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { TranslocoPipe } from '@jsverse/transloco';
 
-import { Icon } from '@shared/ikon/icon';
+import { Icon } from '@shared/icon/icon';
 
 import { PlatformSessionService } from './platform-session';
 

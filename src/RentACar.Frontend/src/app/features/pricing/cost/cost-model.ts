@@ -1,8 +1,8 @@
-import type { Sayfa } from '@core/api/sayfa';
-import type { Schema } from '@core/api/ui-tipleri';
-import { invariantDecimal } from '@core/form/ondalik';
-import type { CeviriAnahtari } from '@core/i18n/ceviri-anahtarlari';
-import { listDefinition } from '@core/veri/liste-sorgusu';
+import type { Sayfa } from '@core/api/page';
+import type { Schema } from '@core/api/ui-types';
+import { invariantDecimal } from '@core/form/decimal';
+import type { CeviriAnahtari } from '@core/i18n/translation-keys';
+import { listDefinition } from '@core/data/list-query';
 
 export type CostInput = Schema<'CostInputDto'>;
 export type CostResult = Schema<'CostResultDto'>;

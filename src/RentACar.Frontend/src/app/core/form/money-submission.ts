@@ -2,16 +2,16 @@ import { DestroyRef, type Signal, effect, inject, signal, untracked } from '@ang
 import type { AbstractControl, FormGroup } from '@angular/forms';
 import { firstValueFrom } from 'rxjs';
 
-import { type ApiHatasi, toApiError } from '@core/api/api-hatasi';
-import { ApiIstemcisi, type ApiPath } from '@core/api/api-istemcisi';
-import { ConfirmService } from '@core/geri-bildirim/confirm-service';
-import { ToastService } from '@core/geri-bildirim/toast-service';
-import { translationFunction } from '@core/i18n/ceviri';
-import type { CeviriAnahtari } from '@core/i18n/ceviri-anahtarlari';
+import { type ApiHatasi, toApiError } from '@core/api/api-error';
+import { ApiIstemcisi, type ApiPath } from '@core/api/api-client';
+import { ConfirmService } from '@core/feedback/confirm-service';
+import { ToastService } from '@core/feedback/toast-service';
+import { translationFunction } from '@core/i18n/translation';
+import type { CeviriAnahtari } from '@core/i18n/translation-keys';
 import { requestContext } from '@core/oturum/request-context';
 import { genelGosterilir } from '@core/oturum/session-interceptor';
 import { SessionService } from '@core/oturum/session-service';
-import type { Ben } from '@core/oturum/oturum-tipleri';
+import type { Ben } from '@core/oturum/session-types';
 import { ReloginService } from '@core/oturum/relogin-service';
 
 import { newOperationKey } from './submit-lock';
@@ -31,7 +31,7 @@ import {
   customNotice,
   duplicateNotice,
 } from './money-notice';
-import { clearServerErrors, applyServerErrors } from './sunucu-hatalari';
+import { clearServerErrors, applyServerErrors } from './server-errors';
 import { unknownOutcomeError } from './collection-attempt';
 
 /** Yeni bir para işleminin isteği (donmuş deneme YOKSA kurulur). */

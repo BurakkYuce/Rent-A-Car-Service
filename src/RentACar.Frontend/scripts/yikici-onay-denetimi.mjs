@@ -54,20 +54,20 @@ const TANIM_CRUD = {
   neden:
     'Genel tanım CRUD kaynağının `sil` fonksiyonu; çağıran rc-tanim-crud iki adımlı satır içi onay kullanır ' +
     '(confirmDelete → onay satırı → remove).',
-  kanit: ['src/app/shared/form/tanim-crud/definition-crud.ts', 'protected confirmDelete('],
+  kanit: ['src/app/shared/form/definition-crud/definition-crud.ts', 'protected confirmDelete('],
 };
 const EXCEPTIONS = new Map([
   [
     'src/app/core/oturum/dugme-izinleri.ts:DUGME_IZINLERI',
     { neden: 'Düğme izin haritasının belge metni (uç adı); HTTP çağrısı değil.' },
   ],
-  ['src/app/shared/form/tanim-crud/definition-source.ts:restDefinitionSource', TANIM_CRUD],
+  ['src/app/shared/form/definition-crud/definition-source.ts:restDefinitionSource', TANIM_CRUD],
   [
     'src/app/features/vehicles/vehicle-definitions/definition-source.ts:definitionSource',
     TANIM_CRUD,
   ],
   [
-    'src/app/shared/tablo/table-layout-store.ts:reset',
+    'src/app/shared/table/table-layout-store.ts:reset',
     {
       neden:
         'Kullanıcının KENDİ tablo düzenini (sütun/sıralama tercihi) varsayılana döndürür; iş verisi değil, ' +
@@ -75,7 +75,7 @@ const EXCEPTIONS = new Map([
     },
   ],
   [
-    'src/app/features/kira-formu/rental-form-state.ts:closePreAuth',
+    'src/app/features/rental-form/rental-form-state.ts:closePreAuth',
     {
       neden:
         'Manuel provizyon kapama: kullanıcının tutar/iade seçimini elle doldurduğu form gönderimi (tek tık değil); ' +
@@ -89,7 +89,7 @@ function files(dir) {
   for (const e of readdirSync(dir, { withFileTypes: true })) {
     const p = join(dir, e.name);
     if (e.isDirectory()) {
-      if (e.name === 'uretilen') continue;
+      if (e.name === 'generated') continue;
       out.push(...files(p));
     } else if (e.name.endsWith('.ts') && !e.name.endsWith('.spec.ts')) out.push(p);
   }

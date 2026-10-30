@@ -1,4 +1,4 @@
-import { parseQuery } from '@core/veri/liste-sorgusu';
+import { parseQuery } from '@core/data/list-query';
 
 import { findReport } from './report-catalog';
 import { defineReport, defineView } from './report-model';

@@ -11,21 +11,21 @@ import { Router, RouterLink } from '@angular/router';
 import { TranslocoPipe } from '@jsverse/transloco';
 import { firstValueFrom } from 'rxjs';
 
-import { toApiError } from '@core/api/api-hatasi';
-import { ApiIstemcisi } from '@core/api/api-istemcisi';
-import { MAX_SIZE, type Sayfa } from '@core/api/sayfa';
-import { ConfirmService } from '@core/geri-bildirim/confirm-service';
-import { ToastService } from '@core/geri-bildirim/toast-service';
-import { translationFunction } from '@core/i18n/ceviri';
-import { TemelStore } from '@core/veri/temel-store';
-import { NumberPipe, DatePipe, DateTimePipe } from '@shared/bicim/bicim-pipe';
-import { Alan } from '@shared/form/alan/alan';
+import { toApiError } from '@core/api/api-error';
+import { ApiIstemcisi } from '@core/api/api-client';
+import { MAX_SIZE, type Sayfa } from '@core/api/page';
+import { ConfirmService } from '@core/feedback/confirm-service';
+import { ToastService } from '@core/feedback/toast-service';
+import { translationFunction } from '@core/i18n/translation';
+import { TemelStore } from '@core/data/base-store';
+import { NumberPipe, DatePipe, DateTimePipe } from '@shared/format/format-pipe';
+import { Alan } from '@shared/form/field/field';
 import { formSubmission } from '@shared/form/form-submission';
 import { FormErrors } from '@shared/form/form-errors';
-import { TextInput } from '@shared/form/kontroller/text-input';
-import type { SecenekOgesi } from '@shared/form/kontroller/secenek';
-import { Selection } from '@shared/form/kontroller/selection';
-import { Icon } from '@shared/ikon/icon';
+import { TextInput } from '@shared/form/controls/text-input';
+import type { SecenekOgesi } from '@shared/form/controls/option';
+import { Selection } from '@shared/form/controls/selection';
+import { Icon } from '@shared/icon/icon';
 
 import {
   PLATFORM_API,
@@ -38,7 +38,7 @@ import {
   toggleTarget,
   toNumber,
 } from '../platform-model';
-import { PageBand } from '../../../kabuk/sayfa-bandi/page-band';
+import { PageBand } from '../../../shell/page-band/page-band';
 import { PlatformSessionService } from '../platform-session';
 
 interface ListQuery {

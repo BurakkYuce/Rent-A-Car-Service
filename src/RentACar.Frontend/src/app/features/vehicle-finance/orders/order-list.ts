@@ -14,29 +14,29 @@ import { Router, RouterLink } from '@angular/router';
 import { TranslocoPipe } from '@jsverse/transloco';
 import { finalize } from 'rxjs';
 
-import { toApiError } from '@core/api/api-hatasi';
-import { ApiIstemcisi } from '@core/api/api-istemcisi';
-import { ConfirmService } from '@core/geri-bildirim/confirm-service';
-import { ToastService } from '@core/geri-bildirim/toast-service';
-import { translationFunction } from '@core/i18n/ceviri';
+import { toApiError } from '@core/api/api-error';
+import { ApiIstemcisi } from '@core/api/api-client';
+import { ConfirmService } from '@core/feedback/confirm-service';
+import { ToastService } from '@core/feedback/toast-service';
+import { translationFunction } from '@core/i18n/translation';
 import { SessionService } from '@core/oturum/session-service';
 import { genelGosterilir } from '@core/oturum/session-interceptor';
-import { FetchPolicy } from '@core/veri/fetch-policy';
-import { listQueryUrlSync } from '@core/veri/liste-sorgusu-url';
-import { Alan } from '@shared/form/alan/alan';
-import { SearchSelection } from '@shared/form/arama-secim/search-selection';
+import { FetchPolicy } from '@core/data/fetch-policy';
+import { listQueryUrlSync } from '@core/data/list-query-url';
+import { Alan } from '@shared/form/field/field';
+import { SearchSelection } from '@shared/form/search-selection/search-selection';
 import {
   type SecimSecenegi,
   serverSelectionSource,
-} from '@shared/form/arama-secim/selection-source';
-import { TextInput } from '@shared/form/kontroller/text-input';
-import type { SecenekOgesi } from '@shared/form/kontroller/secenek';
-import { Selection } from '@shared/form/kontroller/selection';
-import { DatePicker } from '@shared/form/tarih/date-picker';
-import { Icon } from '@shared/ikon/icon';
-import type { DisaAktarma } from '@shared/tablo/disa-aktarma';
-import { Table } from '@shared/tablo/table';
-import { TableCell } from '@shared/tablo/table-cell';
+} from '@shared/form/search-selection/selection-source';
+import { TextInput } from '@shared/form/controls/text-input';
+import type { SecenekOgesi } from '@shared/form/controls/option';
+import { Selection } from '@shared/form/controls/selection';
+import { DatePicker } from '@shared/form/date/date-picker';
+import { Icon } from '@shared/icon/icon';
+import type { DisaAktarma } from '@shared/table/export';
+import { Table } from '@shared/table/table';
+import { TableCell } from '@shared/table/table-cell';
 
 import { orderColumns } from '../finance-columns';
 import {
@@ -49,8 +49,8 @@ import {
 } from '../finance-model';
 import { ORDERS, OrderListStore, recordPath } from '../finance.store';
 import { CustomerLabels } from '../labels';
-import { PageBand } from '../../../kabuk/sayfa-bandi/page-band';
-import { FilterPanelComponent } from '@shared/filtre-paneli/filtre-paneli';
+import { PageBand } from '../../../shell/page-band/page-band';
+import { FilterPanelComponent } from '@shared/filter-panel/filter-panel';
 
 type OrderStatus = (typeof ORDER_STATUSES)[number];
 type Transition = 'onayla' | 'teslim-al' | 'iptal';

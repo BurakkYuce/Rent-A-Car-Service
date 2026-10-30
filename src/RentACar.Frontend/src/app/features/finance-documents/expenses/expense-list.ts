@@ -10,29 +10,29 @@ import {
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { TranslocoPipe } from '@jsverse/transloco';
 
-import { type UnsavedChangesOwner, pageLeaveGuard } from '@core/form/kaydedilmemis-degisiklik';
+import { type UnsavedChangesOwner, pageLeaveGuard } from '@core/form/unsaved-changes';
 import { PAGE_MONEY_ATTEMPTS, PendingMoneyAttempts } from '@core/form/money-attempts';
-import { translationFunction } from '@core/i18n/ceviri';
+import { translationFunction } from '@core/i18n/translation';
 import { SessionService } from '@core/oturum/session-service';
-import { FetchPolicy } from '@core/veri/fetch-policy';
-import { listQueryUrlSync } from '@core/veri/liste-sorgusu-url';
+import { FetchPolicy } from '@core/data/fetch-policy';
+import { listQueryUrlSync } from '@core/data/list-query-url';
 import { CustomerLabels } from '@features/vehicle-finance/labels';
 import { exportParameters } from '@features/vehicle-finance/finance-model';
 import { toNumber } from '@features/vehicles/vehicle-model';
-import { Alan } from '@shared/form/alan/alan';
-import { SearchSelection } from '@shared/form/arama-secim/search-selection';
+import { Alan } from '@shared/form/field/field';
+import { SearchSelection } from '@shared/form/search-selection/search-selection';
 import {
   type SecimSecenegi,
   serverSelectionSource,
-} from '@shared/form/arama-secim/selection-source';
-import { TextInput } from '@shared/form/kontroller/text-input';
-import type { SecenekOgesi } from '@shared/form/kontroller/secenek';
-import { Selection } from '@shared/form/kontroller/selection';
-import { DatePicker } from '@shared/form/tarih/date-picker';
-import { Icon } from '@shared/ikon/icon';
-import type { DisaAktarma } from '@shared/tablo/disa-aktarma';
-import { Table } from '@shared/tablo/table';
-import { TableCell } from '@shared/tablo/table-cell';
+} from '@shared/form/search-selection/selection-source';
+import { TextInput } from '@shared/form/controls/text-input';
+import type { SecenekOgesi } from '@shared/form/controls/option';
+import { Selection } from '@shared/form/controls/selection';
+import { DatePicker } from '@shared/form/date/date-picker';
+import { Icon } from '@shared/icon/icon';
+import type { DisaAktarma } from '@shared/table/export';
+import { Table } from '@shared/table/table';
+import { TableCell } from '@shared/table/table-cell';
 
 import { expenseColumns } from '../document-columns';
 import {
@@ -45,9 +45,9 @@ import {
 import { BranchNames, ExpenseStore } from '../document.store';
 import { ExpenseCreateForm } from './expense-create-form';
 import { ExpensePaymentForm, expensePaymentScope } from './expense-payment-form';
-import { ConfirmService } from '@core/geri-bildirim/confirm-service';
-import { PageBand } from '../../../kabuk/sayfa-bandi/page-band';
-import { PlateChipComponent } from '@shared/plaka/plaka';
+import { ConfirmService } from '@core/feedback/confirm-service';
+import { PageBand } from '../../../shell/page-band/page-band';
+import { PlateChipComponent } from '@shared/plate/plate';
 
 /**
  * Giderler (`/app/giderler`) — Blazor `ExpenseList.razor` paritesi: yeni gider (FinanceWrite, `Idempotency-Key`),

@@ -4,10 +4,10 @@ import { provideRouter, Router, UrlTree } from '@angular/router';
 import { TranslocoService } from '@jsverse/transloco';
 import { firstValueFrom } from 'rxjs';
 
-import { ApiHatasi } from '@core/api/api-hatasi';
-import { provideApiClient } from '@core/api/api-istemcisi';
-import { WarningBannerService } from '@core/geri-bildirim/warning-banner-service';
-import { provideTranslation } from '@core/i18n/ceviri';
+import { ApiHatasi } from '@core/api/api-error';
+import { provideApiClient } from '@core/api/api-client';
+import { WarningBannerService } from '@core/feedback/warning-banner-service';
+import { provideTranslation } from '@core/i18n/translation';
 import { sessionInterceptor } from '@core/oturum/session-interceptor';
 import { SessionService } from '@core/oturum/session-service';
 

@@ -1,14 +1,14 @@
 import type { Routes } from '@angular/router';
 
-import { unsavedChangesGuard } from '@core/form/kaydedilmemis-degisiklik';
-import { ceviriBlogu, withTranslationBlock } from '@core/i18n/ceviri-blogu';
+import { unsavedChangesGuard } from '@core/form/unsaved-changes';
+import { ceviriBlogu, withTranslationBlock } from '@core/i18n/translation-block';
 import { permissionGuard } from '@core/oturum/session-guard';
 import { FINANCE_ROUTES } from '@features/finance/finance.routes';
 import { CRM_ROUTES } from '@features/crm/crm.routes';
 import { CUSTOMER_ROUTES } from '@features/customers/customers.routes';
 import { DEFINITION_ROUTES } from '@features/definitions/definitions.routes';
 import { FINANCE_DOCUMENT_ROUTES } from '@features/finance-documents/finance-documents.routes';
-import { RENTAL_FORM_ROUTES } from '@features/kira-formu/kira-formu.routes';
+import { RENTAL_FORM_ROUTES } from '@features/rental-form/rental-form.routes';
 import { PRICING_ROUTES } from '@features/pricing/pricing.routes';
 import { REPORT_ROUTES } from '@features/reports/reports.routes';
 import { RESERVATION_ROUTES } from '@features/rezervasyonlar/rezervasyonlar.routes';
@@ -34,7 +34,7 @@ import { VEHICLE_ROUTES } from '@features/vehicles/vehicles.routes';
 /**
  * Kök (`/app/`) → Panel. Eski "yapım aşamasında" yer tutucusu kalktı (kabul testi: bilinmeyen adres ve yetki reddi
  * son kullanıcıya geliştirici vitrin bağlantılarını gösteriyordu). Sunucunun girişi ve hata hedefleri de Panel'dir
- * (`Cutover.SpaPanel`). Bilinmeyen adres: kabuğun `**` 404 sayfası (`kabuk.routes.ts`).
+ * (`Cutover.SpaPanel`). Bilinmeyen adres: kabuğun `**` 404 sayfası (`shell.routes.ts`).
  */
 export const HOME_REDIRECT: Routes[number] = { path: '', pathMatch: 'full', redirectTo: 'panel' };
 
@@ -61,8 +61,7 @@ export const PAGES: Routes = [
     // okumalarıyla aynı); kira listesi gibi rota kapısı yok — izinsiz rol uç 403'ünü uyarı bandıyla görür.
     path: 'kabis',
     title: 'KABİS bildirimleri — RentACar',
-    loadComponent: () =>
-      import('@features/kiralar/kabis-listesi/kabis-list').then((m) => m.KabisList),
+    loadComponent: () => import('@features/kiralar/kabis-list/kabis-list').then((m) => m.KabisList),
     canActivate: [ceviriBlogu('kiralar')],
   },
   // F5.2b planlama ekranları (Blazor /takvim, /musaitlik, /rez-sartlari, /filo-kiralama). Kayıt sayfası
@@ -74,34 +73,34 @@ export const PAGES: Routes = [
       path: 'takvim',
       title: 'Rezervasyon Takvimi — RentACar',
       canMatch: [permissionGuard('OperationsWrite')],
-      loadComponent: () => import('@features/takvim/calendar-page').then((m) => m.CalendarPage),
+      loadComponent: () => import('@features/calendar/calendar-page').then((m) => m.CalendarPage),
     },
     {
       path: 'musaitlik',
       title: 'Müsait Araç Ara — RentACar',
       canMatch: [permissionGuard('OperationsWrite')],
       loadComponent: () =>
-        import('@features/musaitlik/availability-page').then((m) => m.AvailabilityPage),
+        import('@features/availability/availability-page').then((m) => m.AvailabilityPage),
     },
     {
       path: 'rez-sartlari',
       title: 'Rez Şartları — RentACar',
       canMatch: [permissionGuard('OperationsWrite')],
       loadComponent: () =>
-        import('@features/rez-sartlari/reservation-terms').then((m) => m.ReservationTerms),
+        import('@features/reservation-terms/reservation-terms').then((m) => m.ReservationTerms),
       canDeactivate: [unsavedChangesGuard],
     },
     {
       path: 'filo-kiralama',
       title: 'Filo Kiralama — RentACar',
       canMatch: [permissionGuard('OperationsWrite')],
-      loadComponent: () => import('@features/filo-kiralama/fleet-list').then((m) => m.FleetList),
+      loadComponent: () => import('@features/fleet-rentals/fleet-list').then((m) => m.FleetList),
     },
     {
       path: 'filo-kiralama/yeni',
       title: 'Yeni Filo Sözleşmesi — RentACar',
       canMatch: [permissionGuard('OperationsWrite')],
-      loadComponent: () => import('@features/filo-kiralama/fleet-new').then((m) => m.FleetNew),
+      loadComponent: () => import('@features/fleet-rentals/fleet-new').then((m) => m.FleetNew),
       canDeactivate: [unsavedChangesGuard],
     },
     {
@@ -109,7 +108,7 @@ export const PAGES: Routes = [
       title: 'Filo Sözleşmesi — RentACar',
       canMatch: [permissionGuard('OperationsWrite')],
       loadComponent: () =>
-        import('@features/filo-kiralama/fleet-detail').then((m) => m.FleetDetail),
+        import('@features/fleet-rentals/fleet-detail').then((m) => m.FleetDetail),
       canDeactivate: [unsavedChangesGuard],
     },
   ]),
@@ -123,19 +122,19 @@ export const PAGES: Routes = [
       path: 'vitrin',
       title: 'Vitrin — RentACar',
       loadComponent: () =>
-        import('@features/vitrin/vitrin-dizini/showcase-index').then((m) => m.ShowcaseIndex),
+        import('@features/showcase/showcase-index/showcase-index').then((m) => m.ShowcaseIndex),
     },
     {
       path: 'vitrin/tokenlar',
       title: 'Token vitrini — RentACar',
       loadComponent: () =>
-        import('@features/vitrin/tokenlar-vitrini/tokens-showcase').then((m) => m.TokensShowcase),
+        import('@features/showcase/tokens-showcase/tokens-showcase').then((m) => m.TokensShowcase),
     },
     {
       path: 'vitrin/primitifler',
       title: 'Primitif vitrini — RentACar',
       loadComponent: () =>
-        import('@features/vitrin/primitif-vitrini/primitive-showcase').then(
+        import('@features/showcase/primitive-showcase/primitive-showcase').then(
           (m) => m.PrimitiveShowcase,
         ),
     },
@@ -143,28 +142,28 @@ export const PAGES: Routes = [
       path: 'vitrin/kabuk',
       title: 'Kabuk vitrini — RentACar',
       loadComponent: () =>
-        import('@features/vitrin/kabuk-vitrini/shell-showcase').then((m) => m.ShellShowcase),
+        import('@features/showcase/shell-showcase/shell-showcase').then((m) => m.ShellShowcase),
     },
     {
       // F3.3 oturum/geri bildirim vitrini (F3.7 vitrininin parçası); e2e bunun üstünde koşar.
       path: 'vitrin/geri-bildirim',
       title: 'Geri bildirim vitrini — RentACar',
       loadComponent: () =>
-        import('@features/vitrin/feedback-showcase').then((m) => m.FeedbackShowcase),
+        import('@features/showcase/feedback-showcase').then((m) => m.FeedbackShowcase),
     },
     {
       // F3.6 form seti vitrini (F3.7 vitrininin parçası); e2e bunun üstünde koşar.
       path: 'vitrin/form',
       title: 'Form vitrini — RentACar',
       loadComponent: () =>
-        import('@features/vitrin/form-vitrini/form-showcase').then((m) => m.FormShowcase),
+        import('@features/showcase/form-showcase/form-showcase').then((m) => m.FormShowcase),
       canDeactivate: [unsavedChangesGuard],
     },
     {
       path: 'vitrin/tanim',
       title: 'Tanım vitrini — RentACar',
       loadComponent: () =>
-        import('@features/vitrin/tanim-vitrini/definition-showcase').then(
+        import('@features/showcase/definition-showcase/definition-showcase').then(
           (m) => m.DefinitionShowcase,
         ),
       canDeactivate: [unsavedChangesGuard],
@@ -174,7 +173,7 @@ export const PAGES: Routes = [
       path: 'vitrin/tablo',
       title: 'Tablo vitrini — RentACar',
       loadComponent: () =>
-        import('@features/vitrin/tablo-vitrini/table-showcase').then((m) => m.TableShowcase),
+        import('@features/showcase/table-showcase/table-showcase').then((m) => m.TableShowcase),
     },
   ]),
   // F4.3 kira formu: /kiralar/yeni, /kiralar/:id, /kiralar/:id/yazdir.

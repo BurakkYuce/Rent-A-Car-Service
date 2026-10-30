@@ -18,16 +18,16 @@ import {
 } from '@angular/forms';
 import { TranslocoPipe } from '@jsverse/transloco';
 
-import { ApiIstemcisi } from '@core/api/api-istemcisi';
-import { ToastService } from '@core/geri-bildirim/toast-service';
-import { translationFunction } from '@core/i18n/ceviri';
+import { ApiIstemcisi } from '@core/api/api-client';
+import { ToastService } from '@core/feedback/toast-service';
+import { translationFunction } from '@core/i18n/translation';
 import { toNumber } from '@features/vehicles/vehicle-model';
-import { Alan } from '@shared/form/alan/alan';
+import { Alan } from '@shared/form/field/field';
 import { formSubmission } from '@shared/form/form-submission';
 import { FormErrors } from '@shared/form/form-errors';
-import { TextInput } from '@shared/form/kontroller/text-input';
-import { NumberInput } from '@shared/form/kontroller/number-input';
-import { DateTimePicker } from '@shared/form/tarih/date-time-picker';
+import { TextInput } from '@shared/form/controls/text-input';
+import { NumberInput } from '@shared/form/controls/number-input';
+import { DateTimePicker } from '@shared/form/date/date-time-picker';
 
 import type { Allocation } from '../finance-model';
 import { ALLOCATIONS, recordPath } from '../finance.store';

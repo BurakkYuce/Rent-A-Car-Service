@@ -16,17 +16,17 @@ import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angula
 import { TranslocoPipe } from '@jsverse/transloco';
 import { type Observable, switchMap } from 'rxjs';
 
-import { toApiError } from '@core/api/api-hatasi';
-import { ApiIstemcisi } from '@core/api/api-istemcisi';
-import { ConfirmService } from '@core/geri-bildirim/confirm-service';
-import { ToastService } from '@core/geri-bildirim/toast-service';
-import type { CeviriAnahtari } from '@core/i18n/ceviri-anahtarlari';
-import { translationFunction } from '@core/i18n/ceviri';
-import { DatePipe } from '@shared/bicim/bicim-pipe';
-import { Alan } from '@shared/form/alan/alan';
+import { toApiError } from '@core/api/api-error';
+import { ApiIstemcisi } from '@core/api/api-client';
+import { ConfirmService } from '@core/feedback/confirm-service';
+import { ToastService } from '@core/feedback/toast-service';
+import type { CeviriAnahtari } from '@core/i18n/translation-keys';
+import { translationFunction } from '@core/i18n/translation';
+import { DatePipe } from '@shared/format/format-pipe';
+import { Alan } from '@shared/form/field/field';
 import { formSubmission } from '@shared/form/form-submission';
 import { FormErrors } from '@shared/form/form-errors';
-import { TextInput } from '@shared/form/kontroller/text-input';
+import { TextInput } from '@shared/form/controls/text-input';
 
 import {
   type DomainDto,

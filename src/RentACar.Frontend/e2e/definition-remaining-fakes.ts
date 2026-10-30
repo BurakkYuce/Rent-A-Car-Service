@@ -1,6 +1,6 @@
 import type { Page, Route } from '@playwright/test';
 
-import { kaydet } from './ortak';
+import { kaydet } from './common';
 import type { DefinitionWrite } from './definition-fakes';
 
 /** F11.2c tanım ekranlarının sahte uçları. */

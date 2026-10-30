@@ -1,6 +1,6 @@
 import type { Page, Route } from '@playwright/test';
 
-import { kaydet, type KayitliIstek } from './ortak';
+import { kaydet, type KayitliIstek } from './common';
 
 /** F6.2a araç ekranları için sahte `/api/ui/v1` (değerler elle kurulmuş; uygulama kodundan türetilmez). */
 export const VEHICLE_1 = 'a1a1a1a1-0000-4000-8000-000000000001';

@@ -1,5 +1,5 @@
-import type { Schema } from '@core/api/ui-tipleri';
-import type { CeviriAnahtari } from '@core/i18n/ceviri-anahtarlari';
+import type { Schema } from '@core/api/ui-types';
+import type { CeviriAnahtari } from '@core/i18n/translation-keys';
 
 /** Faturanın e-belge (e-Fatura / e-Arşiv) durumu — `GET /faturalar/{id}` `eBelge`. */
 export type EDocument = Schema<'EDocumentDto'>;
